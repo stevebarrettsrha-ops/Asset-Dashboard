@@ -204,7 +204,6 @@
             cursor: pointer;
         }
 
-        /* Search Results Box - 4.5 inches */
         .search-results-box {
             background: white;
             border: 2px solid var(--primary-green);
@@ -336,7 +335,15 @@
         }
 
         .chart-container {
-            height: 320px;
+            position: relative;
+            height: 300px;
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        .chart-container canvas {
+            max-width: 100% !important;
+            max-height: 100% !important;
         }
 
         .data-section {
@@ -449,7 +456,6 @@
             color: var(--dark-orange);
         }
 
-        /* Monthly Breakdown Styles */
         .monthly-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -545,6 +551,28 @@
             color: #7f8c8d;
             font-size: 0.9em;
         }
+
+        .error-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .error-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .error-box ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .error-box li {
+            margin: 8px 0;
+        }
     </style>
 </head>
 <body>
@@ -558,11 +586,11 @@
                     
                     <div class="status-bar">
                         <div class="status-item">
-                            <span class="status-indicator" id="statusIndicator"></span>
-                            <span id="statusText">Loading data...</span>
+                            <span class="status-indicator" id="statusIndicator" class="loading"></span>
+                            <span id="statusText">Initializing...</span>
                         </div>
                         <div class="status-item">
-                            <span id="lastUpdateText">Initializing...</span>
+                            <span id="lastUpdateText">Starting up...</span>
                         </div>
                         <button class="btn refresh-btn" onclick="loadData()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
@@ -570,7 +598,6 @@
                 </div>
             </div>
 
-            <!-- Search Section with Results Box -->
             <div class="search-section">
                 <h2 class="search-title">🔍 Asset Search Engine</h2>
                 <div class="search-container">
@@ -584,7 +611,6 @@
                     <button class="clear-btn" onclick="clearSearch()">Clear</button>
                 </div>
                 
-                <!-- Search Results Box - 4.5 inches -->
                 <div class="search-results-box" id="searchResultsBox">
                     <div class="search-results-header" id="searchResultsHeader">Search Results</div>
                     <div id="searchResultsContent"></div>
@@ -617,10 +643,14 @@
                         <button class="toggle-btn" onclick="switchView('donated', this)">Donated</button>
                     </div>
                 </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                    <strong style="font-size: 1.2em; color: var(--dark-gray);">Grand Total: </strong>
+                    <span id="grandTotalDisplay" style="font-size: 1.5em; font-weight: 700; color: var(--primary-green);">JMD 0.00</span>
+                </div>
                 <div class="table-container" id="tableContainer">
                     <div class="loading">
                         <div class="loading-spinner"></div>
-                        <p>Loading asset data...</p>
+                        <p>Loading asset data from Google Sheets...</p>
                     </div>
                 </div>
             </div>
@@ -656,7 +686,7 @@
 
     <script>
         // ============================================
-        // 🔧 CONFIGURATION - Replace with your Sheet IDs
+        // 🔧 CONFIGURATION
         // ============================================
         const SHEET_CONFIG = {
             purchasedSheetId: '1_E2HAksHtZNVbK9svt9mfTmkLS3DCpgzS_RmLqrifL4',
@@ -694,82 +724,97 @@
             if (!purchasedId || !donatedId || 
                 purchasedId === 'YOUR_PURCHASED_SHEET_ID_HERE' || 
                 donatedId === 'YOUR_DONATED_SHEET_ID_HERE') {
-                updateStatus('error', 'Sheet IDs not configured');
+                updateStatus('error', 'Configuration needed');
                 document.getElementById('tableContainer').innerHTML = `
-                    <div class="loading">
-                        <p style="color: #ff4444; font-weight: 600;">⚠️ Configuration Required</p>
-                        <p>Please update SHEET_CONFIG with your Google Sheet IDs</p>
-                        <p style="margin-top: 10px; font-size: 0.9em;">
-                            1. Open this HTML in a text editor<br>
-                            2. Find SHEET_CONFIG at line ~520<br>
-                            3. Replace with your actual Sheet IDs<br>
-                            4. Save and refresh
-                        </p>
+                    <div class="error-box">
+                        <h4>⚙️ Setup Required</h4>
+                        <p>You need to "Publish to Web" instead of just sharing. This bypasses CORS issues.</p>
+                        <ol>
+                            <li>Open your Google Sheet</li>
+                            <li>Go to <strong>File → Share → Publish to web</strong></li>
+                            <li>Select <strong>"Entire Document"</strong></li>
+                            <li>Choose <strong>"Web page"</strong> format</li>
+                            <li>Click <strong>"Publish"</strong></li>
+                            <li>Copy the Sheet ID from the URL</li>
+                            <li>Paste it into this HTML file at SHEET_CONFIG (line ~520)</li>
+                        </ol>
+                        <p style="margin-top: 15px;"><strong>Note:</strong> "Publish to web" is MORE reliable than just "Share" for automatic fetching.</p>
                     </div>
                 `;
                 return;
             }
             
-            updateStatus('loading', 'Fetching data from Google Sheets...');
+            updateStatus('loading', 'Fetching from Google Sheets...');
+            console.log('Attempting to load data...');
+            console.log('Purchased ID:', purchasedId);
+            console.log('Donated ID:', donatedId);
             
             try {
-                await loadDataWithMultipleMethods(purchasedId, donatedId);
+                await loadWithCORSProxy(purchasedId, donatedId);
             } catch (error) {
-                console.error('Error:', error);
-                updateStatus('error', 'Error loading data');
+                console.error('All fetch methods failed:', error);
+                updateStatus('error', 'Unable to fetch data');
                 document.getElementById('tableContainer').innerHTML = `
-                    <div class="loading">
-                        <p style="color: #ff4444; font-weight: 600;">❌ Error Loading Data</p>
-                        <p>${error.message}</p>
-                        <p style="margin-top: 10px; font-size: 0.9em;">
-                            Make sure both sheets are set to:<br>
-                            <strong>"Anyone with the link can view"</strong>
+                    <div class="error-box">
+                        <h4>❌ Fetch Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <h4 style="margin-top: 20px;">💡 Solution: Use "Publish to Web"</h4>
+                        <ol>
+                            <li>Open each Google Sheet</li>
+                            <li><strong>File → Share → Publish to web</strong></li>
+                            <li>Select "Entire Document" + "Web page"</li>
+                            <li>Click "Publish" and confirm</li>
+                            <li>The Sheet ID remains the same</li>
+                            <li>Refresh this page</li>
+                        </ol>
+                        <p style="margin-top: 15px;"><strong>Why?</strong> "Publish to web" creates a public endpoint that doesn't have CORS restrictions, unlike regular sharing.</p>
+                        <p style="margin-top: 10px; padding: 10px; background: white; border-radius: 5px;">
+                            <strong>Test your sheets:</strong><br>
+                            <a href="https://docs.google.com/spreadsheets/d/${purchasedId}/edit" target="_blank">Test Purchased Sheet</a><br>
+                            <a href="https://docs.google.com/spreadsheets/d/${donatedId}/edit" target="_blank">Test Donated Sheet</a>
                         </p>
                     </div>
                 `;
             }
         }
 
-        async function loadDataWithMultipleMethods(purchasedId, donatedId) {
-            // Method 1: Direct fetch
-            try {
-                console.log('Trying direct fetch...');
-                const purchasedUrl = `https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx&id=${purchasedId}`;
-                const donatedUrl = `https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx&id=${donatedId}`;
-                
-                const [purchasedResponse, donatedResponse] = await Promise.all([
-                    fetch(purchasedUrl),
-                    fetch(donatedUrl)
-                ]);
-                
-                if (purchasedResponse.ok && donatedResponse.ok) {
-                    await processResponses(purchasedResponse, donatedResponse);
-                    return;
-                }
-            } catch (error) {
-                console.log('Direct fetch failed:', error.message);
-            }
+        async function loadWithCORSProxy(purchasedId, donatedId) {
+            const proxies = [
+                // Proxy 1: corsproxy.io
+                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                // Proxy 2: AllOrigins
+                (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                // Proxy 3: Direct (no proxy)
+                (url) => url
+            ];
 
-            // Method 2: AllOrigins proxy
-            try {
-                console.log('Trying AllOrigins proxy...');
-                const purchasedUrl = `https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx`;
-                const donatedUrl = `https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx`;
-                
-                const [purchasedResponse, donatedResponse] = await Promise.all([
-                    fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(purchasedUrl)}`),
-                    fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(donatedUrl)}`)
-                ]);
-                
-                if (purchasedResponse.ok && donatedResponse.ok) {
-                    await processResponses(purchasedResponse, donatedResponse);
-                    return;
+            for (let i = 0; i < proxies.length; i++) {
+                try {
+                    console.log(`Trying proxy method ${i + 1}...`);
+                    const proxy = proxies[i];
+                    
+                    const purchasedUrl = proxy(`https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx`);
+                    const donatedUrl = proxy(`https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx`);
+                    
+                    const [purchasedResponse, donatedResponse] = await Promise.all([
+                        fetch(purchasedUrl),
+                        fetch(donatedUrl)
+                    ]);
+                    
+                    console.log('Purchased status:', purchasedResponse.status);
+                    console.log('Donated status:', donatedResponse.status);
+                    
+                    if (purchasedResponse.ok && donatedResponse.ok) {
+                        console.log('✓ Fetch successful with proxy', i + 1);
+                        await processResponses(purchasedResponse, donatedResponse);
+                        return;
+                    }
+                } catch (error) {
+                    console.log(`Proxy ${i + 1} failed:`, error.message);
                 }
-            } catch (error) {
-                console.log('AllOrigins failed:', error.message);
             }
-
-            throw new Error('Unable to fetch data. Check Sheet IDs and permissions.');
+            
+            throw new Error('All fetch methods failed. Please use "Publish to web" feature (File → Share → Publish to web)');
         }
 
         async function processResponses(purchasedResponse, donatedResponse) {
@@ -779,8 +824,14 @@
             const purchasedArrayBuffer = await purchasedBlob.arrayBuffer();
             const donatedArrayBuffer = await donatedBlob.arrayBuffer();
             
+            console.log('Purchased size:', purchasedArrayBuffer.byteLength);
+            console.log('Donated size:', donatedArrayBuffer.byteLength);
+            
             const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { type: 'array' });
             const donatedWorkbook = XLSX.read(donatedArrayBuffer, { type: 'array' });
+            
+            console.log('Purchased sheets:', purchasedWorkbook.SheetNames);
+            console.log('Donated sheets:', donatedWorkbook.SheetNames);
             
             purchasedData = processWorkbook(purchasedWorkbook, 'Purchased');
             donatedData = processWorkbook(donatedWorkbook, 'Donated');
@@ -810,7 +861,8 @@
                 if (workbook.Sheets[month]) {
                     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[month], { 
                         header: 1, 
-                        raw: false
+                        raw: true,  // Preserve exact values including leading zeros
+                        defval: ''
                     });
                     const monthData = processMonthData(sheetData, month, sourceType);
                     processedData.monthly[month] = monthData;
@@ -872,14 +924,18 @@
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (row && row[0] && row[3]) {
-                    const totalPrice = parseFloat(row[11]) || 0;
-                    const unitPrice = parseFloat(row[9]) || 0;
+                    // Read Total Price from column 11 (index 11)
+                    const totalPrice = parseFloat(String(row[11]).replace(/,/g, '')) || 0;
+                    const unitPrice = parseFloat(String(row[9]).replace(/,/g, '')) || 0;
                     const quantity = parseInt(row[2]) || 1;
                     const itemType = row[6] ? row[6].toString() : '';
                     const isMedical = itemType.toLowerCase().includes('medical');
                     
+                    // Preserve Asset Code exactly as it appears in Excel
+                    const assetCode = row[0] ? String(row[0]).trim() : '';
+                    
                     const item = {
-                        assetCode: String(row[0]),
+                        assetCode: assetCode,
                         dateIn: row[1] || '',
                         quantity: quantity,
                         description: row[3] || '',
@@ -991,7 +1047,26 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: { legend: { position: 'bottom' } }
+                    aspectRatio: 1.5,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
+                        }
+                    }
                 }
             });
             
@@ -1018,7 +1093,15 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: { legend: { position: 'bottom' } }
+                    aspectRatio: 1.5,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                padding: 10
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -1047,8 +1130,13 @@
             
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="loading">No data to display</div>';
+                document.getElementById('grandTotalDisplay').textContent = 'JMD 0.00';
                 return;
             }
+            
+            // Calculate grand total for filtered data
+            const grandTotal = filteredData.reduce((sum, item) => sum + item.totalPrice, 0);
+            document.getElementById('grandTotalDisplay').textContent = `JMD ${formatCurrency(grandTotal)}`;
             
             let html = `
                 <table>
@@ -1063,7 +1151,7 @@
                             <th>Serial/Model</th>
                             <th>Qty</th>
                             <th>Unit Price (JMD)</th>
-                            <th>Total (JMD)</th>
+                            <th>Total Price (JMD)</th>
                             <th>Month</th>
                         </tr>
                     </thead>
@@ -1086,7 +1174,7 @@
                         <td>${item.serialModel}</td>
                         <td>${item.quantity}</td>
                         <td>${formatCurrency(item.unitPrice)}</td>
-                        <td><strong>${formatCurrency(item.totalPrice)}</strong></td>
+                        <td><strong style="color: var(--primary-green);">${formatCurrency(item.totalPrice)}</strong></td>
                         <td>${item.month}</td>
                     </tr>
                 `;
@@ -1174,7 +1262,7 @@
                 
                 html += `
                     <div class="month-card ${hasData ? 'has-data' : ''}">
-                        <div class="month-header">${month} 2024/2025</div>
+                        <div class="month-header">${month} 2025/2026</div>
                         <div class="month-stats">
                             <div class="month-stat">
                                 <div class="month-stat-label">Total Items</div>
@@ -1244,7 +1332,7 @@
             
             const wb = XLSX.utils.book_new();
             const headers = ['Asset Code', 'Date', 'Description', 'Category', 'Supplier/Donor', 
-                           'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total (JMD)', 'Month'];
+                           'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month'];
             const rows = filteredData.map(item => [
                 item.assetCode,
                 item.dateIn,
