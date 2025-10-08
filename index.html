@@ -880,7 +880,8 @@
             if (workbook.Sheets['PIE CHART - END OF YEAR']) {
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['PIE CHART - END OF YEAR'], { 
                     header: 1, 
-                    raw: false
+                    raw: true,  // Preserve exact values
+                    defval: ''
                 });
                 const yearEndData = processMonthData(sheetData, 'END OF YEAR', sourceType);
                 processedData.monthly['END OF YEAR'] = yearEndData;
@@ -931,12 +932,34 @@
                     const itemType = row[6] ? row[6].toString() : '';
                     const isMedical = itemType.toLowerCase().includes('medical');
                     
-                    // Preserve Asset Code exactly as it appears in Excel
-                    const assetCode = row[0] ? String(row[0]).trim() : '';
+                    // Preserve Asset Code exactly as it appears in Excel - handle all types
+                    let assetCode = '';
+                    if (row[0] !== null && row[0] !== undefined) {
+                        assetCode = String(row[0]).trim();
+                    }
+                    
+                    // Preserve Date exactly as it appears in Excel
+                    let dateIn = '';
+                    if (row[1]) {
+                        // If it's already a formatted string, keep it
+                        if (typeof row[1] === 'string') {
+                            dateIn = row[1].trim();
+                        } else if (typeof row[1] === 'number') {
+                            // Excel date serial number - convert to date
+                            const excelDate = new Date((row[1] - 25569) * 86400 * 1000);
+                            // Format as DD/MM/YYYY
+                            const day = String(excelDate.getDate()).padStart(2, '0');
+                            const month = String(excelDate.getMonth() + 1).padStart(2, '0');
+                            const year = excelDate.getFullYear();
+                            dateIn = `${day}/${month}/${year}`;
+                        } else {
+                            dateIn = String(row[1]);
+                        }
+                    }
                     
                     const item = {
                         assetCode: assetCode,
-                        dateIn: row[1] || '',
+                        dateIn: dateIn,
                         quantity: quantity,
                         description: row[3] || '',
                         supplier: row[4] || '',
@@ -1260,9 +1283,12 @@
                 const totalValue = purchasedStats.totalValue + donatedStats.totalValue;
                 const hasData = totalItems > 0;
                 
+                // APR to DEC is 2025/2026, JAN to MAR is 2026/2027
+                const yearLabel = ['JAN', 'FEB', 'MAR'].includes(month) ? '2026/2027' : '2025/2026';
+                
                 html += `
                     <div class="month-card ${hasData ? 'has-data' : ''}">
-                        <div class="month-header">${month} 2025/2026</div>
+                        <div class="month-header">${month} ${yearLabel}</div>
                         <div class="month-stats">
                             <div class="month-stat">
                                 <div class="month-stat-label">Total Items</div>
