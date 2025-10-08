@@ -39,7 +39,6 @@
             padding: 20px;
         }
 
-        /* Header Section */
         .header {
             background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
             color: white;
@@ -80,7 +79,6 @@
             margin-bottom: 25px;
         }
 
-        /* Status Bar */
         .status-bar {
             background: rgba(255, 255, 255, 0.2);
             padding: 15px;
@@ -139,81 +137,6 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         }
 
-        /* Configuration Section */
-        .config-section {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px var(--shadow);
-            margin-bottom: 30px;
-        }
-
-        .config-title {
-            font-size: 1.3em;
-            font-weight: 600;
-            color: var(--dark-gray);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .config-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .config-item {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .config-label {
-            font-weight: 600;
-            color: var(--dark-gray);
-            font-size: 0.9em;
-        }
-
-        .config-input {
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 0.95em;
-            transition: all 0.3s;
-        }
-
-        .config-input:focus {
-            outline: none;
-            border-color: var(--primary-green);
-            box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.1);
-        }
-
-        .config-help {
-            font-size: 0.85em;
-            color: #7f8c8d;
-        }
-
-        .config-btn {
-            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-block;
-        }
-
-        .config-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.3);
-        }
-
-        /* Search Section */
         .search-section {
             background: white;
             padding: 20px;
@@ -233,14 +156,13 @@
         }
 
         .search-container {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            flex-wrap: wrap;
+            margin-bottom: 15px;
         }
 
         .search-input {
-            flex: 1;
-            min-width: 200px;
             padding: 12px 20px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
@@ -252,6 +174,12 @@
             outline: none;
             border-color: var(--primary-green);
             box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.1);
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
         .search-btn {
@@ -281,7 +209,6 @@
             transition: all 0.3s;
         }
 
-        /* KPI Cards */
         .kpi-section {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -339,7 +266,6 @@
             color: #95a5a6;
         }
 
-        /* Charts */
         .chart-section {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -354,6 +280,11 @@
             box-shadow: 0 4px 20px var(--shadow);
         }
 
+        .chart-card.compact {
+            max-width: 422px;
+            max-height: 422px;
+        }
+
         .chart-title {
             font-size: 1.2em;
             font-weight: 600;
@@ -361,7 +292,16 @@
             color: var(--dark-gray);
         }
 
-        /* Data Table */
+        .chart-container {
+            width: 100%;
+            height: 320px;
+        }
+
+        .chart-container.compact {
+            height: 320px;
+            max-width: 372px;
+        }
+
         .data-section {
             background: white;
             padding: 25px;
@@ -453,6 +393,7 @@
         .asset-code {
             font-weight: 600;
             color: var(--primary-orange);
+            font-family: 'Courier New', monospace;
         }
 
         .item-type-badge {
@@ -473,7 +414,6 @@
             color: var(--dark-orange);
         }
 
-        /* Loading */
         .loading {
             text-align: center;
             padding: 50px;
@@ -495,7 +435,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Export Button */
         .export-btn {
             background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
             color: white;
@@ -517,39 +456,6 @@
             box-shadow: 0 15px 40px rgba(46, 204, 113, 0.4);
         }
 
-        /* Instructions */
-        .instructions {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-        }
-
-        .instructions h3 {
-            color: #856404;
-            margin-bottom: 15px;
-        }
-
-        .instructions ol {
-            color: #856404;
-            margin-left: 20px;
-        }
-
-        .instructions li {
-            margin: 8px 0;
-        }
-
-        .instructions a {
-            color: #0066cc;
-            text-decoration: none;
-        }
-
-        .instructions a:hover {
-            text-decoration: underline;
-        }
-
-        /* Footer */
         .footer {
             text-align: center;
             padding: 20px;
@@ -563,11 +469,41 @@
             border-radius: 8px;
             margin-top: 20px;
         }
+
+        .error-details {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .error-details h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .error-details code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .error-details ol, .error-details ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .error-details li {
+            margin: 8px 0;
+        }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Header -->
         <div class="header">
             <div class="header-content">
                 <h1 class="dashboard-title">Fixed Asset Management Dashboard</h1>
@@ -576,117 +512,47 @@
                 <div class="status-bar">
                     <div class="status-item">
                         <span class="status-indicator" id="statusIndicator"></span>
-                        <span id="statusText">Ready to connect</span>
+                        <span id="statusText">Loading data...</span>
                     </div>
                     <div class="status-item">
-                        <span id="lastUpdateText">Not loaded yet</span>
+                        <span id="lastUpdateText">Initializing...</span>
                     </div>
                     <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
                 </div>
             </div>
         </div>
 
-        <!-- Instructions (shown initially) -->
-        <div class="instructions" id="setupInstructions">
-            <h3>⚙️ Quick Setup Instructions</h3>
-            <ol>
-                <li><strong>Convert to Google Sheets:</strong>
-                    <ul>
-                        <li>Upload your Excel files to Google Drive</li>
-                        <li>Right-click each → "Open with" → "Google Sheets"</li>
-                    </ul>
-                </li>
-                <li><strong>Make Sheets Public:</strong>
-                    <ul>
-                        <li>Click "Share" button in each sheet</li>
-                        <li>Change to "Anyone with the link can view"</li>
-                        <li>Copy the sharing link</li>
-                    </ul>
-                </li>
-                <li><strong>Paste Sheet IDs below:</strong>
-                    <ul>
-                        <li>The ID is the long string in the URL between /d/ and /edit</li>
-                        <li>Example: docs.google.com/spreadsheets/d/<strong>ABC123xyz</strong>/edit</li>
-                    </ul>
-                </li>
-                <li><strong>Save and Load:</strong> Click "Save & Load Data" button</li>
-            </ol>
-            <p style="margin-top: 15px; color: #856404;">
-                <strong>GitHub Hosting:</strong> After setup, this file can be hosted on GitHub Pages for access from anywhere!
-            </p>
-        </div>
-
-        <!-- Configuration -->
-        <div class="config-section">
-            <h2 class="config-title">
-                <span>📊</span>
-                Google Sheets Configuration
-            </h2>
-            <div class="config-grid">
-                <div class="config-item">
-                    <label class="config-label">Purchased Assets Sheet ID:</label>
-                    <input type="text" 
-                           id="purchasedSheetId" 
-                           class="config-input" 
-                           placeholder="Enter Google Sheets ID (e.g., 1ABC123xyz...)"
-                           value="">
-                    <span class="config-help">From: docs.google.com/spreadsheets/d/[THIS_PART]/edit</span>
-                </div>
-                <div class="config-item">
-                    <label class="config-label">Donated Assets Sheet ID:</label>
-                    <input type="text" 
-                           id="donatedSheetId" 
-                           class="config-input" 
-                           placeholder="Enter Google Sheets ID (e.g., 1DEF456abc...)"
-                           value="">
-                    <span class="config-help">From: docs.google.com/spreadsheets/d/[THIS_PART]/edit</span>
-                </div>
-            </div>
-            <div style="text-align: center;">
-                <button class="config-btn" onclick="saveAndLoad()">💾 Save & Load Data</button>
-            </div>
-        </div>
-
-        <!-- Search Section -->
         <div class="search-section">
-            <h2 class="search-title">
-                <span>🔍</span>
-                Asset Search Engine
-            </h2>
+            <h2 class="search-title">🔍 Asset Search Engine</h2>
             <div class="search-container">
-                <input type="text" 
-                       id="assetCodeSearch" 
-                       class="search-input" 
-                       placeholder="Enter Asset Code (e.g., 1, 2, 3...)">
-                <input type="text" 
-                       id="descriptionSearch" 
-                       class="search-input" 
-                       placeholder="Search by Description">
-                <input type="text" 
-                       id="serialSearch" 
-                       class="search-input" 
-                       placeholder="Search by Serial/Model">
+                <input type="text" id="assetCodeSearch" class="search-input" placeholder="Asset Code">
+                <input type="text" id="descriptionSearch" class="search-input" placeholder="Description">
+                <input type="text" id="serialSearch" class="search-input" placeholder="Serial/Model">
+                <input type="text" id="supplierSearch" class="search-input" placeholder="Supplier/Donor">
+            </div>
+            <div class="search-buttons">
                 <button class="search-btn" onclick="performSearch()">Search</button>
                 <button class="clear-btn" onclick="clearSearch()">Clear</button>
             </div>
         </div>
 
-        <!-- KPI Cards -->
         <div class="kpi-section" id="kpiSection"></div>
 
-        <!-- Charts -->
         <div class="chart-section">
-            <div class="chart-card">
+            <div class="chart-card compact">
                 <h3 class="chart-title">Asset Distribution</h3>
-                <canvas id="distributionChart" height="300"></canvas>
+                <div class="chart-container compact">
+                    <canvas id="distributionChart"></canvas>
+                </div>
             </div>
-            <div class="chart-card">
-                <h3 class="chart-title">Monthly Asset Value Trend</h3>
-                <canvas id="monthlyChart" height="300"></canvas>
+            <div class="chart-card compact">
+                <h3 class="chart-title">Monthly Value Trend</h3>
+                <div class="chart-container compact">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <!-- Data Table -->
         <div class="data-section">
             <div class="section-header">
                 <h2 class="section-title">Asset Inventory</h2>
@@ -699,25 +565,29 @@
             <div class="table-container" id="tableContainer">
                 <div class="loading">
                     <div class="loading-spinner"></div>
-                    <p>Configure Google Sheets above to load data</p>
+                    <p>Loading asset data...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
-            <div class="last-update" id="lastUpdate">
-                Auto-refresh enabled • Updates every 5 minutes when configured
-            </div>
+            <div class="last-update" id="lastUpdate">Auto-refresh enabled • Updates every 5 minutes</div>
             <p style="margin-top: 10px;">Fixed Asset Management System © 2024</p>
         </div>
     </div>
 
-    <!-- Export Button -->
     <button class="export-btn" onclick="exportData()">📥 Export Report</button>
 
     <script>
-        // Global Variables
+        // ============================================
+        // 🔧 CONFIGURATION - Replace with your Sheet IDs
+        // ============================================
+        const SHEET_CONFIG = {
+            purchasedSheetId: '1_E2HAksHtZNVbK9svt9mfTmkLS3DCpgzS_RmLqrifL4',
+            donatedSheetId: '1hsaDm-WlOB6HUAh5CDjCbdl2YZnQ8QuX-_viP21Vkzs'
+        };
+        
+        // ============================================
         let purchasedData = {};
         let donatedData = {};
         let allAssetsData = [];
@@ -728,144 +598,193 @@
         let autoRefreshInterval = null;
         const months = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
 
-        // Initialize on load
         window.onload = function() {
-            loadConfiguration();
             initializeCharts();
-            
-            // Auto-load if configuration exists
-            const purchasedId = localStorage.getItem('purchasedSheetId');
-            const donatedId = localStorage.getItem('donatedSheetId');
-            if (purchasedId && donatedId) {
-                document.getElementById('setupInstructions').style.display = 'none';
-                loadData();
-            }
+            loadData();
         };
 
-        // Load saved configuration
-        function loadConfiguration() {
-            const purchasedId = localStorage.getItem('purchasedSheetId');
-            const donatedId = localStorage.getItem('donatedSheetId');
-            
-            if (purchasedId) document.getElementById('purchasedSheetId').value = purchasedId;
-            if (donatedId) document.getElementById('donatedSheetId').value = donatedId;
-        }
-
-        // Save configuration and load data
-        function saveAndLoad() {
-            const purchasedId = extractSheetId(document.getElementById('purchasedSheetId').value);
-            const donatedId = extractSheetId(document.getElementById('donatedSheetId').value);
-            
-            if (!purchasedId || !donatedId) {
-                alert('Please enter both Google Sheets IDs');
-                return;
-            }
-            
-            // Save to localStorage
-            localStorage.setItem('purchasedSheetId', purchasedId);
-            localStorage.setItem('donatedSheetId', donatedId);
-            
-            // Hide instructions
-            document.getElementById('setupInstructions').style.display = 'none';
-            
-            // Load data
-            loadData();
-        }
-
-        // Extract Sheet ID from URL or return as-is
-        function extractSheetId(input) {
-            if (!input) return null;
-            
-            // Check if it's a Google Sheets URL
-            const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-            if (match) return match[1];
-            
-            // Assume it's already an ID
-            return input.trim();
-        }
-
-        // Load data from Google Sheets
         async function loadData() {
-            const purchasedId = localStorage.getItem('purchasedSheetId');
-            const donatedId = localStorage.getItem('donatedSheetId');
+            const purchasedId = SHEET_CONFIG.purchasedSheetId;
+            const donatedId = SHEET_CONFIG.donatedSheetId;
             
-            if (!purchasedId || !donatedId) {
-                alert('Please configure Google Sheets IDs first');
+            if (!purchasedId || !donatedId || 
+                purchasedId === 'YOUR_PURCHASED_SHEET_ID_HERE' || 
+                donatedId === 'YOUR_DONATED_SHEET_ID_HERE') {
+                updateStatus('error', 'Sheet IDs not configured');
+                document.getElementById('tableContainer').innerHTML = `
+                    <div class="loading">
+                        <p style="color: #ff4444; font-weight: 600;">⚠️ Configuration Required</p>
+                        <p>Please update the SHEET_CONFIG in the script with your Google Sheet IDs</p>
+                        <div class="error-details">
+                            <h4>📋 Setup Instructions:</h4>
+                            <ol>
+                                <li>Open this HTML file in a text editor</li>
+                                <li>Find the SHEET_CONFIG section at the top of the script</li>
+                                <li>Replace <code>YOUR_PURCHASED_SHEET_ID_HERE</code> with your actual Sheet ID</li>
+                                <li>Replace <code>YOUR_DONATED_SHEET_ID_HERE</code> with your actual Sheet ID</li>
+                                <li>Make sure both sheets are shared as "Anyone with the link can view"</li>
+                            </ol>
+                        </div>
+                    </div>
+                `;
                 return;
             }
             
             updateStatus('loading', 'Loading data from Google Sheets...');
             
             try {
-                // Construct export URLs for public Google Sheets
-                const purchasedUrl = `https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx`;
-                const donatedUrl = `https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx`;
-                
-                // Create a proxy URL if needed (for CORS issues)
-                // Note: You might need to use a CORS proxy service
-                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
-                
-                // Try direct fetch first
-                let purchasedResponse, donatedResponse;
-                
-                try {
-                    // Direct fetch
-                    purchasedResponse = await fetch(purchasedUrl);
-                    donatedResponse = await fetch(donatedUrl);
-                } catch (corsError) {
-                    // If CORS error, try with proxy
-                    console.log('Direct fetch failed, trying with CORS proxy...');
-                    purchasedResponse = await fetch(corsProxy + purchasedUrl);
-                    donatedResponse = await fetch(corsProxy + donatedUrl);
-                }
-                
-                if (!purchasedResponse.ok || !donatedResponse.ok) {
-                    throw new Error('Failed to fetch sheets. Make sure they are publicly accessible.');
-                }
-                
-                // Process the data
-                const purchasedBlob = await purchasedResponse.blob();
-                const donatedBlob = await donatedResponse.blob();
-                
-                const purchasedArrayBuffer = await purchasedBlob.arrayBuffer();
-                const donatedArrayBuffer = await donatedBlob.arrayBuffer();
-                
-                const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { type: 'array' });
-                const donatedWorkbook = XLSX.read(donatedArrayBuffer, { type: 'array' });
-                
-                purchasedData = processWorkbook(purchasedWorkbook, 'Purchased');
-                donatedData = processWorkbook(donatedWorkbook, 'Donated');
-                
-                // Combine and display
-                combineAndDisplayData();
-                updateCharts();
-                
-                // Update status
-                updateStatus('connected', 'Data loaded successfully');
-                document.getElementById('lastUpdateText').textContent = `Last updated: ${new Date().toLocaleString()}`;
-                
-                // Setup auto-refresh
-                setupAutoRefresh();
+                // Try multiple methods to fetch the data
+                await loadDataWithMultipleMethods(purchasedId, donatedId);
                 
             } catch (error) {
                 console.error('Error loading data:', error);
                 updateStatus('error', 'Error loading data');
-                
-                // Show helpful error message
-                alert(`Error loading data. Please ensure:
-                
-1. Both Excel files are converted to Google Sheets
-2. Both sheets are set to "Anyone with the link can view"
-3. The Sheet IDs are correct
-4. Try refreshing the page
-
-If you continue to have issues, you may need to:
-- Enable CORS proxy (visit https://cors-anywhere.herokuapp.com/corsdemo)
-- Or download and host this file on GitHub Pages`);
+                displayDetailedError(error);
             }
         }
 
-        // Process workbook data
+        async function loadDataWithMultipleMethods(purchasedId, donatedId) {
+            // Method 1: Try direct XLSX export
+            try {
+                console.log('Trying Method 1: Direct XLSX export...');
+                const purchasedUrl = `https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx&id=${purchasedId}`;
+                const donatedUrl = `https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx&id=${donatedId}`;
+                
+                const [purchasedResponse, donatedResponse] = await Promise.all([
+                    fetch(purchasedUrl, { mode: 'cors' }),
+                    fetch(donatedUrl, { mode: 'cors' })
+                ]);
+                
+                if (purchasedResponse.ok && donatedResponse.ok) {
+                    const purchasedBlob = await purchasedResponse.blob();
+                    const donatedBlob = await donatedResponse.blob();
+                    
+                    const purchasedArrayBuffer = await purchasedBlob.arrayBuffer();
+                    const donatedArrayBuffer = await donatedBlob.arrayBuffer();
+                    
+                    const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { type: 'array' });
+                    const donatedWorkbook = XLSX.read(donatedArrayBuffer, { type: 'array' });
+                    
+                    purchasedData = processWorkbook(purchasedWorkbook, 'Purchased');
+                    donatedData = processWorkbook(donatedWorkbook, 'Donated');
+                    
+                    combineAndDisplayData();
+                    updateCharts();
+                    
+                    updateStatus('connected', 'Data loaded successfully');
+                    document.getElementById('lastUpdateText').textContent = `Last updated: ${new Date().toLocaleString()}`;
+                    setupAutoRefresh();
+                    return;
+                }
+            } catch (error1) {
+                console.log('Method 1 failed:', error1.message);
+            }
+
+            // Method 2: Try with AllOrigins proxy
+            try {
+                console.log('Trying Method 2: AllOrigins proxy...');
+                const purchasedUrl = `https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx`;
+                const donatedUrl = `https://docs.google.com/spreadsheets/d/${donatedId}/export?format=xlsx`;
+                
+                const [purchasedResponse, donatedResponse] = await Promise.all([
+                    fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(purchasedUrl)}`),
+                    fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(donatedUrl)}`)
+                ]);
+                
+                if (purchasedResponse.ok && donatedResponse.ok) {
+                    const purchasedBlob = await purchasedResponse.blob();
+                    const donatedBlob = await donatedResponse.blob();
+                    
+                    const purchasedArrayBuffer = await purchasedBlob.arrayBuffer();
+                    const donatedArrayBuffer = await donatedBlob.arrayBuffer();
+                    
+                    const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { type: 'array' });
+                    const donatedWorkbook = XLSX.read(donatedArrayBuffer, { type: 'array' });
+                    
+                    purchasedData = processWorkbook(purchasedWorkbook, 'Purchased');
+                    donatedData = processWorkbook(donatedWorkbook, 'Donated');
+                    
+                    combineAndDisplayData();
+                    updateCharts();
+                    
+                    updateStatus('connected', 'Data loaded successfully');
+                    document.getElementById('lastUpdateText').textContent = `Last updated: ${new Date().toLocaleString()}`;
+                    setupAutoRefresh();
+                    return;
+                }
+            } catch (error2) {
+                console.log('Method 2 failed:', error2.message);
+            }
+
+            // If all methods fail, throw error
+            throw new Error('Unable to load data. Please check the troubleshooting guide below.');
+        }
+
+        function displayDetailedError(error) {
+            document.getElementById('tableContainer').innerHTML = `
+                <div class="loading">
+                    <p style="color: #ff4444; font-weight: 600;">❌ Error Loading Data</p>
+                    <p style="margin: 10px 0;">${error.message}</p>
+                    
+                    <div class="error-details">
+                        <h4>🔧 Troubleshooting Checklist:</h4>
+                        <ol>
+                            <li><strong>Check Sheet IDs:</strong>
+                                <ul>
+                                    <li>Open your Google Sheet</li>
+                                    <li>URL should look like: <code>https://docs.google.com/spreadsheets/d/SHEET_ID/edit</code></li>
+                                    <li>Copy only the SHEET_ID part (between /d/ and /edit)</li>
+                                    <li>Purchased ID: <code>${SHEET_CONFIG.purchasedSheetId}</code></li>
+                                    <li>Donated ID: <code>${SHEET_CONFIG.donatedSheetId}</code></li>
+                                </ul>
+                            </li>
+                            <li><strong>Share Settings:</strong>
+                                <ul>
+                                    <li>Click "Share" button in Google Sheets</li>
+                                    <li>Change to "Anyone with the link"</li>
+                                    <li>Set access to "Viewer"</li>
+                                    <li>Click "Done"</li>
+                                </ul>
+                            </li>
+                            <li><strong>Browser Issues:</strong>
+                                <ul>
+                                    <li>Try a different browser (Chrome recommended)</li>
+                                    <li>Clear browser cache</li>
+                                    <li>Disable ad blockers or privacy extensions temporarily</li>
+                                    <li>Check browser console (F12) for detailed errors</li>
+                                </ul>
+                            </li>
+                            <li><strong>Alternative Solution:</strong>
+                                <ul>
+                                    <li>Upload this HTML to a web server (GitHub Pages, Netlify, etc.)</li>
+                                    <li>CORS restrictions are less strict when served from a web server</li>
+                                </ul>
+                            </li>
+                            <li><strong>Test Sheet Access:</strong>
+                                <ul>
+                                    <li>Open in new tab: <a href="https://docs.google.com/spreadsheets/d/${SHEET_CONFIG.purchasedSheetId}/edit" target="_blank">Purchased Sheet</a></li>
+                                    <li>Open in new tab: <a href="https://docs.google.com/spreadsheets/d/${SHEET_CONFIG.donatedSheetId}/edit" target="_blank">Donated Sheet</a></li>
+                                    <li>If you see "You need permission", the sheets aren't public</li>
+                                </ul>
+                            </li>
+                        </ol>
+                        
+                        <h4 style="margin-top: 20px;">💡 Quick Fix Options:</h4>
+                        <ul>
+                            <li><strong>Option 1:</strong> Publish sheets as web pages (File → Share → Publish to web)</li>
+                            <li><strong>Option 2:</strong> Use the file upload version instead (drag & drop Excel files)</li>
+                            <li><strong>Option 3:</strong> Host this HTML on a web server</li>
+                        </ul>
+                        
+                        <p style="margin-top: 15px; padding: 10px; background: #fff; border-radius: 5px;">
+                            <strong>Still having issues?</strong> Open browser console (Press F12) and look for red error messages. 
+                            They will show the exact problem.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
         function processWorkbook(workbook, sourceType) {
             const processedData = {
                 monthly: {},
@@ -900,15 +819,32 @@ If you continue to have issues, you may need to:
                 }
             });
             
+            const pieChartSheetName = 'PIE CHART - END OF YEAR';
+            if (workbook.Sheets[pieChartSheetName]) {
+                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[pieChartSheetName], { 
+                    header: 1, 
+                    raw: false, 
+                    dateNF: 'yyyy-mm-dd' 
+                });
+                const yearEndData = processMonthData(sheetData, 'END OF YEAR', sourceType);
+                processedData.monthly['END OF YEAR'] = yearEndData;
+                processedData.allItems = processedData.allItems.concat(yearEndData.items);
+                
+                processedData.totals.totalItems += yearEndData.stats.totalItems;
+                processedData.totals.totalValue += yearEndData.stats.totalValue;
+                processedData.totals.medicalEquipment += yearEndData.stats.medicalEquipment;
+                processedData.totals.medicalValue += yearEndData.stats.medicalValue;
+                processedData.totals.furniture += yearEndData.stats.furniture;
+                processedData.totals.furnitureValue += yearEndData.stats.furnitureValue;
+            }
+            
             return processedData;
         }
 
-        // Process monthly data
         function processMonthData(rawData, month, sourceType) {
             let headerRowIndex = -1;
             let headers = [];
             
-            // Find header row
             for (let i = 0; i < Math.min(15, rawData.length); i++) {
                 if (rawData[i] && rawData[i][0] && 
                     (rawData[i][0].toString().toLowerCase().includes('date') || 
@@ -935,7 +871,7 @@ If you continue to have issues, you may need to:
             
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
                 const row = rawData[i];
-                if (row && row[0] && !isNaN(row[0]) && row[3]) {
+                if (row && row[0] && row[3]) {
                     const price = parseFloat(row[9]) || 0;
                     const quantity = parseInt(row[2]) || 1;
                     const totalPrice = price * quantity;
@@ -943,7 +879,7 @@ If you continue to have issues, you may need to:
                     const isMedical = itemType.toLowerCase().includes('medical');
                     
                     const item = {
-                        assetCode: row[0].toString(),
+                        assetCode: String(row[0]),
                         dateIn: row[1] || '',
                         quantity: quantity,
                         description: row[3] || '',
@@ -974,7 +910,6 @@ If you continue to have issues, you may need to:
             return { items, stats };
         }
 
-        // Combine and display data
         function combineAndDisplayData() {
             allAssetsData = [];
             
@@ -990,7 +925,6 @@ If you continue to have issues, you may need to:
             displayTable();
         }
 
-        // Update KPI Cards
         function updateKPICards() {
             const kpiSection = document.getElementById('kpiSection');
             
@@ -1040,7 +974,6 @@ If you continue to have issues, you may need to:
             `;
         }
 
-        // Initialize Charts
         function initializeCharts() {
             const ctx1 = document.getElementById('distributionChart').getContext('2d');
             const ctx2 = document.getElementById('monthlyChart').getContext('2d');
@@ -1057,7 +990,12 @@ If you continue to have issues, you may need to:
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
                 }
             });
             
@@ -1066,38 +1004,40 @@ If you continue to have issues, you may need to:
                 data: {
                     labels: months,
                     datasets: [{
-                        label: 'Purchased Assets',
+                        label: 'Purchased',
                         data: new Array(12).fill(0),
                         borderColor: '#2ECC71',
                         backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                        borderWidth: 3,
+                        borderWidth: 2,
                         tension: 0.4
                     }, {
-                        label: 'Donated Assets',
+                        label: 'Donated',
                         data: new Array(12).fill(0),
                         borderColor: '#FF6B35',
                         backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                        borderWidth: 3,
+                        borderWidth: 2,
                         tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
                 }
             });
         }
 
-        // Update Charts
         function updateCharts() {
             const medicalCount = (purchasedData.totals?.medicalEquipment || 0) + (donatedData.totals?.medicalEquipment || 0);
             const furnitureCount = (purchasedData.totals?.furniture || 0) + (donatedData.totals?.furniture || 0);
             
-            // Update distribution chart
             distributionChart.data.datasets[0].data = [medicalCount, furnitureCount];
             distributionChart.update();
             
-            // Update monthly chart
             const purchasedMonthlyValues = months.map(month => 
                 purchasedData.monthly?.[month]?.stats?.totalValue || 0
             );
@@ -1110,7 +1050,6 @@ If you continue to have issues, you may need to:
             monthlyChart.update();
         }
 
-        // Display table
         function displayTable() {
             const container = document.getElementById('tableContainer');
             
@@ -1165,18 +1104,19 @@ If you continue to have issues, you may need to:
             container.innerHTML = html;
         }
 
-        // Search functions
         function performSearch() {
             const assetCode = document.getElementById('assetCodeSearch').value.toLowerCase();
             const description = document.getElementById('descriptionSearch').value.toLowerCase();
             const serial = document.getElementById('serialSearch').value.toLowerCase();
+            const supplier = document.getElementById('supplierSearch').value.toLowerCase();
             
             filteredData = allAssetsData.filter(item => {
                 const matchAssetCode = !assetCode || item.assetCode.toLowerCase().includes(assetCode);
                 const matchDescription = !description || item.description.toLowerCase().includes(description);
                 const matchSerial = !serial || item.serialModel.toLowerCase().includes(serial);
+                const matchSupplier = !supplier || item.supplier.toLowerCase().includes(supplier);
                 
-                return matchAssetCode && matchDescription && matchSerial;
+                return matchAssetCode && matchDescription && matchSerial && matchSupplier;
             });
             
             if (currentView !== 'all') {
@@ -1192,6 +1132,7 @@ If you continue to have issues, you may need to:
             document.getElementById('assetCodeSearch').value = '';
             document.getElementById('descriptionSearch').value = '';
             document.getElementById('serialSearch').value = '';
+            document.getElementById('supplierSearch').value = '';
             filteredData = allAssetsData;
             displayTable();
         }
@@ -1212,7 +1153,6 @@ If you continue to have issues, you may need to:
             displayTable();
         }
 
-        // Utility functions
         function formatCurrency(value) {
             return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
@@ -1229,11 +1169,9 @@ If you continue to have issues, you may need to:
             if (autoRefreshInterval) {
                 clearInterval(autoRefreshInterval);
             }
-            // Auto-refresh every 5 minutes
             autoRefreshInterval = setInterval(loadData, 5 * 60 * 1000);
         }
 
-        // Export function
         function exportData() {
             if (filteredData.length === 0) {
                 alert('No data to export');
