@@ -21,15 +21,167 @@
             --dark-gray: #2C3E50;
             --light-gray: #ECF0F1;
             --shadow: rgba(0, 0, 0, 0.1);
+            
+            /* Light mode colors */
+            --bg-primary: #f5f7fa;
+            --bg-secondary: #e9ecef;
+            --bg-card: #ffffff;
+            --text-primary: #2C3E50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e0e0e0;
+            --table-hover: #f8f9fa;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #2d4059;
+            --table-hover: #16213e;
+            --shadow: rgba(0, 0, 0, 0.3);
         }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             min-height: 100vh;
-            color: var(--dark-gray);
+            color: var(--text-primary);
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
+        /* ============================================
+           LOGIN PAGE STYLES
+           ============================================ */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-title {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .login-subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+
+        .login-info {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #1565c0;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* ============================================
+           DASHBOARD STYLES
+           ============================================ */
         .dashboard-container {
             max-width: 1600px;
             margin: 0 auto;
@@ -69,6 +221,17 @@
         .header-content {
             position: relative;
             z-index: 1;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .header-left {
+            flex: 1;
         }
 
         .dashboard-title {
@@ -142,18 +305,196 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         }
 
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            white-space: nowrap;
+        }
+
+        .user-info span {
+            color: white;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        /* Night Mode Toggle Button */
+        .night-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--shadow);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .night-mode-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px var(--shadow);
+        }
+
+        body.dark-mode .night-mode-toggle {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+        }
+
+        /* NEW FEATURES STYLES */
+        .feature-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .depreciation-calculator,
+        .warranty-tracker,
+        .barcode-generator,
+        .audit-trail,
+        .print-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+            transition: background 0.3s ease;
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .calc-input {
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .calc-result {
+            background: var(--table-hover);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 5px solid var(--primary-green);
+            transition: background 0.3s ease;
+        }
+
+        .warranty-item {
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .warranty-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .warranty-status.active { background: rgba(46, 204, 113, 0.1); color: var(--dark-green); }
+        .warranty-status.expiring { background: rgba(255, 193, 7, 0.1); color: #856404; }
+        .warranty-status.expired { background: rgba(220, 53, 69, 0.1); color: #721c24; }
+
+        .barcode-output {
+            text-align: center;
+            padding: 20px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            margin-top: 15px;
+            background: var(--bg-card);
+            transition: all 0.3s ease;
+        }
+
+        .audit-entry {
+            padding: 15px;
+            border-left: 4px solid var(--primary-green);
+            background: var(--table-hover);
+            margin-bottom: 10px;
+            border-radius: 0 8px 8px 0;
+            transition: background 0.3s ease;
+        }
+
+        .audit-timestamp {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
         .search-section {
-            background: white;
+            background: var(--bg-card);
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px var(--shadow);
             margin-bottom: 30px;
+            transition: background 0.3s ease;
         }
 
         .search-title {
             font-size: 1.3em;
             font-weight: 600;
-            color: var(--dark-gray);
+            color: var(--text-primary);
             margin-bottom: 15px;
         }
 
@@ -166,10 +507,12 @@
 
         .search-input {
             padding: 12px 20px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--border-color);
             border-radius: 8px;
             font-size: 1em;
             transition: all 0.3s;
+            background: var(--bg-card);
+            color: var(--text-primary);
         }
 
         .search-input:focus {
@@ -205,16 +548,16 @@
         }
 
         .search-results-box {
-            background: white;
+            background: var(--bg-card);
             border: 2px solid var(--primary-green);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
-            width: 4.5in;
             max-width: 100%;
             min-height: 200px;
             box-shadow: 0 4px 20px var(--shadow);
             display: none;
+            transition: background 0.3s ease;
         }
 
         .search-results-box.show {
@@ -224,24 +567,20 @@
         .search-results-header {
             font-size: 1.1em;
             font-weight: 600;
-            color: var(--dark-gray);
+            color: var(--text-primary);
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid var(--light-gray);
+            border-bottom: 2px solid var(--border-color);
         }
 
         .search-result-item {
             padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--border-color);
             transition: background 0.3s;
         }
 
         .search-result-item:hover {
-            background: #f8f9fa;
-        }
-
-        .search-result-item:last-child {
-            border-bottom: none;
+            background: var(--table-hover);
         }
 
         .result-code {
@@ -253,7 +592,7 @@
 
         .result-description {
             margin: 5px 0;
-            color: var(--dark-gray);
+            color: var(--text-primary);
         }
 
         .result-details {
@@ -261,7 +600,7 @@
             justify-content: space-between;
             margin-top: 8px;
             font-size: 0.9em;
-            color: #7f8c8d;
+            color: var(--text-secondary);
         }
 
         .result-price {
@@ -278,7 +617,7 @@
         }
 
         .kpi-card {
-            background: white;
+            background: var(--bg-card);
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 20px var(--shadow);
@@ -295,7 +634,7 @@
 
         .kpi-label {
             font-size: 0.9em;
-            color: #7f8c8d;
+            color: var(--text-secondary);
             font-weight: 600;
             text-transform: uppercase;
         }
@@ -322,16 +661,18 @@
         }
 
         .chart-card {
-            background: white;
+            background: var(--bg-card);
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 20px var(--shadow);
+            transition: background 0.3s ease;
         }
 
         .chart-title {
             font-size: 1.2em;
             font-weight: 600;
             margin-bottom: 20px;
+            color: var(--text-primary);
         }
 
         .chart-container {
@@ -347,11 +688,12 @@
         }
 
         .data-section {
-            background: white;
+            background: var(--bg-card);
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 20px var(--shadow);
             margin-bottom: 30px;
+            transition: background 0.3s ease;
         }
 
         .section-header {
@@ -360,12 +702,13 @@
             align-items: center;
             margin-bottom: 25px;
             padding-bottom: 15px;
-            border-bottom: 2px solid var(--light-gray);
+            border-bottom: 2px solid var(--border-color);
         }
 
         .section-title {
             font-size: 1.5em;
             font-weight: 600;
+            color: var(--text-primary);
         }
 
         .view-toggle {
@@ -375,12 +718,13 @@
 
         .toggle-btn {
             padding: 8px 20px;
-            border: 2px solid #e0e0e0;
-            background: white;
+            border: 2px solid var(--border-color);
+            background: var(--bg-card);
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
+            color: var(--text-primary);
         }
 
         .toggle-btn.active {
@@ -392,7 +736,7 @@
         .table-container {
             overflow-x: auto;
             border-radius: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color);
             max-height: 500px;
             overflow-y: auto;
         }
@@ -419,17 +763,18 @@
         }
 
         tbody tr {
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--border-color);
             transition: all 0.3s;
         }
 
         tbody tr:hover {
-            background: #f8f9fa;
+            background: var(--table-hover);
         }
 
         td {
             padding: 12px;
             font-size: 0.95em;
+            color: var(--text-primary);
         }
 
         .asset-code {
@@ -464,11 +809,12 @@
         }
 
         .month-card {
-            background: white;
+            background: var(--bg-card);
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px var(--shadow);
             border-left: 5px solid var(--primary-orange);
+            transition: background 0.3s ease;
         }
 
         .month-card.has-data {
@@ -478,10 +824,10 @@
         .month-header {
             font-size: 1.3em;
             font-weight: 700;
-            color: var(--dark-gray);
+            color: var(--text-primary);
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid var(--light-gray);
+            border-bottom: 2px solid var(--border-color);
         }
 
         .month-stats {
@@ -493,13 +839,14 @@
         .month-stat {
             text-align: center;
             padding: 15px;
-            background: #f8f9fa;
+            background: var(--table-hover);
             border-radius: 8px;
+            transition: background 0.3s ease;
         }
 
         .month-stat-label {
             font-size: 0.85em;
-            color: #7f8c8d;
+            color: var(--text-secondary);
             margin-bottom: 5px;
         }
 
@@ -512,13 +859,13 @@
         .loading {
             text-align: center;
             padding: 50px;
-            color: #95a5a6;
+            color: var(--text-secondary);
         }
 
         .loading-spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid var(--light-gray);
+            border: 4px solid var(--border-color);
             border-top-color: var(--primary-orange);
             border-radius: 50%;
             margin: 0 auto 20px;
@@ -545,10 +892,15 @@
             z-index: 100;
         }
 
+        .export-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .footer {
             text-align: center;
             padding: 20px;
-            color: #7f8c8d;
+            color: var(--text-secondary);
             font-size: 0.9em;
         }
 
@@ -573,16 +925,97 @@
         .error-box li {
             margin: 8px 0;
         }
+
+        @media print {
+            body { background: white; }
+            .header, .search-section, .btn, .tab-btn, .no-print, .night-mode-toggle, .export-btn { display: none !important; }
+            .page { display: block !important; }
+        }
+
+        @media (max-width: 768px) {
+            .header-top {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .user-info {
+                align-self: flex-start;
+            }
+
+            .night-mode-toggle {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+                top: 10px;
+                right: 10px;
+            }
+            
+            .search-results-box {
+                width: 100%;
+            }
+            .dashboard-title {
+                font-size: 1.8em;
+            }
+            .chart-section {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
+    <!-- Night Mode Toggle Button (Hidden until login) -->
+    <button class="night-mode-toggle" id="nightModeBtn" onclick="toggleNightMode()" title="Toggle Night Mode" style="display: none;">
+        <span id="nightModeIcon">🌙</span>
+    </button>
+
+    <!-- LOGIN PAGE -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <div class="login-header">
+                <h1 class="login-title">🔒 Secure Access</h1>
+                <p class="login-subtitle">Fixed Asset Management System</p>
+                <p class="login-subtitle">May Pen Hospital</p>
+            </div>
+            
+            <div class="login-info">
+                ℹ️ Login credentials are securely managed in Google Sheets.
+            </div>
+            
+            <div id="loginError" class="login-error"></div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="username">
+                </div>
+                
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+            
+            <div class="login-footer">
+                <p>⚠️ Authorized Personnel Only</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD (Hidden until login) -->
+    <div class="dashboard-container" id="dashboardContainer" style="display: none;">
         <!-- PAGE 1: MAIN DASHBOARD -->
         <div class="page active" id="page1">
             <div class="header">
                 <div class="header-content">
-                    <h1 class="dashboard-title">Fixed Asset Management Dashboard</h1>
-                    <div class="dashboard-subtitle">May Pen Hospital • Currency: JMD (Jamaican Dollar)</div>
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Fixed Asset Management Dashboard</h1>
+                            <div class="dashboard-subtitle">May Pen Hospital • Currency: JMD (Jamaican Dollar)</div>
+                        </div>
+                        <div class="user-info" id="userInfo"></div>
+                    </div>
                     
                     <div class="status-bar">
                         <div class="status-item">
@@ -592,8 +1025,9 @@
                         <div class="status-item">
                             <span id="lastUpdateText">Starting up...</span>
                         </div>
-                        <button class="btn refresh-btn" onclick="loadData()">🔄 Refresh</button>
+                        <button class="btn refresh-btn" id="refreshBtn" onclick="loadData()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
                     </div>
                 </div>
             </div>
@@ -601,7 +1035,7 @@
             <div class="search-section">
                 <h2 class="search-title">🔍 Asset Search Engine</h2>
                 <div class="search-container">
-                    <input type="text" id="assetCodeSearch" class="search-input" placeholder="Asset Code">
+                    <input type="text" id="assetCodeSearch" class="search-input" placeholder="Asset Code (e.g., MPH-MS-190-01-2025)">
                     <input type="text" id="descriptionSearch" class="search-input" placeholder="Description">
                     <input type="text" id="serialSearch" class="search-input" placeholder="Serial/Model">
                     <input type="text" id="supplierSearch" class="search-input" placeholder="Supplier/Donor">
@@ -656,7 +1090,7 @@
             </div>
 
             <div class="footer">
-                <p>Fixed Asset Management System © 2024 • May Pen Hospital</p>
+                <p>Fixed Asset Management System © <span id="copyrightYear"></span> • May Pen Hospital</p>
             </div>
         </div>
 
@@ -664,8 +1098,13 @@
         <div class="page" id="page2">
             <div class="header">
                 <div class="header-content">
-                    <h1 class="dashboard-title">Monthly Breakdown</h1>
-                    <div class="dashboard-subtitle">Detailed view of all 12 months • Currency: JMD</div>
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Monthly Breakdown</h1>
+                            <div class="dashboard-subtitle">Detailed view of all 12 months • Currency: JMD</div>
+                        </div>
+                        <div class="user-info" id="userInfo2"></div>
+                    </div>
                     
                     <div class="status-bar">
                         <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
@@ -677,23 +1116,374 @@
             <div id="monthlyBreakdownContainer" class="monthly-grid"></div>
 
             <div class="footer">
-                <p>Fixed Asset Management System © 2024 • May Pen Hospital</p>
+                <p>Fixed Asset Management System © <span id="copyrightYear2"></span> • May Pen Hospital</p>
+            </div>
+        </div>
+
+        <!-- PAGE 3: TOOLS & FEATURES -->
+        <div class="page" id="page3">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Tools & Features</h1>
+                            <div class="dashboard-subtitle">Advanced asset management tools</div>
+                        </div>
+                        <div class="user-info" id="userInfo3"></div>
+                    </div>
+                    
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly View</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Tabs -->
+            <div class="feature-tabs">
+                <button class="tab-btn active" onclick="switchTab('depreciation', this)">💰 Depreciation Calculator</button>
+                <button class="tab-btn" onclick="switchTab('warranty', this)">🛡️ Warranty Tracker</button>
+                <button class="tab-btn" onclick="switchTab('qrcode', this)">📱 QR Code Generator</button>
+                <button class="tab-btn" onclick="switchTab('audit', this)">📋 Audit Trail</button>
+                <button class="tab-btn" onclick="switchTab('print', this)">🖨️ Print Reports</button>
+            </div>
+
+            <!-- Depreciation Calculator -->
+            <div class="depreciation-calculator" id="depreciationTab" style="display: block;">
+                <h2 class="section-title">📈 Asset Depreciation Calculator</h2>
+                <div class="calc-grid">
+                    <input type="number" id="assetCost" class="calc-input" placeholder="Asset Cost (JMD)">
+                    <input type="number" id="usefulLife" class="calc-input" placeholder="Useful Life (years)">
+                    <input type="number" id="salvageValue" class="calc-input" placeholder="Salvage Value (JMD)">
+                    <select id="depreciationMethod" class="calc-input">
+                        <option value="straight">Straight Line</option>
+                        <option value="declining">Declining Balance</option>
+                    </select>
+                </div>
+                <button class="search-btn" onclick="calculateDepreciation()">Calculate Depreciation</button>
+                <div class="calc-result" id="depreciationResult" style="display: none;">
+                    <h3>Depreciation Results</h3>
+                    <div id="depreciationDetails"></div>
+                </div>
+            </div>
+
+            <!-- Warranty Tracker -->
+            <div class="warranty-tracker" id="warrantyTab" style="display: none;">
+                <h2 class="section-title">🛡️ Warranty Status Tracker</h2>
+                <div style="margin-bottom: 20px;">
+                    <label>
+                        <input type="checkbox" id="showAllAssets" onchange="updateWarrantyDisplay()" checked> 
+                        Show all purchased assets
+                    </label>
+                    <label style="margin-left: 20px;">
+                        <input type="checkbox" id="showExpiringOnly" onchange="updateWarrantyDisplay()"> 
+                        Show expiring/expired only
+                    </label>
+                </div>
+                <div id="warrantyList">
+                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">Load asset data to see warranty information</p>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="search-btn" onclick="generateWarrantyReport()">Generate Warranty Report</button>
+                    <button class="search-btn" onclick="updateWarrantyStatus()" style="margin-left: 10px;">Refresh Warranty Status</button>
+                </div>
+            </div>
+
+            <!-- QR Code Generator -->
+            <div class="barcode-generator" id="qrcodeTab" style="display: none;">
+                <h2 class="section-title">📱 Asset QR Code Generator</h2>
+                <div class="calc-grid">
+                    <input type="text" id="qrAssetCode" class="calc-input" placeholder="Asset Code (e.g., MPH-001-2025)">
+                    <select id="qrDataFormat" class="calc-input">
+                        <option value="basic">Basic Asset Code</option>
+                        <option value="detailed">Asset Code + Description</option>
+                        <option value="full">Full Asset Information</option>
+                        <option value="url">Hospital Asset URL</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button class="search-btn" onclick="generateQRCode()">Generate QR Code</button>
+                    <button class="search-btn" onclick="generateBatchQR()" style="margin-left: 10px;">Generate Batch QR</button>
+                </div>
+                <div class="barcode-output" id="qrOutput">
+                    <p>Enter an asset code to generate QR code</p>
+                    <p><small>QR codes can be scanned by any smartphone to quickly access asset information</small></p>
+                </div>
+            </div>
+
+            <!-- Audit Trail -->
+            <div class="audit-trail" id="auditTab" style="display: none;">
+                <h2 class="section-title">📋 Asset Audit Trail</h2>
+                
+                <!-- Add Entry Form (Admin Only) -->
+                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange);">
+                    <h3 style="margin-bottom: 15px; color: var(--text-primary);">➕ Add New Audit Entry</h3>
+                    <div class="calc-grid" style="margin-bottom: 15px;">
+                        <input type="text" id="auditAssetCode" class="calc-input" placeholder="Enter Asset Code (e.g., MPH-001-2025)">
+                        <select id="auditAction" class="calc-input">
+                            <option value="">Select Action</option>
+                            <option value="Asset Created">Asset Created</option>
+                            <option value="Asset Assigned">Asset Assigned</option>
+                            <option value="Asset Transferred">Asset Transferred</option>
+                            <option value="Asset Maintenance">Asset Maintenance</option>
+                            <option value="Asset Disposed">Asset Disposed</option>
+                            <option value="Asset Inspection">Asset Inspection</option>
+                            <option value="Asset Updated">Asset Updated</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="auditLocation" class="calc-input" placeholder="Location/Department">
+                    </div>
+                    <textarea id="auditNotes" class="calc-input" placeholder="Notes/Details (optional)" style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"></textarea>
+                    <div style="margin-top: 15px;">
+                        <button class="search-btn" onclick="submitAuditEntry()">Submit Entry</button>
+                        <span id="auditSubmitStatus" style="margin-left: 15px; font-weight: 600;"></span>
+                    </div>
+                </div>
+                
+                <div id="auditEntries">
+                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">Load asset data to see audit trail</p>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="search-btn" onclick="exportAuditTrail()">Export Audit Trail</button>
+                </div>
+            </div>
+
+            <!-- Print Reports -->
+            <div class="print-section" id="printTab" style="display: none;">
+                <h2 class="section-title">🖨️ Print Asset Reports</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <button class="search-btn" onclick="printReport('summary')">📄 Summary Report</button>
+                    <button class="search-btn" onclick="printReport('detailed')">📋 Detailed Inventory</button>
+                    <button class="search-btn" onclick="printReport('warranty')">🛡️ Warranty Report</button>
+                    <button class="search-btn" onclick="printReport('valuation')">💰 Asset Valuation</button>
+                    <button class="search-btn" onclick="printReport('audit')">📋 Audit Trail Report</button>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: var(--table-hover); border-radius: 8px;">
+                    <h4>Print Options:</h4>
+                    <label><input type="checkbox" id="includeCharts"> Include Charts</label><br>
+                    <label><input type="checkbox" id="includeLogos" checked> Include Hospital Logo</label><br>
+                    <label><input type="checkbox" id="includeTimestamp" checked> Include Timestamp</label>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear3"></span> • May Pen Hospital</p>
             </div>
         </div>
     </div>
 
-    <button class="export-btn" onclick="exportData()">📥 Export</button>
+    <button class="export-btn" id="exportBtn" onclick="exportData()" style="display: none;">📥 Export</button>
 
     <script>
         // ============================================
-        // 🔧 CONFIGURATION
+        // SET DYNAMIC COPYRIGHT YEAR
+        // ============================================
+        function setDynamicCopyrightYear() {
+            const currentYear = new Date().getFullYear();
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3'];
+            
+            yearIds.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.textContent = currentYear;
+                } else {
+                    console.log(`Copyright element ${id} not found`);
+                }
+            });
+        }
+        
+        // ============================================
+        // LOGIN SYSTEM WITH GOOGLE SHEET CREDENTIALS
+        // ============================================
+        
+        const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
+        
+        let currentUser = null;
+        let credentialsData = null;
+
+        async function loadCredentials() {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/export?format=xlsx`;
+                const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load credentials sheet');
+                }
+                
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                credentialsData = {};
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (row[0]) {
+                        credentialsData[row[0].toString().toLowerCase()] = {
+                            password: row[1] ? row[1].toString() : '',
+                            displayName: row[2] ? row[2].toString() : row[0].toString(),
+                            role: row[3] ? row[3].toString() : 'User',
+                            email: row[4] ? row[4].toString() : '',
+                            canExport: row[5] ? (row[5].toString().toLowerCase() === 'true' || row[5] === true) : false,
+                            canRefresh: row[6] ? (row[6].toString().toLowerCase() === 'true' || row[6] === true) : false
+                        };
+                    }
+                }
+                
+                console.log('Credentials loaded successfully');
+                return true;
+            } catch (error) {
+                console.error('Error loading credentials:', error);
+                return false;
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!credentialsData) {
+                errorDiv.textContent = '⏳ Loading credentials...';
+                errorDiv.style.display = 'block';
+                errorDiv.style.background = '#e3f2fd';
+                errorDiv.style.color = '#1565c0';
+                errorDiv.style.borderLeft = '4px solid #1565c0';
+                
+                const loaded = await loadCredentials();
+                if (!loaded) {
+                    errorDiv.textContent = '❌ Failed to load credentials. Please check the Credentials Sheet ID configuration.';
+                    errorDiv.style.background = '#fee';
+                    errorDiv.style.color = '#c33';
+                    errorDiv.style.borderLeft = '4px solid #c33';
+                    return;
+                }
+            }
+            
+            const user = credentialsData[username];
+            
+            if (user && user.password === password) {
+                currentUser = { username, ...user };
+                
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('dashboardContainer').style.display = 'block';
+                document.getElementById('nightModeBtn').style.display = 'flex';
+                document.getElementById('exportBtn').style.display = 'block';
+                
+                updateUserInterface();
+                applyPermissions();
+                
+                // Set copyright year after login
+                setDynamicCopyrightYear();
+                
+                initializeCharts();
+                loadData();
+            } else {
+                errorDiv.textContent = '❌ Invalid username or password';
+                errorDiv.style.display = 'block';
+                errorDiv.style.background = '#fee';
+                errorDiv.style.color = '#c33';
+                errorDiv.style.borderLeft = '4px solid #c33';
+                document.getElementById('password').value = '';
+            }
+        }
+
+        function updateUserInterface() {
+            const userHTML = `
+                <span>👤 ${currentUser.displayName}</span>
+                <span style="opacity: 0.8;">(${currentUser.role})</span>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            `;
+            
+            ['userInfo', 'userInfo2', 'userInfo3'].forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) elem.innerHTML = userHTML;
+            });
+        }
+
+        function applyPermissions() {
+            if (!currentUser) return;
+            
+            const exportBtn = document.getElementById('exportBtn');
+            if (exportBtn) {
+                if (!currentUser.canExport) {
+                    exportBtn.disabled = true;
+                    exportBtn.style.opacity = '0.5';
+                    exportBtn.style.cursor = 'not-allowed';
+                    exportBtn.title = 'You do not have permission to export data';
+                } else {
+                    exportBtn.disabled = false;
+                    exportBtn.style.opacity = '1';
+                    exportBtn.style.cursor = 'pointer';
+                    exportBtn.title = 'Export data to Excel';
+                }
+            }
+            
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                if (!currentUser.canRefresh) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.style.opacity = '0.5';
+                    refreshBtn.style.cursor = 'not-allowed';
+                    refreshBtn.title = 'You do not have permission to refresh data';
+                } else {
+                    refreshBtn.disabled = false;
+                    refreshBtn.style.opacity = '1';
+                    refreshBtn.style.cursor = 'pointer';
+                    refreshBtn.title = 'Refresh data from source';
+                }
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Clear audit refresh interval
+                if (auditRefreshInterval) {
+                    clearInterval(auditRefreshInterval);
+                    auditRefreshInterval = null;
+                }
+                
+                currentUser = null;
+                document.getElementById('dashboardContainer').style.display = 'none';
+                document.getElementById('nightModeBtn').style.display = 'none';
+                document.getElementById('exportBtn').style.display = 'none';
+                document.getElementById('loginPage').style.display = 'flex';
+                document.getElementById('loginForm').reset();
+                document.getElementById('loginError').style.display = 'none';
+            }
+        }
+
+        // ============================================
+        // NIGHT MODE FUNCTIONS
+        // ============================================
+        
+        let nightModeEnabled = false;
+
+        function toggleNightMode() {
+            nightModeEnabled = !nightModeEnabled;
+            document.body.classList.toggle('dark-mode');
+            
+            const icon = document.getElementById('nightModeIcon');
+            icon.textContent = nightModeEnabled ? '☀️' : '🌙';
+        }
+
+        // ============================================
+        // CONFIGURATION
         // ============================================
         const SHEET_CONFIG = {
             purchasedSheetId: '1_E2HAksHtZNVbK9svt9mfTmkLS3DCpgzS_RmLqrifL4',
             donatedSheetId: '1hsaDm-WlOB6HUAh5CDjCbdl2YZnQ8QuX-_viP21Vkzs'
         };
         
-        // ============================================
+        // AUDIT TRAIL CONFIGURATION
+        // TODO: Update this with your deployed Google Apps Script Web App URL
+        const AUDIT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEnnHY5TCjwMtPhnnQdGnhDp4LwFln-9fNOsvee8H2cAyya3gxMbO3cLR6bsDFVPn9Dg/exec';
+        
+        let auditRefreshInterval = null;
+        
         let purchasedData = {};
         let donatedData = {};
         let allAssetsData = [];
@@ -703,94 +1493,800 @@
         let monthlyChart = null;
         const months = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
 
-        window.onload = function() {
-            initializeCharts();
-            loadData();
-        };
-
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
+            
+            // Update copyright year when switching pages
+            setDynamicCopyrightYear();
             
             if (pageNum === 2) {
                 displayMonthlyBreakdown();
             }
         }
 
-        async function loadData() {
-            const purchasedId = SHEET_CONFIG.purchasedSheetId;
-            const donatedId = SHEET_CONFIG.donatedSheetId;
+        // ============================================
+        // FEATURE TAB SWITCHING
+        // ============================================
+        
+        function switchTab(tabName, button) {
+            document.querySelectorAll('[id$="Tab"]').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             
-            if (!purchasedId || !donatedId || 
-                purchasedId === 'YOUR_PURCHASED_SHEET_ID_HERE' || 
-                donatedId === 'YOUR_DONATED_SHEET_ID_HERE') {
-                updateStatus('error', 'Configuration needed');
-                document.getElementById('tableContainer').innerHTML = `
-                    <div class="error-box">
-                        <h4>⚙️ Setup Required</h4>
-                        <p>You need to "Publish to Web" instead of just sharing. This bypasses CORS issues.</p>
-                        <ol>
-                            <li>Open your Google Sheet</li>
-                            <li>Go to <strong>File → Share → Publish to web</strong></li>
-                            <li>Select <strong>"Entire Document"</strong></li>
-                            <li>Choose <strong>"Web page"</strong> format</li>
-                            <li>Click <strong>"Publish"</strong></li>
-                            <li>Copy the Sheet ID from the URL</li>
-                            <li>Paste it into this HTML file at SHEET_CONFIG (line ~520)</li>
-                        </ol>
-                        <p style="margin-top: 15px;"><strong>Note:</strong> "Publish to web" is MORE reliable than just "Share" for automatic fetching.</p>
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+            button.classList.add('active');
+            
+            // Update copyright year when switching tabs
+            setDynamicCopyrightYear();
+            
+            // Clear audit refresh interval when leaving audit tab
+            if (tabName !== 'audit' && auditRefreshInterval) {
+                clearInterval(auditRefreshInterval);
+                auditRefreshInterval = null;
+            }
+            
+            if (tabName === 'warranty') {
+                updateWarrantyStatus();
+            } else if (tabName === 'audit') {
+                loadAssetAuditTrail();
+            }
+        }
+
+        // ============================================
+        // DEPRECIATION CALCULATOR
+        // ============================================
+        
+        function calculateDepreciation() {
+            const cost = parseFloat(document.getElementById('assetCost').value);
+            const life = parseFloat(document.getElementById('usefulLife').value);
+            const salvage = parseFloat(document.getElementById('salvageValue').value) || 0;
+            const method = document.getElementById('depreciationMethod').value;
+            
+            if (!cost || !life) {
+                alert('Please enter asset cost and useful life');
+                return;
+            }
+            
+            let result = '';
+            
+            if (method === 'straight') {
+                const annualDepreciation = (cost - salvage) / life;
+                const monthlyDepreciation = annualDepreciation / 12;
+                
+                result = `
+                    <p><strong>Straight Line Depreciation:</strong></p>
+                    <p>Annual Depreciation: JMD ${formatCurrency(annualDepreciation)}</p>
+                    <p>Monthly Depreciation: JMD ${formatCurrency(monthlyDepreciation)}</p>
+                    <p>Book Value after ${life} years: JMD ${formatCurrency(salvage)}</p>
+                `;
+            } else {
+                const rate = 2 / life;
+                let bookValue = cost;
+                const yearlyDepreciation = [];
+                
+                for (let year = 1; year <= life; year++) {
+                    const depreciation = Math.min(bookValue * rate, bookValue - salvage);
+                    yearlyDepreciation.push(depreciation);
+                    bookValue -= depreciation;
+                }
+                
+                result = `
+                    <p><strong>Declining Balance Depreciation:</strong></p>
+                    <p>Depreciation Rate: ${(rate * 100).toFixed(1)}%</p>
+                    <p>Year 1 Depreciation: JMD ${formatCurrency(yearlyDepreciation[0])}</p>
+                    <p>Final Book Value: JMD ${formatCurrency(bookValue)}</p>
+                `;
+            }
+            
+            document.getElementById('depreciationDetails').innerHTML = result;
+            document.getElementById('depreciationResult').style.display = 'block';
+        }
+
+        // ============================================
+        // WARRANTY TRACKER
+        // ============================================
+        
+        function updateWarrantyStatus() {
+            if (!allAssetsData || allAssetsData.length === 0) {
+                document.getElementById('warrantyList').innerHTML = `
+                    <div class="loading">
+                        <p>Please load asset data first by going to the main dashboard.</p>
                     </div>
                 `;
                 return;
             }
+
+            const warrantyList = document.getElementById('warrantyList');
+            const showAll = document.getElementById('showAllAssets').checked;
+            const showExpiringOnly = document.getElementById('showExpiringOnly').checked;
+            
+            const purchasedAssets = allAssetsData.filter(asset => asset.source === 'Purchased');
+            
+            let html = '';
+            let assetCount = 0;
+            
+            purchasedAssets.forEach(asset => {
+                const assetLocation = asset.supplier || 'Location not specified';
+                
+                const purchaseDate = new Date(asset.dateIn);
+                const warrantyEndDate = new Date(purchaseDate);
+                warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
+                
+                const today = new Date();
+                const daysRemaining = Math.ceil((warrantyEndDate - today) / (1000 * 60 * 60 * 24));
+                
+                let status = '';
+                let statusClass = '';
+                
+                if (daysRemaining > 90) {
+                    status = 'Active';
+                    statusClass = 'active';
+                } else if (daysRemaining > 0) {
+                    status = 'Expiring Soon';
+                    statusClass = 'expiring';
+                } else {
+                    status = 'Expired';
+                    statusClass = 'expired';
+                }
+                
+                if (showExpiringOnly && statusClass === 'active') return;
+                if (!showAll && assetCount >= 20) return;
+                
+                html += `
+                    <div class="warranty-item">
+                        <div>
+                            <strong>${asset.description} - ${asset.assetCode}</strong><br>
+                            <small>Purchase Date: ${asset.dateIn} | Warranty expires: ${warrantyEndDate.toLocaleDateString()}</small><br>
+                            <small>Supplier: <strong>${assetLocation}</strong> | Value: JMD ${formatCurrency(asset.totalPrice)}</small><br>
+                            <small>${daysRemaining > 0 ? daysRemaining + ' days remaining' : Math.abs(daysRemaining) + ' days expired'}</small>
+                        </div>
+                        <span class="warranty-status ${statusClass}">${status}</span>
+                    </div>
+                `;
+
+                assetCount++;
+            });
+            
+            if (html === '') {
+                html = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No assets match the current filter criteria.</p>';
+            }
+            
+            warrantyList.innerHTML = html;
+        }
+
+        function updateWarrantyDisplay() {
+            updateWarrantyStatus();
+        }
+
+        function generateWarrantyReport() {
+            const wb = XLSX.utils.book_new();
+            const warrantyData = [
+                ['Asset Code', 'Description', 'Warranty Start', 'Warranty End', 'Status', 'Days Remaining']
+            ];
+            
+            const purchasedAssets = allAssetsData.filter(asset => asset.source === 'Purchased');
+            purchasedAssets.forEach(asset => {
+                const purchaseDate = new Date(asset.dateIn);
+                const warrantyEndDate = new Date(purchaseDate);
+                warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
+                const daysRemaining = Math.ceil((warrantyEndDate - new Date()) / (1000 * 60 * 60 * 24));
+                const status = daysRemaining > 90 ? 'Active' : (daysRemaining > 0 ? 'Expiring Soon' : 'Expired');
+                
+                warrantyData.push([
+                    asset.assetCode,
+                    asset.description,
+                    asset.dateIn,
+                    warrantyEndDate.toLocaleDateString(),
+                    status,
+                    daysRemaining
+                ]);
+            });
+            
+            const ws = XLSX.utils.aoa_to_sheet(warrantyData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Warranty Report');
+            XLSX.writeFile(wb, `Warranty_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // ============================================
+        // QR CODE GENERATOR
+        // ============================================
+        
+        function generateQRCode() {
+            const assetCode = document.getElementById('qrAssetCode').value;
+            const format = document.getElementById('qrDataFormat').value;
+            
+            if (!assetCode) {
+                alert('Please enter an asset code');
+                return;
+            }
+            
+            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+            
+            let qrData = assetCode;
+            let displayInfo = `<p><strong>Asset Code:</strong> ${assetCode}</p>`;
+            
+            if (asset) {
+                switch(format) {
+                    case 'detailed':
+                        qrData = `${asset.assetCode}: ${asset.description}`;
+                        displayInfo += `<p><strong>Description:</strong> ${asset.description}</p>`;
+                        break;
+                    case 'full':
+                        qrData = JSON.stringify({
+                            code: asset.assetCode,
+                            desc: asset.description,
+                            value: asset.totalPrice,
+                            location: asset.supplier,
+                            date: asset.dateIn
+                        });
+                        displayInfo += `
+                            <p><strong>Description:</strong> ${asset.description}</p>
+                            <p><strong>Value:</strong> JMD ${formatCurrency(asset.totalPrice)}</p>
+                            <p><strong>Source:</strong> ${asset.source}</p>
+                        `;
+                        break;
+                    case 'url':
+                        qrData = `https://maypen-hospital.assets.jm/asset/${assetCode}`;
+                        displayInfo += `<p><strong>Asset URL:</strong> ${qrData}</p>`;
+                        break;
+                }
+            }
+            
+            const qrOutput = document.getElementById('qrOutput');
+            qrOutput.innerHTML = `
+                <div style="display: flex; justify-content: center; margin: 20px 0;">
+                    <div style="width: 200px; height: 200px; background: black; display: grid; grid-template-columns: repeat(25, 1fr); grid-template-rows: repeat(25, 1fr); gap: 1px;">
+                        ${generateQRPattern()}
+                    </div>
+                </div>
+                ${displayInfo}
+                <p><strong>QR Data:</strong> ${qrData.length > 50 ? qrData.substring(0, 50) + '...' : qrData}</p>
+                <div style="margin-top: 15px;">
+                    <button class="search-btn" onclick="printQRCode('${assetCode}', '${qrData}')">Print QR Code</button>
+                </div>
+            `;
+        }
+
+        function generateQRPattern() {
+            const pattern = [];
+            for (let i = 0; i < 625; i++) {
+                const isBlack = Math.random() > 0.5;
+                pattern.push(`<div style="background: ${isBlack ? 'black' : 'white'};"></div>`);
+            }
+            return pattern.join('');
+        }
+
+        function generateBatchQR() {
+            if (!allAssetsData || allAssetsData.length === 0) {
+                alert('Please load asset data first');
+                return;
+            }
+            
+            const batchSize = parseInt(prompt('How many QR codes to generate? (Max 50)', '10'));
+            if (!batchSize || batchSize > 50) return;
+            
+            const assets = allAssetsData.slice(0, batchSize);
+            let batchHTML = '<h3>Batch QR Code Generation</h3>';
+            
+            assets.forEach((asset, index) => {
+                batchHTML += `
+                    <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;">
+                        <strong>${asset.assetCode}</strong> - ${asset.description}
+                        <div style="margin: 10px 0;">QR Code would be generated here</div>
+                    </div>
+                `;
+            });
+            
+            batchHTML += `<button class="search-btn" onclick="printBatchQR()">Print All QR Codes</button>`;
+            
+            document.getElementById('qrOutput').innerHTML = batchHTML;
+        }
+
+        function printQRCode(assetCode, qrData) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head><title>QR Code - ${assetCode}</title></head>
+                <body style="text-align: center; font-family: Arial, sans-serif;">
+                    <h2>May Pen Hospital</h2>
+                    <h3>Asset QR Code</h3>
+                    <div style="width: 300px; height: 300px; border: 2px solid black; margin: 20px auto; display: flex; align-items: center; justify-content: center; font-size: 12px;">
+                        QR Code for ${assetCode}<br>
+                        <small>Scan with smartphone</small>
+                    </div>
+                    <p style="font-size: 1.2em;"><strong>${assetCode}</strong></p>
+                    <p>Data: ${qrData}</p>
+                    <script>window.print(); window.close();<\/script>
+                </body>
+                </html>
+            `);
+        }
+
+        // ============================================
+        // AUDIT TRAIL
+        // ============================================
+        
+        function loadAssetAuditTrail() {
+            // Show Add Entry form only for Admin users
+            if (currentUser && currentUser.role === 'Admin') {
+                document.getElementById('addAuditEntrySection').style.display = 'block';
+            } else {
+                document.getElementById('addAuditEntrySection').style.display = 'none';
+            }
+            
+            // Fetch audit trail data from Google Sheet (visible to all users)
+            fetchAuditTrailData();
+            
+            // Set up auto-refresh every 3 minutes
+            if (auditRefreshInterval) {
+                clearInterval(auditRefreshInterval);
+            }
+            auditRefreshInterval = setInterval(() => {
+                fetchAuditTrailData();
+            }, 180000); // 3 minutes = 180,000 milliseconds
+        }
+        
+        async function fetchAuditTrailData() {
+            const auditEntries = document.getElementById('auditEntries');
+            
+            // Show loading state
+            auditEntries.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading audit trail from Google Sheet...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(AUDIT_SCRIPT_URL + '?action=read');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch audit data');
+                }
+                
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.entries && data.entries.length > 0) {
+                    displayAuditEntries(data.entries);
+                } else {
+                    auditEntries.innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: var(--table-hover); border-radius: 8px; border: 2px dashed var(--border-color);">
+                            <p style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 10px;">📋 No Audit Entries Found</p>
+                            <p style="color: var(--text-secondary);">No audit trail data has been entered yet. Use the form above to add your first entry.</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error fetching audit trail:', error);
+                auditEntries.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: #fff3cd; border-radius: 8px; border: 2px solid #ffc107;">
+                        <p style="font-size: 1.2em; color: #856404; margin-bottom: 10px;">⚠️ Unable to Load Audit Trail</p>
+                        <p style="color: #856404;">Please ensure the Google Apps Script URL is configured correctly.</p>
+                        <p style="color: #856404; font-size: 0.9em; margin-top: 10px;">Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayAuditEntries(entries) {
+            const auditEntries = document.getElementById('auditEntries');
+            
+            // Store for export functionality
+            window.currentAuditData = entries;
+            
+            let html = '';
+            
+            // Sort entries by timestamp (newest first)
+            entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            entries.forEach(entry => {
+                const timestamp = new Date(entry.timestamp).toLocaleString();
+                const assetCode = entry.assetCode || 'N/A';
+                const description = entry.description || 'N/A';
+                const action = entry.action || 'N/A';
+                const user = entry.user || 'System';
+                const supplier = entry.location || entry.supplier || 'N/A';
+                const value = entry.value ? formatCurrency(parseFloat(entry.value)) : '0.00';
+                const notes = entry.notes ? `<br><small style="color: var(--text-secondary);">Notes: ${entry.notes}</small>` : '';
+                
+                html += `
+                    <div class="audit-entry">
+                        <div class="audit-timestamp">${timestamp}</div>
+                        <strong>Asset ${assetCode} - ${description}</strong><br>
+                        Action: ${action}<br>
+                        User: ${user}<br>
+                        Supplier: ${supplier}<br>
+                        Value: JMD ${value}${notes}
+                    </div>
+                `;
+            });
+            
+            auditEntries.innerHTML = html;
+        }
+        
+        async function submitAuditEntry() {
+            // CRITICAL: Check if user is Admin before allowing submission
+            if (!currentUser || currentUser.role !== 'Admin') {
+                const statusSpan = document.getElementById('auditSubmitStatus');
+                statusSpan.textContent = '⛔ Access Denied: Admin privileges required';
+                statusSpan.style.color = '#dc3545';
+                setTimeout(() => statusSpan.textContent = '', 3000);
+                return;
+            }
+            
+            const assetCode = document.getElementById('auditAssetCode').value.trim();
+            const action = document.getElementById('auditAction').value;
+            const location = document.getElementById('auditLocation').value;
+            const notes = document.getElementById('auditNotes').value;
+            const statusSpan = document.getElementById('auditSubmitStatus');
+            
+            if (!assetCode || !action) {
+                statusSpan.textContent = '⚠️ Please enter asset code and select action';
+                statusSpan.style.color = '#dc3545';
+                setTimeout(() => statusSpan.textContent = '', 3000);
+                return;
+            }
+            
+            // Try to find asset details from loaded data
+            const asset = allAssetsData.find(a => a.assetCode.toLowerCase() === assetCode.toLowerCase());
+            
+            const entryData = {
+                timestamp: new Date().toISOString(),
+                assetCode: assetCode,
+                description: asset ? asset.description : 'Manual Entry',
+                action: action,
+                user: currentUser.displayName,
+                location: location || (asset ? asset.supplier : 'N/A'),
+                notes: notes,
+                value: asset ? asset.totalPrice : 0
+            };
+            
+            statusSpan.textContent = '⏳ Submitting...';
+            statusSpan.style.color = '#ffa500';
+            
+            try {
+                const response = await fetch(AUDIT_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(entryData)
+                });
+                
+                // Note: no-cors mode doesn't return readable response, but the request is sent
+                statusSpan.textContent = '✅ Entry submitted successfully!';
+                statusSpan.style.color = '#28a745';
+                
+                // Clear form
+                document.getElementById('auditAssetCode').value = '';
+                document.getElementById('auditAction').value = '';
+                document.getElementById('auditLocation').value = '';
+                document.getElementById('auditNotes').value = '';
+                
+                // Reload audit trail after a delay
+                setTimeout(() => {
+                    statusSpan.textContent = '';
+                    fetchAuditTrailData();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error submitting audit entry:', error);
+                statusSpan.textContent = '❌ Submission failed';
+                statusSpan.style.color = '#dc3545';
+            }
+        }
+
+        function exportAuditTrail() {
+            fetchAuditTrailData().then(() => {
+                // Wait a moment for data to load, then export
+                setTimeout(() => {
+                    if (!window.currentAuditData || window.currentAuditData.length === 0) {
+                        alert('No audit trail data to export');
+                        return;
+                    }
+                    
+                    const wb = XLSX.utils.book_new();
+                    const auditData = [['Timestamp', 'Asset Code', 'Description', 'Action', 'User', 'Location', 'Notes', 'Value (JMD)']];
+                    
+                    window.currentAuditData.forEach(entry => {
+                        auditData.push([
+                            new Date(entry.timestamp).toLocaleString(),
+                            entry.assetCode,
+                            entry.description,
+                            entry.action,
+                            entry.user,
+                            entry.location || entry.supplier,
+                            entry.notes || '',
+                            entry.value || 0
+                        ]);
+                    });
+                    
+                    const ws = XLSX.utils.aoa_to_sheet(auditData);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Audit Trail');
+                    XLSX.writeFile(wb, `Audit_Trail_${new Date().toISOString().split('T')[0]}.xlsx`);
+                }, 1000);
+            });
+        }
+
+        // ============================================
+        // PRINT REPORTS
+        // ============================================
+        
+        function printReport(reportType) {
+            const includeCharts = document.getElementById('includeCharts').checked;
+            const includeLogos = document.getElementById('includeLogos').checked;
+            const includeTimestamp = document.getElementById('includeTimestamp').checked;
+            
+            let reportContent = '';
+            
+            switch(reportType) {
+                case 'summary':
+                    reportContent = generateSummaryReport();
+                    break;
+                case 'detailed':
+                    reportContent = generateDetailedReport();
+                    break;
+                case 'warranty':
+                    reportContent = generateWarrantyPrintReport();
+                    break;
+                case 'valuation':
+                    reportContent = generateValuationReport();
+                    break;
+                case 'audit':
+                    reportContent = generateAuditTrailPrintReport();
+                    break;
+            }
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report - May Pen Hospital</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; border-bottom: 3px solid #FF6B35; padding-bottom: 20px; margin-bottom: 30px; }
+                        .logo { font-size: 1.5em; color: #FF6B35; font-weight: bold; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #2ECC71; color: white; }
+                        .timestamp { text-align: right; font-size: 0.9em; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        ${includeLogos ? '<div class="logo">🏥 May Pen Hospital</div>' : ''}
+                        <h1>${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</h1>
+                        <h2>Fixed Asset Management System</h2>
+                        ${includeTimestamp ? `<div class="timestamp">Generated: ${new Date().toLocaleString()}</div>` : ''}
+                    </div>
+                    ${reportContent}
+                    <script>window.print();<\/script>
+                </body>
+                </html>
+            `);
+        }
+
+        function generateSummaryReport() {
+            const totalItems = (purchasedData.totals?.totalItems || 0) + (donatedData.totals?.totalItems || 0);
+            const totalValue = (purchasedData.totals?.totalValue || 0) + (donatedData.totals?.totalValue || 0);
+            
+            return `
+                <h3>Asset Summary</h3>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Total Assets</td><td>${totalItems.toLocaleString()}</td></tr>
+                    <tr><td>Total Value</td><td>JMD ${formatCurrency(totalValue)}</td></tr>
+                    <tr><td>Purchased Assets</td><td>${(purchasedData.totals?.totalItems || 0).toLocaleString()}</td></tr>
+                    <tr><td>Donated Assets</td><td>${(donatedData.totals?.totalItems || 0).toLocaleString()}</td></tr>
+                </table>
+            `;
+        }
+
+        function generateDetailedReport() {
+            let tableRows = '';
+            filteredData.slice(0, 50).forEach(item => {
+                tableRows += `
+                    <tr>
+                        <td>${item.assetCode}</td>
+                        <td>${item.dateIn}</td>
+                        <td>${item.description}</td>
+                        <td>${item.category}</td>
+                        <td>JMD ${formatCurrency(item.totalPrice)}</td>
+                        <td>${item.source}</td>
+                    </tr>
+                `;
+            });
+            
+            return `
+                <h3>Detailed Asset Inventory</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset Code</th>
+                            <th>Date In</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Value</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function generateWarrantyPrintReport() {
+            const purchasedAssets = allAssetsData.filter(asset => asset.source === 'Purchased');
+            
+            let tableRows = '';
+            purchasedAssets.forEach(asset => {
+                const purchaseDate = new Date(asset.dateIn);
+                const warrantyEndDate = new Date(purchaseDate);
+                warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
+                
+                const today = new Date();
+                const daysRemaining = Math.ceil((warrantyEndDate - today) / (1000 * 60 * 60 * 24));
+                
+                let status = '';
+                if (daysRemaining > 90) {
+                    status = 'Active';
+                } else if (daysRemaining > 0) {
+                    status = 'Expiring Soon';
+                } else {
+                    status = 'Expired';
+                }
+                
+                tableRows += `
+                    <tr>
+                        <td>${asset.assetCode}</td>
+                        <td>${asset.description}</td>
+                        <td>${asset.dateIn}</td>
+                        <td>${warrantyEndDate.toLocaleDateString()}</td>
+                        <td>${status}</td>
+                        <td>${daysRemaining > 0 ? daysRemaining + ' days' : Math.abs(daysRemaining) + ' days expired'}</td>
+                        <td>${asset.supplier || 'N/A'}</td>
+                        <td>JMD ${formatCurrency(asset.totalPrice)}</td>
+                    </tr>
+                `;
+            });
+            
+            return `
+                <h3>Warranty Status Report</h3>
+                <p>Comprehensive warranty information for all purchased assets (2-year coverage period)</p>
+                <p><strong>Total Purchased Assets:</strong> ${purchasedAssets.length}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset Code</th>
+                            <th>Description</th>
+                            <th>Purchase Date</th>
+                            <th>Warranty Expires</th>
+                            <th>Status</th>
+                            <th>Days Remaining</th>
+                            <th>Supplier</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        function generateValuationReport() {
+            const totalValue = (purchasedData.totals?.totalValue || 0) + (donatedData.totals?.totalValue || 0);
+            const medicalValue = (purchasedData.totals?.medicalValue || 0) + (donatedData.totals?.medicalValue || 0);
+            const furnitureValue = (purchasedData.totals?.furnitureValue || 0) + (donatedData.totals?.furnitureValue || 0);
+            
+            return `
+                <h3>Asset Valuation Report</h3>
+                <table>
+                    <tr><th>Category</th><th>Value (JMD)</th><th>Percentage</th></tr>
+                    <tr><td>Medical Equipment</td><td>${formatCurrency(medicalValue)}</td><td>${((medicalValue/totalValue)*100).toFixed(1)}%</td></tr>
+                    <tr><td>Furniture & Appliances</td><td>${formatCurrency(furnitureValue)}</td><td>${((furnitureValue/totalValue)*100).toFixed(1)}%</td></tr>
+                    <tr><th>Total</th><th>${formatCurrency(totalValue)}</th><th>100%</th></tr>
+                </table>
+            `;
+        }
+        
+        function generateAuditTrailPrintReport() {
+            if (!window.currentAuditData || window.currentAuditData.length === 0) {
+                return `
+                    <h3>Audit Trail Report</h3>
+                    <p style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px;">
+                        No audit trail entries available. Please ensure audit data is loaded before printing.
+                    </p>
+                `;
+            }
+            
+            let tableRows = '';
+            const auditEntries = [...window.currentAuditData].sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            
+            auditEntries.forEach(entry => {
+                const timestamp = new Date(entry.timestamp).toLocaleString();
+                const assetCode = entry.assetCode || 'N/A';
+                const description = entry.description || 'N/A';
+                const action = entry.action || 'N/A';
+                const user = entry.user || 'System';
+                const location = entry.location || entry.supplier || 'N/A';
+                const notes = entry.notes || '-';
+                const value = entry.value ? formatCurrency(parseFloat(entry.value)) : '0.00';
+                
+                tableRows += `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${assetCode}</td>
+                        <td>${description}</td>
+                        <td>${action}</td>
+                        <td>${user}</td>
+                        <td>${location}</td>
+                        <td>${notes}</td>
+                        <td>JMD ${value}</td>
+                    </tr>
+                `;
+            });
+            
+            return `
+                <h3>Audit Trail Report</h3>
+                <p><strong>Total Entries:</strong> ${auditEntries.length}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Asset Code</th>
+                            <th>Description</th>
+                            <th>Action</th>
+                            <th>User</th>
+                            <th>Supplier</th>
+                            <th>Notes</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            `;
+        }
+
+        // ============================================
+        // DATA LOADING FUNCTIONS
+        // ============================================
+        
+        async function loadData() {
+            if (currentUser && !currentUser.canRefresh && allAssetsData.length > 0) {
+                alert('⚠️ You do not have permission to refresh data. Please contact an administrator.');
+                return;
+            }
+
+            const purchasedId = SHEET_CONFIG.purchasedSheetId;
+            const donatedId = SHEET_CONFIG.donatedSheetId;
+            
+            if (!purchasedId || !donatedId) {
+                updateStatus('error', 'Configuration needed');
+                return;
+            }
             
             updateStatus('loading', 'Fetching from Google Sheets...');
-            console.log('Attempting to load data...');
-            console.log('Purchased ID:', purchasedId);
-            console.log('Donated ID:', donatedId);
             
             try {
                 await loadWithCORSProxy(purchasedId, donatedId);
             } catch (error) {
                 console.error('All fetch methods failed:', error);
                 updateStatus('error', 'Unable to fetch data');
-                document.getElementById('tableContainer').innerHTML = `
-                    <div class="error-box">
-                        <h4>❌ Fetch Failed</h4>
-                        <p><strong>Error:</strong> ${error.message}</p>
-                        <h4 style="margin-top: 20px;">💡 Solution: Use "Publish to Web"</h4>
-                        <ol>
-                            <li>Open each Google Sheet</li>
-                            <li><strong>File → Share → Publish to web</strong></li>
-                            <li>Select "Entire Document" + "Web page"</li>
-                            <li>Click "Publish" and confirm</li>
-                            <li>The Sheet ID remains the same</li>
-                            <li>Refresh this page</li>
-                        </ol>
-                        <p style="margin-top: 15px;"><strong>Why?</strong> "Publish to web" creates a public endpoint that doesn't have CORS restrictions, unlike regular sharing.</p>
-                        <p style="margin-top: 10px; padding: 10px; background: white; border-radius: 5px;">
-                            <strong>Test your sheets:</strong><br>
-                            <a href="https://docs.google.com/spreadsheets/d/${purchasedId}/edit" target="_blank">Test Purchased Sheet</a><br>
-                            <a href="https://docs.google.com/spreadsheets/d/${donatedId}/edit" target="_blank">Test Donated Sheet</a>
-                        </p>
-                    </div>
-                `;
             }
         }
 
         async function loadWithCORSProxy(purchasedId, donatedId) {
             const proxies = [
-                // Proxy 1: corsproxy.io
                 (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                // Proxy 2: AllOrigins
                 (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                // Proxy 3: Direct (no proxy)
                 (url) => url
             ];
 
             for (let i = 0; i < proxies.length; i++) {
                 try {
-                    console.log(`Trying proxy method ${i + 1}...`);
                     const proxy = proxies[i];
                     
                     const purchasedUrl = proxy(`https://docs.google.com/spreadsheets/d/${purchasedId}/export?format=xlsx`);
@@ -801,11 +2297,7 @@
                         fetch(donatedUrl)
                     ]);
                     
-                    console.log('Purchased status:', purchasedResponse.status);
-                    console.log('Donated status:', donatedResponse.status);
-                    
                     if (purchasedResponse.ok && donatedResponse.ok) {
-                        console.log('✓ Fetch successful with proxy', i + 1);
                         await processResponses(purchasedResponse, donatedResponse);
                         return;
                     }
@@ -814,7 +2306,7 @@
                 }
             }
             
-            throw new Error('All fetch methods failed. Please use "Publish to web" feature (File → Share → Publish to web)');
+            throw new Error('All fetch methods failed');
         }
 
         async function processResponses(purchasedResponse, donatedResponse) {
@@ -824,14 +2316,23 @@
             const purchasedArrayBuffer = await purchasedBlob.arrayBuffer();
             const donatedArrayBuffer = await donatedBlob.arrayBuffer();
             
-            console.log('Purchased size:', purchasedArrayBuffer.byteLength);
-            console.log('Donated size:', donatedArrayBuffer.byteLength);
+            const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { 
+                type: 'array',
+                cellText: false,
+                cellDates: true,
+                dateNF: 'dd-mmm-yyyy',
+                raw: false,
+                codepage: 65001
+            });
             
-            const purchasedWorkbook = XLSX.read(purchasedArrayBuffer, { type: 'array' });
-            const donatedWorkbook = XLSX.read(donatedArrayBuffer, { type: 'array' });
-            
-            console.log('Purchased sheets:', purchasedWorkbook.SheetNames);
-            console.log('Donated sheets:', donatedWorkbook.SheetNames);
+            const donatedWorkbook = XLSX.read(donatedArrayBuffer, { 
+                type: 'array',
+                cellText: false,
+                cellDates: true,
+                dateNF: 'dd-mmm-yyyy',
+                raw: false,
+                codepage: 65001
+            });
             
             purchasedData = processWorkbook(purchasedWorkbook, 'Purchased');
             donatedData = processWorkbook(donatedWorkbook, 'Donated');
@@ -861,8 +2362,10 @@
                 if (workbook.Sheets[month]) {
                     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[month], { 
                         header: 1, 
-                        raw: true,  // Preserve exact values including leading zeros
-                        defval: ''
+                        raw: false,
+                        defval: '',
+                        blankrows: false,
+                        dateNF: 'dd-mmm-yyyy'
                     });
                     const monthData = processMonthData(sheetData, month, sourceType);
                     processedData.monthly[month] = monthData;
@@ -876,24 +2379,6 @@
                     processedData.totals.furnitureValue += monthData.stats.furnitureValue;
                 }
             });
-            
-            if (workbook.Sheets['PIE CHART - END OF YEAR']) {
-                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['PIE CHART - END OF YEAR'], { 
-                    header: 1, 
-                    raw: true,  // Preserve exact values
-                    defval: ''
-                });
-                const yearEndData = processMonthData(sheetData, 'END OF YEAR', sourceType);
-                processedData.monthly['END OF YEAR'] = yearEndData;
-                processedData.allItems = processedData.allItems.concat(yearEndData.items);
-                
-                processedData.totals.totalItems += yearEndData.stats.totalItems;
-                processedData.totals.totalValue += yearEndData.stats.totalValue;
-                processedData.totals.medicalEquipment += yearEndData.stats.medicalEquipment;
-                processedData.totals.medicalValue += yearEndData.stats.medicalValue;
-                processedData.totals.furniture += yearEndData.stats.furniture;
-                processedData.totals.furnitureValue += yearEndData.stats.furnitureValue;
-            }
             
             return processedData;
         }
@@ -925,35 +2410,26 @@
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (row && row[0] && row[3]) {
-                    // Read Total Price from column 11 (index 11)
-                    const totalPrice = parseFloat(String(row[11]).replace(/,/g, '')) || 0;
-                    const unitPrice = parseFloat(String(row[9]).replace(/,/g, '')) || 0;
+                    const totalPrice = parseFloat(String(row[11] || '0').replace(/,/g, '')) || 0;
+                    const unitPrice = parseFloat(String(row[9] || '0').replace(/,/g, '')) || 0;
                     const quantity = parseInt(row[2]) || 1;
+                    
                     const itemType = row[6] ? row[6].toString() : '';
                     const isMedical = itemType.toLowerCase().includes('medical');
                     
-                    // Preserve Asset Code exactly as it appears in Excel - handle all types
-                    let assetCode = '';
-                    if (row[0] !== null && row[0] !== undefined) {
-                        assetCode = String(row[0]).trim();
-                    }
+                    let assetCode = String(row[0]).trim();
                     
-                    // Preserve Date exactly as it appears in Excel
                     let dateIn = '';
                     if (row[1]) {
-                        // If it's already a formatted string, keep it
-                        if (typeof row[1] === 'string') {
-                            dateIn = row[1].trim();
-                        } else if (typeof row[1] === 'number') {
-                            // Excel date serial number - convert to date
-                            const excelDate = new Date((row[1] - 25569) * 86400 * 1000);
-                            // Format as DD/MM/YYYY
+                        dateIn = String(row[1]).trim();
+                        
+                        if (!isNaN(row[1]) && !dateIn.includes('-') && !dateIn.includes('/')) {
+                            const excelDate = new Date((parseFloat(row[1]) - 25569) * 86400 * 1000);
                             const day = String(excelDate.getDate()).padStart(2, '0');
-                            const month = String(excelDate.getMonth() + 1).padStart(2, '0');
+                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            const monthName = monthNames[excelDate.getMonth()];
                             const year = excelDate.getFullYear();
-                            dateIn = `${day}/${month}/${year}`;
-                        } else {
-                            dateIn = String(row[1]);
+                            dateIn = `${day}-${monthName}-${year}`;
                         }
                     }
                     
@@ -961,11 +2437,11 @@
                         assetCode: assetCode,
                         dateIn: dateIn,
                         quantity: quantity,
-                        description: row[3] || '',
-                        supplier: row[4] || '',
-                        itemType: row[5] || sourceType,
+                        description: String(row[3] || '').trim(),
+                        supplier: String(row[4] || '').trim(),
+                        itemType: String(row[5] || sourceType).trim(),
                         category: isMedical ? 'Medical Equipment' : 'Furniture & Appliances',
-                        serialModel: row[7] || '',
+                        serialModel: String(row[7] || '').trim(),
                         unitPrice: unitPrice,
                         totalPrice: totalPrice,
                         source: sourceType,
@@ -1081,14 +2557,6 @@
                                 }
                             }
                         }
-                    },
-                    layout: {
-                        padding: {
-                            top: 10,
-                            bottom: 10,
-                            left: 10,
-                            right: 10
-                        }
                     }
                 }
             });
@@ -1119,10 +2587,7 @@
                     aspectRatio: 1.5,
                     plugins: { 
                         legend: { 
-                            position: 'bottom',
-                            labels: {
-                                padding: 10
-                            }
+                            position: 'bottom'
                         }
                     }
                 }
@@ -1157,7 +2622,6 @@
                 return;
             }
             
-            // Calculate grand total for filtered data
             const grandTotal = filteredData.reduce((sum, item) => sum + item.totalPrice, 0);
             document.getElementById('grandTotalDisplay').textContent = `JMD ${formatCurrency(grandTotal)}`;
             
@@ -1166,14 +2630,13 @@
                     <thead>
                         <tr>
                             <th>Asset Code</th>
-                            <th>Date</th>
+                            <th>Date In</th>
                             <th>Description</th>
                             <th>Category</th>
                             <th>Supplier/Donor</th>
                             <th>Source</th>
                             <th>Serial/Model</th>
                             <th>Qty</th>
-                            <th>Unit Price (JMD)</th>
                             <th>Total Price (JMD)</th>
                             <th>Month</th>
                         </tr>
@@ -1196,7 +2659,6 @@
                         <td>${item.source}</td>
                         <td>${item.serialModel}</td>
                         <td>${item.quantity}</td>
-                        <td>${formatCurrency(item.unitPrice)}</td>
                         <td><strong style="color: var(--primary-green);">${formatCurrency(item.totalPrice)}</strong></td>
                         <td>${item.month}</td>
                     </tr>
@@ -1283,7 +2745,6 @@
                 const totalValue = purchasedStats.totalValue + donatedStats.totalValue;
                 const hasData = totalItems > 0;
                 
-                // APR to DEC is 2025/2026, JAN to MAR is 2026/2027
                 const yearLabel = ['JAN', 'FEB', 'MAR'].includes(month) ? '2026/2027' : '2025/2026';
                 
                 html += `
@@ -1351,14 +2812,19 @@
         }
 
         function exportData() {
+            if (!currentUser || !currentUser.canExport) {
+                alert('⚠️ You do not have permission to export data. Please contact an administrator.');
+                return;
+            }
+
             if (filteredData.length === 0) {
                 alert('No data to export');
                 return;
             }
             
             const wb = XLSX.utils.book_new();
-            const headers = ['Asset Code', 'Date', 'Description', 'Category', 'Supplier/Donor', 
-                           'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month'];
+            const headers = ['Asset Code', 'Date In', 'Description', 'Category', 'Supplier/Donor', 
+                           'Source', 'Serial/Model', 'Quantity', 'Total Price (JMD)', 'Month'];
             const rows = filteredData.map(item => [
                 item.assetCode,
                 item.dateIn,
@@ -1368,7 +2834,6 @@
                 item.source,
                 item.serialModel,
                 item.quantity,
-                item.unitPrice,
                 item.totalPrice,
                 item.month
             ]);
@@ -1377,6 +2842,13 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Assets');
             XLSX.writeFile(wb, `MayPen_Asset_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
+        
+        // ============================================
+        // INITIALIZE ON PAGE LOAD
+        // ============================================
+        window.addEventListener('DOMContentLoaded', function() {
+            setDynamicCopyrightYear();
+        });
     </script>
 </body>
 </html>
