@@ -2358,19 +2358,120 @@
             const entry = window.currentAuditData[index];
             if (!entry) return;
 
-            // Populate form with entry data
-            document.getElementById('auditAssetCode').value = entry.assetCode || '';
-            document.getElementById('auditAction').value = entry.action || '';
-            document.getElementById('auditLocation').value = entry.location || entry.supplier || '';
-            document.getElementById('auditNotes').value = entry.notes || '';
-            document.getElementById('auditValue').value = entry.value || 0;
+            const timestamp = new Date(entry.timestamp).toLocaleString();
+            const cardElement = document.getElementById(`audit-entry-${index}`);
 
-            // Show cancel button and store editing index
-            document.getElementById('cancelEditBtn').style.display = 'inline-block';
-            editingAuditIndex = index;
+            // Create inline edit form
+            cardElement.innerHTML = `
+                <div class="audit-timestamp">${timestamp}</div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Asset Code:</label>
+                        <input type="text" id="edit-assetCode-${index}" class="calc-input" value="${entry.assetCode || ''}" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Action:</label>
+                        <select id="edit-action-${index}" class="calc-input" style="width: 100%;">
+                            <option value="">Select Action</option>
+                            <option value="Asset Created" ${entry.action === 'Asset Created' ? 'selected' : ''}>Asset Created</option>
+                            <option value="Asset Assigned" ${entry.action === 'Asset Assigned' ? 'selected' : ''}>Asset Assigned</option>
+                            <option value="Asset Transferred" ${entry.action === 'Asset Transferred' ? 'selected' : ''}>Asset Transferred</option>
+                            <option value="Asset Maintenance" ${entry.action === 'Asset Maintenance' ? 'selected' : ''}>Asset Maintenance</option>
+                            <option value="Asset Disposed" ${entry.action === 'Asset Disposed' ? 'selected' : ''}>Asset Disposed</option>
+                            <option value="Asset Inspection" ${entry.action === 'Asset Inspection' ? 'selected' : ''}>Asset Inspection</option>
+                            <option value="Asset Updated" ${entry.action === 'Asset Updated' ? 'selected' : ''}>Asset Updated</option>
+                            <option value="Other" ${entry.action === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Department/Location:</label>
+                        <input type="text" id="edit-location-${index}" class="calc-input" value="${entry.location || entry.supplier || ''}" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Value (JMD):</label>
+                        <input type="number" id="edit-value-${index}" class="calc-input" value="${entry.value || 0}" step="0.01" min="0" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Notes:</label>
+                        <textarea id="edit-notes-${index}" class="calc-input" style="width: 100%; min-height: 60px; resize: vertical;">${entry.notes || ''}</textarea>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="search-btn" style="padding: 5px 15px; font-size: 0.85em; background: #28a745;" onclick="saveAuditEntryInline(${index})">💾 Save</button>
+                        <button class="search-btn" style="padding: 5px 15px; font-size: 0.85em; background: #6c757d; margin-left: 5px;" onclick="cancelAuditEntryInline(${index})">❌ Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
 
-            // Scroll to form
-            document.getElementById('addAuditEntrySection').scrollIntoView({ behavior: 'smooth' });
+        function cancelAuditEntryInline(index) {
+            // Simply reload the audit trail to restore original view
+            fetchAuditTrailData();
+        }
+
+        async function saveAuditEntryInline(index) {
+            if (!currentUser || currentUser.role !== 'Admin') {
+                alert('⛔ Access Denied: Admin privileges required');
+                return;
+            }
+
+            const entry = window.currentAuditData[index];
+            if (!entry) return;
+
+            // Get values from inline form
+            const assetCode = document.getElementById(`edit-assetCode-${index}`).value.trim();
+            const action = document.getElementById(`edit-action-${index}`).value;
+            const location = document.getElementById(`edit-location-${index}`).value;
+            const notes = document.getElementById(`edit-notes-${index}`).value;
+            const value = document.getElementById(`edit-value-${index}`).value;
+
+            if (!assetCode || !action) {
+                alert('⚠️ Asset code and action are required');
+                return;
+            }
+
+            // Check if AUDIT_SCRIPT_URL is configured
+            if (!AUDIT_SCRIPT_URL || AUDIT_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                alert('⚙️ Audit trail not configured - contact administrator');
+                return;
+            }
+
+            // Try to find asset details from loaded data
+            const asset = allAssetsData.find(a => a.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            const entryData = {
+                timestamp: entry.timestamp,
+                assetCode: assetCode,
+                description: asset ? asset.description : entry.description || 'Manual Entry',
+                action: action,
+                user: currentUser.displayName,
+                location: location,
+                notes: notes,
+                value: value
+            };
+
+            try {
+                const requestData = { ...entryData, action: 'update', index: index };
+
+                const response = await fetch(AUDIT_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                alert('✅ Entry updated successfully!');
+
+                // Reload audit trail
+                setTimeout(() => {
+                    fetchAuditTrailData();
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error updating audit entry:', error);
+                alert('❌ Update failed');
+            }
         }
 
         function cancelEditAuditEntry() {
@@ -2416,6 +2517,18 @@
                         timestamp: entry.timestamp
                     })
                 });
+
+                // Clear form and reset state to prevent timestamp being treated as new record
+                document.getElementById('auditAssetCode').value = '';
+                document.getElementById('auditAction').value = '';
+                document.getElementById('auditLocation').value = '';
+                document.getElementById('auditNotes').value = '';
+                document.getElementById('auditValue').value = '';
+                document.getElementById('cancelEditBtn').style.display = 'none';
+                editingAuditIndex = null;
+
+                // Show success message
+                alert('✅ Entry deleted successfully!');
 
                 // Reload audit trail
                 setTimeout(() => {
