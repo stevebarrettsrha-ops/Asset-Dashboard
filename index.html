@@ -1019,7 +1019,7 @@
                     
                     <div class="status-bar">
                         <div class="status-item">
-                            <span class="status-indicator" id="statusIndicator" class="loading"></span>
+                            <span class="status-indicator loading" id="statusIndicator"></span>
                             <span id="statusText">Initializing...</span>
                         </div>
                         <div class="status-item">
@@ -1733,6 +1733,10 @@
             }
             
             const qrOutput = document.getElementById('qrOutput');
+            const escapedAssetCode = escapeHtml(assetCode);
+            const escapedQrData = escapeHtml(qrData);
+            const qrDataDisplay = qrData.length > 50 ? escapeHtml(qrData.substring(0, 50)) + '...' : escapedQrData;
+
             qrOutput.innerHTML = `
                 <div style="display: flex; justify-content: center; margin: 20px 0;">
                     <div style="width: 200px; height: 200px; background: black; display: grid; grid-template-columns: repeat(25, 1fr); grid-template-rows: repeat(25, 1fr); gap: 1px;">
@@ -1740,9 +1744,9 @@
                     </div>
                 </div>
                 ${displayInfo}
-                <p><strong>QR Data:</strong> ${qrData.length > 50 ? qrData.substring(0, 50) + '...' : qrData}</p>
+                <p><strong>QR Data:</strong> ${qrDataDisplay}</p>
                 <div style="margin-top: 15px;">
-                    <button class="search-btn" onclick="printQRCode('${assetCode}', '${qrData}')">Print QR Code</button>
+                    <button class="search-btn" data-asset-code="${escapedAssetCode}" data-qr-data="${escapedQrData}" onclick="printQRCode(this.dataset.assetCode, this.dataset.qrData)">Print QR Code</button>
                 </div>
             `;
         }
@@ -1762,8 +1766,14 @@
                 return;
             }
             
-            const batchSize = parseInt(prompt('How many QR codes to generate? (Max 50)', '10'));
-            if (!batchSize || batchSize > 50) return;
+            const userInput = prompt('How many QR codes to generate? (Max 50)', '10');
+            if (userInput === null) return; // User cancelled
+
+            const batchSize = parseInt(userInput);
+            if (isNaN(batchSize) || batchSize < 1 || batchSize > 50) {
+                alert('Please enter a valid number between 1 and 50');
+                return;
+            }
             
             const assets = allAssetsData.slice(0, batchSize);
             let batchHTML = '<h3>Batch QR Code Generation</h3>';
@@ -1802,6 +1812,35 @@
             `);
         }
 
+        function printBatchQR() {
+            const printWindow = window.open('', '_blank');
+            const qrOutput = document.getElementById('qrOutput').innerHTML;
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Batch QR Codes - May Pen Hospital</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        h2 { text-align: center; }
+                        @media print {
+                            button { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>May Pen Hospital - Batch QR Codes</h2>
+                    ${qrOutput}
+                    <script>
+                        // Remove the print button from the printed version
+                        const buttons = document.querySelectorAll('button');
+                        buttons.forEach(btn => btn.remove());
+                        window.print();
+                    <\/script>
+                </body>
+                </html>
+            `);
+        }
+
         // ============================================
         // AUDIT TRAIL
         // ============================================
@@ -1828,7 +1867,19 @@
         
         async function fetchAuditTrailData() {
             const auditEntries = document.getElementById('auditEntries');
-            
+
+            // Check if AUDIT_SCRIPT_URL is configured
+            if (!AUDIT_SCRIPT_URL || AUDIT_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                auditEntries.innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: var(--table-hover); border-radius: 8px; border: 2px dashed var(--border-color);">
+                        <p style="font-size: 1.2em; color: var(--text-secondary); margin-bottom: 10px;">⚙️ Audit Trail Not Configured</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9em;">The audit trail feature requires Google Apps Script configuration.</p>
+                        <p style="color: var(--text-secondary); font-size: 0.9em; margin-top: 10px;">Contact your system administrator to enable this feature.</p>
+                    </div>
+                `;
+                return;
+            }
+
             // Show loading state
             auditEntries.innerHTML = `
                 <div class="loading">
@@ -1836,14 +1887,14 @@
                     <p>Loading audit trail from Google Sheet...</p>
                 </div>
             `;
-            
+
             try {
                 const response = await fetch(AUDIT_SCRIPT_URL + '?action=read');
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch audit data');
                 }
-                
+
                 const data = await response.json();
                 
                 if (data.status === 'success' && data.entries && data.entries.length > 0) {
@@ -1914,12 +1965,21 @@
                 setTimeout(() => statusSpan.textContent = '', 3000);
                 return;
             }
-            
+
+            const statusSpan = document.getElementById('auditSubmitStatus');
+
+            // Check if AUDIT_SCRIPT_URL is configured
+            if (!AUDIT_SCRIPT_URL || AUDIT_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                statusSpan.textContent = '⚙️ Audit trail not configured - contact administrator';
+                statusSpan.style.color = '#dc3545';
+                setTimeout(() => statusSpan.textContent = '', 5000);
+                return;
+            }
+
             const assetCode = document.getElementById('auditAssetCode').value.trim();
             const action = document.getElementById('auditAction').value;
             const location = document.getElementById('auditLocation').value;
             const notes = document.getElementById('auditNotes').value;
-            const statusSpan = document.getElementById('auditSubmitStatus');
             
             if (!assetCode || !action) {
                 statusSpan.textContent = '⚠️ Please enter asset code and select action';
@@ -1986,10 +2046,10 @@
                         alert('No audit trail data to export');
                         return;
                     }
-                    
+
                     const wb = XLSX.utils.book_new();
                     const auditData = [['Timestamp', 'Asset Code', 'Description', 'Action', 'User', 'Location', 'Notes', 'Value (JMD)']];
-                    
+
                     window.currentAuditData.forEach(entry => {
                         auditData.push([
                             new Date(entry.timestamp).toLocaleString(),
@@ -2002,11 +2062,14 @@
                             entry.value || 0
                         ]);
                     });
-                    
+
                     const ws = XLSX.utils.aoa_to_sheet(auditData);
                     XLSX.utils.book_append_sheet(wb, ws, 'Audit Trail');
                     XLSX.writeFile(wb, `Audit_Trail_${new Date().toISOString().split('T')[0]}.xlsx`);
                 }, 1000);
+            }).catch(error => {
+                console.error('Error exporting audit trail:', error);
+                alert('Failed to export audit trail data. Please try again or check your network connection.');
             });
         }
 
@@ -2178,13 +2241,17 @@
             const totalValue = (purchasedData.totals?.totalValue || 0) + (donatedData.totals?.totalValue || 0);
             const medicalValue = (purchasedData.totals?.medicalValue || 0) + (donatedData.totals?.medicalValue || 0);
             const furnitureValue = (purchasedData.totals?.furnitureValue || 0) + (donatedData.totals?.furnitureValue || 0);
-            
+
+            // Calculate percentages with division by zero protection
+            const medicalPercent = totalValue > 0 ? ((medicalValue/totalValue)*100).toFixed(1) : '0.0';
+            const furniturePercent = totalValue > 0 ? ((furnitureValue/totalValue)*100).toFixed(1) : '0.0';
+
             return `
                 <h3>Asset Valuation Report</h3>
                 <table>
                     <tr><th>Category</th><th>Value (JMD)</th><th>Percentage</th></tr>
-                    <tr><td>Medical Equipment</td><td>${formatCurrency(medicalValue)}</td><td>${((medicalValue/totalValue)*100).toFixed(1)}%</td></tr>
-                    <tr><td>Furniture & Appliances</td><td>${formatCurrency(furnitureValue)}</td><td>${((furnitureValue/totalValue)*100).toFixed(1)}%</td></tr>
+                    <tr><td>Medical Equipment</td><td>${formatCurrency(medicalValue)}</td><td>${medicalPercent}%</td></tr>
+                    <tr><td>Furniture & Appliances</td><td>${formatCurrency(furnitureValue)}</td><td>${furniturePercent}%</td></tr>
                     <tr><th>Total</th><th>${formatCurrency(totalValue)}</th><th>100%</th></tr>
                 </table>
             `;
@@ -2801,6 +2868,12 @@
 
         function formatCurrency(value) {
             return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function updateStatus(status, message) {
