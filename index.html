@@ -2221,13 +2221,27 @@
                 const notes = entry.notes || '';
                 const rowNumber = entry.rowNumber;
 
-                // Show delete button only for Admin users
-                const deleteButton = (currentUser && currentUser.role === 'Admin')
-                    ? `<button class="clear-btn" style="padding: 5px 15px; font-size: 0.85em;" onclick="deleteAuditEntry('${rowNumber}', '${escapeHtml(assetCode)}')">🗑️ Delete</button>`
+                // Escape data for JSON encoding
+                const entryDataJson = escapeHtml(JSON.stringify({
+                    rowNumber,
+                    assetCode,
+                    description,
+                    action,
+                    location,
+                    notes,
+                    value: entry.value,
+                    timestamp: entry.timestamp,
+                    user
+                }));
+
+                // Show edit and delete buttons only for Admin users
+                const adminButtons = (currentUser && currentUser.role === 'Admin')
+                    ? `<button class="search-btn" style="padding: 5px 15px; font-size: 0.85em; margin-right: 10px;" onclick='editAuditEntry(${entryDataJson})'>✏️ Edit</button>
+                       <button class="clear-btn" style="padding: 5px 15px; font-size: 0.85em;" onclick="deleteAuditEntry(${rowNumber}, '${escapeHtml(assetCode)}')">🗑️ Delete</button>`
                     : '';
 
                 html += `
-                    <div class="audit-entry" style="position: relative;">
+                    <div class="audit-entry" id="audit-entry-${rowNumber}" style="position: relative;">
                         <div class="audit-timestamp">${timestamp}</div>
                         <strong>Asset ${assetCode} - ${description}</strong><br>
                         <strong>Action:</strong> ${action}<br>
@@ -2236,7 +2250,7 @@
                         <strong>Value:</strong> JMD ${value}
                         ${notes ? `<br><small style="color: var(--text-secondary);">Notes: ${notes}</small>` : ''}
                         <div style="margin-top: 10px;">
-                            ${deleteButton}
+                            ${adminButtons}
                         </div>
                     </div>
                 `;
@@ -2339,19 +2353,42 @@
                 return;
             }
 
+            console.log('Attempting to delete audit entry:', { rowNumber, assetCode });
+
             try {
+                const payload = {
+                    action: 'delete',
+                    rowNumber: parseInt(rowNumber)
+                };
+
+                console.log('Sending delete request with payload:', payload);
+
                 const response = await fetch(AUDIT_SCRIPT_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: JSON.stringify({
-                        action: 'delete',
-                        rowNumber: parseInt(rowNumber)
-                    })
+                    body: new URLSearchParams(payload)
                 });
 
-                const data = await response.json();
+                console.log('Delete response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const responseText = await response.text();
+                console.log('Delete response text:', responseText);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Failed to parse response as JSON:', e);
+                    throw new Error('Invalid response from server: ' + responseText.substring(0, 100));
+                }
+
+                console.log('Delete response data:', data);
 
                 if (data.status === 'success') {
                     alert('✅ Entry deleted successfully!');
@@ -2362,7 +2399,155 @@
 
             } catch (error) {
                 console.error('Error deleting audit entry:', error);
-                alert('❌ Error deleting entry. Please try again.');
+                alert('❌ Error deleting entry: ' + error.message + '\n\nCheck browser console for details.');
+            }
+        }
+
+        function editAuditEntry(entryData) {
+            // Check if user is Admin
+            if (!currentUser || currentUser.role !== 'Admin') {
+                alert('⛔ Access Denied: Admin privileges required to edit entries');
+                return;
+            }
+
+            console.log('Editing audit entry:', entryData);
+
+            // Create inline edit form
+            const entryDiv = document.getElementById(`audit-entry-${entryData.rowNumber}`);
+            if (!entryDiv) {
+                alert('❌ Could not find entry to edit');
+                return;
+            }
+
+            // Store original HTML in case user cancels
+            const originalHTML = entryDiv.innerHTML;
+
+            // Create edit form
+            entryDiv.innerHTML = `
+                <div style="background: var(--table-hover); padding: 15px; border-radius: 8px;">
+                    <h4 style="margin-top: 0;">Edit Audit Entry (Row ${entryData.rowNumber})</h4>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Asset Code:</label>
+                        <input type="text" id="edit-assetCode-${entryData.rowNumber}" class="calc-input" value="${escapeHtml(entryData.assetCode)}" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Description:</label>
+                        <input type="text" id="edit-description-${entryData.rowNumber}" class="calc-input" value="${escapeHtml(entryData.description)}" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Action:</label>
+                        <select id="edit-action-${entryData.rowNumber}" class="calc-input" style="width: 100%;">
+                            <option value="Acquisition" ${entryData.action === 'Acquisition' ? 'selected' : ''}>Acquisition</option>
+                            <option value="Transfer" ${entryData.action === 'Transfer' ? 'selected' : ''}>Transfer</option>
+                            <option value="Disposal" ${entryData.action === 'Disposal' ? 'selected' : ''}>Disposal</option>
+                            <option value="Maintenance" ${entryData.action === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+                            <option value="Audit" ${entryData.action === 'Audit' ? 'selected' : ''}>Audit</option>
+                            <option value="Other" ${entryData.action === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Location:</label>
+                        <input type="text" id="edit-location-${entryData.rowNumber}" class="calc-input" value="${escapeHtml(entryData.location)}" style="width: 100%;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Notes:</label>
+                        <textarea id="edit-notes-${entryData.rowNumber}" class="calc-input" style="width: 100%; min-height: 60px;">${escapeHtml(entryData.notes || '')}</textarea>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="search-btn" style="padding: 8px 20px; margin-right: 10px;" onclick="saveAuditEntry(${entryData.rowNumber})">💾 Save</button>
+                        <button class="clear-btn" style="padding: 8px 20px;" onclick="cancelEditAuditEntry(${entryData.rowNumber}, \`${escapeHtml(originalHTML)}\`)">❌ Cancel</button>
+                        <span id="edit-status-${entryData.rowNumber}" style="margin-left: 15px; font-weight: 600;"></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function cancelEditAuditEntry(rowNumber, originalHTML) {
+            const entryDiv = document.getElementById(`audit-entry-${rowNumber}`);
+            if (entryDiv) {
+                entryDiv.innerHTML = originalHTML;
+            }
+        }
+
+        async function saveAuditEntry(rowNumber) {
+            const statusSpan = document.getElementById(`edit-status-${rowNumber}`);
+
+            // Get values from form
+            const assetCode = document.getElementById(`edit-assetCode-${rowNumber}`).value.trim();
+            const description = document.getElementById(`edit-description-${rowNumber}`).value.trim();
+            const action = document.getElementById(`edit-action-${rowNumber}`).value;
+            const location = document.getElementById(`edit-location-${rowNumber}`).value.trim();
+            const notes = document.getElementById(`edit-notes-${rowNumber}`).value.trim();
+
+            if (!assetCode || !action) {
+                statusSpan.textContent = '⚠️ Asset code and action are required';
+                statusSpan.style.color = '#dc3545';
+                return;
+            }
+
+            statusSpan.textContent = '⏳ Saving...';
+            statusSpan.style.color = '#ffa500';
+
+            console.log('Attempting to update audit entry:', { rowNumber, assetCode, description, action, location, notes });
+
+            try {
+                const payload = {
+                    action: 'update',
+                    rowNumber: parseInt(rowNumber),
+                    assetCode: assetCode,
+                    description: description,
+                    actionType: action,
+                    location: location,
+                    notes: notes,
+                    user: currentUser.displayName
+                };
+
+                console.log('Sending update request with payload:', payload);
+
+                const response = await fetch(AUDIT_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(payload)
+                });
+
+                console.log('Update response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const responseText = await response.text();
+                console.log('Update response text:', responseText);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Failed to parse response as JSON:', e);
+                    throw new Error('Invalid response from server: ' + responseText.substring(0, 100));
+                }
+
+                console.log('Update response data:', data);
+
+                if (data.status === 'success') {
+                    statusSpan.textContent = '✅ Updated successfully!';
+                    statusSpan.style.color = '#28a745';
+
+                    // Reload audit trail after 1 second
+                    setTimeout(() => {
+                        fetchAuditTrailData();
+                    }, 1000);
+                } else {
+                    statusSpan.textContent = '❌ Failed: ' + (data.message || 'Unknown error');
+                    statusSpan.style.color = '#dc3545';
+                }
+
+            } catch (error) {
+                console.error('Error updating audit entry:', error);
+                statusSpan.textContent = '❌ Error: ' + error.message;
+                statusSpan.style.color = '#dc3545';
             }
         }
 
