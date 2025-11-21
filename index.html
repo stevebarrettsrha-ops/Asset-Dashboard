@@ -1157,6 +1157,29 @@
             background: var(--dark-orange);
             transform: scale(1.1);
         }
+
+        .btn-pdf-download {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: auto;
+            transition: all 0.2s;
+        }
+
+        .btn-pdf-download:hover {
+            background: #c0392b;
+            transform: scale(1.05);
+        }
+
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -1413,9 +1436,14 @@
                         </div>
                         <div class="user-info" id="userInfo2"></div>
                     </div>
-                    
+
                     <div class="status-bar">
                         <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 8px;">
+                            <button class="btn monthly-view-btn" onclick="previousFiscalYear()" title="Previous Year">◀️</button>
+                            <span id="fiscalYearDisplay" style="font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center;">FY 2025/2026</span>
+                            <button class="btn monthly-view-btn" onclick="nextFiscalYear()" title="Next Year">▶️</button>
+                        </div>
                         <button class="btn monthly-view-btn" onclick="loadData()">🔄 Refresh Data</button>
                     </div>
                 </div>
@@ -2221,6 +2249,69 @@
         let monthlyChart = null;
         const months = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
 
+        // Initialize fiscal year based on current date
+        let currentFiscalYear = (() => {
+            const now = new Date();
+            const month = now.getMonth(); // 0-11
+            const year = now.getFullYear();
+            // If current month is Jan (0), Feb (1), or Mar (2), fiscal year started last year
+            return (month >= 0 && month <= 2) ? year - 1 : year;
+        })();
+
+        // ============================================
+        // FISCAL YEAR FUNCTIONS
+        // ============================================
+
+        function getCurrentFiscalYear() {
+            return currentFiscalYear;
+        }
+
+        function previousFiscalYear() {
+            currentFiscalYear--;
+            updateFiscalYearDisplay();
+            loadData();
+        }
+
+        function nextFiscalYear() {
+            currentFiscalYear++;
+            updateFiscalYearDisplay();
+            loadData();
+        }
+
+        function updateFiscalYearDisplay() {
+            const display = document.getElementById('fiscalYearDisplay');
+            if (display) {
+                display.textContent = `FY ${currentFiscalYear}/${currentFiscalYear + 1}`;
+            }
+        }
+
+        function getFiscalYearFromDate(dateStr) {
+            // Parse date in format "DD-MMM-YYYY" and determine fiscal year
+            if (!dateStr) return currentFiscalYear;
+
+            try {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    const monthMap = {
+                        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                        'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+                    };
+                    const month = monthMap[parts[1].toLowerCase()];
+                    const year = parseInt(parts[2]);
+
+                    // If month is Jan, Feb, Mar, fiscal year started previous year
+                    if (month >= 0 && month <= 2) {
+                        return year - 1;
+                    } else {
+                        return year;
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing date for fiscal year:', e);
+            }
+            return currentFiscalYear;
+        }
+
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
@@ -2229,6 +2320,7 @@
             setDynamicCopyrightYear();
             
             if (pageNum === 2) {
+                updateFiscalYearDisplay();
                 displayMonthlyBreakdown();
             }
         }
@@ -3223,7 +3315,13 @@
             updateStatus('loading', 'Loading asset data...');
 
             try {
-                const assets = loadAssetsFromStorage();
+                const allAssets = loadAssetsFromStorage();
+
+                // Filter assets by current fiscal year
+                const assets = allAssets.filter(asset => {
+                    const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
+                    return assetFiscalYear === currentFiscalYear;
+                });
 
                 // Process assets into the expected format
                 purchasedData = { allItems: [], monthly: {}, totals: { totalValue: 0, totalItems: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
@@ -3746,22 +3844,212 @@
             document.getElementById('searchResultsBox').classList.remove('show');
         }
 
+        // ============================================
+        // MONTHLY PDF DOWNLOAD
+        // ============================================
+
+        function downloadMonthPDF(month) {
+            const purchasedStats = purchasedData.monthly?.[month]?.stats || { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 };
+            const donatedStats = donatedData.monthly?.[month]?.stats || { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 };
+            const purchasedItems = purchasedData.monthly?.[month]?.items || [];
+            const donatedItems = donatedData.monthly?.[month]?.items || [];
+            const allItems = [...purchasedItems, ...donatedItems];
+
+            if (allItems.length === 0) {
+                alert('No data available for this month');
+                return;
+            }
+
+            const actualYear = ['JAN', 'FEB', 'MAR'].includes(month) ? currentFiscalYear + 1 : currentFiscalYear;
+
+            // Create a hidden print container
+            const printContainer = document.createElement('div');
+            printContainer.style.display = 'none';
+            printContainer.innerHTML = `
+                <div id="monthPrintContent">
+                    <style>
+                        @media print {
+                            body * {
+                                visibility: hidden;
+                            }
+                            #monthPrintContent, #monthPrintContent * {
+                                visibility: visible;
+                            }
+                            #monthPrintContent {
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 100%;
+                            }
+                        }
+                        #monthPrintContent {
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                            max-width: 1000px;
+                            margin: 0 auto;
+                        }
+                        #monthPrintContent h1 {
+                            color: #FF6B35;
+                            text-align: center;
+                            margin-bottom: 10px;
+                        }
+                        #monthPrintContent h2 {
+                            color: #2C3E50;
+                            text-align: center;
+                            margin-bottom: 20px;
+                        }
+                        #monthPrintContent .summary-box {
+                            background: #f8f9fa;
+                            border: 2px solid #FF6B35;
+                            border-radius: 8px;
+                            padding: 15px;
+                            margin-bottom: 20px;
+                        }
+                        #monthPrintContent .summary-grid {
+                            display: grid;
+                            grid-template-columns: repeat(3, 1fr);
+                            gap: 15px;
+                            margin-bottom: 15px;
+                        }
+                        #monthPrintContent .summary-item {
+                            text-align: center;
+                        }
+                        #monthPrintContent .summary-label {
+                            font-weight: bold;
+                            color: #2C3E50;
+                            margin-bottom: 5px;
+                        }
+                        #monthPrintContent .summary-value {
+                            font-size: 1.3em;
+                            color: #2ECC71;
+                        }
+                        #monthPrintContent table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 20px;
+                        }
+                        #monthPrintContent th {
+                            background: #FF6B35;
+                            color: white;
+                            padding: 10px;
+                            text-align: left;
+                            font-weight: bold;
+                        }
+                        #monthPrintContent td {
+                            border: 1px solid #ddd;
+                            padding: 8px;
+                        }
+                        #monthPrintContent tr:nth-child(even) {
+                            background: #f8f9fa;
+                        }
+                        #monthPrintContent .footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            font-size: 0.9em;
+                            color: #7f8c8d;
+                        }
+                    </style>
+
+                    <h1>May Pen Hospital</h1>
+                    <h2>Asset Inventory Report - ${month} ${actualYear}</h2>
+                    <p style="text-align: center; color: #7f8c8d;">Fiscal Year ${currentFiscalYear}/${currentFiscalYear + 1}</p>
+
+                    <div class="summary-box">
+                        <h3 style="text-align: center; margin-top: 0;">Monthly Summary</h3>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <div class="summary-label">Total Items</div>
+                                <div class="summary-value">${purchasedStats.totalItems + donatedStats.totalItems}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Total Value</div>
+                                <div class="summary-value">JMD ${formatCurrency(purchasedStats.totalValue + donatedStats.totalValue)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Medical Equipment</div>
+                                <div class="summary-value">${purchasedStats.medicalEquipment + donatedStats.medicalEquipment}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Furniture & Appliances</div>
+                                <div class="summary-value">${purchasedStats.furniture + donatedStats.furniture}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Purchased</div>
+                                <div class="summary-value">${purchasedStats.totalItems}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Donated</div>
+                                <div class="summary-value">${donatedStats.totalItems}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3>Detailed Asset List</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Asset Code</th>
+                                <th>Description</th>
+                                <th>Department</th>
+                                <th>Category</th>
+                                <th>Source</th>
+                                <th>Qty</th>
+                                <th>Value (JMD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allItems.map(item => `
+                                <tr>
+                                    <td>${escapeHtml(item.assetCode)}</td>
+                                    <td>${escapeHtml(item.description)}</td>
+                                    <td>${escapeHtml(item.department || 'N/A')}</td>
+                                    <td>${escapeHtml(item.category)}</td>
+                                    <td>${escapeHtml(item.source)}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${formatCurrency(item.totalPrice)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>Generated on ${new Date().toLocaleString()}</p>
+                        <p>Fixed Asset Management System © May Pen Hospital</p>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(printContainer);
+
+            // Trigger print dialog
+            window.print();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(printContainer);
+            }, 100);
+        }
+
         function displayMonthlyBreakdown() {
             const container = document.getElementById('monthlyBreakdownContainer');
             let html = '';
-            
+
             months.forEach(month => {
                 const purchasedStats = purchasedData.monthly?.[month]?.stats || { totalItems: 0, totalValue: 0, medicalEquipment: 0, furniture: 0 };
                 const donatedStats = donatedData.monthly?.[month]?.stats || { totalItems: 0, totalValue: 0, medicalEquipment: 0, furniture: 0 };
                 const totalItems = purchasedStats.totalItems + donatedStats.totalItems;
                 const totalValue = purchasedStats.totalValue + donatedStats.totalValue;
                 const hasData = totalItems > 0;
-                
-                const yearLabel = ['JAN', 'FEB', 'MAR'].includes(month) ? '2026/2027' : '2025/2026';
-                
+
+                // Determine the actual year for the month (JAN, FEB, MAR are next year)
+                const actualYear = ['JAN', 'FEB', 'MAR'].includes(month) ? currentFiscalYear + 1 : currentFiscalYear;
+
                 html += `
                     <div class="month-card ${hasData ? 'has-data' : ''}">
-                        <div class="month-header">${month} ${yearLabel}</div>
+                        <div class="month-header">
+                            ${month} ${actualYear}
+                            ${hasData ? `<button class="btn-pdf-download" onclick="downloadMonthPDF('${month}')" title="Download PDF">📄 PDF</button>` : ''}
+                        </div>
                         <div class="month-stats">
                             <div class="month-stat">
                                 <div class="month-stat-label">Total Items</div>
@@ -3791,7 +4079,7 @@
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
         }
 
