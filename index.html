@@ -2263,6 +2263,10 @@
 
         // Auto-calculate total price
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize credentials on page load
+            loadCredentials();
+            console.log('Credentials initialized:', credentialsData);
+
             const quantityInput = document.getElementById('quantity');
             const unitPriceInput = document.getElementById('unitPrice');
             const totalPriceInput = document.getElementById('totalPrice');
