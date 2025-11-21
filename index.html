@@ -3157,27 +3157,44 @@
         }
 
         function downloadQRCode(assetCode) {
+            // QRCode.js creates both canvas and img - try canvas first, then img
             const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
-            if (!qrCanvas) {
+            const qrImg = document.querySelector('#qrCodeDisplay img');
+
+            if (!qrCanvas && !qrImg) {
                 alert('Please generate a QR code first');
                 return;
             }
 
             const link = document.createElement('a');
             link.download = `QR_${assetCode}_${new Date().toISOString().split('T')[0]}.png`;
-            link.href = qrCanvas.toDataURL('image/png');
+
+            if (qrCanvas) {
+                link.href = qrCanvas.toDataURL('image/png');
+            } else if (qrImg) {
+                link.href = qrImg.src;
+            }
             link.click();
         }
 
         function printSingleQRCode(assetCode) {
+            // QRCode.js creates both canvas and img - try to get the image data
             const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
-            if (!qrCanvas) {
+            const qrImg = document.querySelector('#qrCodeDisplay img');
+
+            if (!qrCanvas && !qrImg) {
                 alert('Please generate a QR code first');
                 return;
             }
 
             const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
-            const qrImageData = qrCanvas.toDataURL('image/png');
+            let qrImageData;
+
+            if (qrCanvas) {
+                qrImageData = qrCanvas.toDataURL('image/png');
+            } else if (qrImg) {
+                qrImageData = qrImg.src;
+            }
 
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
@@ -3276,20 +3293,24 @@
 
             // Download each QR code individually (ZIP would require additional library)
             const items = document.querySelectorAll('.batch-qr-item');
+            let downloadCount = 0;
             items.forEach((item, index) => {
                 const canvas = item.querySelector('canvas');
+                const img = item.querySelector('img');
                 const assetCode = item.querySelector('h4').textContent;
-                if (canvas) {
+
+                if (canvas || img) {
+                    downloadCount++;
                     setTimeout(() => {
                         const link = document.createElement('a');
                         link.download = `QR_${assetCode}.png`;
-                        link.href = canvas.toDataURL('image/png');
+                        link.href = canvas ? canvas.toDataURL('image/png') : img.src;
                         link.click();
                     }, index * 200); // Stagger downloads
                 }
             });
 
-            alert(`Downloading ${canvases.length} QR codes...`);
+            alert(`Downloading ${downloadCount} QR codes...`);
         }
 
         function printBatchQRCodes() {
@@ -3302,12 +3323,21 @@
             let qrImagesHTML = '';
             items.forEach(item => {
                 const canvas = item.querySelector('canvas');
+                const img = item.querySelector('img');
                 const assetCode = item.querySelector('h4').textContent;
                 const description = item.querySelector('p').textContent;
+
+                let imgSrc = '';
                 if (canvas) {
+                    imgSrc = canvas.toDataURL('image/png');
+                } else if (img) {
+                    imgSrc = img.src;
+                }
+
+                if (imgSrc) {
                     qrImagesHTML += `
                         <div style="display: inline-block; margin: 15px; text-align: center; page-break-inside: avoid;">
-                            <img src="${canvas.toDataURL('image/png')}" width="150" height="150" style="border: 1px solid #ddd;">
+                            <img src="${imgSrc}" width="150" height="150" style="border: 1px solid #ddd;">
                             <div style="font-weight: bold; margin-top: 8px;">${escapeHtml(assetCode)}</div>
                             <div style="font-size: 0.8em; color: #666;">${escapeHtml(description)}</div>
                         </div>
