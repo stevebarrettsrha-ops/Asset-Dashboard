@@ -1208,7 +1208,10 @@
             
             <div class="login-info">
                 ℹ️ All asset data is stored locally in your browser.<br>
-                <strong>Default Login:</strong> admin / admin123 or user / user123
+                <strong>Login Accounts:</strong><br>
+                • steve / barrett123$<br>
+                • operations / opsman123$<br>
+                • asset / asset123$
             </div>
             
             <div id="loginError" class="login-error"></div>
@@ -1725,20 +1728,28 @@
 
         // Default credentials
         const DEFAULT_CREDENTIALS = {
-            'admin': {
-                password: 'admin123',
-                displayName: 'Administrator',
+            'steve': {
+                password: 'barrett123$',
+                displayName: 'Steve Barrett',
                 role: 'Admin',
-                email: 'admin@maypen.hospital',
+                email: 'steve@maypen.hospital',
                 canExport: true,
                 canRefresh: true
             },
-            'user': {
-                password: 'user123',
-                displayName: 'User',
+            'operations': {
+                password: 'opsman123$',
+                displayName: 'Operations Manager',
+                role: 'Admin',
+                email: 'operations@maypen.hospital',
+                canExport: true,
+                canRefresh: true
+            },
+            'asset': {
+                password: 'asset123$',
+                displayName: 'Asset Manager',
                 role: 'User',
-                email: 'user@maypen.hospital',
-                canExport: false,
+                email: 'asset@maypen.hospital',
+                canExport: true,
                 canRefresh: true
             }
         };
@@ -1746,15 +1757,10 @@
         // Load credentials from localStorage or use defaults
         function loadCredentials() {
             try {
-                const stored = localStorage.getItem(CREDENTIALS_STORAGE_KEY);
-                if (stored) {
-                    credentialsData = JSON.parse(stored);
-                } else {
-                    // First time - use defaults
-                    credentialsData = DEFAULT_CREDENTIALS;
-                    localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentialsData));
-                }
-                console.log('Credentials loaded successfully');
+                // Always use the latest DEFAULT_CREDENTIALS to ensure updates
+                credentialsData = DEFAULT_CREDENTIALS;
+                localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentialsData));
+                console.log('Credentials loaded successfully:', Object.keys(credentialsData));
                 return true;
             } catch (error) {
                 console.error('Error loading credentials:', error);
