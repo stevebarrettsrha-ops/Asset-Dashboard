@@ -1765,40 +1765,42 @@
             const username = document.getElementById('username').value.trim().toLowerCase();
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('loginError');
-            
+
+            // Credentials should already be loaded on page load
+            // But as a fallback, try to load them if they're not available
             if (!credentialsData) {
                 errorDiv.textContent = '⏳ Loading credentials...';
                 errorDiv.style.display = 'block';
                 errorDiv.style.background = '#e3f2fd';
                 errorDiv.style.color = '#1565c0';
                 errorDiv.style.borderLeft = '4px solid #1565c0';
-                
+
                 const loaded = await loadCredentials();
                 if (!loaded) {
-                    errorDiv.textContent = '❌ Failed to load credentials. Please check the Credentials Sheet ID configuration.';
+                    errorDiv.textContent = '❌ Failed to load credentials. Please refresh the page.';
                     errorDiv.style.background = '#fee';
                     errorDiv.style.color = '#c33';
                     errorDiv.style.borderLeft = '4px solid #c33';
                     return;
                 }
             }
-            
+
             const user = credentialsData[username];
-            
+
             if (user && user.password === password) {
                 currentUser = { username, ...user };
-                
+
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('dashboardContainer').style.display = 'block';
                 document.getElementById('nightModeBtn').style.display = 'flex';
                 document.getElementById('exportBtn').style.display = 'block';
-                
+
                 updateUserInterface();
                 applyPermissions();
-                
+
                 // Set copyright year after login
                 setDynamicCopyrightYear();
-                
+
                 initializeCharts();
                 loadData();
             } else {
@@ -4440,8 +4442,58 @@
         // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             setDynamicCopyrightYear();
+
+            // Preload credentials on page load
+            const loginBtn = document.querySelector('.login-btn');
+            const errorDiv = document.getElementById('loginError');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+
+            if (loginBtn) {
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Loading...';
+                loginBtn.style.opacity = '0.6';
+            }
+
+            if (usernameInput) usernameInput.disabled = true;
+            if (passwordInput) passwordInput.disabled = true;
+
+            if (errorDiv) {
+                errorDiv.textContent = '⏳ Loading authentication system...';
+                errorDiv.style.display = 'block';
+                errorDiv.style.background = '#e3f2fd';
+                errorDiv.style.color = '#1565c0';
+                errorDiv.style.borderLeft = '4px solid #1565c0';
+            }
+
+            const loaded = await loadCredentials();
+
+            if (loaded) {
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                    loginBtn.style.opacity = '1';
+                }
+                if (usernameInput) usernameInput.disabled = false;
+                if (passwordInput) passwordInput.disabled = false;
+                if (errorDiv) errorDiv.style.display = 'none';
+            } else {
+                if (errorDiv) {
+                    errorDiv.textContent = '❌ Failed to load authentication system. Please refresh the page or check your internet connection.';
+                    errorDiv.style.background = '#fee';
+                    errorDiv.style.color = '#c33';
+                    errorDiv.style.borderLeft = '4px solid #c33';
+                }
+                if (loginBtn) {
+                    loginBtn.textContent = 'Retry';
+                    loginBtn.disabled = false;
+                    loginBtn.onclick = function() {
+                        window.location.reload();
+                    };
+                }
+            }
         });
     </script>
 </body>
