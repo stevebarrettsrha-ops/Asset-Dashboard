@@ -2538,16 +2538,22 @@
             return currentFiscalYear;
         }
 
-        function previousFiscalYear() {
+        async function previousFiscalYear() {
             currentFiscalYear--;
+            console.log('Previous clicked, now FY:', currentFiscalYear);
             updateFiscalYearDisplay();
-            loadData();
+            await loadData();
+            displayMonthlyBreakdown();
+            console.log('Monthly breakdown updated for FY:', currentFiscalYear);
         }
 
-        function nextFiscalYear() {
+        async function nextFiscalYear() {
             currentFiscalYear++;
+            console.log('Next clicked, now FY:', currentFiscalYear);
             updateFiscalYearDisplay();
-            loadData();
+            await loadData();
+            displayMonthlyBreakdown();
+            console.log('Monthly breakdown updated for FY:', currentFiscalYear);
         }
 
         function updateFiscalYearDisplay() {
