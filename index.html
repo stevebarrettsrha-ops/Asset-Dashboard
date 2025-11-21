@@ -1794,16 +1794,20 @@
 
             if (user && user.password === password) {
                 currentUser = { username, ...user };
+                console.log('Credentials matched, transitioning to dashboard...');
 
                 try {
                     // Hide error message if shown
                     errorDiv.style.display = 'none';
+                    console.log('Step 1: Hiding error div');
 
                     // Hide login page
                     document.getElementById('loginPage').style.display = 'none';
+                    console.log('Step 2: Hiding login page');
 
                     // Show dashboard
                     document.getElementById('dashboardContainer').style.display = 'block';
+                    console.log('Step 3: Showing dashboard container');
 
                     // Show night mode button
                     const nightBtn = document.getElementById('nightModeBtn');
@@ -4472,8 +4476,17 @@
         // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             setDynamicCopyrightYear();
+
+            // Preload credentials from Google Sheets
+            console.log('Preloading credentials...');
+            try {
+                await loadCredentials();
+                console.log('Credentials preloaded successfully');
+            } catch (error) {
+                console.error('Failed to preload credentials:', error);
+            }
         });
     </script>
 </body>
