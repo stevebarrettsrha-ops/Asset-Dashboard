@@ -6,6 +6,7 @@
     <title>Fixed Asset Management Dashboard - May Pen Hospital</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1189,6 +1190,176 @@
             justify-content: space-between;
             align-items: center;
         }
+
+        /* Public Asset Viewer Styles */
+        .public-asset-viewer {
+            display: none;
+            position: fixed;
+            z-index: 99999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            overflow: auto;
+        }
+
+        .public-asset-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .public-asset-header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .public-asset-header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .public-asset-header p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .public-asset-body {
+            background: white;
+            padding: 25px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .asset-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .asset-info-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #FF6B35;
+        }
+
+        .asset-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .asset-info-label {
+            font-size: 0.8em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .asset-info-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2C3E50;
+        }
+
+        .asset-info-value.highlight {
+            color: #FF6B35;
+            font-size: 1.3em;
+        }
+
+        .public-asset-footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        .close-public-viewer {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 12px;
+            border-radius: 5px;
+        }
+
+        .close-public-viewer:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* QR Code Display Styles */
+        .qr-code-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .qr-code-wrapper {
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .qr-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .qr-download-btn {
+            padding: 10px 20px;
+            background: #2ECC71;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .qr-download-btn:hover {
+            background: #27AE60;
+            transform: translateY(-2px);
+        }
+
+        .batch-qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .batch-qr-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .batch-qr-item h4 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            color: #2C3E50;
+            word-break: break-all;
+        }
+
+        .batch-qr-item p {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -1196,6 +1367,24 @@
     <button class="night-mode-toggle" id="nightModeBtn" onclick="toggleNightMode()" title="Toggle Night Mode" style="display: none;">
         <span id="nightModeIcon">🌙</span>
     </button>
+
+    <!-- PUBLIC ASSET VIEWER (Accessible via QR Code scan without login) -->
+    <div class="public-asset-viewer" id="publicAssetViewer">
+        <div class="public-asset-container">
+            <div class="public-asset-header" style="position: relative;">
+                <button class="close-public-viewer" onclick="closePublicAssetViewer()">&times;</button>
+                <h1>May Pen Hospital</h1>
+                <p>Fixed Asset Information</p>
+            </div>
+            <div class="public-asset-body" id="publicAssetContent">
+                <!-- Asset details will be loaded here -->
+            </div>
+            <div class="public-asset-footer">
+                <p>Scanned via QR Code</p>
+                <p>&copy; <span id="publicCopyrightYear"></span> May Pen Hospital - Fixed Asset Management System</p>
+            </div>
+        </div>
+    </div>
 
     <!-- LOGIN PAGE -->
     <div class="login-container" id="loginPage">
@@ -2880,76 +3069,145 @@
         }
 
         // ============================================
-        // QR CODE GENERATOR
+        // QR CODE GENERATOR (Real QR Codes with qrcode.js)
         // ============================================
-        
+
+        // Get the base URL for QR codes (current page URL without query params)
+        function getQRBaseURL() {
+            return window.location.origin + window.location.pathname;
+        }
+
+        // Generate QR code URL for an asset
+        function getAssetQRURL(assetCode) {
+            return `${getQRBaseURL()}?asset=${encodeURIComponent(assetCode)}`;
+        }
+
         function generateQRCode() {
-            const assetCode = document.getElementById('qrAssetCode').value;
+            const assetCode = document.getElementById('qrAssetCode').value.trim();
             const format = document.getElementById('qrDataFormat').value;
-            
+
             if (!assetCode) {
                 alert('Please enter an asset code');
                 return;
             }
-            
-            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
-            
-            let qrData = assetCode;
-            let displayInfo = `<p><strong>Asset Code:</strong> ${assetCode}</p>`;
-            
-            if (asset) {
-                switch(format) {
-                    case 'detailed':
-                        qrData = `${asset.assetCode}: ${asset.description}`;
-                        displayInfo += `<p><strong>Description:</strong> ${asset.description}</p>`;
-                        break;
-                    case 'full':
-                        qrData = JSON.stringify({
-                            code: asset.assetCode,
-                            desc: asset.description,
-                            value: asset.totalPrice,
-                            location: asset.supplier,
-                            date: asset.dateIn
-                        });
-                        displayInfo += `
-                            <p><strong>Description:</strong> ${asset.description}</p>
-                            <p><strong>Value:</strong> JMD ${formatCurrency(asset.totalPrice)}</p>
-                            <p><strong>Source:</strong> ${asset.source}</p>
-                        `;
-                        break;
-                    case 'url':
-                        qrData = `https://maypen-hospital.assets.jm/asset/${assetCode}`;
-                        displayInfo += `<p><strong>Asset URL:</strong> ${qrData}</p>`;
-                        break;
-                }
-            }
-            
-            const qrOutput = document.getElementById('qrOutput');
-            const escapedAssetCode = escapeHtml(assetCode);
-            const escapedQrData = escapeHtml(qrData);
-            const qrDataDisplay = qrData.length > 50 ? escapeHtml(qrData.substring(0, 50)) + '...' : escapedQrData;
 
+            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            // Always use URL format for scannable QR codes
+            const qrURL = getAssetQRURL(asset ? asset.assetCode : assetCode);
+
+            let displayInfo = '';
+            if (asset) {
+                displayInfo = `
+                    <div class="asset-info-grid" style="margin: 15px 0;">
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Asset Code</div>
+                            <div class="asset-info-value">${escapeHtml(asset.assetCode)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Description</div>
+                            <div class="asset-info-value">${escapeHtml(asset.description)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Category</div>
+                            <div class="asset-info-value">${escapeHtml(asset.category)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Value</div>
+                            <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayInfo = `<p style="color: #e74c3c; margin: 15px 0;">Asset not found in database. QR code will link to this asset code.</p>`;
+            }
+
+            const qrOutput = document.getElementById('qrOutput');
             qrOutput.innerHTML = `
-                <div style="display: flex; justify-content: center; margin: 20px 0;">
-                    <div style="width: 200px; height: 200px; background: black; display: grid; grid-template-columns: repeat(25, 1fr); grid-template-rows: repeat(25, 1fr); gap: 1px;">
-                        ${generateQRPattern()}
+                <div class="qr-code-container">
+                    <div class="qr-code-wrapper">
+                        <div id="qrCodeDisplay"></div>
+                    </div>
+                    <div class="qr-actions">
+                        <button class="qr-download-btn" onclick="downloadQRCode('${escapeHtml(asset ? asset.assetCode : assetCode)}')">
+                            📥 Download PNG
+                        </button>
+                        <button class="qr-download-btn" style="background: #3498db;" onclick="printSingleQRCode('${escapeHtml(asset ? asset.assetCode : assetCode)}')">
+                            🖨️ Print
+                        </button>
                     </div>
                 </div>
                 ${displayInfo}
-                <p><strong>QR Data:</strong> ${qrDataDisplay}</p>
-                <div style="margin-top: 15px;">
-                    <button class="search-btn" data-asset-code="${escapedAssetCode}" data-qr-data="${escapedQrData}" onclick="printQRCode(this.dataset.assetCode, this.dataset.qrData)">Print QR Code</button>
-                </div>
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.9em;">
+                    <strong>Scan URL:</strong> ${escapeHtml(qrURL)}
+                </p>
             `;
+
+            // Generate actual QR code
+            const qrContainer = document.getElementById('qrCodeDisplay');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: qrURL,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
         }
 
-        function generateQRPattern() {
-            const pattern = [];
-            for (let i = 0; i < 625; i++) {
-                const isBlack = Math.random() > 0.5;
-                pattern.push(`<div style="background: ${isBlack ? 'black' : 'white'};"></div>`);
+        function downloadQRCode(assetCode) {
+            const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
+            if (!qrCanvas) {
+                alert('Please generate a QR code first');
+                return;
             }
-            return pattern.join('');
+
+            const link = document.createElement('a');
+            link.download = `QR_${assetCode}_${new Date().toISOString().split('T')[0]}.png`;
+            link.href = qrCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function printSingleQRCode(assetCode) {
+            const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
+            if (!qrCanvas) {
+                alert('Please generate a QR code first');
+                return;
+            }
+
+            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+            const qrImageData = qrCanvas.toDataURL('image/png');
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>QR Code - ${escapeHtml(assetCode)}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                        .qr-label { margin-top: 20px; }
+                        .asset-code { font-size: 1.5em; font-weight: bold; margin: 10px 0; }
+                        .description { color: #666; margin-bottom: 20px; }
+                        img { border: 1px solid #ddd; padding: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>May Pen Hospital</h2>
+                    <h3>Fixed Asset QR Code</h3>
+                    <img src="${qrImageData}" width="250" height="250" alt="QR Code">
+                    <div class="qr-label">
+                        <div class="asset-code">${escapeHtml(assetCode)}</div>
+                        ${asset ? `<div class="description">${escapeHtml(asset.description)}</div>` : ''}
+                    </div>
+                    <p style="font-size: 0.8em; color: #999;">Scan with smartphone camera to view asset details</p>
+                    <script>
+                        window.onload = function() { window.print(); };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         function generateBatchQR() {
@@ -2957,80 +3215,250 @@
                 alert('Please load asset data first');
                 return;
             }
-            
+
             const userInput = prompt('How many QR codes to generate? (Max 50)', '10');
-            if (userInput === null) return; // User cancelled
+            if (userInput === null) return;
 
             const batchSize = parseInt(userInput);
             if (isNaN(batchSize) || batchSize < 1 || batchSize > 50) {
                 alert('Please enter a valid number between 1 and 50');
                 return;
             }
-            
+
             const assets = allAssetsData.slice(0, batchSize);
-            let batchHTML = '<h3>Batch QR Code Generation</h3>';
-            
+            const qrOutput = document.getElementById('qrOutput');
+
+            qrOutput.innerHTML = `
+                <h3 style="margin-bottom: 15px;">Batch QR Code Generation (${assets.length} codes)</h3>
+                <div class="batch-qr-grid" id="batchQRGrid"></div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="qr-download-btn" style="background: #9b59b6;" onclick="downloadAllQRCodes()">
+                        📦 Download All (ZIP)
+                    </button>
+                    <button class="qr-download-btn" style="background: #3498db;" onclick="printBatchQRCodes()">
+                        🖨️ Print All
+                    </button>
+                </div>
+            `;
+
+            const grid = document.getElementById('batchQRGrid');
+
+            // Generate QR codes for each asset
             assets.forEach((asset, index) => {
-                batchHTML += `
-                    <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;">
-                        <strong>${asset.assetCode}</strong> - ${asset.description}
-                        <div style="margin: 10px 0;">QR Code would be generated here</div>
-                    </div>
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'batch-qr-item';
+                itemDiv.innerHTML = `
+                    <h4>${escapeHtml(asset.assetCode)}</h4>
+                    <div id="batchQR_${index}"></div>
+                    <p>${escapeHtml(asset.description.substring(0, 30))}${asset.description.length > 30 ? '...' : ''}</p>
                 `;
+                grid.appendChild(itemDiv);
+
+                // Generate QR code
+                const qrURL = getAssetQRURL(asset.assetCode);
+                new QRCode(document.getElementById(`batchQR_${index}`), {
+                    text: qrURL,
+                    width: 150,
+                    height: 150,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
             });
-            
-            batchHTML += `<button class="search-btn" onclick="printBatchQR()">Print All QR Codes</button>`;
-            
-            document.getElementById('qrOutput').innerHTML = batchHTML;
         }
 
-        function printQRCode(assetCode, qrData) {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head><title>QR Code - ${assetCode}</title></head>
-                <body style="text-align: center; font-family: Arial, sans-serif;">
-                    <h2>May Pen Hospital</h2>
-                    <h3>Asset QR Code</h3>
-                    <div style="width: 300px; height: 300px; border: 2px solid black; margin: 20px auto; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                        QR Code for ${assetCode}<br>
-                        <small>Scan with smartphone</small>
-                    </div>
-                    <p style="font-size: 1.2em;"><strong>${assetCode}</strong></p>
-                    <p>Data: ${qrData}</p>
-                    <script>window.print(); window.close();<\/script>
-                </body>
-                </html>
-            `);
+        async function downloadAllQRCodes() {
+            const canvases = document.querySelectorAll('#batchQRGrid canvas');
+            if (canvases.length === 0) {
+                alert('No QR codes to download');
+                return;
+            }
+
+            // Download each QR code individually (ZIP would require additional library)
+            const items = document.querySelectorAll('.batch-qr-item');
+            items.forEach((item, index) => {
+                const canvas = item.querySelector('canvas');
+                const assetCode = item.querySelector('h4').textContent;
+                if (canvas) {
+                    setTimeout(() => {
+                        const link = document.createElement('a');
+                        link.download = `QR_${assetCode}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }, index * 200); // Stagger downloads
+                }
+            });
+
+            alert(`Downloading ${canvases.length} QR codes...`);
         }
 
-        function printBatchQR() {
+        function printBatchQRCodes() {
+            const items = document.querySelectorAll('.batch-qr-item');
+            if (items.length === 0) {
+                alert('No QR codes to print');
+                return;
+            }
+
+            let qrImagesHTML = '';
+            items.forEach(item => {
+                const canvas = item.querySelector('canvas');
+                const assetCode = item.querySelector('h4').textContent;
+                const description = item.querySelector('p').textContent;
+                if (canvas) {
+                    qrImagesHTML += `
+                        <div style="display: inline-block; margin: 15px; text-align: center; page-break-inside: avoid;">
+                            <img src="${canvas.toDataURL('image/png')}" width="150" height="150" style="border: 1px solid #ddd;">
+                            <div style="font-weight: bold; margin-top: 8px;">${escapeHtml(assetCode)}</div>
+                            <div style="font-size: 0.8em; color: #666;">${escapeHtml(description)}</div>
+                        </div>
+                    `;
+                }
+            });
+
             const printWindow = window.open('', '_blank');
-            const qrOutput = document.getElementById('qrOutput').innerHTML;
             printWindow.document.write(`
                 <html>
                 <head>
                     <title>Batch QR Codes - May Pen Hospital</title>
                     <style>
                         body { font-family: Arial, sans-serif; padding: 20px; }
-                        h2 { text-align: center; }
+                        h2 { text-align: center; margin-bottom: 30px; }
+                        .qr-grid { text-align: center; }
                         @media print {
-                            button { display: none; }
+                            @page { margin: 0.5in; }
                         }
                     </style>
                 </head>
                 <body>
-                    <h2>May Pen Hospital - Batch QR Codes</h2>
-                    ${qrOutput}
+                    <h2>May Pen Hospital - Asset QR Codes</h2>
+                    <p style="text-align: center; color: #666;">Generated: ${new Date().toLocaleString()}</p>
+                    <div class="qr-grid">
+                        ${qrImagesHTML}
+                    </div>
                     <script>
-                        // Remove the print button from the printed version
-                        const buttons = document.querySelectorAll('button');
-                        buttons.forEach(btn => btn.remove());
-                        window.print();
+                        window.onload = function() { window.print(); };
                     <\/script>
                 </body>
                 </html>
             `);
+            printWindow.document.close();
+        }
+
+        // ============================================
+        // PUBLIC ASSET VIEWER (For QR Code Scanning)
+        // ============================================
+
+        function showPublicAssetViewer(assetCode) {
+            const viewer = document.getElementById('publicAssetViewer');
+            const content = document.getElementById('publicAssetContent');
+            const copyrightYear = document.getElementById('publicCopyrightYear');
+
+            copyrightYear.textContent = new Date().getFullYear();
+
+            // Load assets from localStorage
+            const assets = loadAssetsFromStorage();
+            const asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            if (asset) {
+                content.innerHTML = `
+                    <div class="asset-info-grid">
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Asset Code</div>
+                            <div class="asset-info-value highlight">${escapeHtml(asset.assetCode)}</div>
+                        </div>
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Description</div>
+                            <div class="asset-info-value">${escapeHtml(asset.description)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Category</div>
+                            <div class="asset-info-value">${escapeHtml(asset.category)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Item Type</div>
+                            <div class="asset-info-value">${escapeHtml(asset.itemType || 'N/A')}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Source</div>
+                            <div class="asset-info-value">${escapeHtml(asset.source)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Date Acquired</div>
+                            <div class="asset-info-value">${escapeHtml(asset.dateIn)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Quantity</div>
+                            <div class="asset-info-value">${asset.quantity}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Unit Price</div>
+                            <div class="asset-info-value">JMD ${formatCurrency(asset.unitPrice)}</div>
+                        </div>
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Total Value</div>
+                            <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Supplier/Donor</div>
+                            <div class="asset-info-value">${escapeHtml(asset.supplier || 'N/A')}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Department</div>
+                            <div class="asset-info-value">${escapeHtml(asset.department || 'N/A')}</div>
+                        </div>
+                        ${asset.serialNumber ? `
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Serial Number</div>
+                            <div class="asset-info-value">${escapeHtml(asset.serialNumber)}</div>
+                        </div>
+                        ` : ''}
+                        ${asset.modelNumber ? `
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Model Number</div>
+                            <div class="asset-info-value">${escapeHtml(asset.modelNumber)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 3em; margin-bottom: 20px;">🔍</p>
+                        <h3 style="color: #e74c3c; margin-bottom: 10px;">Asset Not Found</h3>
+                        <p style="color: #666;">The asset with code <strong>${escapeHtml(assetCode)}</strong> was not found in the database.</p>
+                        <p style="color: #999; font-size: 0.9em; margin-top: 20px;">This may be because:</p>
+                        <ul style="text-align: left; display: inline-block; color: #666; margin-top: 10px;">
+                            <li>The asset hasn't been registered yet</li>
+                            <li>The QR code contains an incorrect code</li>
+                            <li>The asset data is stored on a different device</li>
+                        </ul>
+                    </div>
+                `;
+            }
+
+            viewer.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePublicAssetViewer() {
+            const viewer = document.getElementById('publicAssetViewer');
+            viewer.style.display = 'none';
+            document.body.style.overflow = '';
+
+            // Remove asset parameter from URL
+            const url = new URL(window.location);
+            url.searchParams.delete('asset');
+            window.history.replaceState({}, '', url);
+        }
+
+        // Check for asset parameter in URL on page load
+        function checkForAssetParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const assetCode = urlParams.get('asset');
+
+            if (assetCode) {
+                showPublicAssetViewer(assetCode);
+            }
         }
 
         // ============================================
@@ -4484,6 +4912,9 @@
         // ============================================
         window.addEventListener('DOMContentLoaded', async function() {
             setDynamicCopyrightYear();
+
+            // Check if page was opened via QR code scan (asset parameter in URL)
+            checkForAssetParameter();
 
             // Preload credentials from Google Sheets
             console.log('Preloading credentials...');
