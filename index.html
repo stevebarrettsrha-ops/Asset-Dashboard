@@ -762,6 +762,14 @@
             text-transform: uppercase;
         }
 
+        /* Asset Code column width - 2 inches minimum */
+        th:first-child,
+        td:first-child {
+            min-width: 2in;
+            width: 2in;
+            max-width: 2.5in;
+        }
+
         tbody tr {
             border-bottom: 1px solid var(--border-color);
             transition: all 0.3s;
@@ -781,6 +789,7 @@
             font-weight: 600;
             color: var(--primary-orange);
             font-family: 'Courier New', monospace;
+            white-space: nowrap;
         }
 
         .item-type-badge {
@@ -1254,24 +1263,12 @@
                     </div>
                     <div class="form-group">
                         <label for="department">Department *</label>
-                        <select id="department" required>
-                            <option value="">Select Department</option>
-                            <option value="Accident & Emergency">Accident & Emergency</option>
-                            <option value="Surgical">Surgical</option>
-                            <option value="Medical">Medical</option>
-                            <option value="Maternity">Maternity</option>
-                            <option value="Pediatrics">Pediatrics</option>
-                            <option value="Radiology">Radiology</option>
-                            <option value="Laboratory">Laboratory</option>
-                            <option value="Pharmacy">Pharmacy</option>
-                            <option value="Dental">Dental</option>
-                            <option value="Physiotherapy">Physiotherapy</option>
-                            <option value="Administration">Administration</option>
-                            <option value="Maintenance">Maintenance</option>
-                            <option value="Kitchen">Kitchen</option>
-                            <option value="Laundry">Laundry</option>
-                            <option value="Other">Other</option>
-                        </select>
+                        <div style="display: flex; gap: 5px;">
+                            <select id="department" required style="flex: 1;">
+                                <option value="">Select Department</option>
+                            </select>
+                            <button type="button" class="btn-secondary" onclick="openDepartmentManager()" title="Manage Departments" style="padding: 8px 12px;">⚙️</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="itemType">Item Type *</label>
@@ -1330,6 +1327,32 @@
                     <button type="button" id="deleteAssetBtn" class="btn-danger" onclick="deleteCurrentAsset()" style="display:none;">Delete Asset</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- DEPARTMENT MANAGEMENT MODAL -->
+    <div id="departmentModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Manage Departments</h2>
+                <span class="close-modal" onclick="closeDepartmentManager()">&times;</span>
+            </div>
+            <div style="padding: 30px;">
+                <h3 style="margin-top: 0; color: var(--text-primary);">Add New Department</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+                    <input type="text" id="newDepartmentName" class="calc-input" placeholder="Enter department name" style="flex: 1;">
+                    <button class="btn-primary" onclick="handleAddDepartment()">Add</button>
+                </div>
+                <div id="departmentAddStatus" style="margin-bottom: 20px; font-weight: 600;"></div>
+
+                <h3 style="color: var(--text-primary);">Current Departments</h3>
+                <div id="departmentList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;"></div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <button class="btn-danger" onclick="handleResetDepartments()">Reset to Defaults</button>
+                    <button class="btn-secondary" onclick="closeDepartmentManager()" style="margin-left: 10px;">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1599,21 +1622,6 @@
                     <label style="font-weight: 600; margin-right: 10px; color: var(--text-primary);">Filter by Department:</label>
                     <select id="auditDepartmentFilter" class="calc-input" style="width: auto; display: inline-block;" onchange="displayAuditTrail()">
                         <option value="">All Departments</option>
-                        <option value="Accident & Emergency">Accident & Emergency</option>
-                        <option value="Surgical">Surgical</option>
-                        <option value="Medical">Medical</option>
-                        <option value="Maternity">Maternity</option>
-                        <option value="Pediatrics">Pediatrics</option>
-                        <option value="Radiology">Radiology</option>
-                        <option value="Laboratory">Laboratory</option>
-                        <option value="Pharmacy">Pharmacy</option>
-                        <option value="Dental">Dental</option>
-                        <option value="Physiotherapy">Physiotherapy</option>
-                        <option value="Administration">Administration</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Kitchen">Kitchen</option>
-                        <option value="Laundry">Laundry</option>
-                        <option value="Other">Other</option>
                     </select>
                     <button class="search-btn" onclick="displayAuditTrail()" style="margin-left: 10px;">🔄 Refresh</button>
                 </div>
@@ -1909,6 +1917,129 @@
 
         const STORAGE_KEY = 'assetInventoryData';
         const AUDIT_STORAGE_KEY = 'assetAuditTrail';
+        const DEPARTMENTS_STORAGE_KEY = 'customDepartments';
+
+        // Default departments
+        const DEFAULT_DEPARTMENTS = [
+            'Accident & Emergency',
+            'Surgical',
+            'Medical',
+            'Maternity',
+            'Pediatrics',
+            'Radiology',
+            'Laboratory',
+            'Pharmacy',
+            'Dental',
+            'Physiotherapy',
+            'Administration',
+            'Maintenance',
+            'Kitchen',
+            'Laundry',
+            'Other'
+        ];
+
+        // Load departments from localStorage or use defaults
+        function loadDepartments() {
+            try {
+                const stored = localStorage.getItem(DEPARTMENTS_STORAGE_KEY);
+                if (stored) {
+                    const departments = JSON.parse(stored);
+                    return Array.isArray(departments) && departments.length > 0 ? departments : DEFAULT_DEPARTMENTS;
+                }
+                return DEFAULT_DEPARTMENTS;
+            } catch (error) {
+                console.error('Error loading departments:', error);
+                return DEFAULT_DEPARTMENTS;
+            }
+        }
+
+        // Save departments to localStorage
+        function saveDepartments(departments) {
+            try {
+                localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(departments));
+                return true;
+            } catch (error) {
+                console.error('Error saving departments:', error);
+                return false;
+            }
+        }
+
+        // Add a new department
+        function addDepartment(departmentName) {
+            if (!departmentName || departmentName.trim() === '') {
+                return { success: false, message: 'Department name cannot be empty' };
+            }
+
+            const departments = loadDepartments();
+            const trimmedName = departmentName.trim();
+
+            if (departments.includes(trimmedName)) {
+                return { success: false, message: 'Department already exists' };
+            }
+
+            departments.push(trimmedName);
+            departments.sort(); // Keep alphabetically sorted
+            saveDepartments(departments);
+            updateAllDepartmentDropdowns();
+            return { success: true, message: 'Department added successfully' };
+        }
+
+        // Remove a department
+        function removeDepartment(departmentName) {
+            const departments = loadDepartments();
+            const filtered = departments.filter(d => d !== departmentName);
+
+            if (filtered.length === departments.length) {
+                return { success: false, message: 'Department not found' };
+            }
+
+            saveDepartments(filtered);
+            updateAllDepartmentDropdowns();
+            return { success: true, message: 'Department removed successfully' };
+        }
+
+        // Reset departments to default
+        function resetDepartmentsToDefault() {
+            saveDepartments(DEFAULT_DEPARTMENTS);
+            updateAllDepartmentDropdowns();
+            return { success: true, message: 'Departments reset to default' };
+        }
+
+        // Update all department dropdowns in the application
+        function updateAllDepartmentDropdowns() {
+            const departments = loadDepartments();
+
+            // Update asset form dropdown
+            const assetDeptSelect = document.getElementById('department');
+            if (assetDeptSelect) {
+                const currentValue = assetDeptSelect.value;
+                assetDeptSelect.innerHTML = '<option value="">Select Department</option>';
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    assetDeptSelect.appendChild(option);
+                });
+                if (currentValue) assetDeptSelect.value = currentValue;
+            }
+
+            // Update audit trail filter dropdown
+            const auditDeptFilter = document.getElementById('auditDepartmentFilter');
+            if (auditDeptFilter) {
+                const currentValue = auditDeptFilter.value;
+                auditDeptFilter.innerHTML = '<option value="">All Departments</option>';
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    auditDeptFilter.appendChild(option);
+                });
+                if (currentValue) auditDeptFilter.value = currentValue;
+            }
+
+            // Update department management list
+            updateDepartmentManagementUI();
+        }
 
         // Load assets from localStorage
         function loadAssetsFromStorage() {
@@ -2145,7 +2276,112 @@
 
             if (quantityInput) quantityInput.addEventListener('input', updateTotalPrice);
             if (unitPriceInput) unitPriceInput.addEventListener('input', updateTotalPrice);
+
+            // Initialize departments on page load
+            updateAllDepartmentDropdowns();
         });
+
+        // ============================================
+        // DEPARTMENT MANAGEMENT FUNCTIONS
+        // ============================================
+
+        function openDepartmentManager() {
+            const modal = document.getElementById('departmentModal');
+            modal.style.display = 'block';
+            updateDepartmentManagementUI();
+        }
+
+        function closeDepartmentManager() {
+            const modal = document.getElementById('departmentModal');
+            modal.style.display = 'none';
+            document.getElementById('newDepartmentName').value = '';
+            document.getElementById('departmentAddStatus').textContent = '';
+        }
+
+        function updateDepartmentManagementUI() {
+            const departments = loadDepartments();
+            const listDiv = document.getElementById('departmentList');
+
+            if (!listDiv) return;
+
+            if (departments.length === 0) {
+                listDiv.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No departments available</p>';
+                return;
+            }
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            departments.forEach(dept => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--text-primary); font-weight: 500;">${escapeHtml(dept)}</span>
+                        <button class="btn-danger" onclick="handleRemoveDepartment('${escapeHtml(dept)}')" style="padding: 5px 12px; font-size: 0.85em;">Remove</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+
+        function handleAddDepartment() {
+            const input = document.getElementById('newDepartmentName');
+            const statusDiv = document.getElementById('departmentAddStatus');
+            const departmentName = input.value.trim();
+
+            if (!departmentName) {
+                statusDiv.textContent = '⚠️ Please enter a department name';
+                statusDiv.style.color = '#e74c3c';
+                return;
+            }
+
+            const result = addDepartment(departmentName);
+
+            if (result.success) {
+                statusDiv.textContent = '✅ ' + result.message;
+                statusDiv.style.color = '#2ECC71';
+                input.value = '';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            } else {
+                statusDiv.textContent = '⚠️ ' + result.message;
+                statusDiv.style.color = '#e74c3c';
+            }
+        }
+
+        function handleRemoveDepartment(departmentName) {
+            if (!confirm(`Remove department "${departmentName}"?\n\nThis will not affect existing assets with this department.`)) {
+                return;
+            }
+
+            const result = removeDepartment(departmentName);
+            const statusDiv = document.getElementById('departmentAddStatus');
+
+            if (result.success) {
+                statusDiv.textContent = '✅ ' + result.message;
+                statusDiv.style.color = '#2ECC71';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            } else {
+                statusDiv.textContent = '⚠️ ' + result.message;
+                statusDiv.style.color = '#e74c3c';
+            }
+        }
+
+        function handleResetDepartments() {
+            if (!confirm('Reset all departments to defaults?\n\nThis will remove all custom departments you added.')) {
+                return;
+            }
+
+            const result = resetDepartmentsToDefault();
+            const statusDiv = document.getElementById('departmentAddStatus');
+
+            statusDiv.textContent = '✅ ' + result.message;
+            statusDiv.style.color = '#2ECC71';
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
 
         // Edit asset from table
         function editAsset(asset) {
@@ -3861,104 +4097,163 @@
             }
 
             const actualYear = ['JAN', 'FEB', 'MAR'].includes(month) ? currentFiscalYear + 1 : currentFiscalYear;
+            const monthNames = {
+                'APR': 'April', 'MAY': 'May', 'JUN': 'June', 'JUL': 'July',
+                'AUG': 'August', 'SEP': 'September', 'OCT': 'October', 'NOV': 'November',
+                'DEC': 'December', 'JAN': 'January', 'FEB': 'February', 'MAR': 'March'
+            };
 
-            // Create a hidden print container
-            const printContainer = document.createElement('div');
-            printContainer.style.display = 'none';
-            printContainer.innerHTML = `
-                <div id="monthPrintContent">
+            // Build detailed asset table rows
+            let tableRows = '';
+            allItems.forEach(item => {
+                tableRows += `
+                    <tr>
+                        <td style="white-space: nowrap;">${escapeHtml(item.assetCode)}</td>
+                        <td>${escapeHtml(item.dateIn)}</td>
+                        <td>${escapeHtml(item.description)}</td>
+                        <td>${escapeHtml(item.department || 'N/A')}</td>
+                        <td>${escapeHtml(item.itemType)}</td>
+                        <td>${escapeHtml(item.category)}</td>
+                        <td>${escapeHtml(item.supplier)}</td>
+                        <td>${escapeHtml(item.source)}</td>
+                        <td style="text-align: center;">${item.quantity}</td>
+                        <td style="text-align: right;">JMD ${formatCurrency(item.unitPrice)}</td>
+                        <td style="text-align: right; font-weight: bold;">JMD ${formatCurrency(item.totalPrice)}</td>
+                    </tr>
+                `;
+            });
+
+            // Create report in new window (similar to other printReport function)
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Monthly Asset Report - ${monthNames[month]} ${actualYear}</title>
                     <style>
-                        @media print {
-                            body * {
-                                visibility: hidden;
-                            }
-                            #monthPrintContent, #monthPrintContent * {
-                                visibility: visible;
-                            }
-                            #monthPrintContent {
-                                position: absolute;
-                                left: 0;
-                                top: 0;
-                                width: 100%;
-                            }
-                        }
-                        #monthPrintContent {
+                        body {
                             font-family: Arial, sans-serif;
-                            padding: 20px;
-                            max-width: 1000px;
-                            margin: 0 auto;
+                            margin: 20px;
+                            font-size: 12px;
                         }
-                        #monthPrintContent h1 {
-                            color: #FF6B35;
+                        .header {
                             text-align: center;
-                            margin-bottom: 10px;
-                        }
-                        #monthPrintContent h2 {
-                            color: #2C3E50;
-                            text-align: center;
+                            border-bottom: 3px solid #FF6B35;
+                            padding-bottom: 20px;
                             margin-bottom: 20px;
                         }
-                        #monthPrintContent .summary-box {
+                        .logo {
+                            font-size: 1.8em;
+                            color: #FF6B35;
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                        }
+                        h1 {
+                            color: #2C3E50;
+                            margin: 10px 0;
+                        }
+                        h2 {
+                            color: #666;
+                            font-weight: normal;
+                            margin: 5px 0;
+                        }
+                        .fiscal-year {
+                            color: #7f8c8d;
+                            font-size: 0.9em;
+                            margin-top: 5px;
+                        }
+                        .summary-box {
                             background: #f8f9fa;
                             border: 2px solid #FF6B35;
                             border-radius: 8px;
                             padding: 15px;
-                            margin-bottom: 20px;
+                            margin: 20px 0;
                         }
-                        #monthPrintContent .summary-grid {
+                        .summary-grid {
                             display: grid;
                             grid-template-columns: repeat(3, 1fr);
                             gap: 15px;
-                            margin-bottom: 15px;
                         }
-                        #monthPrintContent .summary-item {
+                        .summary-item {
                             text-align: center;
+                            padding: 10px;
                         }
-                        #monthPrintContent .summary-label {
+                        .summary-label {
                             font-weight: bold;
                             color: #2C3E50;
                             margin-bottom: 5px;
+                            font-size: 0.9em;
                         }
-                        #monthPrintContent .summary-value {
-                            font-size: 1.3em;
+                        .summary-value {
+                            font-size: 1.4em;
                             color: #2ECC71;
-                        }
-                        #monthPrintContent table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-top: 20px;
-                        }
-                        #monthPrintContent th {
-                            background: #FF6B35;
-                            color: white;
-                            padding: 10px;
-                            text-align: left;
                             font-weight: bold;
                         }
-                        #monthPrintContent td {
-                            border: 1px solid #ddd;
-                            padding: 8px;
+                        h3 {
+                            color: #2C3E50;
+                            border-bottom: 2px solid #2ECC71;
+                            padding-bottom: 5px;
+                            margin: 25px 0 15px 0;
                         }
-                        #monthPrintContent tr:nth-child(even) {
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 15px 0;
+                            font-size: 11px;
+                        }
+                        th {
+                            background: #2ECC71;
+                            color: white;
+                            padding: 10px 5px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #27AE60;
+                        }
+                        td {
+                            border: 1px solid #ddd;
+                            padding: 8px 5px;
+                        }
+                        tr:nth-child(even) {
                             background: #f8f9fa;
                         }
-                        #monthPrintContent .footer {
+                        tr:hover {
+                            background: #e8f5e9;
+                        }
+                        .footer {
                             text-align: center;
                             margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 2px solid #ddd;
                             font-size: 0.9em;
                             color: #7f8c8d;
                         }
+                        .timestamp {
+                            text-align: right;
+                            font-size: 0.85em;
+                            color: #999;
+                            margin-top: 10px;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                            .summary-box { break-inside: avoid; }
+                            table { page-break-inside: auto; }
+                            tr { page-break-inside: avoid; page-break-after: auto; }
+                            thead { display: table-header-group; }
+                        }
                     </style>
-
-                    <h1>May Pen Hospital</h1>
-                    <h2>Asset Inventory Report - ${month} ${actualYear}</h2>
-                    <p style="text-align: center; color: #7f8c8d;">Fiscal Year ${currentFiscalYear}/${currentFiscalYear + 1}</p>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">🏥 May Pen Hospital</div>
+                        <h1>Monthly Asset Inventory Report</h1>
+                        <h2>${monthNames[month]} ${actualYear}</h2>
+                        <div class="fiscal-year">Fiscal Year ${currentFiscalYear}/${currentFiscalYear + 1}</div>
+                    </div>
 
                     <div class="summary-box">
-                        <h3 style="text-align: center; margin-top: 0;">Monthly Summary</h3>
+                        <h3 style="text-align: center; margin-top: 0; border: none;">Monthly Summary Statistics</h3>
                         <div class="summary-grid">
                             <div class="summary-item">
-                                <div class="summary-label">Total Items</div>
+                                <div class="summary-label">Total Assets</div>
                                 <div class="summary-value">${purchasedStats.totalItems + donatedStats.totalItems}</div>
                             </div>
                             <div class="summary-item">
@@ -3975,59 +4270,52 @@
                             </div>
                             <div class="summary-item">
                                 <div class="summary-label">Purchased</div>
-                                <div class="summary-value">${purchasedStats.totalItems}</div>
+                                <div class="summary-value" style="color: #2ECC71;">${purchasedStats.totalItems}</div>
                             </div>
                             <div class="summary-item">
                                 <div class="summary-label">Donated</div>
-                                <div class="summary-value">${donatedStats.totalItems}</div>
+                                <div class="summary-value" style="color: #FF6B35;">${donatedStats.totalItems}</div>
                             </div>
                         </div>
                     </div>
 
-                    <h3>Detailed Asset List</h3>
+                    <h3>Detailed Asset Listing (${allItems.length} Items)</h3>
                     <table>
                         <thead>
                             <tr>
                                 <th>Asset Code</th>
+                                <th>Date In</th>
                                 <th>Description</th>
                                 <th>Department</th>
+                                <th>Item Type</th>
                                 <th>Category</th>
+                                <th>Supplier/Donor</th>
                                 <th>Source</th>
                                 <th>Qty</th>
-                                <th>Value (JMD)</th>
+                                <th>Unit Price</th>
+                                <th>Total Value</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${allItems.map(item => `
-                                <tr>
-                                    <td>${escapeHtml(item.assetCode)}</td>
-                                    <td>${escapeHtml(item.description)}</td>
-                                    <td>${escapeHtml(item.department || 'N/A')}</td>
-                                    <td>${escapeHtml(item.category)}</td>
-                                    <td>${escapeHtml(item.source)}</td>
-                                    <td>${item.quantity}</td>
-                                    <td>${formatCurrency(item.totalPrice)}</td>
-                                </tr>
-                            `).join('')}
+                            ${tableRows}
                         </tbody>
                     </table>
 
                     <div class="footer">
-                        <p>Generated on ${new Date().toLocaleString()}</p>
-                        <p>Fixed Asset Management System © May Pen Hospital</p>
+                        <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
+                        <p><strong>Fixed Asset Management System</strong></p>
+                        <p>© ${new Date().getFullYear()} May Pen Hospital • All Rights Reserved</p>
                     </div>
-                </div>
-            `;
 
-            document.body.appendChild(printContainer);
-
-            // Trigger print dialog
-            window.print();
-
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(printContainer);
-            }, 100);
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         function displayMonthlyBreakdown() {
