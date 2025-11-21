@@ -1207,11 +1207,7 @@
             </div>
             
             <div class="login-info">
-                ℹ️ All asset data is stored locally in your browser.<br>
-                <strong>Login Accounts:</strong><br>
-                • steve / barrett123$<br>
-                • operations / opsman123$<br>
-                • asset / asset123$
+                ℹ️ Asset data is stored locally. Login credentials are managed in Google Sheets.
             </div>
             
             <div id="loginError" class="login-error"></div>
@@ -1717,65 +1713,56 @@
         }
         
         // ============================================
-        // ============================================
-        // LOGIN SYSTEM WITH LOCALSTORAGE CREDENTIALS
+        // LOGIN SYSTEM WITH GOOGLE SHEETS CREDENTIALS
         // ============================================
 
-        const CREDENTIALS_STORAGE_KEY = 'userCredentials';
+        const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
 
         let currentUser = null;
         let credentialsData = null;
 
-        // Default credentials
-        const DEFAULT_CREDENTIALS = {
-            'steve': {
-                password: 'barrett123$',
-                displayName: 'Steve Barrett',
-                role: 'Admin',
-                email: 'steve@maypen.hospital',
-                canExport: true,
-                canRefresh: true
-            },
-            'operations': {
-                password: 'opsman123$',
-                displayName: 'Operations Manager',
-                role: 'Admin',
-                email: 'operations@maypen.hospital',
-                canExport: true,
-                canRefresh: true
-            },
-            'asset': {
-                password: 'asset123$',
-                displayName: 'Asset Manager',
-                role: 'User',
-                email: 'asset@maypen.hospital',
-                canExport: true,
-                canRefresh: true
-            }
-        };
-
-        // Load credentials from localStorage or use defaults
-        function loadCredentials() {
+        async function loadCredentials() {
             try {
-                // Always use the latest DEFAULT_CREDENTIALS to ensure updates
-                credentialsData = DEFAULT_CREDENTIALS;
-                localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentialsData));
-                console.log('Credentials loaded successfully:', Object.keys(credentialsData));
+                const url = `https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/export?format=xlsx`;
+
+                // Try primary CORS proxy
+                let response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`).catch(() => null);
+
+                // Fallback to secondary proxy if first fails
+                if (!response || !response.ok) {
+                    response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load credentials sheet');
+                }
+
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                credentialsData = {};
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (row[0]) {
+                        credentialsData[row[0].toString().toLowerCase()] = {
+                            password: row[1] ? row[1].toString() : '',
+                            displayName: row[2] ? row[2].toString() : row[0].toString(),
+                            role: row[3] ? row[3].toString() : 'User',
+                            email: row[4] ? row[4].toString() : '',
+                            canExport: row[5] ? (row[5].toString().toLowerCase() === 'true' || row[5] === true) : false,
+                            canRefresh: row[6] ? (row[6].toString().toLowerCase() === 'true' || row[6] === true) : false
+                        };
+                    }
+                }
+
+                console.log('Credentials loaded successfully from Google Sheets');
                 return true;
             } catch (error) {
                 console.error('Error loading credentials:', error);
-                credentialsData = DEFAULT_CREDENTIALS;
-                return true; // Still return true with defaults
-            }
-        }
-
-        // Save credentials to localStorage
-        function saveCredentials() {
-            try {
-                localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentialsData));
-                return true;
-            } catch (error) {
-                console.error('Error saving credentials:', error);
                 return false;
             }
         }
@@ -1787,7 +1774,20 @@
             const errorDiv = document.getElementById('loginError');
 
             if (!credentialsData) {
-                loadCredentials();
+                errorDiv.textContent = '⏳ Loading credentials from Google Sheets...';
+                errorDiv.style.display = 'block';
+                errorDiv.style.background = '#e3f2fd';
+                errorDiv.style.color = '#1565c0';
+                errorDiv.style.borderLeft = '4px solid #1565c0';
+
+                const loaded = await loadCredentials();
+                if (!loaded) {
+                    errorDiv.textContent = '❌ Failed to load credentials. Please check your connection or try again.';
+                    errorDiv.style.background = '#fee';
+                    errorDiv.style.color = '#c33';
+                    errorDiv.style.borderLeft = '4px solid #c33';
+                    return;
+                }
             }
 
             const user = credentialsData[username];
@@ -2269,10 +2269,6 @@
 
         // Auto-calculate total price
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize credentials on page load
-            loadCredentials();
-            console.log('Credentials initialized:', credentialsData);
-
             const quantityInput = document.getElementById('quantity');
             const unitPriceInput = document.getElementById('unitPrice');
             const totalPriceInput = document.getElementById('totalPrice');
