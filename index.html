@@ -1723,26 +1723,37 @@
 
         async function loadCredentials() {
             try {
+                console.log('Loading credentials from Google Sheet...');
                 const url = `https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/export?format=xlsx`;
                 const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-                
+
                 if (!response.ok) {
+                    console.error('Failed to fetch credentials sheet. Status:', response.status);
                     throw new Error('Failed to load credentials sheet');
                 }
-                
+
+                console.log('Credentials sheet fetched successfully');
                 const blob = await response.blob();
                 const arrayBuffer = await blob.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                
+
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                
+
+                console.log('Raw sheet data:', data);
+                console.log('Number of rows:', data.length);
+
                 credentialsData = {};
                 for (let i = 1; i < data.length; i++) {
                     const row = data[i];
                     if (row[0]) {
-                        credentialsData[row[0].toString().toLowerCase()] = {
-                            password: row[1] ? row[1].toString() : '',
+                        const username = row[0].toString().toLowerCase();
+                        const password = row[1] ? row[1].toString().trim() : '';
+
+                        console.log(`Processing user: ${username}, password length: ${password.length}`);
+
+                        credentialsData[username] = {
+                            password: password,
                             displayName: row[2] ? row[2].toString() : row[0].toString(),
                             role: row[3] ? row[3].toString() : 'User',
                             email: row[4] ? row[4].toString() : '',
@@ -1751,8 +1762,9 @@
                         };
                     }
                 }
-                
-                console.log('Credentials loaded successfully');
+
+                console.log('Credentials loaded successfully. Total users:', Object.keys(credentialsData).length);
+                console.log('Loaded usernames:', Object.keys(credentialsData));
                 return true;
             } catch (error) {
                 console.error('Error loading credentials:', error);
@@ -1763,8 +1775,11 @@
         async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('username').value.trim().toLowerCase();
-            const password = document.getElementById('password').value;
+            const password = document.getElementById('password').value.trim();
             const errorDiv = document.getElementById('loginError');
+
+            console.log('Login attempt for username:', username);
+            console.log('Credentials loaded:', credentialsData !== null);
 
             // Credentials should already be loaded on page load
             // But as a fallback, try to load them if they're not available
@@ -1785,9 +1800,20 @@
                 }
             }
 
+            console.log('Available usernames:', Object.keys(credentialsData));
             const user = credentialsData[username];
+            console.log('User found:', user !== undefined);
+
+            if (user) {
+                console.log('Stored password:', user.password);
+                console.log('Entered password:', password);
+                console.log('Password match:', user.password === password);
+                console.log('Password types:', typeof user.password, typeof password);
+                console.log('Password lengths:', user.password.length, password.length);
+            }
 
             if (user && user.password === password) {
+                console.log('Login successful! Navigating to dashboard...');
                 currentUser = { username, ...user };
 
                 document.getElementById('loginPage').style.display = 'none';
@@ -1804,6 +1830,7 @@
                 initializeCharts();
                 loadData();
             } else {
+                console.log('Login failed - invalid credentials');
                 errorDiv.textContent = '❌ Invalid username or password';
                 errorDiv.style.display = 'block';
                 errorDiv.style.background = '#fee';
