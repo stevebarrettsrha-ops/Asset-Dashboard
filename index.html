@@ -1795,19 +1795,44 @@
             if (user && user.password === password) {
                 currentUser = { username, ...user };
 
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('dashboardContainer').style.display = 'block';
-                document.getElementById('nightModeBtn').style.display = 'flex';
-                document.getElementById('exportBtn').style.display = 'block';
+                try {
+                    // Hide error message if shown
+                    errorDiv.style.display = 'none';
 
-                updateUserInterface();
-                applyPermissions();
+                    // Hide login page
+                    document.getElementById('loginPage').style.display = 'none';
 
-                // Set copyright year after login
-                setDynamicCopyrightYear();
+                    // Show dashboard
+                    document.getElementById('dashboardContainer').style.display = 'block';
 
-                initializeCharts();
-                loadData();
+                    // Show night mode button
+                    const nightBtn = document.getElementById('nightModeBtn');
+                    if (nightBtn) nightBtn.style.display = 'flex';
+
+                    // Show export button
+                    const exportBtn = document.getElementById('exportBtn');
+                    if (exportBtn) exportBtn.style.display = 'block';
+
+                    // Update UI with user info
+                    updateUserInterface();
+
+                    // Apply permissions
+                    applyPermissions();
+
+                    // Set copyright year after login
+                    setDynamicCopyrightYear();
+
+                    // Initialize charts
+                    initializeCharts();
+
+                    // Load data
+                    loadData();
+
+                    console.log('Login successful for:', username);
+                } catch (error) {
+                    console.error('Error during login transition:', error);
+                    alert('Login successful but error loading dashboard: ' + error.message);
+                }
             } else {
                 errorDiv.textContent = '❌ Invalid username or password';
                 errorDiv.style.display = 'block';
