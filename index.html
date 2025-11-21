@@ -1775,7 +1775,7 @@
         async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('username').value.trim().toLowerCase();
-            const password = document.getElementById('password').value;
+            const password = document.getElementById('password').value.trim();
             const errorDiv = document.getElementById('loginError');
 
             console.log('Login attempt for username:', username);
