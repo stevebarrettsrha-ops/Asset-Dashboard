@@ -1797,7 +1797,9 @@
                             <option value="Asset Updated">Asset Updated</option>
                             <option value="Other">Other</option>
                         </select>
-                        <input type="text" id="auditLocation" class="calc-input" placeholder="Department/Location">
+                        <select id="auditLocation" class="calc-input">
+                            <option value="">Select Department</option>
+                        </select>
                     </div>
                     <textarea id="auditNotes" class="calc-input" placeholder="Notes/Details (optional)" style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"></textarea>
                     <div style="margin-top: 15px;">
@@ -1806,13 +1808,60 @@
                     </div>
                 </div>
                 
-                <!-- Department Filter -->
-                <div style="margin-bottom: 20px; padding: 15px; background: var(--table-hover); border-radius: 8px;">
-                    <label style="font-weight: 600; margin-right: 10px; color: var(--text-primary);">Filter by Department:</label>
-                    <select id="auditDepartmentFilter" class="calc-input" style="width: auto; display: inline-block;" onchange="displayAuditTrail()">
-                        <option value="">All Departments</option>
-                    </select>
-                    <button class="search-btn" onclick="displayAuditTrail()" style="margin-left: 10px;">🔄 Refresh</button>
+                <!-- Enhanced Filter Section -->
+                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange);">
+                    <h3 style="margin-bottom: 15px; color: var(--text-primary);">🔍 Filter Audit Trail</h3>
+                    <div class="calc-grid" style="margin-bottom: 15px;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Department:</label>
+                            <select id="auditDepartmentFilter" class="calc-input" onchange="displayAuditTrail()">
+                                <option value="">All Departments</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Action Type:</label>
+                            <select id="auditActionFilter" class="calc-input" onchange="displayAuditTrail()">
+                                <option value="">All Actions</option>
+                                <option value="Asset Created">Asset Created</option>
+                                <option value="Asset Assigned">Asset Assigned</option>
+                                <option value="Asset Transferred">Asset Transferred</option>
+                                <option value="Asset Maintenance">Asset Maintenance</option>
+                                <option value="Asset Disposed">Asset Disposed</option>
+                                <option value="Asset Inspection">Asset Inspection</option>
+                                <option value="Asset Updated">Asset Updated</option>
+                                <option value="Updated">Updated</option>
+                                <option value="Disposed">Disposed</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date From:</label>
+                            <input type="date" id="auditDateFrom" class="calc-input" onchange="displayAuditTrail()">
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date To:</label>
+                            <input type="date" id="auditDateTo" class="calc-input" onchange="displayAuditTrail()">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="search-btn" onclick="displayAuditTrail()">🔄 Apply Filters</button>
+                        <button class="search-btn" onclick="clearAuditFilters()" style="background: #6c757d;">✖️ Clear Filters</button>
+                        <button class="search-btn" onclick="toggleDepartmentSummary()" style="background: #17a2b8;">📊 Toggle Department Summary</button>
+                    </div>
+                </div>
+
+                <!-- Department Summary Dashboard -->
+                <div id="departmentSummarySection" style="display: none; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        📊 Department Activity Summary
+                        <span id="summaryPeriodLabel" style="font-size: 0.8em; opacity: 0.8;"></span>
+                    </h3>
+                    <div id="departmentSummaryCards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                        <!-- Department summary cards will be populated here -->
+                    </div>
+                    <div id="departmentSummaryStats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <!-- Overall stats will be populated here -->
+                    </div>
                 </div>
 
                 <div id="auditEntries">
@@ -2260,6 +2309,20 @@
                     auditDeptFilter.appendChild(option);
                 });
                 if (currentValue) auditDeptFilter.value = currentValue;
+            }
+
+            // Update audit entry form department dropdown
+            const auditLocationSelect = document.getElementById('auditLocation');
+            if (auditLocationSelect) {
+                const currentValue = auditLocationSelect.value;
+                auditLocationSelect.innerHTML = '<option value="">Select Department</option>';
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    auditLocationSelect.appendChild(option);
+                });
+                if (currentValue) auditLocationSelect.value = currentValue;
             }
 
             // Update department management list
@@ -2887,7 +2950,7 @@
             let assetCount = 0;
             
             purchasedAssets.forEach(asset => {
-                const assetLocation = asset.supplier || 'Location not specified';
+                const assetLocation = asset.department || 'Department not specified';
 
                 // Check for warranty override
                 const override = warrantyOverrides[asset.assetCode];
@@ -3669,24 +3732,60 @@
 
         function displayAuditTrail() {
             const auditEntries = document.getElementById('auditEntries');
-            const departmentFilter = document.getElementById('auditDepartmentFilter').value;
+            const departmentFilter = document.getElementById('auditDepartmentFilter')?.value || '';
+            const actionFilter = document.getElementById('auditActionFilter')?.value || '';
+            const dateFrom = document.getElementById('auditDateFrom')?.value || '';
+            const dateTo = document.getElementById('auditDateTo')?.value || '';
 
             let auditRecords = loadAuditFromStorage();
+            const totalRecords = auditRecords.length;
 
             // Filter by department if selected
             if (departmentFilter) {
                 auditRecords = auditRecords.filter(record => record.department === departmentFilter);
             }
 
+            // Filter by action type if selected
+            if (actionFilter) {
+                auditRecords = auditRecords.filter(record => record.action === actionFilter);
+            }
+
+            // Filter by date range
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
+            }
+
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
+            }
+
+            // Update department summary if visible
+            updateDepartmentSummary();
+
             if (auditRecords.length === 0) {
-                auditEntries.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No audit trail entries found</p>';
+                auditEntries.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No audit trail entries found matching the selected filters</p>';
                 window.currentAuditData = [];
                 return;
             }
 
             window.currentAuditData = auditRecords;
 
-            let html = `
+            // Show filter status
+            const filterStatus = (departmentFilter || actionFilter || dateFrom || dateTo)
+                ? `<div style="margin-bottom: 10px; padding: 10px; background: #e8f4f8; border-radius: 4px; color: #0c5460;">
+                    Showing ${auditRecords.length} of ${totalRecords} entries
+                    ${departmentFilter ? ' | Department: <strong>' + escapeHtml(departmentFilter) + '</strong>' : ''}
+                    ${actionFilter ? ' | Action: <strong>' + escapeHtml(actionFilter) + '</strong>' : ''}
+                    ${dateFrom ? ' | From: <strong>' + dateFrom + '</strong>' : ''}
+                    ${dateTo ? ' | To: <strong>' + dateTo + '</strong>' : ''}
+                   </div>`
+                : '';
+
+            let html = filterStatus + `
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -3722,6 +3821,166 @@
 
             html += '</tbody></table></div>';
             auditEntries.innerHTML = html;
+        }
+
+        // Clear all audit filters
+        function clearAuditFilters() {
+            const deptFilter = document.getElementById('auditDepartmentFilter');
+            const actionFilter = document.getElementById('auditActionFilter');
+            const dateFrom = document.getElementById('auditDateFrom');
+            const dateTo = document.getElementById('auditDateTo');
+
+            if (deptFilter) deptFilter.value = '';
+            if (actionFilter) actionFilter.value = '';
+            if (dateFrom) dateFrom.value = '';
+            if (dateTo) dateTo.value = '';
+
+            displayAuditTrail();
+        }
+
+        // Toggle department summary visibility
+        function toggleDepartmentSummary() {
+            const summarySection = document.getElementById('departmentSummarySection');
+            if (summarySection) {
+                const isHidden = summarySection.style.display === 'none';
+                summarySection.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    updateDepartmentSummary();
+                }
+            }
+        }
+
+        // Update department summary dashboard
+        function updateDepartmentSummary() {
+            const summarySection = document.getElementById('departmentSummarySection');
+            if (!summarySection || summarySection.style.display === 'none') return;
+
+            const cardsContainer = document.getElementById('departmentSummaryCards');
+            const statsContainer = document.getElementById('departmentSummaryStats');
+            const periodLabel = document.getElementById('summaryPeriodLabel');
+
+            let auditRecords = loadAuditFromStorage();
+
+            // Apply date filters for summary
+            const dateFrom = document.getElementById('auditDateFrom')?.value || '';
+            const dateTo = document.getElementById('auditDateTo')?.value || '';
+
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
+            }
+
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
+            }
+
+            // Update period label
+            if (dateFrom || dateTo) {
+                periodLabel.textContent = `(${dateFrom || 'Start'} to ${dateTo || 'Present'})`;
+            } else {
+                periodLabel.textContent = '(All Time)';
+            }
+
+            // Calculate department statistics
+            const deptStats = {};
+            const actionStats = {};
+            const departments = loadDepartments();
+
+            auditRecords.forEach(record => {
+                const dept = record.department || 'Unassigned';
+                const action = record.action || 'Unknown';
+
+                // Count by department
+                if (!deptStats[dept]) {
+                    deptStats[dept] = { count: 0, actions: {} };
+                }
+                deptStats[dept].count++;
+
+                // Count actions within department
+                if (!deptStats[dept].actions[action]) {
+                    deptStats[dept].actions[action] = 0;
+                }
+                deptStats[dept].actions[action]++;
+
+                // Global action stats
+                if (!actionStats[action]) {
+                    actionStats[action] = 0;
+                }
+                actionStats[action]++;
+            });
+
+            // Sort departments by activity count
+            const sortedDepts = Object.entries(deptStats).sort((a, b) => b[1].count - a[1].count);
+
+            // Generate department cards
+            let cardsHtml = '';
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#00b894'];
+
+            sortedDepts.forEach(([dept, stats], index) => {
+                const color = colors[index % colors.length];
+                const topAction = Object.entries(stats.actions).sort((a, b) => b[1] - a[1])[0];
+
+                cardsHtml += `
+                    <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; cursor: pointer; transition: transform 0.2s;"
+                         onclick="filterByDepartmentFromSummary('${escapeHtml(dept)}')"
+                         onmouseover="this.style.transform='scale(1.02)'"
+                         onmouseout="this.style.transform='scale(1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="width: 12px; height: 12px; background: ${color}; border-radius: 50%; display: inline-block;"></span>
+                            <strong style="font-size: 0.95em;">${escapeHtml(dept)}</strong>
+                        </div>
+                        <div style="font-size: 2em; font-weight: bold; margin-bottom: 5px;">${stats.count}</div>
+                        <div style="font-size: 0.8em; opacity: 0.8;">
+                            entries${topAction ? ` | Top: ${topAction[0]}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (cardsHtml === '') {
+                cardsHtml = '<p style="opacity: 0.8;">No audit entries found for the selected period.</p>';
+            }
+
+            cardsContainer.innerHTML = cardsHtml;
+
+            // Generate overall stats
+            const totalEntries = auditRecords.length;
+            const uniqueDepts = Object.keys(deptStats).length;
+            const uniqueActions = Object.keys(actionStats).length;
+            const topAction = Object.entries(actionStats).sort((a, b) => b[1] - a[1])[0];
+
+            statsContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center;">
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${totalEntries}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Total Entries</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${uniqueDepts}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Active Departments</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${uniqueActions}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Action Types</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${topAction ? topAction[0] : 'N/A'}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Most Common Action${topAction ? ` (${topAction[1]})` : ''}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Filter by department when clicking summary card
+        function filterByDepartmentFromSummary(department) {
+            const deptFilter = document.getElementById('auditDepartmentFilter');
+            if (deptFilter) {
+                deptFilter.value = department === 'Unassigned' ? '' : department;
+                displayAuditTrail();
+            }
         }
 
         function deleteAuditEntry(entryId) {
