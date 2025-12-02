@@ -3593,7 +3593,7 @@
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);"><strong>${asset.assetCode}</strong></td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.description}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600;">JMD ${formatCurrency(asset.totalPrice)}</td>
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.supplier || 'N/A'}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.department || 'N/A'}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">
                                 <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.85em; ${asset.source === 'Purchased' ? 'background: rgba(46, 204, 113, 0.1); color: #27AE60;' : 'background: rgba(52, 152, 219, 0.1); color: #2980B9;'}">
                                     ${asset.source}
@@ -3653,7 +3653,7 @@
                     asset.assetCode,
                     asset.description,
                     asset.totalPrice,
-                    asset.supplier || 'N/A',
+                    asset.department || 'N/A',
                     asset.source,
                     asset.dateIn
                 ]);
@@ -4164,12 +4164,12 @@
                         <td>${warrantyEndDate.toLocaleDateString()}</td>
                         <td>${status}</td>
                         <td>${daysRemaining > 0 ? daysRemaining + ' days' : Math.abs(daysRemaining) + ' days expired'}</td>
-                        <td>${asset.supplier || 'N/A'}</td>
+                        <td>${asset.department || 'N/A'}</td>
                         <td>JMD ${formatCurrency(asset.totalPrice)}</td>
                     </tr>
                 `;
             });
-            
+
             return `
                 <h3>Warranty Status Report</h3>
                 <p>Comprehensive warranty information for all purchased assets (2-year coverage period)</p>
