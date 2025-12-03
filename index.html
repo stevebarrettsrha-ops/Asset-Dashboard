@@ -1919,10 +1919,10 @@
                 </div>
             </div>
 
-            <!-- Google Sheet Data View -->
+            <!-- Sheet Data View -->
             <div class="audit-trail" id="sheetdataTab" style="display: none;">
-                <h2 class="section-title">📊 Google Sheet Data View</h2>
-                <p style="margin-bottom: 20px; color: var(--text-secondary);">View key asset information from the Google Sheets including asset codes, descriptions, costs, and relocation details.</p>
+                <h2 class="section-title">📊 Sheet Data View</h2>
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">View key asset information including asset codes, descriptions, costs, and relocation details.</p>
 
                 <div style="margin-bottom: 20px;">
                     <label style="margin-right: 15px;">
@@ -1946,6 +1946,7 @@
 
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="exportSheetData()">📥 Export to Excel</button>
+                    <button class="search-btn" onclick="exportSheetDataPDF()" style="margin-left: 10px;">📄 Export to PDF</button>
                     <button class="search-btn" onclick="displaySheetData()" style="margin-left: 10px;">🔄 Refresh Data</button>
                 </div>
             </div>
@@ -3943,6 +3944,233 @@
             const ws = XLSX.utils.aoa_to_sheet(sheetData);
             XLSX.utils.book_append_sheet(wb, ws, 'Sheet Data');
             XLSX.writeFile(wb, `Asset_Sheet_Data_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        function exportSheetDataPDF() {
+            if (!allAssetsData || allAssetsData.length === 0) {
+                alert('No data available to export. Please load asset data first.');
+                return;
+            }
+
+            const sourceFilter = document.querySelector('input[name="sheetDataSource"]:checked').value;
+            const searchTerm = document.getElementById('sheetDataSearch').value.toLowerCase();
+
+            // Filter data
+            let filteredAssets = allAssetsData;
+
+            if (sourceFilter === 'purchased') {
+                filteredAssets = filteredAssets.filter(asset => asset.source === 'Purchased');
+            } else if (sourceFilter === 'donated') {
+                filteredAssets = filteredAssets.filter(asset => asset.source === 'Donated');
+            }
+
+            if (searchTerm) {
+                filteredAssets = filteredAssets.filter(asset =>
+                    asset.assetCode.toLowerCase().includes(searchTerm) ||
+                    asset.description.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            if (filteredAssets.length === 0) {
+                alert('No assets found matching your criteria.');
+                return;
+            }
+
+            // Calculate totals
+            const totalValue = filteredAssets.reduce((sum, asset) => sum + asset.totalPrice, 0);
+            const purchasedCount = filteredAssets.filter(a => a.source === 'Purchased').length;
+            const donatedCount = filteredAssets.filter(a => a.source === 'Donated').length;
+
+            // Build table rows
+            let tableRows = '';
+            filteredAssets.forEach(asset => {
+                tableRows += `
+                    <tr>
+                        <td style="white-space: nowrap;">${escapeHtml(asset.assetCode)}</td>
+                        <td>${escapeHtml(asset.description)}</td>
+                        <td style="text-align: right;">JMD ${formatCurrency(asset.totalPrice)}</td>
+                        <td>${escapeHtml(asset.department || 'N/A')}</td>
+                        <td>${escapeHtml(asset.source)}</td>
+                        <td>${escapeHtml(asset.dateIn)}</td>
+                    </tr>
+                `;
+            });
+
+            // Filter description for report title
+            let filterDesc = 'All Assets';
+            if (sourceFilter === 'purchased') filterDesc = 'Purchased Assets';
+            if (sourceFilter === 'donated') filterDesc = 'Donated Assets';
+            if (searchTerm) filterDesc += ` (Search: "${searchTerm}")`;
+
+            // Create PDF report in new window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Sheet Data Report - May Pen Hospital</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            margin: 20px;
+                            font-size: 12px;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 3px solid #FF6B35;
+                            padding-bottom: 20px;
+                            margin-bottom: 20px;
+                        }
+                        .logo {
+                            font-size: 1.8em;
+                            color: #FF6B35;
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                        }
+                        h1 {
+                            color: #2C3E50;
+                            margin: 10px 0;
+                        }
+                        h2 {
+                            color: #666;
+                            font-weight: normal;
+                            margin: 5px 0;
+                        }
+                        .summary-box {
+                            background: #f8f9fa;
+                            border: 2px solid #FF6B35;
+                            border-radius: 8px;
+                            padding: 15px;
+                            margin: 20px 0;
+                        }
+                        .summary-grid {
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 15px;
+                        }
+                        .summary-item {
+                            text-align: center;
+                            padding: 10px;
+                        }
+                        .summary-label {
+                            font-weight: bold;
+                            color: #2C3E50;
+                            margin-bottom: 5px;
+                            font-size: 0.9em;
+                        }
+                        .summary-value {
+                            font-size: 1.4em;
+                            color: #2ECC71;
+                            font-weight: bold;
+                        }
+                        h3 {
+                            color: #2C3E50;
+                            border-bottom: 2px solid #2ECC71;
+                            padding-bottom: 5px;
+                            margin: 25px 0 15px 0;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 15px 0;
+                            font-size: 11px;
+                        }
+                        th {
+                            background: #2ECC71;
+                            color: white;
+                            padding: 10px 5px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #27AE60;
+                        }
+                        td {
+                            border: 1px solid #ddd;
+                            padding: 8px 5px;
+                        }
+                        tr:nth-child(even) {
+                            background: #f8f9fa;
+                        }
+                        tr:hover {
+                            background: #e8f5e9;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 2px solid #ddd;
+                            font-size: 0.9em;
+                            color: #7f8c8d;
+                        }
+                        .timestamp {
+                            text-align: right;
+                            font-size: 0.85em;
+                            color: #999;
+                            margin-top: 10px;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                            .summary-box { break-inside: avoid; }
+                            table { page-break-inside: auto; }
+                            tr { page-break-inside: avoid; page-break-after: auto; }
+                            thead { display: table-header-group; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">🏥 May Pen Hospital</div>
+                        <h1>Sheet Data Report</h1>
+                        <h2>${filterDesc}</h2>
+                        <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
+                    </div>
+
+                    <div class="summary-box">
+                        <h3 style="text-align: center; margin-top: 0; border: none;">Summary Statistics</h3>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <div class="summary-label">Total Assets</div>
+                                <div class="summary-value">${filteredAssets.length}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Total Value</div>
+                                <div class="summary-value">JMD ${formatCurrency(totalValue)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Purchased</div>
+                                <div class="summary-value">${purchasedCount}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Donated</div>
+                                <div class="summary-value">${donatedCount}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3>Asset Details</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Asset Code</th>
+                                <th>Description</th>
+                                <th>Total Cost (JMD)</th>
+                                <th>Department/Location</th>
+                                <th>Source</th>
+                                <th>Date In</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>May Pen Hospital - Fixed Asset Management System</p>
+                        <p>This report contains ${filteredAssets.length} assets with a total value of JMD ${formatCurrency(totalValue)}</p>
+                    </div>
+
+                    <script>window.print();<\/script>
+                </body>
+                </html>
+            `);
         }
 
         // ============================================
