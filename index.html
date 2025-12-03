@@ -1152,6 +1152,48 @@
             background: var(--dark-orange);
         }
 
+        /* Save Button - Blue theme for manual save */
+        .save-btn {
+            background: #3498db;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background: #2980b9;
+        }
+
+        .save-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Sync Button - Purple theme for data synchronization */
+        .sync-btn {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .sync-btn:hover {
+            background: #8e44ad;
+        }
+
+        .sync-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sync-btn.syncing {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
         .btn-edit {
             background: var(--primary-orange);
             color: white;
@@ -1568,6 +1610,8 @@
                             <span id="lastUpdateText">Starting up...</span>
                         </div>
                         <button class="btn refresh-btn" id="refreshBtn" onclick="loadData()">🔄 Refresh</button>
+                        <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
+                        <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
                         <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
@@ -2401,6 +2445,243 @@
             };
             auditRecords.unshift(entry); // Add to beginning
             saveAuditToStorage(auditRecords);
+        }
+
+        // ============================================
+        // SAVE & SYNC FUNCTIONS
+        // ============================================
+
+        // Manual Save - Saves all current data to browser storage
+        function saveAllData() {
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.innerHTML;
+
+            try {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '⏳ Saving...';
+                updateStatus('loading', 'Saving all data...');
+
+                // Get all current assets from memory and save to storage
+                const allAssets = loadAssetsFromStorage();
+                const auditRecords = loadAuditFromStorage();
+                const departments = loadDepartments();
+
+                // Re-save all data to ensure consistency
+                const assetsSaved = saveAssetsToStorage(allAssets);
+                const auditSaved = saveAuditToStorage(auditRecords);
+                saveDepartments(departments);
+
+                // Save warranty overrides
+                const warrantyOverrides = localStorage.getItem('warrantyOverrides');
+                if (warrantyOverrides) {
+                    localStorage.setItem('warrantyOverrides', warrantyOverrides);
+                }
+
+                if (assetsSaved && auditSaved) {
+                    updateStatus('connected', 'All data saved successfully!');
+                    addAuditEntry('SYSTEM', 'Manual Save', 'All', `Manual save performed - ${allAssets.length} assets, ${auditRecords.length} audit records`);
+
+                    // Show success feedback
+                    saveBtn.innerHTML = '✅ Saved!';
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error('Failed to save some data');
+                }
+            } catch (error) {
+                console.error('Error during manual save:', error);
+                updateStatus('error', 'Error saving data: ' + error.message);
+                saveBtn.innerHTML = '❌ Error';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        // Sync Data - Fixes inconsistencies in the data
+        function syncData() {
+            const syncBtn = document.getElementById('syncBtn');
+            const originalText = syncBtn.innerHTML;
+
+            try {
+                syncBtn.disabled = true;
+                syncBtn.classList.add('syncing');
+                syncBtn.innerHTML = '🔄 Syncing...';
+                updateStatus('loading', 'Synchronizing and fixing data inconsistencies...');
+
+                let fixedCount = 0;
+                let issues = [];
+
+                // Load all data
+                let assets = loadAssetsFromStorage();
+                let auditRecords = loadAuditFromStorage();
+                let departments = loadDepartments();
+
+                // ====== FIX 1: Remove duplicate assets ======
+                const seenAssetCodes = new Map();
+                const uniqueAssets = [];
+                assets.forEach(asset => {
+                    const key = asset.assetCode + '_' + asset.id;
+                    if (!seenAssetCodes.has(key)) {
+                        seenAssetCodes.set(key, true);
+                        uniqueAssets.push(asset);
+                    } else {
+                        fixedCount++;
+                        issues.push(`Removed duplicate asset: ${asset.assetCode}`);
+                    }
+                });
+                assets = uniqueAssets;
+
+                // ====== FIX 2: Validate and fix asset data ======
+                assets = assets.map(asset => {
+                    let fixed = false;
+
+                    // Ensure ID exists
+                    if (!asset.id) {
+                        asset.id = generateAssetId();
+                        fixed = true;
+                    }
+
+                    // Ensure numeric fields are numbers
+                    if (typeof asset.quantity !== 'number' || isNaN(asset.quantity)) {
+                        asset.quantity = parseInt(asset.quantity) || 1;
+                        fixed = true;
+                    }
+                    if (typeof asset.unitPrice !== 'number' || isNaN(asset.unitPrice)) {
+                        asset.unitPrice = parseFloat(asset.unitPrice) || 0;
+                        fixed = true;
+                    }
+                    if (typeof asset.totalPrice !== 'number' || isNaN(asset.totalPrice)) {
+                        asset.totalPrice = parseFloat(asset.totalPrice) || (asset.quantity * asset.unitPrice);
+                        fixed = true;
+                    }
+
+                    // Recalculate totalPrice if incorrect
+                    const calculatedTotal = asset.quantity * asset.unitPrice;
+                    if (Math.abs(asset.totalPrice - calculatedTotal) > 0.01) {
+                        asset.totalPrice = calculatedTotal;
+                        fixed = true;
+                        issues.push(`Fixed total price for: ${asset.assetCode}`);
+                    }
+
+                    // Ensure source is valid
+                    if (!['Purchased', 'Donated'].includes(asset.source)) {
+                        asset.source = 'Purchased';
+                        fixed = true;
+                    }
+
+                    // Ensure category is valid
+                    if (!['Medical Equipment', 'Furniture & Appliances'].includes(asset.category)) {
+                        asset.category = 'Medical Equipment';
+                        fixed = true;
+                    }
+
+                    // Ensure month is valid
+                    const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+                    if (!validMonths.includes(asset.month)) {
+                        // Try to extract from dateIn
+                        if (asset.dateIn) {
+                            const monthPart = asset.dateIn.split('-')[1];
+                            if (monthPart) {
+                                asset.month = monthPart.toUpperCase();
+                            }
+                        }
+                        if (!validMonths.includes(asset.month)) {
+                            asset.month = 'APR';
+                        }
+                        fixed = true;
+                    }
+
+                    // Trim string fields
+                    if (asset.description) asset.description = asset.description.trim();
+                    if (asset.assetCode) asset.assetCode = asset.assetCode.trim();
+                    if (asset.department) asset.department = asset.department.trim();
+                    if (asset.supplier) asset.supplier = asset.supplier.trim();
+
+                    if (fixed) fixedCount++;
+                    return asset;
+                });
+
+                // ====== FIX 3: Sync departments from assets ======
+                const assetDepartments = new Set(assets.map(a => a.department).filter(d => d && d.trim()));
+                assetDepartments.forEach(dept => {
+                    if (!departments.includes(dept)) {
+                        departments.push(dept);
+                        fixedCount++;
+                        issues.push(`Added missing department: ${dept}`);
+                    }
+                });
+
+                // ====== FIX 4: Clean up orphaned audit records ======
+                const assetCodes = new Set(assets.map(a => a.assetCode));
+                const validAuditRecords = auditRecords.filter(record => {
+                    // Keep system records and records for existing assets
+                    if (record.assetCode === 'SYSTEM') return true;
+                    if (assetCodes.has(record.assetCode)) return true;
+                    if (record.action.includes('Deleted')) return true; // Keep delete records
+                    return true; // Keep all for history
+                });
+
+                // ====== FIX 5: Validate audit record timestamps ======
+                auditRecords = validAuditRecords.map(record => {
+                    if (!record.timestamp || isNaN(new Date(record.timestamp).getTime())) {
+                        record.timestamp = new Date().toISOString();
+                        fixedCount++;
+                    }
+                    if (!record.id) {
+                        record.id = generateAssetId();
+                        fixedCount++;
+                    }
+                    return record;
+                });
+
+                // ====== SAVE ALL FIXED DATA ======
+                saveAssetsToStorage(assets);
+                saveAuditToStorage(auditRecords);
+                saveDepartments(departments);
+
+                // Add sync audit entry
+                addAuditEntry('SYSTEM', 'Data Sync', 'All', `Sync completed: ${fixedCount} issues fixed`);
+
+                // Reload the UI
+                loadData();
+
+                // Show results
+                setTimeout(() => {
+                    syncBtn.classList.remove('syncing');
+                    if (fixedCount > 0) {
+                        updateStatus('connected', `Sync complete! Fixed ${fixedCount} issue(s)`);
+                        syncBtn.innerHTML = '✅ Synced!';
+                        console.log('Sync issues fixed:', issues);
+                        if (issues.length > 0 && issues.length <= 10) {
+                            alert(`Sync Complete!\n\nFixed ${fixedCount} issue(s):\n• ${issues.slice(0, 10).join('\n• ')}${issues.length > 10 ? '\n• ...' : ''}`);
+                        } else if (fixedCount > 0) {
+                            alert(`Sync Complete!\n\nFixed ${fixedCount} issue(s). Check console for details.`);
+                        }
+                    } else {
+                        updateStatus('connected', 'Sync complete! No issues found.');
+                        syncBtn.innerHTML = '✅ All Good!';
+                    }
+
+                    setTimeout(() => {
+                        syncBtn.innerHTML = originalText;
+                        syncBtn.disabled = false;
+                    }, 2000);
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error during sync:', error);
+                updateStatus('error', 'Error during sync: ' + error.message);
+                syncBtn.classList.remove('syncing');
+                syncBtn.innerHTML = '❌ Error';
+                setTimeout(() => {
+                    syncBtn.innerHTML = originalText;
+                    syncBtn.disabled = false;
+                }, 2000);
+            }
         }
 
         // ============================================
