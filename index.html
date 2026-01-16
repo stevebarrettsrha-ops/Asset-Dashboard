@@ -1402,6 +1402,382 @@
             color: #666;
             margin-top: 8px;
         }
+
+        /* ============================================
+           ASSET IMPORT DASHBOARD STYLES
+           ============================================ */
+        .import-dashboard {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+            transition: background 0.3s ease;
+        }
+
+        .import-dropzone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: var(--table-hover);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .import-dropzone:hover,
+        .import-dropzone.drag-over {
+            border-color: var(--primary-green);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .import-dropzone-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .import-dropzone-text {
+            font-size: 1.2em;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .import-dropzone-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .import-file-input {
+            display: none;
+        }
+
+        .import-progress {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .import-progress-bar {
+            height: 10px;
+            background: var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .import-progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .import-progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: var(--text-secondary);
+        }
+
+        .import-mapping-section {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            background: var(--table-hover);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .import-mapping-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .import-mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .import-mapping-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .import-mapping-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .import-mapping-label .required {
+            color: #e74c3c;
+        }
+
+        .import-mapping-select {
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .import-mapping-select:focus {
+            outline: none;
+            border-color: var(--primary-green);
+        }
+
+        .import-mapping-select.mapped {
+            border-color: var(--primary-green);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .import-mapping-select.error {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .import-preview-section {
+            display: none;
+            margin-top: 25px;
+        }
+
+        .import-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .import-preview-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .import-preview-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .import-preview-stat {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .import-preview-stat.valid {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--dark-green);
+        }
+
+        .import-preview-stat.invalid {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+        }
+
+        .import-preview-stat.duplicate {
+            background: rgba(241, 196, 15, 0.1);
+            color: #9a7b0a;
+        }
+
+        .import-preview-table {
+            max-height: 400px;
+            overflow: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .import-preview-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .import-preview-table th {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+
+        .import-preview-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .import-preview-table tr.valid-row {
+            background: rgba(46, 204, 113, 0.05);
+        }
+
+        .import-preview-table tr.invalid-row {
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .import-preview-table tr.duplicate-row {
+            background: rgba(241, 196, 15, 0.1);
+        }
+
+        .import-row-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .import-row-status.valid {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .import-row-status.invalid {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .import-row-status.duplicate {
+            background: #f39c12;
+            color: white;
+        }
+
+        .import-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .import-action-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .import-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .import-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .import-action-btn.primary {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+        }
+
+        .import-action-btn.secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .import-action-btn.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .import-options {
+            margin: 20px 0;
+            padding: 15px;
+            background: var(--table-hover);
+            border-radius: 8px;
+        }
+
+        .import-options-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .import-option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            color: var(--text-primary);
+        }
+
+        .import-option-item input[type="checkbox"],
+        .import-option-item input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .import-summary {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .import-summary-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .import-summary-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .import-summary-details {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .import-field-help {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            background: var(--border-color);
+            border-radius: 50%;
+            font-size: 0.75em;
+            cursor: help;
+            margin-left: 5px;
+        }
+
+        .import-detected-format {
+            display: none;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-green);
+        }
+
+        .import-detected-format h4 {
+            color: var(--dark-green);
+            margin-bottom: 8px;
+        }
+
+        .import-detected-format p {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -1746,6 +2122,7 @@
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
                         <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
                     </div>
                 </div>
             </div>
@@ -2102,6 +2479,196 @@
                 <p>Fixed Asset Management System © <span id="copyrightYear3"></span> • May Pen Hospital</p>
             </div>
         </div>
+
+        <!-- PAGE 4: ASSET IMPORT DASHBOARD -->
+        <div class="page" id="page4">
+            <div class="header" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Asset Import Dashboard</h1>
+                            <div class="dashboard-subtitle">Import assets from Excel files with smart column detection</div>
+                        </div>
+                        <div class="user-info" id="userInfo4"></div>
+                    </div>
+
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                        <button class="btn monthly-view-btn" onclick="resetImportDashboard()">🔄 Reset Import</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Dashboard Content -->
+            <div class="import-dashboard">
+                <h2 class="section-title">📥 Import Assets from Excel</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Upload any Excel file (.xlsx, .xls) and the system will automatically detect columns matching the required asset fields.
+                </p>
+
+                <!-- File Upload Dropzone -->
+                <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()">
+                    <div class="import-dropzone-icon">📁</div>
+                    <div class="import-dropzone-text">Drag & Drop your Excel file here</div>
+                    <div class="import-dropzone-subtext">or click to browse • Supports .xlsx and .xls files</div>
+                </div>
+                <input type="file" class="import-file-input" id="importFileInput" accept=".xlsx,.xls" onchange="handleImportFile(event)">
+
+                <!-- Progress Bar -->
+                <div class="import-progress" id="importProgress">
+                    <div class="import-progress-bar">
+                        <div class="import-progress-fill" id="importProgressFill"></div>
+                    </div>
+                    <div class="import-progress-text" id="importProgressText">Processing file...</div>
+                </div>
+
+                <!-- Detected Format Info -->
+                <div class="import-detected-format" id="importDetectedFormat">
+                    <h4>📋 File Detected</h4>
+                    <p id="importFileInfo"></p>
+                </div>
+
+                <!-- Column Mapping Section -->
+                <div class="import-mapping-section" id="importMappingSection">
+                    <div class="import-mapping-title">🔗 Column Mapping</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                        The system has auto-detected column mappings. Review and adjust if needed.
+                    </p>
+                    <div class="import-mapping-grid" id="importMappingGrid">
+                        <!-- Mapping items will be inserted here -->
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="import-action-btn secondary" onclick="autoDetectColumns()">🔍 Auto-Detect Again</button>
+                    </div>
+                </div>
+
+                <!-- Import Options -->
+                <div class="import-options" id="importOptions" style="display: none;">
+                    <div class="import-options-title">⚙️ Import Options</div>
+                    <div class="import-option-item">
+                        <input type="radio" name="importMode" value="merge" id="importModeMerge" checked>
+                        <label for="importModeMerge"><strong>Merge:</strong> Add new assets, skip duplicates (by Asset Code)</label>
+                    </div>
+                    <div class="import-option-item">
+                        <input type="radio" name="importMode" value="replace" id="importModeReplace">
+                        <label for="importModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
+                    </div>
+                    <div class="import-option-item">
+                        <input type="checkbox" id="importSkipInvalid" checked>
+                        <label for="importSkipInvalid">Skip rows with missing required fields</label>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="import-preview-section" id="importPreviewSection">
+                    <div class="import-preview-header">
+                        <div class="import-preview-title">👁️ Import Preview</div>
+                        <div class="import-preview-stats">
+                            <span class="import-preview-stat valid" id="previewValidCount">0 Valid</span>
+                            <span class="import-preview-stat invalid" id="previewInvalidCount">0 Invalid</span>
+                            <span class="import-preview-stat duplicate" id="previewDuplicateCount">0 Duplicates</span>
+                        </div>
+                    </div>
+                    <div class="import-preview-table" id="importPreviewTable">
+                        <!-- Preview table will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="import-actions" id="importActions" style="display: none;">
+                    <button class="import-action-btn primary" id="importConfirmBtn" onclick="confirmImport()">
+                        ✅ Import Valid Assets
+                    </button>
+                    <button class="import-action-btn secondary" onclick="showPage(1)">
+                        ❌ Cancel
+                    </button>
+                    <button class="import-action-btn danger" onclick="resetImportDashboard()">
+                        🗑️ Clear & Start Over
+                    </button>
+                </div>
+
+                <!-- Import Summary -->
+                <div class="import-summary" id="importSummary">
+                    <div class="import-summary-icon">✅</div>
+                    <div class="import-summary-title">Import Successful!</div>
+                    <div class="import-summary-details" id="importSummaryDetails"></div>
+                    <div style="margin-top: 20px;">
+                        <button class="import-action-btn" style="background: white; color: #27ae60;" onclick="showPage(1)">
+                            Go to Dashboard
+                        </button>
+                        <button class="import-action-btn" style="background: rgba(255,255,255,0.2); color: white; margin-left: 10px;" onclick="resetImportDashboard()">
+                            Import More Assets
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Required Fields Reference -->
+            <div class="import-dashboard" style="margin-top: 20px;">
+                <h3 class="section-title" style="font-size: 1.2em;">📋 Required Fields Reference</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                    The following fields are expected. The system will try to match column headers automatically.
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>1. Asset Code</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Unique identifier (e.g., MPH-MS-001-2025)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>2. Asset Description</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Name/description of the asset</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>3. Date In</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Purchase/acquisition date</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>4. Supplier</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Vendor name or donor</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>5. Location/Department</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Where the asset is located</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>6. Source</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Purchased or Donated</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>7. Month</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">APR, MAY, JUN, etc. (fiscal year)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>8. Category</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Medical Equipment or Furniture & Appliances</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>9. Serial/Model</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Serial number or model number</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>10. Quantity</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Number of items (default: 1)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>11. Unit Price</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Price per unit (JMD)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>12. Total Price</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Total value (Qty × Unit Price)</div>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85em;">
+                    <span style="color: #e74c3c;">*</span> Required fields • Fields with <span style="color: var(--primary-orange);">orange</span> border are optional
+                </p>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear4"></span> • May Pen Hospital</p>
+            </div>
+        </div>
     </div>
 
     <button class="export-btn" id="exportBtn" onclick="exportData()" style="display: none;">📥 Export</button>
@@ -2112,8 +2679,8 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3'];
-            
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4'];
+
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
@@ -2266,7 +2833,7 @@
                 <button class="logout-btn" onclick="handleLogout()">Logout</button>
             `;
             
-            ['userInfo', 'userInfo2', 'userInfo3'].forEach(id => {
+            ['userInfo', 'userInfo2', 'userInfo3', 'userInfo4'].forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) elem.innerHTML = userHTML;
             });
@@ -6177,9 +6744,699 @@
         }
         
         // ============================================
+        // ASSET IMPORT DASHBOARD FUNCTIONS
+        // ============================================
+
+        // Import state variables
+        let importedExcelData = [];
+        let importColumnMapping = {};
+        let importPreviewData = [];
+        let importFileHeaders = [];
+
+        // Field definitions with aliases for auto-detection
+        const importFieldDefinitions = {
+            assetCode: {
+                label: 'Asset Code',
+                required: true,
+                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'asset_id', 'code', 'asset no', 'asset number', 'asset#', 'id']
+            },
+            description: {
+                label: 'Asset Description',
+                required: true,
+                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc', 'asset']
+            },
+            dateIn: {
+                label: 'Date In',
+                required: true,
+                aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date']
+            },
+            supplier: {
+                label: 'Supplier',
+                required: false,
+                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'donor name', 'source name', 'from', 'purchased from']
+            },
+            department: {
+                label: 'Location/Department',
+                required: true,
+                aliases: ['department', 'location', 'dept', 'asset location', 'asset department', 'dept name', 'location name', 'ward', 'unit', 'area', 'section']
+            },
+            source: {
+                label: 'Source (Purchased/Donated)',
+                required: true,
+                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source']
+            },
+            month: {
+                label: 'Month',
+                required: false,
+                aliases: ['month', 'fiscal month', 'period', 'month acquired']
+            },
+            category: {
+                label: 'Category',
+                required: true,
+                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'type', 'class', 'classification', 'group']
+            },
+            serialModel: {
+                label: 'Serial/Model',
+                required: false,
+                aliases: ['serial', 'model', 'serial number', 'serialnumber', 'serial_number', 'model number', 'modelnumber', 'model_number', 'serial/model', 'serial no', 'model no', 's/n', 'm/n']
+            },
+            quantity: {
+                label: 'Quantity',
+                required: false,
+                aliases: ['quantity', 'qty', 'count', 'amount', 'units', 'no of items', 'number']
+            },
+            unitPrice: {
+                label: 'Unit Price',
+                required: false,
+                aliases: ['unit price', 'unitprice', 'unit_price', 'price', 'unit cost', 'cost per unit', 'cost', 'price per unit', 'unit value']
+            },
+            totalPrice: {
+                label: 'Total Price',
+                required: false,
+                aliases: ['total price', 'totalprice', 'total_price', 'total', 'total cost', 'total value', 'value', 'amount', 'total amount']
+            }
+        };
+
+        // Initialize import dropzone drag-and-drop
+        function initImportDropzone() {
+            const dropzone = document.getElementById('importDropzone');
+            if (!dropzone) return;
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-over');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('drag-over');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleImportFileSelection(files[0]);
+                }
+            });
+        }
+
+        // Handle file input change
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleImportFileSelection(file);
+            }
+        }
+
+        // Process the selected file
+        function handleImportFileSelection(file) {
+            // Validate file type
+            const validTypes = ['.xlsx', '.xls'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+            if (!validTypes.includes(fileExtension)) {
+                alert('⚠️ Please select a valid Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            // Show progress
+            const progress = document.getElementById('importProgress');
+            const progressFill = document.getElementById('importProgressFill');
+            const progressText = document.getElementById('importProgressText');
+
+            progress.style.display = 'block';
+            progressFill.style.width = '10%';
+            progressText.textContent = 'Reading file...';
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    progressFill.style.width = '40%';
+                    progressText.textContent = 'Parsing Excel data...';
+
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    progressFill.style.width = '60%';
+                    progressText.textContent = 'Analyzing columns...';
+
+                    // Get first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    // Convert to JSON with headers
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                    if (jsonData.length < 2) {
+                        throw new Error('File appears to be empty or has no data rows');
+                    }
+
+                    // Store headers (first row) and data
+                    importFileHeaders = jsonData[0].map(h => String(h || '').trim());
+                    importedExcelData = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+
+                    progressFill.style.width = '80%';
+                    progressText.textContent = 'Auto-detecting column mappings...';
+
+                    // Show file info
+                    const fileInfo = document.getElementById('importFileInfo');
+                    const formatSection = document.getElementById('importDetectedFormat');
+                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                    formatSection.style.display = 'block';
+
+                    // Auto-detect column mappings
+                    autoDetectColumns();
+
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Complete!';
+
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }, 500);
+
+                } catch (error) {
+                    console.error('Error parsing Excel file:', error);
+                    progress.style.display = 'none';
+                    alert('⚠️ Error reading Excel file: ' + error.message);
+                }
+            };
+
+            reader.onerror = function() {
+                progress.style.display = 'none';
+                alert('⚠️ Error reading file. Please try again.');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Auto-detect column mappings based on header names
+        function autoDetectColumns() {
+            importColumnMapping = {};
+
+            importFileHeaders.forEach((header, index) => {
+                const normalizedHeader = header.toLowerCase().trim();
+
+                // Check each field's aliases
+                for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                    if (importColumnMapping[fieldKey] !== undefined) continue; // Already mapped
+
+                    // Check if header matches any alias
+                    const matchFound = fieldDef.aliases.some(alias => {
+                        return normalizedHeader === alias ||
+                               normalizedHeader.includes(alias) ||
+                               alias.includes(normalizedHeader);
+                    });
+
+                    if (matchFound) {
+                        importColumnMapping[fieldKey] = index;
+                        break;
+                    }
+                }
+            });
+
+            // Build mapping UI
+            buildMappingUI();
+
+            // Generate preview
+            generatePreview();
+        }
+
+        // Build the column mapping UI
+        function buildMappingUI() {
+            const mappingGrid = document.getElementById('importMappingGrid');
+            const mappingSection = document.getElementById('importMappingSection');
+
+            let html = '';
+
+            for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                const currentMapping = importColumnMapping[fieldKey];
+                const isMapped = currentMapping !== undefined;
+                const isRequired = fieldDef.required;
+
+                html += `
+                    <div class="import-mapping-item">
+                        <label class="import-mapping-label">
+                            ${fieldDef.label} ${isRequired ? '<span class="required">*</span>' : ''}
+                        </label>
+                        <select class="import-mapping-select ${isMapped ? 'mapped' : (isRequired ? 'error' : '')}"
+                                id="mapping_${fieldKey}"
+                                onchange="updateColumnMapping('${fieldKey}', this.value)">
+                            <option value="">-- Not Mapped --</option>
+                            ${importFileHeaders.map((header, idx) => `
+                                <option value="${idx}" ${currentMapping === idx ? 'selected' : ''}>
+                                    ${header || `Column ${idx + 1}`}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            mappingGrid.innerHTML = html;
+            mappingSection.style.display = 'block';
+        }
+
+        // Update column mapping when user changes selection
+        function updateColumnMapping(fieldKey, value) {
+            if (value === '') {
+                delete importColumnMapping[fieldKey];
+            } else {
+                importColumnMapping[fieldKey] = parseInt(value);
+            }
+
+            // Update select styling
+            const select = document.getElementById(`mapping_${fieldKey}`);
+            const fieldDef = importFieldDefinitions[fieldKey];
+
+            if (value !== '') {
+                select.classList.add('mapped');
+                select.classList.remove('error');
+            } else {
+                select.classList.remove('mapped');
+                if (fieldDef.required) {
+                    select.classList.add('error');
+                }
+            }
+
+            // Regenerate preview
+            generatePreview();
+        }
+
+        // Parse date from various formats
+        function parseImportDate(value) {
+            if (!value) return '';
+
+            // If it's already a Date object
+            if (value instanceof Date) {
+                const day = String(value.getDate()).padStart(2, '0');
+                const month = String(value.getMonth() + 1).padStart(2, '0');
+                const year = value.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            const strValue = String(value).trim();
+
+            // Try to parse various date formats
+            const datePatterns = [
+                // DD/MM/YYYY
+                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                // MM/DD/YYYY
+                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                // YYYY-MM-DD
+                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+                // DD-MM-YYYY
+                /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+                // DD-MMM-YYYY (e.g., 15-Jan-2024)
+                /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/
+            ];
+
+            // Try Excel serial date number
+            if (/^\d+(\.\d+)?$/.test(strValue)) {
+                const excelDate = parseFloat(strValue);
+                if (excelDate > 1000 && excelDate < 100000) {
+                    const date = new Date((excelDate - 25569) * 86400 * 1000);
+                    if (!isNaN(date.getTime())) {
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${day}/${month}/${year}`;
+                    }
+                }
+            }
+
+            // Try to parse with Date object
+            const parsedDate = new Date(strValue);
+            if (!isNaN(parsedDate.getTime())) {
+                const day = String(parsedDate.getDate()).padStart(2, '0');
+                const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                const year = parsedDate.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            return strValue; // Return as-is if can't parse
+        }
+
+        // Parse currency/number values
+        function parseImportNumber(value) {
+            if (!value && value !== 0) return 0;
+
+            // Remove currency symbols, commas, and spaces
+            const cleaned = String(value).replace(/[$,\s¤JMD]/gi, '').trim();
+            const num = parseFloat(cleaned);
+
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Detect month from date or value
+        function detectMonth(dateStr, monthValue) {
+            if (monthValue) {
+                const monthStr = String(monthValue).toUpperCase().trim();
+                const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+                if (validMonths.includes(monthStr)) {
+                    return monthStr;
+                }
+                // Try to match partial month names
+                const monthMap = {
+                    'JANUARY': 'JAN', 'FEBRUARY': 'FEB', 'MARCH': 'MAR', 'APRIL': 'APR',
+                    'MAY': 'MAY', 'JUNE': 'JUN', 'JULY': 'JUL', 'AUGUST': 'AUG',
+                    'SEPTEMBER': 'SEP', 'OCTOBER': 'OCT', 'NOVEMBER': 'NOV', 'DECEMBER': 'DEC'
+                };
+                for (const [fullMonth, abbr] of Object.entries(monthMap)) {
+                    if (monthStr.includes(fullMonth) || fullMonth.includes(monthStr)) {
+                        return abbr;
+                    }
+                }
+            }
+
+            // Try to extract from date
+            if (dateStr) {
+                const parts = dateStr.split(/[\/\-]/);
+                if (parts.length >= 2) {
+                    let month = parseInt(parts[1]);
+                    // Handle DD/MM/YYYY format
+                    if (parts[0].length <= 2 && parts[2] && parts[2].length === 4) {
+                        month = parseInt(parts[1]);
+                    }
+                    const monthAbbrs = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+                    if (month >= 1 && month <= 12) {
+                        return monthAbbrs[month - 1];
+                    }
+                }
+            }
+
+            return 'APR'; // Default
+        }
+
+        // Normalize source value
+        function normalizeSource(value) {
+            if (!value) return 'Purchased';
+
+            const normalizedValue = String(value).toLowerCase().trim();
+
+            if (normalizedValue.includes('donat') || normalizedValue.includes('gift') || normalizedValue.includes('grant')) {
+                return 'Donated';
+            }
+
+            return 'Purchased';
+        }
+
+        // Normalize category value
+        function normalizeCategory(value) {
+            if (!value) return 'Medical Equipment';
+
+            const normalizedValue = String(value).toLowerCase().trim();
+
+            if (normalizedValue.includes('furniture') || normalizedValue.includes('appliance') ||
+                normalizedValue.includes('office') || normalizedValue.includes('equipment') === false) {
+                return 'Furniture & Appliances';
+            }
+
+            return 'Medical Equipment';
+        }
+
+        // Generate preview data
+        function generatePreview() {
+            const previewSection = document.getElementById('importPreviewSection');
+            const previewTable = document.getElementById('importPreviewTable');
+            const importOptions = document.getElementById('importOptions');
+            const importActions = document.getElementById('importActions');
+
+            // Get existing asset codes for duplicate detection
+            const existingAssets = loadAssetsFromStorage();
+            const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+
+            importPreviewData = [];
+            let validCount = 0;
+            let invalidCount = 0;
+            let duplicateCount = 0;
+
+            // Process each row
+            importedExcelData.forEach((row, rowIndex) => {
+                const rowData = {
+                    rowNumber: rowIndex + 2, // Account for header row
+                    raw: row,
+                    parsed: {},
+                    status: 'valid',
+                    errors: []
+                };
+
+                // Extract values based on mapping
+                const getValue = (fieldKey) => {
+                    const colIndex = importColumnMapping[fieldKey];
+                    return colIndex !== undefined ? row[colIndex] : undefined;
+                };
+
+                // Parse each field
+                rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
+                rowData.parsed.description = String(getValue('description') || '').trim();
+                rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
+                rowData.parsed.supplier = String(getValue('supplier') || '').trim();
+                rowData.parsed.department = String(getValue('department') || '').trim();
+                rowData.parsed.source = normalizeSource(getValue('source'));
+                rowData.parsed.category = normalizeCategory(getValue('category'));
+                rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
+                rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
+                rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
+                rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
+
+                // Detect month
+                rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
+
+                // Calculate total if not provided
+                if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice) {
+                    rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
+                }
+
+                // Validate required fields
+                const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
+                requiredFields.forEach(field => {
+                    if (!rowData.parsed[field]) {
+                        rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
+                        rowData.status = 'invalid';
+                    }
+                });
+
+                // Check for duplicates
+                if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                    rowData.status = 'duplicate';
+                    rowData.errors.push('Asset code already exists');
+                }
+
+                // Count by status
+                if (rowData.status === 'valid') validCount++;
+                else if (rowData.status === 'invalid') invalidCount++;
+                else if (rowData.status === 'duplicate') duplicateCount++;
+
+                importPreviewData.push(rowData);
+            });
+
+            // Update stats
+            document.getElementById('previewValidCount').textContent = `${validCount} Valid`;
+            document.getElementById('previewInvalidCount').textContent = `${invalidCount} Invalid`;
+            document.getElementById('previewDuplicateCount').textContent = `${duplicateCount} Duplicates`;
+
+            // Build preview table
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Row</th>
+                            <th>Status</th>
+                            <th>Asset Code</th>
+                            <th>Description</th>
+                            <th>Date In</th>
+                            <th>Department</th>
+                            <th>Source</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Show first 50 rows for preview
+            const previewRows = importPreviewData.slice(0, 50);
+
+            previewRows.forEach(row => {
+                const statusClass = row.status === 'valid' ? 'valid-row' :
+                                   row.status === 'invalid' ? 'invalid-row' : 'duplicate-row';
+                const statusLabel = row.status === 'valid' ? '✓ Valid' :
+                                   row.status === 'invalid' ? '✗ Invalid' : '⚠ Duplicate';
+                const statusBadgeClass = row.status;
+
+                tableHtml += `
+                    <tr class="${statusClass}" title="${row.errors.join(', ') || 'Ready to import'}">
+                        <td>${row.rowNumber}</td>
+                        <td><span class="import-row-status ${statusBadgeClass}">${statusLabel}</span></td>
+                        <td>${escapeHtml(row.parsed.assetCode || '-')}</td>
+                        <td>${escapeHtml(row.parsed.description || '-')}</td>
+                        <td>${escapeHtml(row.parsed.dateIn || '-')}</td>
+                        <td>${escapeHtml(row.parsed.department || '-')}</td>
+                        <td>${escapeHtml(row.parsed.source || '-')}</td>
+                        <td>${escapeHtml(row.parsed.category || '-')}</td>
+                        <td>${row.parsed.quantity}</td>
+                        <td>${formatCurrency(row.parsed.unitPrice)}</td>
+                        <td>${formatCurrency(row.parsed.totalPrice)}</td>
+                    </tr>
+                `;
+            });
+
+            if (importPreviewData.length > 50) {
+                tableHtml += `
+                    <tr>
+                        <td colspan="11" style="text-align: center; font-style: italic; color: var(--text-secondary);">
+                            ... and ${importPreviewData.length - 50} more rows
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += '</tbody></table>';
+
+            previewTable.innerHTML = tableHtml;
+            previewSection.style.display = 'block';
+            importOptions.style.display = 'block';
+            importActions.style.display = 'flex';
+
+            // Enable/disable import button
+            const importBtn = document.getElementById('importConfirmBtn');
+            importBtn.disabled = validCount === 0;
+            importBtn.textContent = validCount > 0 ?
+                `✅ Import ${validCount} Valid Assets` :
+                '✅ No Valid Assets to Import';
+        }
+
+        // Confirm and execute import
+        function confirmImport() {
+            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            const skipInvalid = document.getElementById('importSkipInvalid').checked;
+
+            // Filter rows to import
+            let rowsToImport = importPreviewData.filter(row => row.status === 'valid');
+
+            if (rowsToImport.length === 0) {
+                alert('⚠️ No valid assets to import.');
+                return;
+            }
+
+            // Confirm with user
+            const confirmMsg = importMode === 'replace' ?
+                `⚠️ WARNING: This will REPLACE all existing assets!\n\n` +
+                `You are about to import ${rowsToImport.length} assets.\n` +
+                `All current data will be lost.\n\n` +
+                `Are you sure you want to continue?` :
+                `You are about to import ${rowsToImport.length} new assets.\n` +
+                `Existing assets will be preserved.\n\n` +
+                `Continue with import?`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            try {
+                let existingAssets = loadAssetsFromStorage();
+                let importedCount = 0;
+
+                if (importMode === 'replace') {
+                    // Clear existing assets
+                    existingAssets = [];
+                }
+
+                // Create new assets
+                rowsToImport.forEach(row => {
+                    const newAsset = {
+                        id: generateAssetId(),
+                        assetCode: row.parsed.assetCode,
+                        description: row.parsed.description,
+                        dateIn: row.parsed.dateIn,
+                        supplier: row.parsed.supplier || '',
+                        department: row.parsed.department,
+                        source: row.parsed.source,
+                        category: row.parsed.category,
+                        serialModel: row.parsed.serialModel || '',
+                        quantity: row.parsed.quantity,
+                        unitPrice: row.parsed.unitPrice,
+                        totalPrice: row.parsed.totalPrice,
+                        month: row.parsed.month,
+                        itemType: row.parsed.description // Use description as item type
+                    };
+
+                    existingAssets.push(newAsset);
+                    importedCount++;
+
+                    // Add audit entry
+                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
+                });
+
+                // Save to storage
+                saveAssetsToStorage(existingAssets);
+
+                // Show success summary
+                const summary = document.getElementById('importSummary');
+                const summaryDetails = document.getElementById('importSummaryDetails');
+
+                summaryDetails.innerHTML = `
+                    <p>Successfully imported <strong>${importedCount}</strong> assets.</p>
+                    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.9;">
+                        Mode: ${importMode === 'replace' ? 'Replace All' : 'Merge'} •
+                        Total Assets Now: ${existingAssets.length}
+                    </p>
+                `;
+
+                summary.style.display = 'block';
+
+                // Hide other sections
+                document.getElementById('importMappingSection').style.display = 'none';
+                document.getElementById('importPreviewSection').style.display = 'none';
+                document.getElementById('importOptions').style.display = 'none';
+                document.getElementById('importActions').style.display = 'none';
+                document.getElementById('importDetectedFormat').style.display = 'none';
+                document.getElementById('importDropzone').style.display = 'none';
+
+                // Reload main dashboard data
+                loadData();
+
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('⚠️ Error during import: ' + error.message);
+            }
+        }
+
+        // Reset import dashboard
+        function resetImportDashboard() {
+            // Reset state
+            importedExcelData = [];
+            importColumnMapping = {};
+            importPreviewData = [];
+            importFileHeaders = [];
+
+            // Reset file input
+            document.getElementById('importFileInput').value = '';
+
+            // Hide all sections
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('importDetectedFormat').style.display = 'none';
+            document.getElementById('importMappingSection').style.display = 'none';
+            document.getElementById('importPreviewSection').style.display = 'none';
+            document.getElementById('importOptions').style.display = 'none';
+            document.getElementById('importActions').style.display = 'none';
+            document.getElementById('importSummary').style.display = 'none';
+
+            // Show dropzone
+            document.getElementById('importDropzone').style.display = 'block';
+        }
+
+        // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
         window.addEventListener('DOMContentLoaded', async function() {
+            // Initialize import dropzone
+            initImportDropzone();
             setDynamicCopyrightYear();
 
             // Check if page was opened via QR code scan (asset parameter in URL)
