@@ -1587,6 +1587,137 @@
         </div>
     </div>
 
+    <!-- DATA SYNC & TRANSFER MODAL -->
+    <div id="dataSyncModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Data Sync & Transfer</h2>
+                <span class="close-modal" onclick="closeDataSyncModal()">&times;</span>
+            </div>
+            <div style="padding: 30px;">
+                <!-- Export Section -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-top: 0; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: var(--primary-green); color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">EXPORT</span>
+                        Download Your Data
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Export all your data to transfer to another device or for backup.</p>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <button class="btn-primary" onclick="exportCompleteData()">
+                            📦 Complete Backup (JSON)
+                        </button>
+                        <button class="btn-secondary" onclick="exportToExcel()">
+                            📊 Assets Only (Excel)
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--primary-green);">
+                        <strong style="color: var(--text-primary);">Complete Backup includes:</strong>
+                        <ul style="margin: 10px 0 0 20px; color: var(--text-secondary);">
+                            <li>All asset records</li>
+                            <li>Audit trail history</li>
+                            <li>Custom departments</li>
+                            <li>Warranty overrides</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Import Section -->
+                <div style="margin-bottom: 30px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <h3 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: var(--primary-orange); color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">IMPORT</span>
+                        Load Data from Backup
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Import data from a backup file or cloud storage link.</p>
+
+                    <!-- Import Mode Selection -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">Import Mode:</label>
+                        <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
+                            <input type="radio" name="importMode" value="replace" checked style="margin-right: 8px;">
+                            <span style="color: var(--text-primary);">Replace all data</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="importMode" value="merge" style="margin-right: 8px;">
+                            <span style="color: var(--text-primary);">Merge with existing</span>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn-primary" onclick="importCompleteData()">
+                            📁 Import from File
+                        </button>
+                        <button class="btn-secondary" onclick="showUrlImport()">
+                            🔗 Import from URL
+                        </button>
+                    </div>
+
+                    <!-- URL Import Section (hidden by default) -->
+                    <div id="urlImportSection" style="display: none; margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">Paste Cloud Storage Link:</label>
+                        <input type="text" id="importUrlInput" class="calc-input" placeholder="https://drive.google.com/... or https://www.dropbox.com/..." style="width: 100%; margin-bottom: 10px;">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-primary" onclick="importFromUrl()">Import</button>
+                            <button class="btn-secondary" onclick="hideUrlImport()">Cancel</button>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                            Supports: Google Drive (share link), Dropbox (direct link), OneDrive (direct link), or any direct JSON file URL.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Cloud Sharing Instructions -->
+                <div style="padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <h3 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: #3498db; color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">SHARE</span>
+                        Access Data from Any Device
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Follow these steps to access your data from any device:</p>
+
+                    <div style="display: grid; gap: 15px;">
+                        <!-- Google Drive -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #4285f4;">
+                            <strong style="color: var(--text-primary);">Google Drive</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Upload the JSON file to Google Drive</li>
+                                <li>Right-click the file → Share → Copy link</li>
+                                <li>On another device, use "Import from URL" and paste the link</li>
+                            </ol>
+                        </div>
+
+                        <!-- Dropbox -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #0061ff;">
+                            <strong style="color: var(--text-primary);">Dropbox</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Upload the JSON file to Dropbox</li>
+                                <li>Click Share → Copy link (change ?dl=0 to ?dl=1 for direct download)</li>
+                                <li>On another device, use "Import from URL" and paste the link</li>
+                            </ol>
+                        </div>
+
+                        <!-- Email/USB -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #9b59b6;">
+                            <strong style="color: var(--text-primary);">Email or USB Drive</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Email the JSON file to yourself or copy to USB</li>
+                                <li>On another device, download the file</li>
+                                <li>Use "Import from File" to load the data</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; text-align: right;">
+                    <button class="btn-secondary" onclick="closeDataSyncModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DASHBOARD (Hidden until login) -->
     <div class="dashboard-container" id="dashboardContainer" style="display: none;">
         <!-- PAGE 1: MAIN DASHBOARD -->
@@ -1913,9 +2044,7 @@
                 </div>
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="exportAuditTrail()">Export Audit Trail</button>
-                    <button class="search-btn" onclick="importFromJSON()" style="margin-left: 10px;">📥 Import Data</button>
-                    <button class="search-btn" onclick="exportToJSON()" style="margin-left: 10px;">💾 Export JSON</button>
-                    <button class="search-btn" onclick="exportToExcel()" style="margin-left: 10px;">📊 Export Excel</button>
+                    <button class="search-btn" onclick="openDataSyncModal()" style="margin-left: 10px; background: linear-gradient(135deg, #3498db, #2980b9);">🔄 Data Sync & Transfer</button>
                 </div>
             </div>
 
@@ -3049,6 +3178,378 @@
                 reader.readAsText(file);
             };
             input.click();
+        }
+
+        // ============================================
+        // DATA SYNC & TRANSFER FUNCTIONS
+        // ============================================
+
+        function openDataSyncModal() {
+            document.getElementById('dataSyncModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            // Reset the URL import section
+            hideUrlImport();
+        }
+
+        function closeDataSyncModal() {
+            document.getElementById('dataSyncModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function showUrlImport() {
+            document.getElementById('urlImportSection').style.display = 'block';
+            document.getElementById('importUrlInput').focus();
+        }
+
+        function hideUrlImport() {
+            document.getElementById('urlImportSection').style.display = 'none';
+            document.getElementById('importUrlInput').value = '';
+        }
+
+        // Export complete data including all assets, audit trail, departments, and warranty overrides
+        function exportCompleteData() {
+            try {
+                const assets = loadAssetsFromStorage();
+                const auditTrail = loadAuditFromStorage();
+                const departments = loadDepartments();
+                const warrantyOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
+
+                const completeBackup = {
+                    version: '2.0',
+                    exportDate: new Date().toISOString(),
+                    exportedBy: currentUser ? currentUser.displayName : 'Unknown',
+                    deviceInfo: navigator.userAgent,
+                    data: {
+                        assets: assets,
+                        auditTrail: auditTrail,
+                        departments: departments,
+                        warrantyOverrides: warrantyOverrides
+                    },
+                    summary: {
+                        totalAssets: assets.length,
+                        totalAuditEntries: auditTrail.length,
+                        totalDepartments: departments.length,
+                        totalWarrantyOverrides: Object.keys(warrantyOverrides).length
+                    }
+                };
+
+                const dataStr = JSON.stringify(completeBackup, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `asset-complete-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                alert(`✅ Complete backup exported successfully!\n\nIncluded:\n• ${assets.length} assets\n• ${auditTrail.length} audit entries\n• ${departments.length} departments\n• ${Object.keys(warrantyOverrides).length} warranty overrides\n\nUpload this file to Google Drive, Dropbox, or email it to access from another device.`);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('⚠️ Error exporting data. Please try again.');
+            }
+        }
+
+        // Import complete data from file
+        function importCompleteData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        processImportData(importedData);
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('⚠️ Error reading file. Please check the file format.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Convert cloud storage URLs to direct download links
+        function convertToDirectUrl(url) {
+            // Google Drive: convert sharing link to direct download
+            // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+            // To: https://drive.google.com/uc?export=download&id=FILE_ID
+            const googleDriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (googleDriveMatch) {
+                return `https://drive.google.com/uc?export=download&id=${googleDriveMatch[1]}`;
+            }
+
+            // Google Drive: another format
+            // Format: https://drive.google.com/open?id=FILE_ID
+            const googleDriveMatch2 = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+            if (googleDriveMatch2) {
+                return `https://drive.google.com/uc?export=download&id=${googleDriveMatch2[1]}`;
+            }
+
+            // Dropbox: convert to direct download
+            // Change ?dl=0 to ?dl=1 or add ?dl=1
+            if (url.includes('dropbox.com')) {
+                if (url.includes('?dl=0')) {
+                    return url.replace('?dl=0', '?dl=1');
+                } else if (!url.includes('?dl=1')) {
+                    return url + (url.includes('?') ? '&dl=1' : '?dl=1');
+                }
+            }
+
+            // OneDrive: convert to direct download
+            // Change /view to /download or add ?download=1
+            if (url.includes('onedrive.live.com') || url.includes('1drv.ms')) {
+                if (url.includes('/view')) {
+                    return url.replace('/view', '/download');
+                }
+            }
+
+            return url;
+        }
+
+        // Import from URL
+        async function importFromUrl() {
+            const urlInput = document.getElementById('importUrlInput');
+            let url = urlInput.value.trim();
+
+            if (!url) {
+                alert('⚠️ Please enter a URL');
+                return;
+            }
+
+            // Convert to direct download URL if needed
+            url = convertToDirectUrl(url);
+
+            // Show loading state
+            const importBtn = event.target;
+            const originalText = importBtn.textContent;
+            importBtn.textContent = 'Loading...';
+            importBtn.disabled = true;
+
+            try {
+                // Try to fetch directly first, then use CORS proxy if needed
+                let response;
+                let data;
+
+                try {
+                    response = await fetch(url);
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                } catch (directError) {
+                    console.log('Direct fetch failed, trying CORS proxy...');
+                }
+
+                // If direct fetch failed, try with CORS proxy
+                if (!data) {
+                    const corsProxies = [
+                        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+                    ];
+
+                    for (const proxyUrl of corsProxies) {
+                        try {
+                            response = await fetch(proxyUrl);
+                            if (response.ok) {
+                                const text = await response.text();
+                                data = JSON.parse(text);
+                                break;
+                            }
+                        } catch (proxyError) {
+                            console.log(`Proxy ${proxyUrl} failed:`, proxyError);
+                        }
+                    }
+                }
+
+                if (!data) {
+                    throw new Error('Could not fetch data from URL. Please check the URL or try downloading the file manually.');
+                }
+
+                processImportData(data);
+                hideUrlImport();
+
+            } catch (error) {
+                console.error('URL import error:', error);
+                alert(`⚠️ Error importing from URL:\n${error.message}\n\nTip: If this is a Google Drive link, make sure the file is shared publicly (anyone with the link can view).`);
+            } finally {
+                importBtn.textContent = originalText;
+                importBtn.disabled = false;
+            }
+        }
+
+        // Process imported data (handles both old format and new complete backup format)
+        function processImportData(importedData) {
+            const importMode = document.querySelector('input[name="importMode"]:checked')?.value || 'replace';
+
+            let assets, auditTrail, departments, warrantyOverrides;
+            let isCompleteBackup = false;
+
+            // Check if this is the new complete backup format
+            if (importedData.version && importedData.data) {
+                isCompleteBackup = true;
+                assets = importedData.data.assets || [];
+                auditTrail = importedData.data.auditTrail || [];
+                departments = importedData.data.departments || [];
+                warrantyOverrides = importedData.data.warrantyOverrides || {};
+
+                // Show backup info
+                const summary = importedData.summary || {};
+                console.log('Importing complete backup:', {
+                    exportDate: importedData.exportDate,
+                    exportedBy: importedData.exportedBy,
+                    summary: summary
+                });
+            } else if (Array.isArray(importedData)) {
+                // Old format: just an array of assets
+                assets = importedData;
+                auditTrail = null;
+                departments = null;
+                warrantyOverrides = null;
+            } else {
+                alert('⚠️ Invalid file format. The file does not appear to be a valid backup.');
+                return;
+            }
+
+            // Validate assets
+            if (!Array.isArray(assets)) {
+                alert('⚠️ Invalid data format: assets must be an array.');
+                return;
+            }
+
+            const validAssets = assets.filter(asset =>
+                asset.assetCode && asset.description && asset.category && asset.source
+            );
+
+            if (validAssets.length === 0 && assets.length > 0) {
+                alert('⚠️ No valid assets found. Assets must have assetCode, description, category, and source fields.');
+                return;
+            }
+
+            // Build confirmation message
+            let confirmMessage = `Import ${validAssets.length} assets`;
+            if (isCompleteBackup) {
+                confirmMessage += `\n• ${auditTrail?.length || 0} audit entries`;
+                confirmMessage += `\n• ${departments?.length || 0} departments`;
+                confirmMessage += `\n• ${Object.keys(warrantyOverrides || {}).length} warranty overrides`;
+            }
+
+            if (importMode === 'replace') {
+                confirmMessage += '\n\n⚠️ This will REPLACE all existing data.';
+            } else {
+                confirmMessage += '\n\nNew records will be MERGED with existing data.';
+                confirmMessage += '\nDuplicate asset codes will be skipped.';
+            }
+
+            confirmMessage += '\n\nContinue?';
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            let importedCount = 0;
+            let skippedCount = 0;
+
+            if (importMode === 'replace') {
+                // Replace mode: clear existing data and import new
+                validAssets.forEach(asset => {
+                    if (!asset.id) asset.id = generateAssetId();
+                    if (!asset.department) asset.department = '';
+                });
+
+                saveAssetsToStorage(validAssets);
+                importedCount = validAssets.length;
+
+                if (isCompleteBackup) {
+                    if (auditTrail && auditTrail.length > 0) {
+                        saveAuditToStorage(auditTrail);
+                    }
+                    if (departments && departments.length > 0) {
+                        saveDepartments(departments);
+                        updateAllDepartmentDropdowns();
+                    }
+                    if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
+                        localStorage.setItem('warrantyOverrides', JSON.stringify(warrantyOverrides));
+                    }
+                }
+            } else {
+                // Merge mode: add new records, skip duplicates
+                const existingAssets = loadAssetsFromStorage();
+                const existingCodes = new Set(existingAssets.map(a => a.assetCode.toLowerCase()));
+
+                validAssets.forEach(asset => {
+                    if (!existingCodes.has(asset.assetCode.toLowerCase())) {
+                        if (!asset.id) asset.id = generateAssetId();
+                        if (!asset.department) asset.department = '';
+                        existingAssets.push(asset);
+                        importedCount++;
+                    } else {
+                        skippedCount++;
+                    }
+                });
+
+                saveAssetsToStorage(existingAssets);
+
+                if (isCompleteBackup) {
+                    // Merge audit trail
+                    if (auditTrail && auditTrail.length > 0) {
+                        const existingAudit = loadAuditFromStorage();
+                        const existingAuditIds = new Set(existingAudit.map(a => a.id));
+                        auditTrail.forEach(entry => {
+                            if (!existingAuditIds.has(entry.id)) {
+                                existingAudit.push(entry);
+                            }
+                        });
+                        // Sort by timestamp descending
+                        existingAudit.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        saveAuditToStorage(existingAudit);
+                    }
+
+                    // Merge departments
+                    if (departments && departments.length > 0) {
+                        const existingDepts = loadDepartments();
+                        const existingDeptSet = new Set(existingDepts.map(d => d.toLowerCase()));
+                        departments.forEach(dept => {
+                            if (!existingDeptSet.has(dept.toLowerCase())) {
+                                existingDepts.push(dept);
+                            }
+                        });
+                        existingDepts.sort();
+                        saveDepartments(existingDepts);
+                        updateAllDepartmentDropdowns();
+                    }
+
+                    // Merge warranty overrides (new ones take precedence)
+                    if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
+                        const existingOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
+                        const mergedOverrides = { ...existingOverrides, ...warrantyOverrides };
+                        localStorage.setItem('warrantyOverrides', JSON.stringify(mergedOverrides));
+                    }
+                }
+            }
+
+            // Add audit entry for the import
+            addAuditEntry('SYSTEM', 'Data Import', 'All Departments',
+                `${importMode === 'replace' ? 'Replaced' : 'Merged'} data: ${importedCount} assets imported${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}`
+            );
+
+            // Reload data and close modal
+            loadData();
+            closeDataSyncModal();
+
+            // Show success message
+            let successMessage = `✅ Import complete!\n\n${importedCount} assets imported`;
+            if (skippedCount > 0) {
+                successMessage += `\n${skippedCount} duplicate assets skipped`;
+            }
+            if (isCompleteBackup) {
+                successMessage += '\n\nAudit trail, departments, and warranty settings have also been ' +
+                    (importMode === 'replace' ? 'restored.' : 'merged.');
+            }
+            alert(successMessage);
         }
 
         let distributionChart = null;
