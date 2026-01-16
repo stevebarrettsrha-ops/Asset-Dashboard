@@ -6746,76 +6746,60 @@
         // ============================================
         // ASSET IMPORT DASHBOARD FUNCTIONS
         // ============================================
+        // Enhanced with multi-sheet processing and intelligent content-based detection
 
         // Import state variables
         let importedExcelData = [];
         let importColumnMapping = {};
         let importPreviewData = [];
         let importFileHeaders = [];
+        let importSheetInfo = [];
 
-        // Field definitions with aliases for auto-detection
+        // Field definitions for the asset database
         const importFieldDefinitions = {
-            assetCode: {
-                label: 'Asset Code',
-                required: true,
-                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'asset_id', 'code', 'asset no', 'asset number', 'asset#', 'id']
-            },
-            description: {
-                label: 'Asset Description',
-                required: true,
-                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc', 'asset']
-            },
-            dateIn: {
-                label: 'Date In',
-                required: true,
-                aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date']
-            },
-            supplier: {
-                label: 'Supplier',
-                required: false,
-                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'donor name', 'source name', 'from', 'purchased from']
-            },
-            department: {
-                label: 'Location/Department',
-                required: true,
-                aliases: ['department', 'location', 'dept', 'asset location', 'asset department', 'dept name', 'location name', 'ward', 'unit', 'area', 'section']
-            },
-            source: {
-                label: 'Source (Purchased/Donated)',
-                required: true,
-                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source']
-            },
-            month: {
-                label: 'Month',
-                required: false,
-                aliases: ['month', 'fiscal month', 'period', 'month acquired']
-            },
-            category: {
-                label: 'Category',
-                required: true,
-                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'type', 'class', 'classification', 'group']
-            },
-            serialModel: {
-                label: 'Serial/Model',
-                required: false,
-                aliases: ['serial', 'model', 'serial number', 'serialnumber', 'serial_number', 'model number', 'modelnumber', 'model_number', 'serial/model', 'serial no', 'model no', 's/n', 'm/n']
-            },
-            quantity: {
-                label: 'Quantity',
-                required: false,
-                aliases: ['quantity', 'qty', 'count', 'amount', 'units', 'no of items', 'number']
-            },
-            unitPrice: {
-                label: 'Unit Price',
-                required: false,
-                aliases: ['unit price', 'unitprice', 'unit_price', 'price', 'unit cost', 'cost per unit', 'cost', 'price per unit', 'unit value']
-            },
-            totalPrice: {
-                label: 'Total Price',
-                required: false,
-                aliases: ['total price', 'totalprice', 'total_price', 'total', 'total cost', 'total value', 'value', 'amount', 'total amount']
-            }
+            assetCode: { label: 'Asset Code', required: true },
+            description: { label: 'Asset Description', required: true },
+            dateIn: { label: 'Date In', required: true },
+            supplier: { label: 'Supplier', required: false },
+            department: { label: 'Location/Department', required: true },
+            source: { label: 'Source (Purchased/Donated)', required: true },
+            month: { label: 'Month', required: false },
+            category: { label: 'Category', required: true },
+            serialModel: { label: 'Serial/Model', required: false },
+            quantity: { label: 'Quantity', required: false },
+            unitPrice: { label: 'Unit Price', required: false },
+            totalPrice: { label: 'Total Price', required: false }
         };
+
+        // Known department/location keywords for detection
+        const knownDepartments = [
+            'administrative', 'admin', 'medical records', 'records', 'emergency', 'er', 'a&e',
+            'out-patient', 'outpatient', 'opd', 'in-patient', 'inpatient', 'ipd', 'ward', 'wards',
+            'pharmacy', 'laboratory', 'lab', 'radiology', 'x-ray', 'xray', 'theatre', 'surgery',
+            'surgical', 'maternity', 'obstetrics', 'gynaecology', 'pediatric', 'paediatric',
+            'icu', 'intensive care', 'reception', 'store', 'stores', 'kitchen', 'laundry',
+            'maintenance', 'engineering', 'it', 'finance', 'accounts', 'hr', 'human resources',
+            'dental', 'eye', 'ophthalmology', 'ent', 'cardiology', 'neurology', 'oncology',
+            'dialysis', 'physiotherapy', 'mortuary', 'chapel', 'security', 'transport'
+        ];
+
+        // Common medical equipment terms
+        const medicalTerms = [
+            'bed', 'wheelchair', 'stretcher', 'monitor', 'ventilator', 'defibrillator', 'ecg',
+            'ultrasound', 'scanner', 'mri', 'ct', 'x-ray', 'infusion', 'pump', 'syringe',
+            'stethoscope', 'thermometer', 'oximeter', 'nebulizer', 'suction', 'autoclave',
+            'sterilizer', 'microscope', 'centrifuge', 'incubator', 'lamp', 'surgical',
+            'instrument', 'trolley', 'cabinet', 'refrigerator', 'freezer', 'scale', 'medical'
+        ];
+
+        // Furniture/appliance terms
+        const furnitureTerms = [
+            'desk', 'chair', 'table', 'shelf', 'shelves', 'cabinet', 'cupboard', 'locker',
+            'sofa', 'couch', 'bench', 'stool', 'fan', 'ac', 'air conditioner', 'heater',
+            'computer', 'laptop', 'printer', 'scanner', 'projector', 'tv', 'television',
+            'telephone', 'phone', 'microwave', 'kettle', 'cooler', 'dispenser', 'bin',
+            'clock', 'whiteboard', 'notice board', 'partition', 'curtain', 'blind', 'furniture'
+        ];
 
         // Initialize import dropzone drag-and-drop
         function initImportDropzone() {
@@ -6849,9 +6833,8 @@
             }
         }
 
-        // Process the selected file
+        // Process the selected file - Enhanced to process ALL sheets
         function handleImportFileSelection(file) {
-            // Validate file type
             const validTypes = ['.xlsx', '.xls'];
             const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
 
@@ -6860,7 +6843,6 @@
                 return;
             }
 
-            // Show progress
             const progress = document.getElementById('importProgress');
             const progressFill = document.getElementById('importProgressFill');
             const progressText = document.getElementById('importProgressText');
@@ -6873,44 +6855,97 @@
 
             reader.onload = function(e) {
                 try {
-                    progressFill.style.width = '40%';
-                    progressText.textContent = 'Parsing Excel data...';
+                    progressFill.style.width = '30%';
+                    progressText.textContent = 'Parsing Excel workbook...';
 
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-                    progressFill.style.width = '60%';
-                    progressText.textContent = 'Analyzing columns...';
+                    progressFill.style.width = '50%';
+                    progressText.textContent = `Processing ${workbook.SheetNames.length} sheet(s)...`;
 
-                    // Get first sheet
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+                    // Process ALL sheets in the workbook
+                    let allRowsData = [];
+                    let maxColumns = 0;
+                    importSheetInfo = [];
 
-                    // Convert to JSON with headers
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                    workbook.SheetNames.forEach((sheetName, sheetIndex) => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-                    if (jsonData.length < 2) {
-                        throw new Error('File appears to be empty or has no data rows');
+                        if (jsonData.length > 0) {
+                            // Find header row (first row with multiple non-empty cells)
+                            let headerRowIndex = 0;
+                            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+                                const nonEmptyCells = jsonData[i].filter(cell => cell !== '').length;
+                                if (nonEmptyCells >= 3) {
+                                    headerRowIndex = i;
+                                    break;
+                                }
+                            }
+
+                            const headers = jsonData[headerRowIndex] || [];
+                            const dataRows = jsonData.slice(headerRowIndex + 1).filter(row =>
+                                row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+                            );
+
+                            if (dataRows.length > 0) {
+                                maxColumns = Math.max(maxColumns, headers.length);
+                                importSheetInfo.push({
+                                    name: sheetName,
+                                    headers: headers,
+                                    rowCount: dataRows.length
+                                });
+
+                                // Add rows with sheet context
+                                dataRows.forEach(row => {
+                                    allRowsData.push({
+                                        sheetName: sheetName,
+                                        sheetIndex: sheetIndex,
+                                        data: row,
+                                        headers: headers
+                                    });
+                                });
+                            }
+                        }
+                    });
+
+                    if (allRowsData.length === 0) {
+                        throw new Error('No data found in any sheet');
                     }
 
-                    // Store headers (first row) and data
-                    importFileHeaders = jsonData[0].map(h => String(h || '').trim());
-                    importedExcelData = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+                    progressFill.style.width = '70%';
+                    progressText.textContent = 'Analyzing data content...';
 
-                    progressFill.style.width = '80%';
-                    progressText.textContent = 'Auto-detecting column mappings...';
+                    // Store combined data
+                    importedExcelData = allRowsData;
+
+                    // Build combined headers from all sheets
+                    const allHeaders = new Set();
+                    importSheetInfo.forEach(sheet => {
+                        sheet.headers.forEach(h => {
+                            if (h) allHeaders.add(String(h).trim());
+                        });
+                    });
+                    importFileHeaders = Array.from(allHeaders);
 
                     // Show file info
                     const fileInfo = document.getElementById('importFileInfo');
                     const formatSection = document.getElementById('importDetectedFormat');
-                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                    const sheetSummary = importSheetInfo.map(s => `${s.name}: ${s.rowCount} rows`).join(', ');
+                    fileInfo.innerHTML = `<strong>${file.name}</strong><br>
+                        📊 ${importSheetInfo.length} sheet(s) processed • ${allRowsData.length} total rows<br>
+                        <small style="opacity: 0.8;">${sheetSummary}</small>`;
                     formatSection.style.display = 'block';
 
-                    // Auto-detect column mappings
-                    autoDetectColumns();
+                    progressFill.style.width = '85%';
+                    progressText.textContent = 'Auto-detecting columns by content analysis...';
+
+                    // Perform intelligent content-based column detection
+                    intelligentColumnDetection();
 
                     progressFill.style.width = '100%';
-                    progressText.textContent = 'Complete!';
+                    progressText.textContent = 'Complete! Generating preview...';
 
                     setTimeout(() => {
                         progress.style.display = 'none';
@@ -6932,62 +6967,267 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // Auto-detect column mappings based on header names
-        function autoDetectColumns() {
+        // Intelligent content-based column detection
+        function intelligentColumnDetection() {
             importColumnMapping = {};
 
-            importFileHeaders.forEach((header, index) => {
-                const normalizedHeader = header.toLowerCase().trim();
+            // Analyze sample data from all rows
+            const sampleSize = Math.min(100, importedExcelData.length);
+            const sampleRows = importedExcelData.slice(0, sampleSize);
 
-                // Check each field's aliases
-                for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
-                    if (importColumnMapping[fieldKey] !== undefined) continue; // Already mapped
+            // Track column scores for each field type
+            const columnScores = {};
 
-                    // Check if header matches any alias
-                    const matchFound = fieldDef.aliases.some(alias => {
-                        return normalizedHeader === alias ||
-                               normalizedHeader.includes(alias) ||
-                               alias.includes(normalizedHeader);
-                    });
+            // Get max column count
+            let maxCols = 0;
+            sampleRows.forEach(row => {
+                maxCols = Math.max(maxCols, row.data.length);
+            });
 
-                    if (matchFound) {
-                        importColumnMapping[fieldKey] = index;
-                        break;
+            // Initialize scores
+            for (let col = 0; col < maxCols; col++) {
+                columnScores[col] = {
+                    assetCode: 0,
+                    description: 0,
+                    dateIn: 0,
+                    supplier: 0,
+                    department: 0,
+                    source: 0,
+                    month: 0,
+                    category: 0,
+                    serialModel: 0,
+                    quantity: 0,
+                    unitPrice: 0,
+                    totalPrice: 0
+                };
+            }
+
+            // Analyze each row's data content
+            sampleRows.forEach(rowObj => {
+                const row = rowObj.data;
+                const headers = rowObj.headers || [];
+
+                row.forEach((cellValue, colIndex) => {
+                    if (cellValue === '' || cellValue === null || cellValue === undefined) return;
+
+                    const value = String(cellValue).trim();
+                    const valueLower = value.toLowerCase();
+                    const header = headers[colIndex] ? String(headers[colIndex]).toLowerCase().trim() : '';
+
+                    // Score based on content patterns
+
+                    // Asset Code detection - alphanumeric codes with dashes/slashes, often starting with letters
+                    if (/^[A-Za-z]{2,5}[-\/]?[A-Za-z0-9]{2,}[-\/]?\d{2,}/.test(value) ||
+                        /^[A-Za-z]+[-\/]\d+[-\/]\d+/.test(value) ||
+                        /^MPH|^FAR|^AST|^INV|^EQP|^MED/i.test(value)) {
+                        columnScores[colIndex].assetCode += 10;
                     }
+                    if (header.includes('asset') && (header.includes('code') || header.includes('id') || header.includes('no'))) {
+                        columnScores[colIndex].assetCode += 15;
+                    }
+
+                    // Description detection - longer text strings, descriptive words
+                    if (value.length > 15 && /[a-zA-Z\s]{10,}/.test(value)) {
+                        columnScores[colIndex].description += 5;
+                    }
+                    if (medicalTerms.some(term => valueLower.includes(term)) ||
+                        furnitureTerms.some(term => valueLower.includes(term))) {
+                        columnScores[colIndex].description += 8;
+                    }
+                    if (header.includes('description') || header.includes('item') || header.includes('name') || header.includes('asset')) {
+                        columnScores[colIndex].description += 10;
+                    }
+
+                    // Date detection
+                    if (isDateValue(cellValue)) {
+                        columnScores[colIndex].dateIn += 10;
+                    }
+                    if (header.includes('date') || header.includes('acquired') || header.includes('purchase')) {
+                        columnScores[colIndex].dateIn += 8;
+                    }
+
+                    // Supplier/Vendor detection
+                    if (/ltd|limited|inc|corp|company|co\.|supplies|trading|enterprise/i.test(value)) {
+                        columnScores[colIndex].supplier += 8;
+                    }
+                    if (header.includes('supplier') || header.includes('vendor') || header.includes('donor') || header.includes('from')) {
+                        columnScores[colIndex].supplier += 10;
+                    }
+
+                    // Department/Location detection
+                    if (knownDepartments.some(dept => valueLower.includes(dept))) {
+                        columnScores[colIndex].department += 12;
+                    }
+                    if (header.includes('department') || header.includes('location') || header.includes('dept') || header.includes('ward') || header.includes('unit')) {
+                        columnScores[colIndex].department += 10;
+                    }
+
+                    // Source (Purchased/Donated) detection
+                    if (/purchased|bought|procured|acquired|donated|donation|gift|grant|funded/i.test(value)) {
+                        columnScores[colIndex].source += 15;
+                    }
+                    if (header.includes('source') || header.includes('funding') || header.includes('acquisition')) {
+                        columnScores[colIndex].source += 10;
+                    }
+
+                    // Month detection
+                    if (/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(value) ||
+                        /january|february|march|april|june|july|august|september|october|november|december/i.test(value)) {
+                        columnScores[colIndex].month += 15;
+                    }
+                    if (header.includes('month') || header.includes('period')) {
+                        columnScores[colIndex].month += 10;
+                    }
+
+                    // Category detection
+                    if (/medical|equipment|furniture|appliance|office|clinical/i.test(value)) {
+                        columnScores[colIndex].category += 12;
+                    }
+                    if (header.includes('category') || header.includes('type') || header.includes('class')) {
+                        columnScores[colIndex].category += 10;
+                    }
+
+                    // Serial/Model detection - alphanumeric patterns typical of serial numbers
+                    if (/^[A-Za-z0-9]{6,20}$/.test(value.replace(/[-\s]/g, '')) &&
+                        !/^[A-Za-z]{2,5}[-\/]/.test(value)) { // Not an asset code
+                        columnScores[colIndex].serialModel += 6;
+                    }
+                    if (header.includes('serial') || header.includes('model') || header.includes('s/n') || header.includes('m/n')) {
+                        columnScores[colIndex].serialModel += 12;
+                    }
+
+                    // Quantity detection - small positive integers
+                    const numValue = parseFloat(value.replace(/[,\s]/g, ''));
+                    if (!isNaN(numValue) && Number.isInteger(numValue) && numValue > 0 && numValue < 1000) {
+                        columnScores[colIndex].quantity += 5;
+                    }
+                    if (header.includes('qty') || header.includes('quantity') || header.includes('count') || header.includes('units')) {
+                        columnScores[colIndex].quantity += 15;
+                    }
+
+                    // Price detection - currency patterns, larger numbers
+                    if (/^\$|JMD|USD|£|€/.test(value) || /^[\d,]+\.?\d{0,2}$/.test(value.replace(/[$,\s]/g, ''))) {
+                        const priceNum = parseFloat(value.replace(/[$,\s¤JMD]/gi, ''));
+                        if (!isNaN(priceNum) && priceNum > 100) {
+                            // Distinguish between unit and total price by typical value ranges
+                            if (priceNum < 100000) {
+                                columnScores[colIndex].unitPrice += 4;
+                            }
+                            columnScores[colIndex].totalPrice += 4;
+                        }
+                    }
+                    if (header.includes('unit') && (header.includes('price') || header.includes('cost'))) {
+                        columnScores[colIndex].unitPrice += 15;
+                    }
+                    if (header.includes('total') && (header.includes('price') || header.includes('cost') || header.includes('value') || header.includes('amount'))) {
+                        columnScores[colIndex].totalPrice += 15;
+                    }
+                    if ((header.includes('price') || header.includes('cost') || header.includes('value')) && !header.includes('unit') && !header.includes('total')) {
+                        columnScores[colIndex].unitPrice += 5;
+                        columnScores[colIndex].totalPrice += 5;
+                    }
+                });
+            });
+
+            // Assign columns to fields based on highest scores
+            const assignedColumns = new Set();
+            const fieldPriority = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category',
+                                   'totalPrice', 'unitPrice', 'quantity', 'supplier', 'serialModel', 'month'];
+
+            fieldPriority.forEach(field => {
+                let bestCol = -1;
+                let bestScore = 0;
+
+                for (let col = 0; col < maxCols; col++) {
+                    if (!assignedColumns.has(col) && columnScores[col][field] > bestScore) {
+                        bestScore = columnScores[col][field];
+                        bestCol = col;
+                    }
+                }
+
+                // Only assign if score is meaningful (> 5)
+                if (bestCol >= 0 && bestScore > 5) {
+                    importColumnMapping[field] = bestCol;
+                    assignedColumns.add(bestCol);
                 }
             });
 
-            // Build mapping UI
+            // Build minimal mapping UI (hidden by default since it's automatic)
             buildMappingUI();
 
-            // Generate preview
+            // Generate preview immediately
             generatePreview();
         }
 
-        // Build the column mapping UI
+        // Check if value is a date
+        function isDateValue(value) {
+            if (!value) return false;
+            if (value instanceof Date) return true;
+
+            const strValue = String(value).trim();
+
+            // Excel serial date
+            if (/^\d{4,5}(\.\d+)?$/.test(strValue)) {
+                const num = parseFloat(strValue);
+                if (num > 1000 && num < 100000) return true;
+            }
+
+            // Common date patterns
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(strValue)) return true;
+            if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(strValue)) return true;
+            if (/^\d{1,2}[\/\-][A-Za-z]{3}[\/\-]\d{2,4}$/.test(strValue)) return true;
+
+            // Try parsing
+            const parsed = new Date(strValue);
+            if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1990 && parsed.getFullYear() < 2100) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // Build the column mapping UI (simplified, auto-detected)
         function buildMappingUI() {
             const mappingGrid = document.getElementById('importMappingGrid');
             const mappingSection = document.getElementById('importMappingSection');
 
-            let html = '';
+            // Build consolidated headers from all sheets
+            const allHeadersMap = new Map();
+            importedExcelData.forEach(rowObj => {
+                rowObj.headers.forEach((h, idx) => {
+                    if (h && !allHeadersMap.has(idx)) {
+                        allHeadersMap.set(idx, String(h).trim());
+                    }
+                });
+            });
+
+            let html = '<div style="margin-bottom: 15px; padding: 10px; background: rgba(46, 204, 113, 0.1); border-radius: 8px; border-left: 4px solid var(--primary-green);">' +
+                '<strong>✅ Automatic Detection Complete</strong><br>' +
+                '<small>Columns were detected by analyzing data content. You can adjust if needed.</small></div>';
 
             for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
                 const currentMapping = importColumnMapping[fieldKey];
                 const isMapped = currentMapping !== undefined;
                 const isRequired = fieldDef.required;
 
+                const options = [];
+                allHeadersMap.forEach((header, idx) => {
+                    options.push({ idx, header });
+                });
+
                 html += `
                     <div class="import-mapping-item">
                         <label class="import-mapping-label">
                             ${fieldDef.label} ${isRequired ? '<span class="required">*</span>' : ''}
+                            ${isMapped ? '<span style="color: var(--primary-green); margin-left: 5px;">✓</span>' : ''}
                         </label>
-                        <select class="import-mapping-select ${isMapped ? 'mapped' : (isRequired ? 'error' : '')}"
+                        <select class="import-mapping-select ${isMapped ? 'mapped' : (isRequired ? '' : '')}"
                                 id="mapping_${fieldKey}"
                                 onchange="updateColumnMapping('${fieldKey}', this.value)">
-                            <option value="">-- Not Mapped --</option>
-                            ${importFileHeaders.map((header, idx) => `
-                                <option value="${idx}" ${currentMapping === idx ? 'selected' : ''}>
-                                    ${header || `Column ${idx + 1}`}
+                            <option value="">-- Auto-detect --</option>
+                            ${options.map(opt => `
+                                <option value="${opt.idx}" ${currentMapping === opt.idx ? 'selected' : ''}>
+                                    ${opt.header || `Column ${opt.idx + 1}`}
                                 </option>
                             `).join('')}
                         </select>
@@ -7007,29 +7247,25 @@
                 importColumnMapping[fieldKey] = parseInt(value);
             }
 
-            // Update select styling
             const select = document.getElementById(`mapping_${fieldKey}`);
-            const fieldDef = importFieldDefinitions[fieldKey];
-
             if (value !== '') {
                 select.classList.add('mapped');
-                select.classList.remove('error');
             } else {
                 select.classList.remove('mapped');
-                if (fieldDef.required) {
-                    select.classList.add('error');
-                }
             }
 
-            // Regenerate preview
             generatePreview();
+        }
+
+        // Auto-detect columns (re-run detection)
+        function autoDetectColumns() {
+            intelligentColumnDetection();
         }
 
         // Parse date from various formats
         function parseImportDate(value) {
             if (!value) return '';
 
-            // If it's already a Date object
             if (value instanceof Date) {
                 const day = String(value.getDate()).padStart(2, '0');
                 const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -7039,22 +7275,8 @@
 
             const strValue = String(value).trim();
 
-            // Try to parse various date formats
-            const datePatterns = [
-                // DD/MM/YYYY
-                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-                // MM/DD/YYYY
-                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-                // YYYY-MM-DD
-                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-                // DD-MM-YYYY
-                /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
-                // DD-MMM-YYYY (e.g., 15-Jan-2024)
-                /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/
-            ];
-
-            // Try Excel serial date number
-            if (/^\d+(\.\d+)?$/.test(strValue)) {
+            // Excel serial date
+            if (/^\d{4,5}(\.\d+)?$/.test(strValue)) {
                 const excelDate = parseFloat(strValue);
                 if (excelDate > 1000 && excelDate < 100000) {
                     const date = new Date((excelDate - 25569) * 86400 * 1000);
@@ -7067,7 +7289,7 @@
                 }
             }
 
-            // Try to parse with Date object
+            // Try to parse
             const parsedDate = new Date(strValue);
             if (!isNaN(parsedDate.getTime())) {
                 const day = String(parsedDate.getDate()).padStart(2, '0');
@@ -7076,17 +7298,14 @@
                 return `${day}/${month}/${year}`;
             }
 
-            return strValue; // Return as-is if can't parse
+            return strValue;
         }
 
         // Parse currency/number values
         function parseImportNumber(value) {
             if (!value && value !== 0) return 0;
-
-            // Remove currency symbols, commas, and spaces
             const cleaned = String(value).replace(/[$,\s¤JMD]/gi, '').trim();
             const num = parseFloat(cleaned);
-
             return isNaN(num) ? 0 : num;
         }
 
@@ -7095,76 +7314,102 @@
             if (monthValue) {
                 const monthStr = String(monthValue).toUpperCase().trim();
                 const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
-                if (validMonths.includes(monthStr)) {
-                    return monthStr;
+
+                // Check for abbreviation
+                for (const m of validMonths) {
+                    if (monthStr.includes(m) || monthStr.startsWith(m.substring(0, 3))) {
+                        return m;
+                    }
                 }
-                // Try to match partial month names
+
+                // Full month names
                 const monthMap = {
                     'JANUARY': 'JAN', 'FEBRUARY': 'FEB', 'MARCH': 'MAR', 'APRIL': 'APR',
                     'MAY': 'MAY', 'JUNE': 'JUN', 'JULY': 'JUL', 'AUGUST': 'AUG',
                     'SEPTEMBER': 'SEP', 'OCTOBER': 'OCT', 'NOVEMBER': 'NOV', 'DECEMBER': 'DEC'
                 };
                 for (const [fullMonth, abbr] of Object.entries(monthMap)) {
-                    if (monthStr.includes(fullMonth) || fullMonth.includes(monthStr)) {
-                        return abbr;
-                    }
+                    if (monthStr.includes(fullMonth)) return abbr;
                 }
             }
 
-            // Try to extract from date
+            // Extract from date
             if (dateStr) {
                 const parts = dateStr.split(/[\/\-]/);
                 if (parts.length >= 2) {
-                    let month = parseInt(parts[1]);
-                    // Handle DD/MM/YYYY format
-                    if (parts[0].length <= 2 && parts[2] && parts[2].length === 4) {
-                        month = parseInt(parts[1]);
-                    }
+                    let monthNum = parseInt(parts[1]);
+                    if (parts[0].length === 4) monthNum = parseInt(parts[1]); // YYYY-MM-DD
                     const monthAbbrs = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-                    if (month >= 1 && month <= 12) {
-                        return monthAbbrs[month - 1];
-                    }
+                    if (monthNum >= 1 && monthNum <= 12) return monthAbbrs[monthNum - 1];
                 }
             }
 
-            return 'APR'; // Default
+            return 'APR';
         }
 
-        // Normalize source value
-        function normalizeSource(value) {
-            if (!value) return 'Purchased';
+        // Normalize source value - intelligent detection
+        function normalizeSource(value, rowData) {
+            if (value) {
+                const v = String(value).toLowerCase().trim();
+                if (v.includes('donat') || v.includes('gift') || v.includes('grant') || v.includes('free') || v.includes('ngo')) {
+                    return 'Donated';
+                }
+                if (v.includes('purchas') || v.includes('bought') || v.includes('procur') || v.includes('paid')) {
+                    return 'Purchased';
+                }
+            }
 
-            const normalizedValue = String(value).toLowerCase().trim();
-
-            if (normalizedValue.includes('donat') || normalizedValue.includes('gift') || normalizedValue.includes('grant')) {
-                return 'Donated';
+            // Try to infer from other data - if price is 0 or very low, might be donated
+            if (rowData) {
+                const totalPrice = parseImportNumber(rowData.totalPrice);
+                const unitPrice = parseImportNumber(rowData.unitPrice);
+                if (totalPrice === 0 && unitPrice === 0) {
+                    return 'Donated';
+                }
             }
 
             return 'Purchased';
         }
 
-        // Normalize category value
-        function normalizeCategory(value) {
-            if (!value) return 'Medical Equipment';
+        // Normalize category value - intelligent detection
+        function normalizeCategory(value, description) {
+            const checkText = (value ? String(value) : '') + ' ' + (description ? String(description) : '');
+            const textLower = checkText.toLowerCase();
 
-            const normalizedValue = String(value).toLowerCase().trim();
+            // Check for furniture/appliance indicators
+            if (furnitureTerms.some(term => textLower.includes(term))) {
+                return 'Furniture & Appliances';
+            }
 
-            if (normalizedValue.includes('furniture') || normalizedValue.includes('appliance') ||
-                normalizedValue.includes('office') || normalizedValue.includes('equipment') === false) {
+            // Check for medical indicators
+            if (medicalTerms.some(term => textLower.includes(term))) {
+                return 'Medical Equipment';
+            }
+
+            // Default based on common patterns
+            if (/chair|desk|table|cabinet|shelf|computer|printer|phone|fan|ac|cooler/i.test(textLower)) {
                 return 'Furniture & Appliances';
             }
 
             return 'Medical Equipment';
         }
 
-        // Generate preview data
+        // Intelligently extract a field value, trying multiple possible column mappings
+        function extractFieldValue(rowData, fieldKey, mapping) {
+            const colIndex = mapping[fieldKey];
+            if (colIndex !== undefined && rowData[colIndex] !== undefined && rowData[colIndex] !== '') {
+                return rowData[colIndex];
+            }
+            return undefined;
+        }
+
+        // Generate preview data with intelligent field extraction
         function generatePreview() {
             const previewSection = document.getElementById('importPreviewSection');
             const previewTable = document.getElementById('importPreviewTable');
             const importOptions = document.getElementById('importOptions');
             const importActions = document.getElementById('importActions');
 
-            // Get existing asset codes for duplicate detection
             const existingAssets = loadAssetsFromStorage();
             const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
 
@@ -7173,36 +7418,44 @@
             let invalidCount = 0;
             let duplicateCount = 0;
 
-            // Process each row
-            importedExcelData.forEach((row, rowIndex) => {
+            // Process each row from all sheets
+            importedExcelData.forEach((rowObj, rowIndex) => {
+                const row = rowObj.data;
                 const rowData = {
-                    rowNumber: rowIndex + 2, // Account for header row
+                    rowNumber: rowIndex + 1,
+                    sheetName: rowObj.sheetName,
                     raw: row,
                     parsed: {},
                     status: 'valid',
                     errors: []
                 };
 
-                // Extract values based on mapping
-                const getValue = (fieldKey) => {
-                    const colIndex = importColumnMapping[fieldKey];
-                    return colIndex !== undefined ? row[colIndex] : undefined;
-                };
+                // Extract values using intelligent mapping
+                const getValue = (fieldKey) => extractFieldValue(row, fieldKey, importColumnMapping);
 
-                // Parse each field
+                // Parse each field with intelligent defaults
                 rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
                 rowData.parsed.description = String(getValue('description') || '').trim();
                 rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
                 rowData.parsed.supplier = String(getValue('supplier') || '').trim();
                 rowData.parsed.department = String(getValue('department') || '').trim();
-                rowData.parsed.source = normalizeSource(getValue('source'));
-                rowData.parsed.category = normalizeCategory(getValue('category'));
+
+                // Get raw values for intelligent processing
+                const rawSource = getValue('source');
+                const rawCategory = getValue('category');
+
                 rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
                 rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
                 rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
                 rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
 
-                // Detect month
+                // Intelligent source detection
+                rowData.parsed.source = normalizeSource(rawSource, rowData.parsed);
+
+                // Intelligent category detection
+                rowData.parsed.category = normalizeCategory(rawCategory, rowData.parsed.description);
+
+                // Month detection
                 rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
 
                 // Calculate total if not provided
@@ -7210,14 +7463,24 @@
                     rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
                 }
 
-                // Validate required fields
-                const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
-                requiredFields.forEach(field => {
-                    if (!rowData.parsed[field]) {
-                        rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
-                        rowData.status = 'invalid';
-                    }
-                });
+                // Validate - only essential fields
+                if (!rowData.parsed.assetCode && !rowData.parsed.description) {
+                    rowData.errors.push('Missing both Asset Code and Description');
+                    rowData.status = 'invalid';
+                }
+
+                // Generate asset code if missing but description exists
+                if (!rowData.parsed.assetCode && rowData.parsed.description) {
+                    rowData.parsed.assetCode = generateImportAssetCode(rowData.parsed);
+                }
+
+                // Set defaults for missing required fields
+                if (!rowData.parsed.dateIn) {
+                    rowData.parsed.dateIn = new Date().toLocaleDateString('en-GB');
+                }
+                if (!rowData.parsed.department) {
+                    rowData.parsed.department = 'Administrative';
+                }
 
                 // Check for duplicates
                 if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
@@ -7225,7 +7488,15 @@
                     rowData.errors.push('Asset code already exists');
                 }
 
-                // Count by status
+                // Also check within import batch
+                const importBatchCodes = importPreviewData
+                    .filter(r => r.status === 'valid')
+                    .map(r => r.parsed.assetCode?.toLowerCase());
+                if (rowData.parsed.assetCode && importBatchCodes.includes(rowData.parsed.assetCode.toLowerCase())) {
+                    rowData.status = 'duplicate';
+                    rowData.errors.push('Duplicate within import file');
+                }
+
                 if (rowData.status === 'valid') validCount++;
                 else if (rowData.status === 'invalid') invalidCount++;
                 else if (rowData.status === 'duplicate') duplicateCount++;
@@ -7243,54 +7514,51 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Row</th>
+                            <th>#</th>
+                            <th>Sheet</th>
                             <th>Status</th>
                             <th>Asset Code</th>
                             <th>Description</th>
-                            <th>Date In</th>
+                            <th>Date</th>
                             <th>Department</th>
                             <th>Source</th>
                             <th>Category</th>
-                            <th>Qty</th>
-                            <th>Unit Price</th>
                             <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
-            // Show first 50 rows for preview
-            const previewRows = importPreviewData.slice(0, 50);
+            const previewRows = importPreviewData.slice(0, 100);
 
             previewRows.forEach(row => {
                 const statusClass = row.status === 'valid' ? 'valid-row' :
                                    row.status === 'invalid' ? 'invalid-row' : 'duplicate-row';
-                const statusLabel = row.status === 'valid' ? '✓ Valid' :
-                                   row.status === 'invalid' ? '✗ Invalid' : '⚠ Duplicate';
+                const statusLabel = row.status === 'valid' ? '✓' :
+                                   row.status === 'invalid' ? '✗' : '⚠';
                 const statusBadgeClass = row.status;
 
                 tableHtml += `
                     <tr class="${statusClass}" title="${row.errors.join(', ') || 'Ready to import'}">
                         <td>${row.rowNumber}</td>
+                        <td><small>${escapeHtml(row.sheetName)}</small></td>
                         <td><span class="import-row-status ${statusBadgeClass}">${statusLabel}</span></td>
-                        <td>${escapeHtml(row.parsed.assetCode || '-')}</td>
-                        <td>${escapeHtml(row.parsed.description || '-')}</td>
+                        <td style="font-family: monospace; font-size: 0.85em;">${escapeHtml(row.parsed.assetCode || '-')}</td>
+                        <td>${escapeHtml((row.parsed.description || '-').substring(0, 40))}${row.parsed.description?.length > 40 ? '...' : ''}</td>
                         <td>${escapeHtml(row.parsed.dateIn || '-')}</td>
                         <td>${escapeHtml(row.parsed.department || '-')}</td>
                         <td>${escapeHtml(row.parsed.source || '-')}</td>
                         <td>${escapeHtml(row.parsed.category || '-')}</td>
-                        <td>${row.parsed.quantity}</td>
-                        <td>${formatCurrency(row.parsed.unitPrice)}</td>
                         <td>${formatCurrency(row.parsed.totalPrice)}</td>
                     </tr>
                 `;
             });
 
-            if (importPreviewData.length > 50) {
+            if (importPreviewData.length > 100) {
                 tableHtml += `
                     <tr>
-                        <td colspan="11" style="text-align: center; font-style: italic; color: var(--text-secondary);">
-                            ... and ${importPreviewData.length - 50} more rows
+                        <td colspan="10" style="text-align: center; font-style: italic; color: var(--text-secondary);">
+                            ... and ${importPreviewData.length - 100} more rows
                         </td>
                     </tr>
                 `;
@@ -7303,7 +7571,6 @@
             importOptions.style.display = 'block';
             importActions.style.display = 'flex';
 
-            // Enable/disable import button
             const importBtn = document.getElementById('importConfirmBtn');
             importBtn.disabled = validCount === 0;
             importBtn.textContent = validCount > 0 ?
@@ -7311,12 +7578,19 @@
                 '✅ No Valid Assets to Import';
         }
 
+        // Generate asset code for items missing one
+        function generateImportAssetCode(parsed) {
+            const prefix = parsed.category === 'Medical Equipment' ? 'MED' : 'FUR';
+            const deptCode = (parsed.department || 'GEN').substring(0, 3).toUpperCase();
+            const timestamp = Date.now().toString().slice(-6);
+            const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+            return `MPH-${prefix}-${deptCode}-${timestamp}-${random}`;
+        }
+
         // Confirm and execute import
         function confirmImport() {
             const importMode = document.querySelector('input[name="importMode"]:checked').value;
-            const skipInvalid = document.getElementById('importSkipInvalid').checked;
 
-            // Filter rows to import
             let rowsToImport = importPreviewData.filter(row => row.status === 'valid');
 
             if (rowsToImport.length === 0) {
@@ -7324,13 +7598,12 @@
                 return;
             }
 
-            // Confirm with user
             const confirmMsg = importMode === 'replace' ?
                 `⚠️ WARNING: This will REPLACE all existing assets!\n\n` +
-                `You are about to import ${rowsToImport.length} assets.\n` +
+                `You are about to import ${rowsToImport.length} assets from ${importSheetInfo.length} sheet(s).\n` +
                 `All current data will be lost.\n\n` +
                 `Are you sure you want to continue?` :
-                `You are about to import ${rowsToImport.length} new assets.\n` +
+                `You are about to import ${rowsToImport.length} new assets from ${importSheetInfo.length} sheet(s).\n` +
                 `Existing assets will be preserved.\n\n` +
                 `Continue with import?`;
 
@@ -7343,11 +7616,9 @@
                 let importedCount = 0;
 
                 if (importMode === 'replace') {
-                    // Clear existing assets
                     existingAssets = [];
                 }
 
-                // Create new assets
                 rowsToImport.forEach(row => {
                     const newAsset = {
                         id: generateAssetId(),
@@ -7363,25 +7634,23 @@
                         unitPrice: row.parsed.unitPrice,
                         totalPrice: row.parsed.totalPrice,
                         month: row.parsed.month,
-                        itemType: row.parsed.description // Use description as item type
+                        itemType: row.parsed.description
                     };
 
                     existingAssets.push(newAsset);
                     importedCount++;
 
-                    // Add audit entry
-                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
+                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department,
+                        `Imported via Excel Import (Sheet: ${row.sheetName})`);
                 });
 
-                // Save to storage
                 saveAssetsToStorage(existingAssets);
 
-                // Show success summary
                 const summary = document.getElementById('importSummary');
                 const summaryDetails = document.getElementById('importSummaryDetails');
 
                 summaryDetails.innerHTML = `
-                    <p>Successfully imported <strong>${importedCount}</strong> assets.</p>
+                    <p>Successfully imported <strong>${importedCount}</strong> assets from <strong>${importSheetInfo.length}</strong> sheet(s).</p>
                     <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.9;">
                         Mode: ${importMode === 'replace' ? 'Replace All' : 'Merge'} •
                         Total Assets Now: ${existingAssets.length}
@@ -7389,8 +7658,6 @@
                 `;
 
                 summary.style.display = 'block';
-
-                // Hide other sections
                 document.getElementById('importMappingSection').style.display = 'none';
                 document.getElementById('importPreviewSection').style.display = 'none';
                 document.getElementById('importOptions').style.display = 'none';
@@ -7398,7 +7665,6 @@
                 document.getElementById('importDetectedFormat').style.display = 'none';
                 document.getElementById('importDropzone').style.display = 'none';
 
-                // Reload main dashboard data
                 loadData();
 
             } catch (error) {
@@ -7409,16 +7675,13 @@
 
         // Reset import dashboard
         function resetImportDashboard() {
-            // Reset state
             importedExcelData = [];
             importColumnMapping = {};
             importPreviewData = [];
             importFileHeaders = [];
+            importSheetInfo = [];
 
-            // Reset file input
             document.getElementById('importFileInput').value = '';
-
-            // Hide all sections
             document.getElementById('importProgress').style.display = 'none';
             document.getElementById('importDetectedFormat').style.display = 'none';
             document.getElementById('importMappingSection').style.display = 'none';
@@ -7426,8 +7689,6 @@
             document.getElementById('importOptions').style.display = 'none';
             document.getElementById('importActions').style.display = 'none';
             document.getElementById('importSummary').style.display = 'none';
-
-            // Show dropzone
             document.getElementById('importDropzone').style.display = 'block';
         }
 
