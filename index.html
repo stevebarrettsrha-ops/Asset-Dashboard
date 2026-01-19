@@ -8,6 +8,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- OTPAuth Library for 2FA -->
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.1/dist/otpauth.umd.min.js"></script>
+    <!-- QRCode Library for 2FA Setup -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- Google Identity Services for OAuth -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -1206,10 +1212,600 @@
         .dark-mode .section-divider {
             border-top-color: #334155;
         }
+
+        /* ============================================
+           CSS VARIABLES FOR THEMING
+           ============================================ */
+        :root {
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.25rem;
+            --space-6: 1.5rem;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --font-mono: 'Monaco', 'Consolas', monospace;
+            --text-primary: #1a202c;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-hover: #e2e8f0;
+            --border-light: #e2e8f0;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --warning-border: #fcd34d;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --info-bg: #dbeafe;
+            --info-border: #93c5fd;
+        }
+
+        .dark-mode {
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #0f172a;
+            --bg-hover: #334155;
+            --border-light: #334155;
+        }
+
+        /* ============================================
+           LOGIN PAGE STYLES
+           ============================================ */
+        .login-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #6ee7b7 0%, #7dd3fc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .dark-mode .login-page {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        .login-page.hidden {
+            display: none;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .dark-mode .login-container {
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+        }
+
+        .login-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #1a202c;
+        }
+
+        .dark-mode .login-header h1 {
+            color: #f1f5f9;
+        }
+
+        .login-header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .login-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .login-form .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .dark-mode .login-form .form-label {
+            color: #f1f5f9;
+        }
+
+        .login-form .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .login-form .form-input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .login-error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        .dark-mode .login-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        /* 2FA Step in Login */
+        .login-step {
+            display: none;
+        }
+
+        .login-step.active {
+            display: block;
+        }
+
+        .twofa-input {
+            font-size: 24px !important;
+            text-align: center;
+            letter-spacing: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 16px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .back-link:hover {
+            color: #10b981;
+        }
+
+        /* ============================================
+           TWO-FACTOR AUTHENTICATION STYLES
+           ============================================ */
+        .twofa-success {
+            background: var(--success-bg);
+            border: 1px solid var(--success);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            color: #065f46;
+        }
+
+        .dark-mode .twofa-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+        }
+
+        .twofa-setup-btn {
+            margin-top: var(--space-2);
+        }
+
+        .twofa-qr-container {
+            text-align: center;
+            margin: var(--space-5) 0;
+        }
+
+        .twofa-secret-display {
+            background: var(--bg-tertiary);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            text-align: center;
+            margin: var(--space-4) 0;
+            word-break: break-all;
+        }
+
+        .twofa-backup-codes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-2);
+            margin: var(--space-4) 0;
+        }
+
+        .twofa-backup-code {
+            background: var(--bg-secondary);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            text-align: center;
+            border: 1px solid var(--border-light);
+        }
+
+        .twofa-backup-code.used {
+            text-decoration: line-through;
+            opacity: 0.5;
+            background: var(--bg-tertiary);
+        }
+
+        /* ============================================
+           CLOUD SYNC STYLES
+           ============================================ */
+        .cloud-dropdown {
+            position: relative;
+        }
+
+        .cloud-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .cloud-menu-btn:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+
+        .dark-mode .cloud-menu-btn {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+
+        .dark-mode .cloud-menu-btn:hover {
+            border-color: #3b82f6;
+            background: #0f172a;
+        }
+
+        .cloud-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .cloud-status-dot.connected {
+            background: #10b981;
+        }
+
+        .cloud-status-dot.syncing {
+            background: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cloud-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 16px;
+            min-width: 280px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .cloud-dropdown-menu.show {
+            display: block;
+        }
+
+        .dark-mode .cloud-dropdown-menu {
+            background: #1e293b;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .cloud-menu-header {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+        }
+
+        .dark-mode .cloud-menu-header {
+            border-bottom-color: #334155;
+        }
+
+        .cloud-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .cloud-menu-item:hover {
+            background: #f1f5f9;
+        }
+
+        .dark-mode .cloud-menu-item:hover {
+            background: #0f172a;
+        }
+
+        .cloud-menu-item.danger:hover {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .dark-mode .cloud-menu-item.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .cloud-sync-info {
+            font-size: 12px;
+            color: #64748b;
+            padding: 8px 10px;
+        }
+
+        /* Google Auth Modal */
+        .google-auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        .google-auth-modal .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .dark-mode .google-auth-modal .modal-content {
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+
+        .google-auth-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .dark-mode .google-auth-modal .modal-header {
+            border-bottom-color: #334155;
+        }
+
+        .google-auth-modal .modal-header h2 {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+
+        .google-auth-modal .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .google-auth-modal .close-btn:hover {
+            color: #ef4444;
+        }
+
+        /* Spinning animation for sync icon */
+        .spinning {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        /* User display in header */
+        .user-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+
+        .dark-mode .user-display {
+            background: #0f172a;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-info {
+            line-height: 1.3;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        /* Dashboard container visibility */
+        #dashboardContainer {
+            display: none;
+        }
+
+        #dashboardContainer.visible {
+            display: block;
+        }
+
+        /* Settings button */
+        .settings-btn.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading-container">
+    <!-- ============================================
+         LOGIN PAGE
+         ============================================ -->
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="login-icon">🏥</div>
+                <h1>Hospital Management System</h1>
+                <p>Please sign in to continue</p>
+            </div>
+
+            <div id="loginError" class="login-error">
+                <span id="loginErrorText">Invalid username or password. Please try again.</span>
+            </div>
+
+            <!-- Step 1: Username/Password -->
+            <div id="loginStep1" class="login-step active">
+                <form class="login-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="username" class="form-input" placeholder="Enter your username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="login-btn">Sign In</button>
+                </form>
+            </div>
+
+            <!-- Step 2: Two-Factor Authentication -->
+            <div id="loginStep2FA" class="login-step" style="display: none;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="font-size: 48px;">🔐</span>
+                    <h3 style="margin-top: 12px;">Two-Factor Authentication</h3>
+                    <p style="color: #64748b; font-size: 14px; margin-top: 8px;">Enter the 6-digit code from your authenticator app</p>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="login2FACode" class="form-input twofa-input" maxlength="6" placeholder="000000" pattern="[0-9]{6}" inputmode="numeric">
+                </div>
+
+                <button type="button" class="login-btn" onclick="verify2FALogin()">Verify Code</button>
+
+                <div id="backupCodeSection" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 12px;">Or use a backup code:</p>
+                    <div class="form-group">
+                        <input type="text" id="loginBackupCode" class="form-input" placeholder="Enter backup code" style="text-transform: uppercase;">
+                    </div>
+                    <button type="button" class="btn btn-secondary" style="width: 100%;" onclick="verifyBackupCodeLogin()">Use Backup Code</button>
+                </div>
+
+                <div style="text-align: center; margin-top: 16px;">
+                    <span class="back-link" onclick="showBackupCodeInput()">Lost access to authenticator?</span>
+                </div>
+                <div style="text-align: center;">
+                    <span class="back-link" onclick="cancelTwoFALogin()">← Back to login</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         DASHBOARD CONTAINER (wraps the app)
+         ============================================ -->
+    <div id="dashboardContainer">
+        <div id="loading" class="loading-container">
         <div class="spinner"></div>
         <p style="margin-top: 20px; color: white; font-weight: 600;">Loading Hospital Management System...</p>
     </div>
@@ -1262,6 +1858,100 @@
         </div>
     </div>
 
+    </div><!-- End dashboardContainer -->
+
+    <!-- ============================================
+         TWO-FACTOR AUTHENTICATION MODALS
+         ============================================ -->
+
+    <!-- 2FA Setup Modal -->
+    <div id="twofaSetupModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>🔐 Enable Two-Factor Authentication</h2>
+                <button class="close-btn" onclick="closeTwoFASetup()">×</button>
+            </div>
+            <div style="padding: var(--space-5);">
+                <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+                    Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):
+                </p>
+
+                <div class="twofa-qr-container">
+                    <div id="twofaQRCode"></div>
+                </div>
+
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin: var(--space-4) 0;">
+                    Or manually enter this secret key:
+                </p>
+
+                <div class="twofa-secret-display" id="twofaSecretKey"></div>
+
+                <div class="form-group" style="margin-top: var(--space-5);">
+                    <label class="form-label">Enter the 6-digit code from your app to verify:</label>
+                    <input type="text" id="twofaSetupCode" class="form-input twofa-input" maxlength="6" placeholder="000000" pattern="[0-9]{6}" inputmode="numeric">
+                </div>
+
+                <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                    <button class="btn btn-secondary" onclick="closeTwoFASetup()" style="flex: 1;">Cancel</button>
+                    <button class="btn btn-success" onclick="confirmTwoFASetup()" style="flex: 1;">Verify & Enable</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2FA Backup Codes Modal -->
+    <div id="twofaBackupModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>🔑 Backup Codes</h2>
+                <button class="close-btn" onclick="closeBackupCodesModal()">×</button>
+            </div>
+            <div style="padding: var(--space-5);">
+                <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4);">
+                    <strong style="color: var(--warning);">⚠️ Important:</strong>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Save these codes in a safe place. Each code can only be used once.
+                    </span>
+                </div>
+
+                <div class="twofa-backup-codes" id="twofaBackupCodes"></div>
+
+                <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                    <button class="btn btn-secondary" onclick="copyBackupCodes()" style="flex: 1;">📋 Copy Codes</button>
+                    <button class="btn btn-primary" onclick="closeBackupCodesModal()" style="flex: 1;">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2FA Disable Modal -->
+    <div id="twofaDisableModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🔓 Disable Two-Factor Authentication</h2>
+                <button class="close-btn" onclick="closeTwoFADisable()">×</button>
+            </div>
+            <div style="padding: var(--space-5);">
+                <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4);">
+                    <strong style="color: var(--warning);">⚠️ Warning:</strong>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Disabling 2FA will make your account less secure.
+                    </span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Enter your current 6-digit code to confirm:</label>
+                    <input type="text" id="twofaDisableCode" class="form-input twofa-input" maxlength="6" placeholder="000000" pattern="[0-9]{6}" inputmode="numeric">
+                </div>
+
+                <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                    <button class="btn btn-secondary" onclick="closeTwoFADisable()" style="flex: 1;">Cancel</button>
+                    <button class="btn btn-danger" onclick="confirmTwoFADisable()" style="flex: 1;">Disable 2FA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ============ CONFIGURATION ============
         const CONFIG = {
@@ -1292,6 +1982,1584 @@
             { id: 3, trn: '003', name: 'Michael Brown', type: 'driver', department: 'Transport', position: 'Ambulance Driver', phone: '876-555-0103', email: 'michael.b@hospital.com', status: 'active' },
             { id: 4, trn: '004', name: 'Emily Davis', type: 'porter', department: 'Pediatrics', position: 'Junior Porter', phone: '876-555-0104', email: 'emily.d@hospital.com', status: 'active' },
         ];
+
+        // ============ USERS DATA ============
+        const defaultUsers = [
+            {
+                username: 'admin',
+                password: 'admin123',
+                displayName: 'Administrator',
+                role: 'Administrator',
+                isAdmin: true,
+                twoFactorEnabled: false,
+                twoFactorSecret: null,
+                backupCodes: null
+            },
+            {
+                username: 'user',
+                password: 'user123',
+                displayName: 'Standard User',
+                role: 'Staff',
+                isAdmin: false,
+                twoFactorEnabled: false,
+                twoFactorSecret: null,
+                backupCodes: null
+            }
+        ];
+
+        let users = StorageManager.get('dashboardUsers') || [...defaultUsers];
+        let currentUser = null;
+        let pendingTwoFAUser = null;
+
+        // ============================================
+        // AUTHENTICATION & LOGIN
+        // ============================================
+
+        // Check authentication state
+        function checkAuth() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+            const loginPage = document.getElementById('loginPage');
+            const dashboardContainer = document.getElementById('dashboardContainer');
+            const settingsBtn = document.querySelector('.settings-btn');
+
+            if (isLoggedIn) {
+                loginPage.classList.add('hidden');
+                dashboardContainer.classList.add('visible');
+                updateUserDisplay();
+
+                // Set currentUser from session or find in users array
+                const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
+                if (loggedInUser) {
+                    currentUser = users.find(u => u.username.toLowerCase() === loggedInUser.username.toLowerCase()) || loggedInUser;
+                }
+
+                // Show/hide settings based on user role
+                if (loggedInUser && loggedInUser.role === 'Administrator') {
+                    if (settingsBtn) settingsBtn.classList.remove('hidden');
+                } else {
+                    if (settingsBtn) settingsBtn.classList.add('hidden');
+                }
+            } else {
+                loginPage.classList.remove('hidden');
+                dashboardContainer.classList.remove('visible');
+                currentUser = null;
+            }
+        }
+
+        // Update user display in header
+        function updateUserDisplay() {
+            const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
+            if (loggedInUser) {
+                const userName = document.getElementById('loggedInUserName');
+                const userRole = document.getElementById('loggedInUserRole');
+                if (userName) userName.textContent = loggedInUser.displayName;
+                if (userRole) userRole.textContent = loggedInUser.role;
+            }
+        }
+
+        // Handle login form submission (case-insensitive username)
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginError = document.getElementById('loginError');
+
+            // Find user with case-insensitive username match
+            const user = users.find(u =>
+                u.username.toLowerCase() === username.toLowerCase() &&
+                u.password === password
+            );
+
+            if (user) {
+                loginError.classList.remove('show');
+
+                // Check if 2FA is enabled for this user
+                if (user.twoFactorEnabled && user.twoFactorSecret) {
+                    // Show 2FA step
+                    pendingTwoFAUser = user;
+                    document.getElementById('loginStep1').style.display = 'none';
+                    document.getElementById('loginStep2FA').style.display = 'block';
+                    document.getElementById('login2FACode').focus();
+                } else {
+                    // No 2FA, complete login directly
+                    completeLogin(user);
+                }
+            } else {
+                loginError.classList.add('show');
+                document.getElementById('loginErrorText').textContent = 'Invalid username or password. Please try again.';
+            }
+        }
+
+        // Complete the login process
+        function completeLogin(user) {
+            currentUser = user;
+            sessionStorage.setItem('isLoggedIn', 'true');
+            sessionStorage.setItem('loggedInUser', JSON.stringify({
+                username: user.username,
+                displayName: user.displayName,
+                role: user.role,
+                isAdmin: user.isAdmin,
+                twoFactorEnabled: user.twoFactorEnabled || false
+            }));
+            sessionStorage.setItem('hospitalCurrentUser', JSON.stringify(user));
+
+            // Reset login form
+            pendingTwoFAUser = null;
+            document.getElementById('loginStep1').style.display = 'block';
+            document.getElementById('loginStep2FA').style.display = 'none';
+            document.getElementById('backupCodeSection').style.display = 'none';
+            document.getElementById('login2FACode').value = '';
+            document.getElementById('loginBackupCode').value = '';
+
+            checkAuth();
+            render();
+            showNotification('Welcome, ' + user.displayName + '!');
+
+            // Check if Google Drive is connected and prompt for sync
+            promptSyncOnLogin();
+        }
+
+        // Prompt user to sync from cloud on login
+        function promptSyncOnLogin() {
+            // Check if we have a valid Google Drive token
+            const savedToken = localStorage.getItem('hospitalDashboardGoogleAccessToken');
+            const savedExpiry = localStorage.getItem('hospitalDashboardGoogleTokenExpiry');
+
+            // Show prompt modal after a brief delay to let dashboard load
+            setTimeout(() => {
+                if (!savedToken || !savedExpiry) {
+                    // Not connected to Google Drive - prompt to connect
+                    showConnectCloudOnLoginModal();
+                    return;
+                }
+
+                // Check if token is still valid
+                const expiry = new Date(savedExpiry);
+                if (expiry <= new Date()) {
+                    // Token expired - prompt to reconnect
+                    showConnectCloudOnLoginModal();
+                    return;
+                }
+
+                // Connected with valid token - show sync prompt
+                showSyncOnLoginModal();
+            }, 500);
+        }
+
+        // Show connect to cloud modal on login
+        function showConnectCloudOnLoginModal() {
+            const existingModal = document.getElementById('connectCloudOnLoginModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modalHTML = `
+                <div id="connectCloudOnLoginModal" class="google-auth-modal" style="display: flex;">
+                    <div class="modal-content" style="max-width: 450px;">
+                        <div class="modal-header">
+                            <h2>☁️ Connect to Cloud Storage?</h2>
+                            <button class="close-btn" onclick="closeConnectCloudOnLoginModal(false)">×</button>
+                        </div>
+                        <div style="padding: var(--space-5);">
+                            <div style="text-align: center; margin-bottom: var(--space-5);">
+                                <span style="font-size: 3rem;">☁️</span>
+                            </div>
+
+                            <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
+                                Connect to Google Drive to sync your dashboard data across devices and with other users.
+                            </p>
+
+                            <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
+                                <strong style="color: var(--info);">💡 Benefits:</strong>
+                                <ul style="color: var(--text-secondary); font-size: 0.9rem; margin: var(--space-2) 0 0 var(--space-4); padding: 0;">
+                                    <li>Backup your data securely</li>
+                                    <li>Sync across multiple devices</li>
+                                    <li>Share data with other users</li>
+                                </ul>
+                            </div>
+
+                            <div style="display: flex; gap: var(--space-3);">
+                                <button class="btn btn-secondary" onclick="closeConnectCloudOnLoginModal(false)" style="flex: 1;">
+                                    Skip
+                                </button>
+                                <button class="btn btn-primary" onclick="closeConnectCloudOnLoginModal(true)" style="flex: 1;">
+                                    ☁️ Connect Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Close connect cloud on login modal
+        function closeConnectCloudOnLoginModal(shouldConnect) {
+            const modal = document.getElementById('connectCloudOnLoginModal');
+            if (modal) {
+                modal.remove();
+            }
+
+            if (shouldConnect) {
+                connectToGoogleDrive();
+            }
+        }
+
+        // Show sync on login modal
+        function showSyncOnLoginModal() {
+            const existingModal = document.getElementById('syncOnLoginModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modalHTML = `
+                <div id="syncOnLoginModal" class="google-auth-modal" style="display: flex;">
+                    <div class="modal-content" style="max-width: 450px;">
+                        <div class="modal-header">
+                            <h2>☁️ Sync from Cloud?</h2>
+                            <button class="close-btn" onclick="closeSyncOnLoginModal(false)">×</button>
+                        </div>
+                        <div style="padding: var(--space-5);">
+                            <div style="text-align: center; margin-bottom: var(--space-5);">
+                                <span style="font-size: 3rem;">🔄</span>
+                            </div>
+
+                            <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
+                                Your Google Drive is connected. Would you like to sync the latest data from the cloud?
+                            </p>
+
+                            <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);">
+                                <strong style="color: var(--info);">💡 Tip:</strong>
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                                    Syncing ensures you have the latest data saved by other users.
+                                </span>
+                            </div>
+
+                            <div style="display: flex; gap: var(--space-3);">
+                                <button class="btn btn-secondary" onclick="closeSyncOnLoginModal(false)" style="flex: 1;">
+                                    Skip
+                                </button>
+                                <button class="btn btn-primary" onclick="closeSyncOnLoginModal(true)" style="flex: 1;">
+                                    🔄 Sync Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Close sync on login modal
+        async function closeSyncOnLoginModal(shouldSync) {
+            const modal = document.getElementById('syncOnLoginModal');
+            if (modal) {
+                modal.remove();
+            }
+
+            if (shouldSync) {
+                await performAutoSyncOnLogin();
+            }
+        }
+
+        // Perform automatic sync on login
+        async function performAutoSyncOnLogin() {
+            // Initialize token if not already done
+            const savedToken = localStorage.getItem('hospitalDashboardGoogleAccessToken');
+            if (savedToken) {
+                googleAccessToken = savedToken;
+                isCloudConnected = true;
+            }
+
+            if (!isCloudConnected || !googleAccessToken) {
+                showNotification('Could not connect to Google Drive', 'error');
+                return;
+            }
+
+            setCloudSyncing(true);
+            updateCloudUI(true);
+
+            try {
+                // First try to find the backup file
+                if (!cloudFileId) {
+                    const savedFileId = localStorage.getItem('hospitalDashboardCloudFileId');
+                    if (savedFileId) {
+                        cloudFileId = savedFileId;
+                    } else {
+                        await findExistingBackupFile();
+                    }
+                }
+
+                if (!cloudFileId) {
+                    setCloudSyncing(false);
+                    showNotification('No backup file found in cloud', 'warning');
+                    return;
+                }
+
+                // Download the file
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to download backup');
+                }
+
+                const backupData = await response.json();
+
+                // Validate backup format
+                if (!backupData.data || !backupData.version) {
+                    throw new Error('Invalid backup file format');
+                }
+
+                // Restore all data
+                if (backupData.data.users) {
+                    users = backupData.data.users;
+                    saveUsers();
+                }
+
+                if (backupData.data.hospitalData) {
+                    // Restore hospital data to state
+                    if (backupData.data.hospitalData.departments) {
+                        state.departments = backupData.data.hospitalData.departments;
+                    }
+                    if (backupData.data.hospitalData.staff) {
+                        state.staff = backupData.data.hospitalData.staff;
+                    }
+                    if (backupData.data.hospitalData.fleet) {
+                        state.fleet = backupData.data.hospitalData.fleet;
+                    }
+                    if (backupData.data.hospitalData.leaveRecords) {
+                        state.leaveRecords = backupData.data.hospitalData.leaveRecords;
+                    }
+                    if (backupData.data.hospitalData.timeTrackingRecords) {
+                        state.timeTrackingRecords = backupData.data.hospitalData.timeTrackingRecords;
+                    }
+                    if (backupData.data.hospitalData.ambulanceAssignments) {
+                        state.ambulanceAssignments = backupData.data.hospitalData.ambulanceAssignments;
+                    }
+                    if (backupData.data.hospitalData.hospitalUpdates) {
+                        state.hospitalUpdates = backupData.data.hospitalData.hospitalUpdates;
+                    }
+                    if (backupData.data.hospitalData.fuelRecords) {
+                        state.fuelRecords = backupData.data.hospitalData.fuelRecords;
+                    }
+                    state.save();
+                }
+
+                // Update sync tracking
+                lastSyncTime = new Date();
+                localStorage.setItem('hospitalDashboardLastSyncTime', lastSyncTime.toISOString());
+                updateLastSyncDisplay();
+
+                // Update last saved by info
+                lastSavedBy = backupData.savedBy || 'Unknown';
+                cloudFileTimestamp = backupData.timestamp;
+                updateLastSavedByDisplay();
+
+                // Refresh UI
+                render();
+
+                setCloudSyncing(false);
+
+                const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
+                showNotification(`Synced from cloud${savedByInfo}`, 'success');
+
+            } catch (error) {
+                console.error('Error syncing on login:', error);
+                setCloudSyncing(false);
+
+                if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
+                    showNotification('Google Drive session expired', 'error');
+                    // Clear invalid token
+                    localStorage.removeItem('hospitalDashboardGoogleAccessToken');
+                    localStorage.removeItem('hospitalDashboardGoogleTokenExpiry');
+                    updateCloudUI(false);
+                } else {
+                    showNotification(`Sync failed: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Show login error message
+        function showLoginError(message) {
+            const loginError = document.getElementById('loginError');
+            document.getElementById('loginErrorText').textContent = message;
+            loginError.classList.add('show');
+        }
+
+        // Handle logout
+        function handleLogout() {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('loggedInUser');
+            checkAuth();
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').classList.remove('show');
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'alert';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                z-index: 10001;
+                animation: slideIn 0.3s ease;
+                ${type === 'error' ? 'background: #fee2e2; color: #991b1b;' :
+                  type === 'warning' ? 'background: #fef3c7; color: #92400e;' :
+                  'background: #d1fae5; color: #065f46;'}
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // ============================================
+        // TWO-FACTOR AUTHENTICATION (2FA)
+        // ============================================
+
+        // Temporary storage for 2FA setup
+        let pendingTwoFASecret = null;
+        let pendingBackupCodes = null;
+
+        // Generate a random base32 secret for TOTP
+        function generateTOTPSecret() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let secret = '';
+            for (let i = 0; i < 32; i++) {
+                secret += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return secret;
+        }
+
+        // Generate TOTP code from secret (for verification)
+        function generateTOTPCode(secret) {
+            try {
+                const totp = new OTPAuth.TOTP({
+                    issuer: 'Hospital Dashboard',
+                    label: currentUser ? currentUser.username : 'User',
+                    algorithm: 'SHA1',
+                    digits: 6,
+                    period: 30,
+                    secret: secret
+                });
+                return totp.generate();
+            } catch (e) {
+                console.error('Error generating TOTP:', e);
+                return null;
+            }
+        }
+
+        // Verify TOTP code
+        function verifyTOTPCode(secret, code) {
+            try {
+                const totp = new OTPAuth.TOTP({
+                    issuer: 'Hospital Dashboard',
+                    label: 'User',
+                    algorithm: 'SHA1',
+                    digits: 6,
+                    period: 30,
+                    secret: secret
+                });
+                // Allow 1 period tolerance (30 seconds before/after)
+                const delta = totp.validate({ token: code, window: 1 });
+                return delta !== null;
+            } catch (e) {
+                console.error('Error verifying TOTP:', e);
+                return false;
+            }
+        }
+
+        // Generate TOTP URI for QR code
+        function generateTOTPUri(secret, username) {
+            const issuer = 'Hospital%20Dashboard';
+            const label = encodeURIComponent(username);
+            return `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
+        }
+
+        // Generate backup codes
+        function generateBackupCodes() {
+            const codes = [];
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            for (let i = 0; i < 8; i++) {
+                let code = '';
+                for (let j = 0; j < 8; j++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                codes.push({ code: code, used: false });
+            }
+            return codes;
+        }
+
+        // Save users to localStorage
+        function saveUsers() {
+            localStorage.setItem('dashboardUsers', JSON.stringify(users));
+        }
+
+        // Open 2FA setup modal
+        function openTwoFASetup() {
+            // Generate new secret
+            pendingTwoFASecret = generateTOTPSecret();
+
+            // Display secret key
+            document.getElementById('twofaSecretKey').textContent = pendingTwoFASecret.match(/.{1,4}/g).join(' ');
+
+            // Generate QR code
+            const qrContainer = document.getElementById('twofaQRCode');
+            qrContainer.innerHTML = '';
+            const uri = generateTOTPUri(pendingTwoFASecret, currentUser.username);
+
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(qrContainer, {
+                    text: uri,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#1e3a5f',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                qrContainer.innerHTML = '<p style="color: var(--text-secondary);">QR Code library not loaded. Use the secret key below.</p>';
+            }
+
+            // Clear verification input
+            document.getElementById('twofaSetupCode').value = '';
+
+            // Show modal
+            document.getElementById('twofaSetupModal').style.display = 'flex';
+        }
+
+        // Close 2FA setup modal
+        function closeTwoFASetup() {
+            document.getElementById('twofaSetupModal').style.display = 'none';
+            pendingTwoFASecret = null;
+        }
+
+        // Confirm 2FA setup
+        function confirmTwoFASetup() {
+            const code = document.getElementById('twofaSetupCode').value.trim();
+
+            if (!code || code.length !== 6) {
+                alert('Please enter the 6-digit code from your authenticator app');
+                return;
+            }
+
+            if (!pendingTwoFASecret) {
+                alert('Setup session expired. Please try again.');
+                closeTwoFASetup();
+                return;
+            }
+
+            // Verify the code
+            if (verifyTOTPCode(pendingTwoFASecret, code)) {
+                // Generate backup codes
+                pendingBackupCodes = generateBackupCodes();
+
+                // Update user
+                const userIndex = users.findIndex(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
+                if (userIndex !== -1) {
+                    users[userIndex].twoFactorEnabled = true;
+                    users[userIndex].twoFactorSecret = pendingTwoFASecret;
+                    users[userIndex].backupCodes = pendingBackupCodes;
+                    saveUsers();
+                    currentUser = users[userIndex];
+                    sessionStorage.setItem('hospitalCurrentUser', JSON.stringify(currentUser));
+                }
+
+                closeTwoFASetup();
+
+                // Show backup codes
+                showBackupCodesModal();
+
+                showNotification('Two-Factor Authentication enabled successfully!');
+            } else {
+                alert('Invalid code. Please check your authenticator app and try again.');
+                document.getElementById('twofaSetupCode').value = '';
+                document.getElementById('twofaSetupCode').focus();
+            }
+        }
+
+        // Show backup codes modal (after setup or on demand)
+        function showBackupCodesModal() {
+            const container = document.getElementById('twofaBackupCodes');
+            const codes = pendingBackupCodes || (currentUser && currentUser.backupCodes) || [];
+
+            container.innerHTML = codes.map(bc => `
+                <div class="twofa-backup-code ${bc.used ? 'used' : ''}">${bc.code}</div>
+            `).join('');
+
+            document.getElementById('twofaBackupModal').style.display = 'flex';
+        }
+
+        // Show existing backup codes
+        function showBackupCodes() {
+            pendingBackupCodes = null;
+            showBackupCodesModal();
+        }
+
+        // Close backup codes modal
+        function closeBackupCodesModal() {
+            document.getElementById('twofaBackupModal').style.display = 'none';
+            pendingBackupCodes = null;
+        }
+
+        // Copy backup codes to clipboard
+        function copyBackupCodes() {
+            const codes = pendingBackupCodes || (currentUser && currentUser.backupCodes) || [];
+            const codesText = codes.map((bc, i) => `${i + 1}. ${bc.code}${bc.used ? ' (USED)' : ''}`).join('\n');
+            const fullText = `Hospital Dashboard - Backup Codes for ${currentUser.username}\n` +
+                           `Generated: ${new Date().toLocaleString()}\n\n` +
+                           `${codesText}\n\n` +
+                           `Keep these codes in a safe place. Each code can only be used once.`;
+
+            navigator.clipboard.writeText(fullText).then(() => {
+                showNotification('Backup codes copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy. Please manually select and copy the codes.');
+            });
+        }
+
+        // Regenerate backup codes
+        function regenerateBackupCodes() {
+            if (!confirm('This will invalidate all existing backup codes. Continue?')) {
+                return;
+            }
+
+            pendingBackupCodes = generateBackupCodes();
+
+            const userIndex = users.findIndex(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
+            if (userIndex !== -1) {
+                users[userIndex].backupCodes = pendingBackupCodes;
+                saveUsers();
+                currentUser = users[userIndex];
+                sessionStorage.setItem('hospitalCurrentUser', JSON.stringify(currentUser));
+            }
+
+            showBackupCodesModal();
+            showNotification('Backup codes regenerated!');
+        }
+
+        // Open disable 2FA modal
+        function openTwoFADisable() {
+            document.getElementById('twofaDisableCode').value = '';
+            document.getElementById('twofaDisableModal').style.display = 'flex';
+        }
+
+        // Close disable 2FA modal
+        function closeTwoFADisable() {
+            document.getElementById('twofaDisableModal').style.display = 'none';
+        }
+
+        // Confirm disable 2FA
+        function confirmTwoFADisable() {
+            const code = document.getElementById('twofaDisableCode').value.trim();
+
+            if (!code || code.length !== 6) {
+                alert('Please enter the 6-digit code from your authenticator app');
+                return;
+            }
+
+            if (!currentUser || !currentUser.twoFactorSecret) {
+                alert('2FA is not enabled for this account.');
+                closeTwoFADisable();
+                return;
+            }
+
+            // Verify the code
+            if (verifyTOTPCode(currentUser.twoFactorSecret, code)) {
+                const userIndex = users.findIndex(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
+                if (userIndex !== -1) {
+                    users[userIndex].twoFactorEnabled = false;
+                    users[userIndex].twoFactorSecret = null;
+                    users[userIndex].backupCodes = null;
+                    saveUsers();
+                    currentUser = users[userIndex];
+                    sessionStorage.setItem('hospitalCurrentUser', JSON.stringify(currentUser));
+                }
+
+                closeTwoFADisable();
+                showNotification('Two-Factor Authentication has been disabled.');
+            } else {
+                alert('Invalid code. Please check your authenticator app and try again.');
+                document.getElementById('twofaDisableCode').value = '';
+                document.getElementById('twofaDisableCode').focus();
+            }
+        }
+
+        // Verify 2FA code during login
+        function verify2FALogin() {
+            const code = document.getElementById('login2FACode').value.trim();
+
+            if (!code || code.length !== 6) {
+                showLoginError('Please enter a 6-digit code');
+                return;
+            }
+
+            if (!pendingTwoFAUser) {
+                showLoginError('Session expired. Please try again.');
+                cancelTwoFALogin();
+                return;
+            }
+
+            // Verify TOTP code
+            if (verifyTOTPCode(pendingTwoFAUser.twoFactorSecret, code)) {
+                completeLogin(pendingTwoFAUser);
+            } else {
+                showLoginError('Invalid code. Please try again.');
+                document.getElementById('login2FACode').value = '';
+                document.getElementById('login2FACode').focus();
+            }
+        }
+
+        // Verify backup code during login
+        function verifyBackupCodeLogin() {
+            const backupCode = document.getElementById('loginBackupCode').value.trim().toUpperCase();
+
+            if (!backupCode) {
+                showLoginError('Please enter a backup code');
+                return;
+            }
+
+            if (!pendingTwoFAUser) {
+                showLoginError('Session expired. Please try again.');
+                cancelTwoFALogin();
+                return;
+            }
+
+            // Check if backup code is valid and not used
+            const codeIndex = pendingTwoFAUser.backupCodes ?
+                pendingTwoFAUser.backupCodes.findIndex(bc => bc.code === backupCode && !bc.used) : -1;
+
+            if (codeIndex !== -1) {
+                // Mark backup code as used
+                const userIndex = users.findIndex(u => u.username.toLowerCase() === pendingTwoFAUser.username.toLowerCase());
+                if (userIndex !== -1) {
+                    users[userIndex].backupCodes[codeIndex].used = true;
+                    saveUsers();
+                    pendingTwoFAUser = users[userIndex];
+                }
+                completeLogin(pendingTwoFAUser);
+            } else {
+                showLoginError('Invalid or already used backup code');
+                document.getElementById('loginBackupCode').value = '';
+                document.getElementById('loginBackupCode').focus();
+            }
+        }
+
+        // Show backup code input
+        function showBackupCodeInput() {
+            document.getElementById('backupCodeSection').style.display = 'block';
+        }
+
+        // Cancel 2FA login and go back
+        function cancelTwoFALogin() {
+            pendingTwoFAUser = null;
+            document.getElementById('loginStep1').style.display = 'block';
+            document.getElementById('loginStep2FA').style.display = 'none';
+            document.getElementById('backupCodeSection').style.display = 'none';
+            document.getElementById('login2FACode').value = '';
+            document.getElementById('loginBackupCode').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginError').classList.remove('show');
+        }
+
+        // Open user settings modal (for admins)
+        function openUserSettings() {
+            // For now, show a simple alert - you can expand this to a full modal
+            alert('User management feature. You can add/edit users through the Settings tab.');
+        }
+
+        // ============================================
+        // Google Drive Cloud Sync Integration
+        // ============================================
+
+        // Google Drive Configuration
+        const GOOGLE_DRIVE_CONFIG = {
+            CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
+            FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+            BACKUP_FILE_NAME: 'HOSPITAL_DASHBOARD_BACKUP.json',
+            SCOPES: 'https://www.googleapis.com/auth/drive'
+        };
+
+        // Cloud sync state
+        let googleAccessToken = null;
+        let isCloudConnected = false;
+        let lastSyncTime = null;
+        let cloudFileId = null;
+        let lastSavedBy = null;
+        let cloudFileTimestamp = null;
+
+        // Google Token Client for OAuth
+        let googleTokenClient = null;
+
+        // Initialize cloud sync from localStorage
+        function initializeCloudSync() {
+            const savedToken = localStorage.getItem('hospitalDashboardGoogleAccessToken');
+            const savedExpiry = localStorage.getItem('hospitalDashboardGoogleTokenExpiry');
+            const savedLastSync = localStorage.getItem('hospitalDashboardLastSyncTime');
+            const savedFileId = localStorage.getItem('hospitalDashboardCloudFileId');
+
+            if (savedLastSync) {
+                lastSyncTime = new Date(savedLastSync);
+                updateLastSyncDisplay();
+            }
+
+            if (savedFileId) {
+                cloudFileId = savedFileId;
+            }
+
+            // Check if token is still valid
+            if (savedToken && savedExpiry) {
+                const expiry = new Date(savedExpiry);
+                if (expiry > new Date()) {
+                    googleAccessToken = savedToken;
+                    isCloudConnected = true;
+                    updateCloudUI(true);
+                    return;
+                }
+            }
+
+            updateCloudUI(false);
+        }
+
+        // Update cloud UI based on connection status
+        function updateCloudUI(connected) {
+            const notConnectedDiv = document.getElementById('cloudNotConnected');
+            const connectedDiv = document.getElementById('cloudConnected');
+            const statusDot = document.getElementById('cloudStatusDot');
+            const statusText = document.getElementById('cloudStatusText');
+
+            if (!notConnectedDiv || !connectedDiv) return;
+
+            if (connected) {
+                notConnectedDiv.style.display = 'none';
+                connectedDiv.style.display = 'block';
+                if (statusDot) statusDot.className = 'cloud-status-dot connected';
+                if (statusText) statusText.textContent = 'Connected';
+            } else {
+                notConnectedDiv.style.display = 'block';
+                connectedDiv.style.display = 'none';
+                if (statusDot) statusDot.className = 'cloud-status-dot';
+                if (statusText) statusText.textContent = 'Not connected';
+            }
+        }
+
+        // Update syncing status
+        function setCloudSyncing(syncing) {
+            const statusDot = document.getElementById('cloudStatusDot');
+            const statusText = document.getElementById('cloudStatusText');
+            const menuIcon = document.getElementById('cloudMenuIcon');
+
+            if (syncing) {
+                if (statusDot) statusDot.className = 'cloud-status-dot syncing';
+                if (statusText) statusText.textContent = 'Syncing...';
+                if (menuIcon) menuIcon.innerHTML = '<span class="spinning">🔄</span>';
+            } else {
+                if (statusDot) statusDot.className = 'cloud-status-dot connected';
+                if (statusText) statusText.textContent = 'Connected';
+                if (menuIcon) menuIcon.textContent = '☁️';
+            }
+        }
+
+        // Toggle cloud dropdown menu
+        function toggleCloudMenu() {
+            const menu = document.getElementById('cloudDropdownMenu');
+            menu.classList.toggle('show');
+
+            // Close when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closeCloudMenuOnClickOutside);
+            }, 0);
+        }
+
+        function closeCloudMenuOnClickOutside(e) {
+            const menu = document.getElementById('cloudDropdownMenu');
+            const dropdown = document.querySelector('.cloud-dropdown');
+
+            if (dropdown && !dropdown.contains(e.target)) {
+                menu.classList.remove('show');
+                document.removeEventListener('click', closeCloudMenuOnClickOutside);
+            }
+        }
+
+        // Initialize Google Identity Services
+        function initGoogleAuth() {
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+                googleTokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+                    scope: GOOGLE_DRIVE_CONFIG.SCOPES,
+                    callback: handleGoogleAuthCallback,
+                    error_callback: handleGoogleAuthError
+                });
+            }
+        }
+
+        // Connect to Google Drive using OAuth
+        async function connectToGoogleDrive() {
+            showGoogleAuthModal();
+        }
+
+        // Show authentication modal with two options
+        function showGoogleAuthModal() {
+            const modalHTML = `
+                <div id="googleAuthModal" class="google-auth-modal" style="display: flex;">
+                    <div class="modal-content" style="max-width: 560px;">
+                        <div class="modal-header">
+                            <h2>☁️ Connect to Google Drive</h2>
+                            <button class="close-btn" onclick="closeGoogleAuthModal()">×</button>
+                        </div>
+                        <div style="padding: var(--space-6);">
+                            <p style="margin-bottom: var(--space-5); color: var(--text-secondary);">
+                                Connect to Google Drive to save and sync your dashboard data across devices. Choose your preferred connection method:
+                            </p>
+
+                            <!-- Option 1: Direct Google Sign-In -->
+                            <div style="background: var(--success-bg); border: 2px solid var(--success); border-radius: var(--radius-lg); padding: var(--space-5); margin-bottom: var(--space-4);">
+                                <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
+                                    <span style="font-size: 1.5rem;">🔐</span>
+                                    <div>
+                                        <strong style="color: var(--success); font-size: 1.1rem;">Direct Google Sign-In</strong>
+                                        <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.7rem; margin-left: var(--space-2); font-weight: 600;">RECOMMENDED</span>
+                                    </div>
+                                </div>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-4);">
+                                    A Google popup will appear for you to sign in with your Google account directly.
+                                </p>
+                                <button class="btn btn-success" onclick="triggerDirectGoogleSignIn()" style="width: 100%; padding: var(--space-3);">
+                                    Sign in with Google
+                                </button>
+                            </div>
+
+                            <!-- Option 2: Manual Token Method -->
+                            <div id="manualTokenSection" style="background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: var(--space-5);">
+                                <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
+                                    <span style="font-size: 1.5rem;">🔧</span>
+                                    <strong style="color: var(--text-primary); font-size: 1.1rem;">Manual Token Method</strong>
+                                </div>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: var(--space-4);">
+                                    If the popup doesn't work, you can use the OAuth Playground to get a token manually.
+                                </p>
+                                <button class="btn btn-secondary" onclick="showManualTokenForm()" id="showManualTokenBtn" style="width: 100%;">
+                                    Use Manual Method
+                                </button>
+
+                                <div id="manualTokenForm" style="display: none; margin-top: var(--space-4);">
+                                    <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
+                                        <strong style="color: var(--info);">How to get your access token:</strong>
+                                        <ol style="margin-top: var(--space-2); margin-left: var(--space-4); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
+                                            <li>Click the link below to open Google OAuth Playground</li>
+                                            <li>In Step 1, find and select <strong>"Drive API v3"</strong> → check <strong>"../auth/drive"</strong></li>
+                                            <li>Click <strong>"Authorize APIs"</strong> (blue button)</li>
+                                            <li>Sign in with your Google account</li>
+                                            <li>In Step 2, click <strong>"Exchange authorization code for tokens"</strong></li>
+                                            <li>Copy the <strong>"Access token"</strong> value and paste below</li>
+                                        </ol>
+                                        <a href="https://developers.google.com/oauthplayground" target="_blank"
+                                           style="display: inline-block; margin-top: var(--space-3); padding: var(--space-2) var(--space-4); background: var(--accent); color: white; border-radius: var(--radius-md); text-decoration: none; font-weight: 600; font-size: 0.875rem;">
+                                            🔗 Open OAuth Playground
+                                        </a>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: var(--space-4);">
+                                        <label style="font-weight: 600;">Access Token</label>
+                                        <textarea id="googleAccessTokenInput" rows="4" style="width: 100%; padding: var(--space-3); border: 2px solid var(--border-light); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 0.75rem; resize: vertical; margin-top: var(--space-2);" placeholder="Paste your access token here..."></textarea>
+                                    </div>
+
+                                    <button class="btn btn-success" onclick="submitGoogleToken()" style="width: 100%;">
+                                        ☁️ Connect with Token
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: var(--space-4); text-align: center;">
+                                <button class="btn btn-secondary" onclick="closeGoogleAuthModal()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Trigger the direct Google Sign-In popup
+        function triggerDirectGoogleSignIn() {
+            closeGoogleAuthModal();
+            if (googleTokenClient) {
+                googleTokenClient.requestAccessToken();
+            } else {
+                initGoogleAuth();
+                setTimeout(() => {
+                    if (googleTokenClient) {
+                        googleTokenClient.requestAccessToken();
+                    } else {
+                        alert('Google Sign-In popup is not available. Please use the manual token method.');
+                        showGoogleAuthModal();
+                        setTimeout(() => showManualTokenForm(), 100);
+                    }
+                }, 500);
+            }
+        }
+
+        // Show the manual token form
+        function showManualTokenForm() {
+            const form = document.getElementById('manualTokenForm');
+            const btn = document.getElementById('showManualTokenBtn');
+            if (form && btn) {
+                form.style.display = 'block';
+                btn.style.display = 'none';
+            }
+        }
+
+        function closeGoogleAuthModal() {
+            const modal = document.getElementById('googleAuthModal');
+            if (modal) modal.remove();
+        }
+
+        async function submitGoogleToken() {
+            const tokenInput = document.getElementById('googleAccessTokenInput');
+            const token = tokenInput.value.trim();
+
+            if (!token) {
+                alert('Please enter an access token');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Invalid token');
+                }
+
+                const data = await response.json();
+
+                googleAccessToken = token;
+                isCloudConnected = true;
+
+                const expiry = new Date();
+                expiry.setHours(expiry.getHours() + 1);
+                localStorage.setItem('hospitalDashboardGoogleAccessToken', token);
+                localStorage.setItem('hospitalDashboardGoogleTokenExpiry', expiry.toISOString());
+
+                closeGoogleAuthModal();
+                updateCloudUI(true);
+
+                showNotification(`Connected to Google Drive as ${data.user.displayName || data.user.emailAddress}`);
+
+                await findExistingBackupFile();
+
+            } catch (error) {
+                console.error('Token verification failed:', error);
+                alert('Invalid access token. Please make sure you copied the correct token.');
+            }
+        }
+
+        async function handleGoogleAuthCallback(tokenResponse) {
+            googleAccessToken = tokenResponse.access_token;
+            isCloudConnected = true;
+
+            const expiry = new Date();
+            expiry.setSeconds(expiry.getSeconds() + (tokenResponse.expires_in || 3600));
+            localStorage.setItem('hospitalDashboardGoogleAccessToken', googleAccessToken);
+            localStorage.setItem('hospitalDashboardGoogleTokenExpiry', expiry.toISOString());
+
+            updateCloudUI(true);
+            await findExistingBackupFile();
+            showForcedSyncAfterConnectModal();
+        }
+
+        function showForcedSyncAfterConnectModal() {
+            const existingModal = document.getElementById('forcedSyncModal');
+            if (existingModal) existingModal.remove();
+
+            const hasBackup = cloudFileId !== null;
+
+            const modalHTML = `
+                <div id="forcedSyncModal" class="google-auth-modal" style="display: flex;">
+                    <div class="modal-content" style="max-width: 450px;">
+                        <div class="modal-header">
+                            <h2>✅ Connected to Google Drive!</h2>
+                        </div>
+                        <div style="padding: var(--space-5);">
+                            <div style="text-align: center; margin-bottom: var(--space-5);">
+                                <span style="font-size: 3rem;">🔄</span>
+                            </div>
+
+                            ${hasBackup ? `
+                                <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
+                                    A cloud backup was found. Would you like to sync your data now?
+                                </p>
+                                <div style="display: flex; gap: var(--space-3);">
+                                    <button class="btn btn-secondary" onclick="closeForcedSyncModal(false)" style="flex: 1;">
+                                        Skip
+                                    </button>
+                                    <button class="btn btn-primary" onclick="performForcedSyncAfterConnect()" style="flex: 1;">
+                                        🔄 Sync Now
+                                    </button>
+                                </div>
+                            ` : `
+                                <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-5);">
+                                    No existing backup was found. Would you like to save your current data to the cloud now?
+                                </p>
+                                <div style="display: flex; gap: var(--space-3);">
+                                    <button class="btn btn-secondary" onclick="closeForcedSyncModal(false)" style="flex: 1;">
+                                        Skip
+                                    </button>
+                                    <button class="btn btn-primary" onclick="performForcedSaveAfterConnect()" style="flex: 1;">
+                                        💾 Save to Cloud
+                                    </button>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        async function performForcedSyncAfterConnect() {
+            closeForcedSyncModal(false);
+            await syncFromCloud();
+        }
+
+        async function performForcedSaveAfterConnect() {
+            closeForcedSyncModal(false);
+            await saveToCloud();
+        }
+
+        function closeForcedSyncModal(syncSuccessful) {
+            const modal = document.getElementById('forcedSyncModal');
+            if (modal) modal.remove();
+        }
+
+        function handleGoogleAuthError(error) {
+            console.error('Google auth error:', error);
+            if (error.type === 'popup_closed') return;
+            alert('Failed to authenticate with Google. Please try the manual token method.');
+            showGoogleAuthModal();
+        }
+
+        function disconnectFromGoogleDrive() {
+            if (confirm('Are you sure you want to disconnect from Google Drive?')) {
+                googleAccessToken = null;
+                isCloudConnected = false;
+                cloudFileId = null;
+
+                localStorage.removeItem('hospitalDashboardGoogleAccessToken');
+                localStorage.removeItem('hospitalDashboardGoogleTokenExpiry');
+                localStorage.removeItem('hospitalDashboardCloudFileId');
+
+                updateCloudUI(false);
+                toggleCloudMenu();
+
+                showNotification('Disconnected from Google Drive');
+            }
+        }
+
+        async function findExistingBackupFile() {
+            try {
+                const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false`;
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.files && data.files.length > 0) {
+                        cloudFileId = data.files[0].id;
+                        localStorage.setItem('hospitalDashboardCloudFileId', cloudFileId);
+                        console.log('Found existing backup file:', cloudFileId);
+                    }
+                }
+            } catch (error) {
+                console.error('Error finding backup file:', error);
+            }
+        }
+
+        async function saveToCloud() {
+            if (!isCloudConnected || !googleAccessToken) {
+                alert('Please connect to Google Drive first');
+                return;
+            }
+
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            if (!confirm('Save current data to cloud? This will overwrite the existing backup.')) {
+                return;
+            }
+
+            setCloudSyncing(true);
+
+            try {
+                const backupData = {
+                    version: '1.0',
+                    timestamp: new Date().toISOString(),
+                    savedBy: currentUser ? currentUser.username : 'Unknown',
+                    data: {
+                        users: users,
+                        hospitalData: {
+                            departments: state.departments,
+                            leaveTypes: state.leaveTypes,
+                            staff: state.staff,
+                            fleet: state.fleet,
+                            leaveRecords: state.leaveRecords,
+                            timeTrackingRecords: state.timeTrackingRecords,
+                            ambulanceAssignments: state.ambulanceAssignments,
+                            driverSchedules: state.driverSchedules,
+                            hospitalUpdates: state.hospitalUpdates,
+                            fuelRecords: state.fuelRecords,
+                            gasPriceData: state.gasPriceData
+                        }
+                    }
+                };
+
+                const jsonContent = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([jsonContent], { type: 'application/json' });
+
+                let response;
+
+                if (cloudFileId) {
+                    response = await fetch(
+                        `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': `Bearer ${googleAccessToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = {
+                        name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME,
+                        parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID],
+                        mimeType: 'application/json'
+                    };
+
+                    const formData = new FormData();
+                    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    formData.append('file', blob);
+
+                    response = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${googleAccessToken}`
+                            },
+                            body: formData
+                        }
+                    );
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        cloudFileId = result.id;
+                        localStorage.setItem('hospitalDashboardCloudFileId', cloudFileId);
+                    }
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Upload failed');
+                }
+
+                lastSyncTime = new Date();
+                localStorage.setItem('hospitalDashboardLastSyncTime', lastSyncTime.toISOString());
+                updateLastSyncDisplay();
+
+                lastSavedBy = currentUser ? currentUser.username : 'Unknown';
+                cloudFileTimestamp = new Date().toISOString();
+                updateLastSavedByDisplay();
+
+                setCloudSyncing(false);
+                showNotification('Data saved to Google Drive successfully!');
+
+            } catch (error) {
+                console.error('Error saving to cloud:', error);
+                setCloudSyncing(false);
+
+                if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
+                    showNotification('Session expired. Please reconnect to Google Drive.', 'error');
+                    disconnectFromGoogleDrive();
+                } else {
+                    showNotification(`Failed to save: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function syncFromCloud() {
+            if (!isCloudConnected || !googleAccessToken) {
+                alert('Please connect to Google Drive first');
+                return;
+            }
+
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            if (!cloudFileId) {
+                await findExistingBackupFile();
+            }
+
+            if (!cloudFileId) {
+                alert('No backup file found. Save your data first to create a backup.');
+                return;
+            }
+
+            if (!confirm('This will replace your local data with the cloud backup. Continue?')) {
+                return;
+            }
+
+            setCloudSyncing(true);
+
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to download backup');
+                }
+
+                const backupData = await response.json();
+
+                if (!backupData.data || !backupData.version) {
+                    throw new Error('Invalid backup file format');
+                }
+
+                if (backupData.data.users) {
+                    users = backupData.data.users;
+                    saveUsers();
+                }
+
+                if (backupData.data.hospitalData) {
+                    if (backupData.data.hospitalData.departments) {
+                        state.departments = backupData.data.hospitalData.departments;
+                    }
+                    if (backupData.data.hospitalData.leaveTypes) {
+                        state.leaveTypes = backupData.data.hospitalData.leaveTypes;
+                    }
+                    if (backupData.data.hospitalData.staff) {
+                        state.staff = backupData.data.hospitalData.staff;
+                    }
+                    if (backupData.data.hospitalData.fleet) {
+                        state.fleet = backupData.data.hospitalData.fleet;
+                    }
+                    if (backupData.data.hospitalData.leaveRecords) {
+                        state.leaveRecords = backupData.data.hospitalData.leaveRecords;
+                    }
+                    if (backupData.data.hospitalData.timeTrackingRecords) {
+                        state.timeTrackingRecords = backupData.data.hospitalData.timeTrackingRecords;
+                    }
+                    if (backupData.data.hospitalData.ambulanceAssignments) {
+                        state.ambulanceAssignments = backupData.data.hospitalData.ambulanceAssignments;
+                    }
+                    if (backupData.data.hospitalData.driverSchedules) {
+                        state.driverSchedules = backupData.data.hospitalData.driverSchedules;
+                    }
+                    if (backupData.data.hospitalData.hospitalUpdates) {
+                        state.hospitalUpdates = backupData.data.hospitalData.hospitalUpdates;
+                    }
+                    if (backupData.data.hospitalData.fuelRecords) {
+                        state.fuelRecords = backupData.data.hospitalData.fuelRecords;
+                    }
+                    if (backupData.data.hospitalData.gasPriceData) {
+                        state.gasPriceData = backupData.data.hospitalData.gasPriceData;
+                    }
+                    state.save();
+                }
+
+                lastSyncTime = new Date();
+                localStorage.setItem('hospitalDashboardLastSyncTime', lastSyncTime.toISOString());
+                updateLastSyncDisplay();
+
+                lastSavedBy = backupData.savedBy || 'Unknown';
+                cloudFileTimestamp = backupData.timestamp;
+                updateLastSavedByDisplay();
+
+                render();
+                setCloudSyncing(false);
+
+                const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
+                showNotification(`Synced from cloud${savedByInfo}`);
+
+            } catch (error) {
+                console.error('Error syncing from cloud:', error);
+                setCloudSyncing(false);
+
+                if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
+                    showNotification('Session expired. Please reconnect.', 'error');
+                    disconnectFromGoogleDrive();
+                } else {
+                    showNotification(`Sync failed: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function updateLastSyncDisplay() {
+            const lastSyncInfo = document.getElementById('lastSyncInfo');
+            if (lastSyncInfo) {
+                if (lastSyncTime) {
+                    const timeAgo = getTimeAgo(lastSyncTime);
+                    lastSyncInfo.textContent = `Last sync: ${timeAgo}`;
+                } else {
+                    lastSyncInfo.textContent = 'Last sync: Never';
+                }
+            }
+        }
+
+        function updateLastSavedByDisplay() {
+            const lastSavedByInfo = document.getElementById('lastSavedByInfo');
+            if (lastSavedByInfo) {
+                if (lastSavedBy && cloudFileTimestamp) {
+                    const timeAgo = getTimeAgo(new Date(cloudFileTimestamp));
+                    lastSavedByInfo.textContent = `Last saved by: ${lastSavedBy} (${timeAgo})`;
+                } else if (lastSavedBy) {
+                    lastSavedByInfo.textContent = `Last saved by: ${lastSavedBy}`;
+                } else {
+                    lastSavedByInfo.textContent = 'Last saved by: --';
+                }
+            }
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        }
+
+        async function browseBackupFiles() {
+            if (!isCloudConnected || !googleAccessToken) {
+                alert('Please connect to Google Drive first');
+                return;
+            }
+
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            setCloudSyncing(true);
+
+            try {
+                const query = `'${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and mimeType='application/json' and trashed=false`;
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                setCloudSyncing(false);
+
+                if (!response.ok) {
+                    throw new Error('Failed to list files');
+                }
+
+                const data = await response.json();
+
+                if (data.files.length === 0) {
+                    alert('No backup files found in the shared folder.');
+                    return;
+                }
+
+                showFileBrowserModal(data.files);
+            } catch (error) {
+                console.error('Error browsing files:', error);
+                setCloudSyncing(false);
+                showNotification(`Failed to browse files: ${error.message}`, 'error');
+            }
+        }
+
+        function showFileBrowserModal(files) {
+            const existingModal = document.getElementById('fileBrowserModal');
+            if (existingModal) existingModal.remove();
+
+            const fileListHTML = files.map(file => {
+                const modifiedDate = new Date(file.modifiedTime);
+                const timeAgo = getTimeAgo(modifiedDate);
+                return `
+                    <div style="padding: 12px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s;"
+                         onclick="selectBackupFile('${file.id}', '${file.name.replace(/'/g, "\\'")}')"
+                         onmouseover="this.style.background='var(--bg-hover)'"
+                         onmouseout="this.style.background='transparent'">
+                        <div style="font-weight: 600;">📄 ${file.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Modified ${timeAgo}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const modalHTML = `
+                <div id="fileBrowserModal" class="google-auth-modal" style="display: flex;">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h2>📁 Browse Backup Files</h2>
+                            <button class="close-btn" onclick="closeFileBrowserModal()">×</button>
+                        </div>
+                        <div style="padding: var(--space-4); max-height: 400px; overflow-y: auto;">
+                            ${fileListHTML}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function closeFileBrowserModal() {
+            const modal = document.getElementById('fileBrowserModal');
+            if (modal) modal.remove();
+        }
+
+        async function selectBackupFile(fileId, fileName) {
+            closeFileBrowserModal();
+
+            if (!confirm(`Sync from "${fileName}"? This will replace your local data.`)) {
+                return;
+            }
+
+            cloudFileId = fileId;
+            localStorage.setItem('hospitalDashboardCloudFileId', cloudFileId);
+            await syncFromCloud();
+        }
 
         // ============ APPLICATION STATE ============
         class AppState {
@@ -1445,6 +3713,9 @@
         }
 
         function renderNav() {
+            const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser')) || {};
+            const userInitial = loggedInUser.displayName ? loggedInUser.displayName.charAt(0).toUpperCase() : '?';
+
             return `
                 <div class="nav-header">
                     <div class="nav-top">
@@ -1453,6 +3724,48 @@
                             <h1>Hospital Management System</h1>
                         </div>
                         <div class="nav-actions">
+                            <!-- Cloud Sync Dropdown -->
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu()">
+                                    <span id="cloudMenuIcon">☁️</span>
+                                    <span id="cloudStatusText">Not connected</span>
+                                    <span class="cloud-status-dot" id="cloudStatusDot"></span>
+                                </button>
+                                <div class="cloud-dropdown-menu" id="cloudDropdownMenu">
+                                    <div class="cloud-menu-header">
+                                        <strong>☁️ Google Drive Sync</strong>
+                                    </div>
+
+                                    <!-- Not Connected State -->
+                                    <div id="cloudNotConnected">
+                                        <p class="cloud-sync-info">Connect to sync your data across devices</p>
+                                        <div class="cloud-menu-item" onclick="connectToGoogleDrive()">
+                                            <span>🔗</span> Connect to Google Drive
+                                        </div>
+                                    </div>
+
+                                    <!-- Connected State -->
+                                    <div id="cloudConnected" style="display: none;">
+                                        <div class="cloud-sync-info">
+                                            <span id="lastSyncInfo">Last sync: Never</span><br>
+                                            <span id="lastSavedByInfo">Last saved by: --</span>
+                                        </div>
+                                        <div class="cloud-menu-item" onclick="saveToCloud()">
+                                            <span>💾</span> Save to Cloud
+                                        </div>
+                                        <div class="cloud-menu-item" onclick="syncFromCloud()">
+                                            <span>🔄</span> Sync from Cloud
+                                        </div>
+                                        <div class="cloud-menu-item" onclick="browseBackupFiles()">
+                                            <span>📁</span> Browse Backup Files
+                                        </div>
+                                        <div class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()">
+                                            <span>🔌</span> Disconnect
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <button class="btn btn-primary" onclick="toggleDarkMode()" title="Toggle Dark Mode">
                                 ${state.darkMode ? '☀️ Light' : '🌙 Dark'}
                             </button>
@@ -1470,6 +3783,21 @@
                             </button>
                             <button class="btn btn-secondary" onclick="importFromJSON()">
                                 📥 Import JSON
+                            </button>
+
+                            <!-- User Display & Logout -->
+                            <div class="user-display">
+                                <div class="user-avatar">${userInitial}</div>
+                                <div class="user-info">
+                                    <div class="user-name" id="loggedInUserName">${loggedInUser.displayName || 'User'}</div>
+                                    <div class="user-role" id="loggedInUserRole">${loggedInUser.role || 'Staff'}</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-danger btn-small" onclick="handleLogout()" title="Sign Out">
+                                🚪 Logout
+                            </button>
+                            <button class="btn btn-secondary settings-btn ${loggedInUser.role !== 'Administrator' ? 'hidden' : ''}" onclick="openUserSettings()" title="User Settings">
+                                👤 Users
                             </button>
                         </div>
                     </div>
@@ -4758,17 +7086,30 @@
         // ============ INITIALIZE ============
         window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
-                render();
-                
+                // Check authentication first
+                checkAuth();
+
+                // Only render if logged in
+                const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+                if (isLoggedIn) {
+                    render();
+                }
+
+                // Initialize Google Auth
+                initGoogleAuth();
+
+                // Initialize cloud sync
+                initializeCloudSync();
+
                 // Check if gas price needs updating (if older than 7 days or never updated)
                 checkAndUpdateGasPrice();
-                
+
                 // Auto-save every 2 minutes
                 setInterval(() => {
                     state.save();
                     console.log('Auto-saved at', new Date().toLocaleTimeString());
                 }, 120000); // 2 minutes
-                
+
                 console.log('Hospital Management System loaded successfully');
             }, 500);
         });
