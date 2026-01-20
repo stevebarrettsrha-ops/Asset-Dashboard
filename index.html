@@ -5399,7 +5399,7 @@
             const container = document.getElementById('myAccountContent');
             if (!container || !currentUser) return;
 
-            const isAdmin = currentUser.role === 'Administrator' || currentUser.isAdmin;
+            const isAdmin = currentUser.role === 'Administrator' || currentUser.role === 'Admin' || currentUser.isAdmin;
 
             // Build user rows HTML
             let userRowsHTML = '';
