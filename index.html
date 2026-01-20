@@ -9654,9 +9654,19 @@
         }
 
         function initializeCharts() {
+            // Destroy existing charts if they exist to prevent "Canvas is already in use" error
+            if (distributionChart) {
+                distributionChart.destroy();
+                distributionChart = null;
+            }
+            if (monthlyChart) {
+                monthlyChart.destroy();
+                monthlyChart = null;
+            }
+
             const ctx1 = document.getElementById('distributionChart').getContext('2d');
             const ctx2 = document.getElementById('monthlyChart').getContext('2d');
-            
+
             distributionChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
