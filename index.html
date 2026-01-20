@@ -5102,11 +5102,14 @@
 
             try {
                 const backupData = {
-                    version: '1.0',
+                    version: '1.1',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
                         assets: loadAssetsFromStorage(),
+                        qrCodeRegistry: loadQRRegistry(),
+                        auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
+                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         localUserSettings: localUserSettings
                     }
                 };
@@ -5222,17 +5225,37 @@
                 }
 
                 // Restore data to correct storage key and refresh UI
-                if (backupData.data.assets) {
+                let restoredCount = 0;
+
+                if (backupData.data.assets && backupData.data.assets.length > 0) {
                     saveAssetsToStorage(backupData.data.assets);
                     allAssetsData = backupData.data.assets;
                     filteredData = allAssetsData;
-                    if (typeof loadData === 'function') loadData();
+                    restoredCount = backupData.data.assets.length;
+                }
+
+                // Restore QR code registry
+                if (backupData.data.qrCodeRegistry) {
+                    saveQRRegistry(backupData.data.qrCodeRegistry);
+                }
+
+                // Restore audit trail
+                if (backupData.data.auditTrail) {
+                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                }
+
+                // Restore departments
+                if (backupData.data.departments && backupData.data.departments.length > 0) {
+                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
                 }
 
                 if (backupData.data.localUserSettings) {
                     localUserSettings = backupData.data.localUserSettings;
                     saveLocalUserSettings();
                 }
+
+                // Refresh the UI with restored data
+                if (typeof loadData === 'function') loadData();
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -5245,7 +5268,7 @@
                 setCloudSyncing(false);
 
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
-                alert(`Data synced from cloud successfully!\n\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
+                alert(`Data synced from cloud successfully!\n\nAssets restored: ${restoredCount}\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
@@ -5373,17 +5396,37 @@
                 }
 
                 // Restore data to correct storage key and refresh UI
-                if (backupData.data.assets) {
+                let restoredCount = 0;
+
+                if (backupData.data.assets && backupData.data.assets.length > 0) {
                     saveAssetsToStorage(backupData.data.assets);
                     allAssetsData = backupData.data.assets;
                     filteredData = allAssetsData;
-                    if (typeof loadData === 'function') loadData();
+                    restoredCount = backupData.data.assets.length;
+                }
+
+                // Restore QR code registry
+                if (backupData.data.qrCodeRegistry) {
+                    saveQRRegistry(backupData.data.qrCodeRegistry);
+                }
+
+                // Restore audit trail
+                if (backupData.data.auditTrail) {
+                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                }
+
+                // Restore departments
+                if (backupData.data.departments && backupData.data.departments.length > 0) {
+                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
                 }
 
                 if (backupData.data.localUserSettings) {
                     localUserSettings = backupData.data.localUserSettings;
                     saveLocalUserSettings();
                 }
+
+                // Refresh the UI with restored data
+                if (typeof loadData === 'function') loadData();
 
                 cloudFileId = fileId;
                 localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
@@ -5397,7 +5440,7 @@
                 updateLastSavedByDisplay();
 
                 setCloudSyncing(false);
-                alert(`Synced from "${fileName}" successfully!`);
+                alert(`Synced from "${fileName}" successfully!\n\nAssets restored: ${restoredCount}`);
 
             } catch (error) {
                 console.error('Error syncing from file:', error);
@@ -5595,17 +5638,38 @@
                     throw new Error('Invalid backup file format');
                 }
 
-                if (backupData.data.assets && typeof assets !== 'undefined') {
-                    assets = backupData.data.assets;
-                    localStorage.setItem('fixedAssets', JSON.stringify(assets));
-                    if (typeof renderAssetTable === 'function') renderAssetTable();
-                    if (typeof updateKPIs === 'function') updateKPIs();
+                // Restore data to correct storage key and refresh UI
+                let restoredCount = 0;
+
+                if (backupData.data.assets && backupData.data.assets.length > 0) {
+                    saveAssetsToStorage(backupData.data.assets);
+                    allAssetsData = backupData.data.assets;
+                    filteredData = allAssetsData;
+                    restoredCount = backupData.data.assets.length;
+                }
+
+                // Restore QR code registry
+                if (backupData.data.qrCodeRegistry) {
+                    saveQRRegistry(backupData.data.qrCodeRegistry);
+                }
+
+                // Restore audit trail
+                if (backupData.data.auditTrail) {
+                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                }
+
+                // Restore departments
+                if (backupData.data.departments && backupData.data.departments.length > 0) {
+                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
                 }
 
                 if (backupData.data.localUserSettings) {
                     localUserSettings = backupData.data.localUserSettings;
                     saveLocalUserSettings();
                 }
+
+                // Refresh the UI with restored data
+                if (typeof loadData === 'function') loadData();
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -5618,7 +5682,7 @@
                 setCloudSyncing(false);
 
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                alert(`Synced from cloud${savedByInfo}`);
+                alert(`Synced from cloud${savedByInfo}\n\nAssets restored: ${restoredCount}`);
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
