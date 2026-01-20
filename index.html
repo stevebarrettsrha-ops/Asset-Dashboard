@@ -7,6 +7,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Html5-QRCode Library for QR Code Scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <!-- OTPAuth Library for 2FA -->
     <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.1/dist/otpauth.umd.min.js"></script>
     <!-- Google Identity Services for OAuth -->
@@ -470,6 +472,299 @@
             margin-top: 15px;
             background: var(--bg-card);
             transition: all 0.3s ease;
+        }
+
+        /* QR Code Subtabs */
+        .qr-subtabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .qr-subtab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: var(--table-hover);
+            color: var(--text-primary);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .qr-subtab-btn:hover {
+            background: var(--bg-card);
+        }
+
+        .qr-subtab-btn.active {
+            background: var(--primary-green);
+            color: white;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .qr-section {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Scanner Container */
+        .scanner-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .scanner-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .scanner-header p {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+        }
+
+        .scanner-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .scanner-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            font-size: 1.1em;
+        }
+
+        .scanner-btn.stop-btn {
+            background: #e74c3c;
+        }
+
+        .scanner-btn.stop-btn:hover {
+            background: #c0392b;
+        }
+
+        .btn-icon {
+            font-size: 1.2em;
+        }
+
+        .scanner-preview {
+            background: #1a1a2e;
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .scanner-placeholder {
+            text-align: center;
+            color: #888;
+            padding: 40px;
+        }
+
+        .scanner-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .scanner-placeholder p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .scanner-hint {
+            font-size: 0.9em !important;
+            color: #666 !important;
+        }
+
+        /* Scanner video styling */
+        #qrScannerPreview video {
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        #qrScannerPreview #qr-shaded-region {
+            border-width: 50px !important;
+        }
+
+        /* Manual Entry Section */
+        .manual-entry-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .divider-text {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+
+        .manual-entry-row {
+            display: flex;
+            gap: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .manual-entry-row input {
+            flex: 1;
+        }
+
+        /* Scan Result Styles */
+        .scan-result {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            animation: slideUp 0.3s ease;
+        }
+
+        .scan-not-found {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            text-align: center;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scan-result-header, .not-found-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .not-found-header {
+            justify-content: center;
+        }
+
+        .success-icon, .error-icon {
+            font-size: 2em;
+        }
+
+        .scan-result-header h3 {
+            color: #155724;
+            font-size: 1.4em;
+            margin: 0;
+        }
+
+        .not-found-header h3 {
+            color: #721c24;
+            font-size: 1.4em;
+            margin: 0;
+        }
+
+        .scan-not-found p {
+            color: #721c24;
+            margin-bottom: 20px;
+        }
+
+        #scanResultContent {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        #scanResultContent .asset-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        #scanResultContent .asset-info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        #scanResultContent .asset-info-item.full-width {
+            grid-column: span 2;
+        }
+
+        #scanResultContent .asset-info-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        #scanResultContent .asset-info-value {
+            font-size: 1.05em;
+            color: #333;
+            font-weight: 500;
+        }
+
+        #scanResultContent .asset-info-value.highlight {
+            color: #28a745;
+            font-weight: 700;
+        }
+
+        .scan-result-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .secondary-btn {
+            background: #6c757d !important;
+        }
+
+        .secondary-btn:hover {
+            background: #5a6268 !important;
+        }
+
+        /* Responsive adjustments for scanner */
+        @media (max-width: 600px) {
+            .scanner-controls {
+                flex-direction: column;
+            }
+
+            .scanner-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .manual-entry-row {
+                flex-direction: column;
+            }
+
+            #scanResultContent .asset-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #scanResultContent .asset-info-item.full-width {
+                grid-column: span 1;
+            }
+
+            .scan-result-actions {
+                flex-direction: column;
+            }
         }
 
         .audit-entry {
@@ -3262,23 +3557,88 @@
 
             <!-- QR Code Generator -->
             <div class="barcode-generator" id="qrcodeTab" style="display: none;">
-                <h2 class="section-title">📱 Asset QR Code Generator</h2>
-                <div class="calc-grid">
-                    <input type="text" id="qrAssetCode" class="calc-input" placeholder="Asset Code (e.g., MPH-001-2025)">
-                    <select id="qrDataFormat" class="calc-input">
-                        <option value="basic">Basic Asset Code</option>
-                        <option value="detailed">Asset Code + Description</option>
-                        <option value="full">Full Asset Information</option>
-                        <option value="url">Hospital Asset URL</option>
-                    </select>
+                <h2 class="section-title">📱 Asset QR Code Generator & Scanner</h2>
+
+                <!-- QR Sub-tabs -->
+                <div class="qr-subtabs">
+                    <button class="qr-subtab-btn active" onclick="switchQRSubtab('generate', this)">Generate QR Code</button>
+                    <button class="qr-subtab-btn" onclick="switchQRSubtab('scan', this)">Scan QR Code</button>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <button class="search-btn" onclick="generateQRCode()">Generate QR Code</button>
-                    <button class="search-btn" onclick="generateBatchQR()" style="margin-left: 10px;">Generate Batch QR</button>
+
+                <!-- Generate QR Code Section -->
+                <div id="qrGenerateSection" class="qr-section">
+                    <div class="calc-grid">
+                        <input type="text" id="qrAssetCode" class="calc-input" placeholder="Asset Code (e.g., MPH-001-2025)">
+                        <select id="qrDataFormat" class="calc-input">
+                            <option value="basic">Basic Asset Code</option>
+                            <option value="detailed">Asset Code + Description</option>
+                            <option value="full">Full Asset Information</option>
+                            <option value="url">Hospital Asset URL</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <button class="search-btn" onclick="generateQRCode()">Generate QR Code</button>
+                        <button class="search-btn" onclick="generateBatchQR()" style="margin-left: 10px;">Generate Batch QR</button>
+                    </div>
+                    <div class="barcode-output" id="qrOutput">
+                        <p>Enter an asset code to generate QR code</p>
+                        <p><small>QR codes can be scanned by any smartphone to quickly access asset information</small></p>
+                    </div>
                 </div>
-                <div class="barcode-output" id="qrOutput">
-                    <p>Enter an asset code to generate QR code</p>
-                    <p><small>QR codes can be scanned by any smartphone to quickly access asset information</small></p>
+
+                <!-- Scan QR Code Section -->
+                <div id="qrScanSection" class="qr-section" style="display: none;">
+                    <div class="scanner-container">
+                        <div class="scanner-header">
+                            <p>Use your device camera to scan an asset QR code</p>
+                        </div>
+
+                        <div class="scanner-controls">
+                            <button class="search-btn scanner-btn" id="startScannerBtn" onclick="startQRScanner()">
+                                <span class="btn-icon">📷</span> Start Camera Scanner
+                            </button>
+                            <button class="search-btn scanner-btn stop-btn" id="stopScannerBtn" onclick="stopQRScanner()" style="display: none;">
+                                <span class="btn-icon">⏹️</span> Stop Scanner
+                            </button>
+                        </div>
+
+                        <div id="qrScannerPreview" class="scanner-preview">
+                            <div class="scanner-placeholder">
+                                <div class="scanner-icon">📱</div>
+                                <p>Click "Start Camera Scanner" to begin</p>
+                                <p class="scanner-hint">Position the QR code within the camera view</p>
+                            </div>
+                        </div>
+
+                        <div class="manual-entry-section">
+                            <p class="divider-text">Or enter asset code manually</p>
+                            <div class="manual-entry-row">
+                                <input type="text" id="manualAssetCodeInput" class="calc-input" placeholder="Enter Asset Code (e.g., MPH-001-2025)">
+                                <button class="search-btn" onclick="lookupAssetManually()">Look Up Asset</button>
+                            </div>
+                        </div>
+
+                        <div id="scanResult" class="scan-result" style="display: none;">
+                            <div class="scan-result-header">
+                                <span class="success-icon">✅</span>
+                                <h3>Asset Found</h3>
+                            </div>
+                            <div id="scanResultContent"></div>
+                            <div class="scan-result-actions">
+                                <button class="search-btn" onclick="viewFullAssetDetails()">View Full Details</button>
+                                <button class="search-btn secondary-btn" onclick="scanAnotherQR()">Scan Another</button>
+                            </div>
+                        </div>
+
+                        <div id="scanNotFound" class="scan-not-found" style="display: none;">
+                            <div class="not-found-header">
+                                <span class="error-icon">❌</span>
+                                <h3>Asset Not Found</h3>
+                            </div>
+                            <p id="notFoundMessage"></p>
+                            <button class="search-btn secondary-btn" onclick="scanAnotherQR()">Try Again</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -7622,6 +7982,259 @@
                 </html>
             `);
             printWindow.document.close();
+        }
+
+        // ============================================
+        // QR CODE SCANNER FUNCTIONALITY
+        // ============================================
+
+        let html5QrScanner = null;
+        let lastScannedAsset = null;
+
+        // Switch between Generate and Scan subtabs
+        function switchQRSubtab(subtab, button) {
+            // Update button states
+            document.querySelectorAll('.qr-subtab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            // Show/hide sections
+            const generateSection = document.getElementById('qrGenerateSection');
+            const scanSection = document.getElementById('qrScanSection');
+
+            if (subtab === 'generate') {
+                generateSection.style.display = 'block';
+                scanSection.style.display = 'none';
+                // Stop scanner if running
+                stopQRScanner();
+            } else {
+                generateSection.style.display = 'none';
+                scanSection.style.display = 'block';
+            }
+        }
+
+        // Start the QR Code Scanner
+        function startQRScanner() {
+            const previewElement = document.getElementById('qrScannerPreview');
+            const startBtn = document.getElementById('startScannerBtn');
+            const stopBtn = document.getElementById('stopScannerBtn');
+
+            // Clear previous content
+            previewElement.innerHTML = '';
+
+            // Hide start button, show stop button
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+
+            // Hide previous results
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scanNotFound').style.display = 'none';
+
+            // Initialize the scanner
+            html5QrScanner = new Html5Qrcode('qrScannerPreview');
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            html5QrScanner.start(
+                { facingMode: 'environment' }, // Use back camera on mobile
+                config,
+                onScanSuccess,
+                onScanFailure
+            ).catch(err => {
+                console.error('Scanner start error:', err);
+                previewElement.innerHTML = `
+                    <div class="scanner-placeholder">
+                        <div class="scanner-icon">⚠️</div>
+                        <p style="color: #e74c3c;">Camera access denied or not available</p>
+                        <p class="scanner-hint">Please allow camera permissions and try again</p>
+                        <p class="scanner-hint" style="margin-top: 15px;">You can also enter the asset code manually below</p>
+                    </div>
+                `;
+                startBtn.style.display = 'inline-flex';
+                stopBtn.style.display = 'none';
+            });
+        }
+
+        // Stop the QR Code Scanner
+        function stopQRScanner() {
+            const startBtn = document.getElementById('startScannerBtn');
+            const stopBtn = document.getElementById('stopScannerBtn');
+
+            if (html5QrScanner) {
+                html5QrScanner.stop().then(() => {
+                    html5QrScanner.clear();
+                    html5QrScanner = null;
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                });
+            }
+
+            // Reset preview
+            const previewElement = document.getElementById('qrScannerPreview');
+            previewElement.innerHTML = `
+                <div class="scanner-placeholder">
+                    <div class="scanner-icon">📱</div>
+                    <p>Click "Start Camera Scanner" to begin</p>
+                    <p class="scanner-hint">Position the QR code within the camera view</p>
+                </div>
+            `;
+
+            // Show start button, hide stop button
+            if (startBtn) startBtn.style.display = 'inline-flex';
+            if (stopBtn) stopBtn.style.display = 'none';
+        }
+
+        // Handle successful QR scan
+        function onScanSuccess(decodedText, decodedResult) {
+            // Stop the scanner after successful scan
+            stopQRScanner();
+
+            // Extract asset code from the scanned URL or text
+            let assetCode = extractAssetCode(decodedText);
+
+            if (assetCode) {
+                lookupAndDisplayAsset(assetCode);
+            } else {
+                showScanNotFound(`Could not parse asset code from: ${decodedText}`);
+            }
+        }
+
+        // Handle scan failures (called frequently when no QR is detected)
+        function onScanFailure(error) {
+            // Ignore - this is called when no QR code is in view
+        }
+
+        // Extract asset code from scanned text (URL or plain text)
+        function extractAssetCode(text) {
+            // If it's a URL with asset parameter
+            try {
+                const url = new URL(text);
+                const assetParam = url.searchParams.get('asset');
+                if (assetParam) {
+                    return decodeURIComponent(assetParam);
+                }
+            } catch (e) {
+                // Not a valid URL, treat as plain asset code
+            }
+
+            // Check if it looks like an asset code (e.g., MPH-001-2025)
+            const assetCodePattern = /^[A-Z]{2,5}-[A-Z]{0,3}-?\d{1,4}-?\d{0,4}-?\d{2,4}$/i;
+            if (assetCodePattern.test(text.trim())) {
+                return text.trim();
+            }
+
+            // Also accept broader patterns
+            if (text.trim().length > 0 && text.trim().length < 50) {
+                return text.trim();
+            }
+
+            return null;
+        }
+
+        // Look up asset and display result
+        function lookupAndDisplayAsset(assetCode) {
+            const assets = loadAssetsFromStorage();
+            const asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            if (asset) {
+                lastScannedAsset = asset;
+                showScanResult(asset);
+            } else {
+                showScanNotFound(`Asset with code "${assetCode}" was not found in the database.`);
+            }
+        }
+
+        // Manual asset lookup
+        function lookupAssetManually() {
+            const input = document.getElementById('manualAssetCodeInput');
+            const assetCode = input.value.trim();
+
+            if (!assetCode) {
+                alert('Please enter an asset code');
+                return;
+            }
+
+            lookupAndDisplayAsset(assetCode);
+        }
+
+        // Display scan result
+        function showScanResult(asset) {
+            const resultDiv = document.getElementById('scanResult');
+            const contentDiv = document.getElementById('scanResultContent');
+            const notFoundDiv = document.getElementById('scanNotFound');
+
+            notFoundDiv.style.display = 'none';
+
+            contentDiv.innerHTML = `
+                <div class="asset-info-grid">
+                    <div class="asset-info-item full-width">
+                        <div class="asset-info-label">Asset Code</div>
+                        <div class="asset-info-value highlight">${escapeHtml(asset.assetCode)}</div>
+                    </div>
+                    <div class="asset-info-item full-width">
+                        <div class="asset-info-label">Description</div>
+                        <div class="asset-info-value">${escapeHtml(asset.description)}</div>
+                    </div>
+                    <div class="asset-info-item">
+                        <div class="asset-info-label">Category</div>
+                        <div class="asset-info-value">${escapeHtml(asset.category)}</div>
+                    </div>
+                    <div class="asset-info-item">
+                        <div class="asset-info-label">Department</div>
+                        <div class="asset-info-value">${escapeHtml(asset.department || 'N/A')}</div>
+                    </div>
+                    <div class="asset-info-item">
+                        <div class="asset-info-label">Source</div>
+                        <div class="asset-info-value">${escapeHtml(asset.source)}</div>
+                    </div>
+                    <div class="asset-info-item">
+                        <div class="asset-info-label">Date Acquired</div>
+                        <div class="asset-info-value">${escapeHtml(asset.dateIn)}</div>
+                    </div>
+                    <div class="asset-info-item full-width">
+                        <div class="asset-info-label">Total Value</div>
+                        <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
+                    </div>
+                </div>
+            `;
+
+            resultDiv.style.display = 'block';
+
+            // Scroll to result
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Show asset not found message
+        function showScanNotFound(message) {
+            const resultDiv = document.getElementById('scanResult');
+            const notFoundDiv = document.getElementById('scanNotFound');
+            const messageEl = document.getElementById('notFoundMessage');
+
+            resultDiv.style.display = 'none';
+            messageEl.textContent = message;
+            notFoundDiv.style.display = 'block';
+
+            // Scroll to result
+            notFoundDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // View full details of scanned asset
+        function viewFullAssetDetails() {
+            if (lastScannedAsset) {
+                showPublicAssetViewer(lastScannedAsset.assetCode);
+            }
+        }
+
+        // Scan another QR code
+        function scanAnotherQR() {
+            document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('scanNotFound').style.display = 'none';
+            document.getElementById('manualAssetCodeInput').value = '';
+            lastScannedAsset = null;
+            startQRScanner();
         }
 
         // ============================================
