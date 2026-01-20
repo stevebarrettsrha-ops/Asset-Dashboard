@@ -7709,6 +7709,63 @@
         }
 
         // ============================================
+        // QR CODE REGISTRY (Persistent Storage)
+        // ============================================
+
+        // Load QR code registry from localStorage
+        function loadQRRegistry() {
+            const stored = localStorage.getItem('qrCodeRegistry');
+            return stored ? JSON.parse(stored) : {};
+        }
+
+        // Save QR code registry to localStorage
+        function saveQRRegistry(registry) {
+            localStorage.setItem('qrCodeRegistry', JSON.stringify(registry));
+        }
+
+        // Register a QR code with asset data
+        function registerQRCode(assetCode, assetData) {
+            const registry = loadQRRegistry();
+            registry[assetCode.toLowerCase()] = {
+                assetCode: assetData.assetCode || assetCode,
+                description: assetData.description || 'No description',
+                category: assetData.category || 'Unknown',
+                itemType: assetData.itemType || 'N/A',
+                source: assetData.source || 'Unknown',
+                dateIn: assetData.dateIn || 'N/A',
+                quantity: assetData.quantity || 1,
+                unitPrice: assetData.unitPrice || 0,
+                totalPrice: assetData.totalPrice || 0,
+                supplier: assetData.supplier || 'N/A',
+                department: assetData.department || 'N/A',
+                serialNumber: assetData.serialNumber || '',
+                modelNumber: assetData.modelNumber || '',
+                registeredAt: new Date().toISOString(),
+                registeredBy: currentUser ? currentUser.username : 'Unknown'
+            };
+            saveQRRegistry(registry);
+            return registry[assetCode.toLowerCase()];
+        }
+
+        // Look up asset from QR registry
+        function lookupFromQRRegistry(assetCode) {
+            const registry = loadQRRegistry();
+            return registry[assetCode.toLowerCase()] || null;
+        }
+
+        // Get all registered QR codes
+        function getAllRegisteredQRCodes() {
+            return loadQRRegistry();
+        }
+
+        // Remove a QR code from registry
+        function removeFromQRRegistry(assetCode) {
+            const registry = loadQRRegistry();
+            delete registry[assetCode.toLowerCase()];
+            saveQRRegistry(registry);
+        }
+
+        // ============================================
         // QR CODE GENERATOR (Real QR Codes with qrcode.js)
         // ============================================
 
@@ -7794,6 +7851,16 @@
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.H
             });
+
+            // Register the QR code in the registry for future lookups
+            if (asset) {
+                registerQRCode(asset.assetCode, asset);
+                console.log('QR code registered for asset:', asset.assetCode);
+            } else {
+                // Register with minimal data if asset not found in current data
+                registerQRCode(assetCode, { assetCode: assetCode });
+                console.log('QR code registered for unknown asset:', assetCode);
+            }
         }
 
         function downloadQRCode(assetCode) {
@@ -7904,7 +7971,12 @@
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.M
                 });
+
+                // Register the QR code in the registry
+                registerQRCode(asset.assetCode, asset);
             });
+
+            console.log(`Batch QR codes registered: ${assets.length} assets`);
         }
 
         async function downloadAllQRCodes() {
@@ -8136,14 +8208,23 @@
 
         // Look up asset and display result
         function lookupAndDisplayAsset(assetCode) {
+            // First try to find in main asset storage
             const assets = loadAssetsFromStorage();
-            const asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+            let asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            // If not found in main storage, check the QR registry
+            if (!asset) {
+                asset = lookupFromQRRegistry(assetCode);
+                if (asset) {
+                    console.log('Asset found in QR registry:', asset.assetCode);
+                }
+            }
 
             if (asset) {
                 lastScannedAsset = asset;
                 showScanResult(asset);
             } else {
-                showScanNotFound(`Asset with code "${assetCode}" was not found in the database.`);
+                showScanNotFound(`Asset with code "${assetCode}" was not found in the database or QR registry.`);
             }
         }
 
@@ -8250,7 +8331,12 @@
 
             // Load assets from localStorage
             const assets = loadAssetsFromStorage();
-            const asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+            let asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            // If not found in main storage, check the QR registry
+            if (!asset) {
+                asset = lookupFromQRRegistry(assetCode);
+            }
 
             if (asset) {
                 content.innerHTML = `
