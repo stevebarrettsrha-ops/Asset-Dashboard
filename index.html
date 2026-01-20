@@ -5106,7 +5106,7 @@
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
-                        assets: typeof assets !== 'undefined' ? assets : [],
+                        assets: loadAssetsFromStorage(),
                         localUserSettings: localUserSettings
                     }
                 };
@@ -5221,12 +5221,12 @@
                     throw new Error('Invalid backup file format');
                 }
 
-                // Restore data
-                if (backupData.data.assets && typeof assets !== 'undefined') {
-                    assets = backupData.data.assets;
-                    localStorage.setItem('fixedAssets', JSON.stringify(assets));
-                    if (typeof renderAssetTable === 'function') renderAssetTable();
-                    if (typeof updateKPIs === 'function') updateKPIs();
+                // Restore data to correct storage key and refresh UI
+                if (backupData.data.assets) {
+                    saveAssetsToStorage(backupData.data.assets);
+                    allAssetsData = backupData.data.assets;
+                    filteredData = allAssetsData;
+                    if (typeof loadData === 'function') loadData();
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -5372,12 +5372,12 @@
                     throw new Error('Invalid backup file format');
                 }
 
-                // Restore data
-                if (backupData.data.assets && typeof assets !== 'undefined') {
-                    assets = backupData.data.assets;
-                    localStorage.setItem('fixedAssets', JSON.stringify(assets));
-                    if (typeof renderAssetTable === 'function') renderAssetTable();
-                    if (typeof updateKPIs === 'function') updateKPIs();
+                // Restore data to correct storage key and refresh UI
+                if (backupData.data.assets) {
+                    saveAssetsToStorage(backupData.data.assets);
+                    allAssetsData = backupData.data.assets;
+                    filteredData = allAssetsData;
+                    if (typeof loadData === 'function') loadData();
                 }
 
                 if (backupData.data.localUserSettings) {
