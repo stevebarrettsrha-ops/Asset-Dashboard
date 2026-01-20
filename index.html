@@ -2134,6 +2134,141 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* Settings Modal Styles */
+        .settings-nav-btn {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .settings-nav-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .settings-nav-btn.active {
+            background: var(--bg-card);
+            border-left-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .settings-tab {
+            display: none;
+        }
+
+        .settings-tab.active {
+            display: block;
+        }
+
+        /* User Management Table */
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .user-table th,
+        .user-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .user-table tr:hover {
+            background: var(--bg-hover);
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .user-action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .user-action-btn.edit {
+            background: var(--info-bg);
+            color: var(--info);
+        }
+
+        .user-action-btn.edit:hover {
+            background: var(--info);
+            color: white;
+        }
+
+        .user-action-btn.password {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .user-action-btn.password:hover {
+            background: var(--warning);
+            color: white;
+        }
+
+        .user-action-btn.delete {
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--danger);
+        }
+
+        .user-action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .user-role-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .user-role-badge.admin {
+            background: rgba(155, 89, 182, 0.15);
+            color: #9b59b6;
+        }
+
+        .user-role-badge.user {
+            background: rgba(52, 152, 219, 0.15);
+            color: #3498db;
+        }
+
+        .user-role-badge.viewer {
+            background: rgba(149, 165, 166, 0.15);
+            color: #7f8c8d;
+        }
+
+        .password-change-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--warning-bg);
+            color: var(--warning);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -2324,6 +2459,178 @@
                     <button class="btn btn-secondary" onclick="closeTwoFADisable()" style="flex: 1;">Cancel</button>
                     <button class="btn btn-danger" onclick="confirmTwoFADisable()" style="flex: 1;">Disable 2FA</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px; max-height: 90vh;">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <div style="display: flex; min-height: 500px;">
+                <!-- Settings Sidebar -->
+                <div style="width: 200px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 15px 0;">
+                    <button class="settings-nav-btn active" onclick="showSettingsTab('security')" id="settingsNavSecurity">
+                        🔐 Security
+                    </button>
+                    <button class="settings-nav-btn" onclick="showSettingsTab('users')" id="settingsNavUsers" style="display: none;">
+                        👥 User Management
+                    </button>
+                    <button class="settings-nav-btn" onclick="showSettingsTab('account')" id="settingsNavAccount">
+                        👤 My Account
+                    </button>
+                </div>
+
+                <!-- Settings Content -->
+                <div style="flex: 1; padding: 25px; overflow-y: auto;">
+                    <!-- Security Tab -->
+                    <div id="settingsTabSecurity" class="settings-tab active">
+                        <h3 style="margin-bottom: 20px; color: var(--text-primary);">🔐 Two-Factor Authentication</h3>
+                        <div id="twoFASettingsContent">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- User Management Tab (Admin Only) -->
+                    <div id="settingsTabUsers" class="settings-tab" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="color: var(--text-primary);">👥 User Management</h3>
+                            <button class="btn btn-success" onclick="openAddUserModal()" style="padding: 8px 16px;">
+                                ➕ Add User
+                            </button>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+                            Manage local user accounts. These users have view-only access to the dashboard.
+                        </p>
+                        <div id="userManagementList">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- My Account Tab -->
+                    <div id="settingsTabAccount" class="settings-tab" style="display: none;">
+                        <h3 style="margin-bottom: 20px; color: var(--text-primary);">👤 My Account</h3>
+                        <div id="myAccountContent">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD/EDIT USER MODAL -->
+    <div id="userModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 id="userModalTitle">➕ Add New User</h2>
+                <button class="close-btn" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div style="padding: 25px;">
+                <form id="userForm" onsubmit="saveUser(event)">
+                    <input type="hidden" id="editingUserId">
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Username *</label>
+                        <input type="text" id="newUsername" class="login-input" placeholder="Enter username" required style="width: 100%;">
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Display Name *</label>
+                        <input type="text" id="newDisplayName" class="login-input" placeholder="Enter display name" required style="width: 100%;">
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Password *</label>
+                        <input type="password" id="newPassword" class="login-input" placeholder="Enter password" style="width: 100%;">
+                        <p id="passwordHint" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;"></p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Role</label>
+                        <select id="newUserRole" class="login-input" style="width: 100%;">
+                            <option value="Viewer">Viewer (View Only)</option>
+                            <option value="User">User (Basic Access)</option>
+                            <option value="Administrator">Administrator (Full Access)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="requirePasswordChange" style="width: 18px; height: 18px;">
+                            <span style="color: var(--text-primary);">Require password change on next login</span>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 15px; margin-top: 25px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeUserModal()" style="flex: 1;">Cancel</button>
+                        <button type="submit" class="btn btn-success" style="flex: 1;">Save User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div id="changePasswordModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🔑 Change Password</h2>
+                <button class="close-btn" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <div style="padding: 25px;">
+                <form id="changePasswordForm" onsubmit="submitPasswordChange(event)">
+                    <input type="hidden" id="changePasswordUserId">
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">New Password *</label>
+                        <input type="password" id="changeNewPassword" class="login-input" placeholder="Enter new password" required style="width: 100%;">
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Confirm Password *</label>
+                        <input type="password" id="changeConfirmPassword" class="login-input" placeholder="Confirm new password" required style="width: 100%;">
+                    </div>
+
+                    <div style="display: flex; gap: 15px; margin-top: 25px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()" style="flex: 1;">Cancel</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Change Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORCED PASSWORD CHANGE MODAL (on login) -->
+    <div id="forcedPasswordChangeModal" class="google-auth-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🔑 Password Change Required</h2>
+            </div>
+            <div style="padding: 25px;">
+                <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <strong style="color: var(--warning);">⚠️ Action Required</strong>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">
+                        You must change your password before continuing.
+                    </p>
+                </div>
+
+                <form id="forcedPasswordChangeForm" onsubmit="submitForcedPasswordChange(event)">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">New Password *</label>
+                        <input type="password" id="forcedNewPassword" class="login-input" placeholder="Enter new password" required style="width: 100%;">
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Confirm Password *</label>
+                        <input type="password" id="forcedConfirmPassword" class="login-input" placeholder="Confirm new password" required style="width: 100%;">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Change Password & Continue</button>
+                </form>
             </div>
         </div>
     </div>
@@ -2635,6 +2942,10 @@
                                 </div>
                             </div>
                             <div class="user-info" id="userInfo"></div>
+                            <!-- Settings Button -->
+                            <button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="Settings" style="background: rgba(255,255,255,0.2); border: none; padding: 10px 15px; border-radius: 8px; color: white; cursor: pointer; font-size: 1.2rem; display: none;">
+                                ⚙️
+                            </button>
                         </div>
                     </div>
 
@@ -3231,6 +3542,9 @@
         let credentialsData = null;
         let pendingTwoFAUser = null;
 
+        // Local users storage (for users created by admin)
+        let localUsers = JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]');
+
         // Local storage for 2FA settings (since we can't write to Google Sheets)
         let localUserSettings = JSON.parse(localStorage.getItem('assetDashboardUserSettings') || '{}');
 
@@ -3299,6 +3613,35 @@
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('loginError');
 
+            // First, check local users
+            const localUser = localUsers.find(u => u.username.toLowerCase() === username && u.password === password);
+
+            if (localUser) {
+                // Local user found and password matches
+                const twoFASettings = getUserTwoFASettings(username);
+                const fullUser = {
+                    ...localUser,
+                    source: 'local',
+                    twoFactorEnabled: twoFASettings?.twoFactorEnabled || false,
+                    twoFactorSecret: twoFASettings?.twoFactorSecret || null,
+                    backupCodes: twoFASettings?.backupCodes || null
+                };
+
+                errorDiv.style.display = 'none';
+                console.log('Local user credentials matched, checking 2FA...');
+
+                if (fullUser.twoFactorEnabled && fullUser.twoFactorSecret) {
+                    pendingTwoFAUser = fullUser;
+                    document.getElementById('loginStep1').style.display = 'none';
+                    document.getElementById('loginStep2FA').style.display = 'block';
+                    document.getElementById('login2FACode').focus();
+                } else {
+                    completeLogin(fullUser);
+                }
+                return;
+            }
+
+            // If not found in local users, check Google Sheets credentials
             if (!credentialsData) {
                 errorDiv.textContent = '⏳ Loading credentials from Google Sheets...';
                 errorDiv.style.display = 'block';
@@ -3324,6 +3667,7 @@
                 const fullUser = {
                     username,
                     ...user,
+                    source: 'sheets',
                     twoFactorEnabled: twoFASettings?.twoFactorEnabled || false,
                     twoFactorSecret: twoFASettings?.twoFactorSecret || null,
                     backupCodes: twoFASettings?.backupCodes || null
@@ -3402,10 +3746,19 @@
                 // Initialize cloud sync
                 initializeCloudSync();
 
+                // Show settings button
+                const settingsBtn = document.getElementById('settingsBtn');
+                if (settingsBtn) settingsBtn.style.display = 'block';
+
                 console.log('Login successful for:', user.username);
 
-                // Prompt to sync from cloud after login
-                promptSyncOnLogin();
+                // Check if user needs to change password (for local users)
+                if (user.requirePasswordChange && user.source === 'local') {
+                    showForcedPasswordChangeModal();
+                } else {
+                    // Prompt to sync from cloud after login
+                    promptSyncOnLogin();
+                }
 
             } catch (error) {
                 console.error('Error during login transition:', error);
@@ -3476,6 +3829,10 @@
                 document.getElementById('loginPage').style.display = 'flex';
                 document.getElementById('loginForm').reset();
                 document.getElementById('loginError').style.display = 'none';
+
+                // Hide settings button
+                const settingsBtn = document.getElementById('settingsBtn');
+                if (settingsBtn) settingsBtn.style.display = 'none';
 
                 // Reset 2FA login state
                 document.getElementById('loginStep1').style.display = 'block';
@@ -4813,6 +5170,452 @@
             window.addEventListener('load', () => {
                 setTimeout(initGoogleAuth, 1000);
             });
+        }
+
+        // ============================================
+        // SETTINGS & USER MANAGEMENT
+        // ============================================
+
+        function saveLocalUsers() {
+            localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+        }
+
+        // Open settings modal
+        function openSettings() {
+            // Show settings button visibility is controlled in completeLogin
+            const settingsModal = document.getElementById('settingsModal');
+            settingsModal.style.display = 'flex';
+
+            // Show/hide User Management tab based on role
+            const userManagementNav = document.getElementById('settingsNavUsers');
+            if (currentUser && (currentUser.role === 'Administrator' || currentUser.isAdmin)) {
+                userManagementNav.style.display = 'block';
+            } else {
+                userManagementNav.style.display = 'none';
+            }
+
+            // Default to security tab
+            showSettingsTab('security');
+        }
+
+        // Close settings modal
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        // Show specific settings tab
+        function showSettingsTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.settings-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.display = 'none';
+            });
+
+            // Remove active from all nav buttons
+            document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            const selectedTab = document.getElementById(`settingsTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+                selectedTab.style.display = 'block';
+            }
+
+            // Add active to selected nav button
+            const selectedNav = document.getElementById(`settingsNav${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            if (selectedNav) {
+                selectedNav.classList.add('active');
+            }
+
+            // Render content based on tab
+            if (tabName === 'security') {
+                render2FASettings();
+            } else if (tabName === 'users') {
+                renderUserManagement();
+            } else if (tabName === 'account') {
+                renderMyAccount();
+            }
+        }
+
+        // Render 2FA settings content
+        function render2FASettings() {
+            const container = document.getElementById('twoFASettingsContent');
+            if (!container || !currentUser) return;
+
+            const twoFASettings = getUserTwoFASettings(currentUser.username);
+            const is2FAEnabled = twoFASettings?.twoFactorEnabled || false;
+
+            if (is2FAEnabled) {
+                const unusedCodes = twoFASettings.backupCodes ?
+                    twoFASettings.backupCodes.filter(bc => !bc.used).length : 0;
+
+                container.innerHTML = `
+                    <div class="twofa-success" style="margin-bottom: 20px;">
+                        <strong>✅ Two-Factor Authentication is ENABLED</strong>
+                        <p style="margin-top: 8px; color: var(--text-secondary);">Your account is protected with an authenticator app.</p>
+                        <p style="margin-top: 4px; font-size: 0.9rem; color: var(--text-secondary);">Backup codes remaining: ${unusedCodes}/8</p>
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" onclick="showBackupCodes()" style="padding: 10px 16px;">
+                            🔑 View Backup Codes
+                        </button>
+                        <button class="btn btn-warning" onclick="regenerateBackupCodes()" style="padding: 10px 16px;">
+                            🔄 Regenerate Codes
+                        </button>
+                        <button class="btn btn-danger" onclick="openTwoFADisable()" style="padding: 10px 16px;">
+                            🔓 Disable 2FA
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="background: var(--bg-secondary); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <strong style="color: var(--text-primary);">🔒 Two-Factor Authentication is DISABLED</strong>
+                        <p style="margin-top: 8px; color: var(--text-secondary);">
+                            Add an extra layer of security to your account using Google Authenticator or any TOTP-compatible app.
+                        </p>
+                    </div>
+                    <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                        <strong style="color: var(--info);">💡 How it works:</strong>
+                        <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 0.9rem;">
+                            <li>Enable 2FA below</li>
+                            <li>Scan QR code with Google Authenticator</li>
+                            <li>Enter the 6-digit code to verify</li>
+                            <li>Save your backup codes securely</li>
+                        </ol>
+                    </div>
+                    <button class="btn btn-success" onclick="openTwoFASetup()" style="padding: 12px 24px;">
+                        🔐 Enable Two-Factor Authentication
+                    </button>
+                `;
+            }
+        }
+
+        // Render user management (admin only)
+        function renderUserManagement() {
+            const container = document.getElementById('userManagementList');
+            if (!container) return;
+
+            // Combine Google Sheets users (read-only display) and local users
+            let allUsers = [];
+
+            // Add local users (editable)
+            localUsers.forEach(user => {
+                allUsers.push({
+                    ...user,
+                    source: 'local',
+                    editable: true
+                });
+            });
+
+            if (allUsers.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <span style="font-size: 3rem; display: block; margin-bottom: 15px;">👥</span>
+                        <p>No local users created yet.</p>
+                        <p style="font-size: 0.9rem; margin-top: 10px;">Click "Add User" to create a new user account.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let tableHTML = `
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Display Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            allUsers.forEach(user => {
+                const roleClass = user.role === 'Administrator' ? 'admin' : (user.role === 'User' ? 'user' : 'viewer');
+                const passwordChangeBadge = user.requirePasswordChange ?
+                    '<span class="password-change-badge">Password Change Required</span>' : '';
+
+                tableHTML += `
+                    <tr>
+                        <td><strong>${user.username}</strong></td>
+                        <td>${user.displayName}${passwordChangeBadge}</td>
+                        <td><span class="user-role-badge ${roleClass}">${user.role}</span></td>
+                        <td>${user.source === 'local' ? '🏠 Local' : '☁️ Cloud'}</td>
+                        <td>
+                            <div class="user-actions">
+                                ${user.editable ? `
+                                    <button class="user-action-btn edit" onclick="editUser('${user.id}')" title="Edit">✏️</button>
+                                    <button class="user-action-btn password" onclick="promptPasswordChange('${user.id}')" title="Change Password">🔑</button>
+                                    <button class="user-action-btn delete" onclick="deleteUser('${user.id}')" title="Delete">🗑️</button>
+                                ` : '<span style="color: var(--text-muted); font-size: 0.85rem;">Read-only</span>'}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        // Render my account section
+        function renderMyAccount() {
+            const container = document.getElementById('myAccountContent');
+            if (!container || !currentUser) return;
+
+            container.innerHTML = `
+                <div style="background: var(--bg-secondary); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <span style="font-size: 3rem;">👤</span>
+                        <div>
+                            <h4 style="color: var(--text-primary); margin: 0;">${currentUser.displayName}</h4>
+                            <p style="color: var(--text-secondary); margin: 5px 0 0 0;">@${currentUser.username}</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                        <div>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">Role</span>
+                            <p style="color: var(--text-primary); font-weight: 600; margin: 5px 0 0 0;">${currentUser.role}</p>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">2FA Status</span>
+                            <p style="color: var(--text-primary); font-weight: 600; margin: 5px 0 0 0;">
+                                ${currentUser.twoFactorEnabled ? '✅ Enabled' : '❌ Disabled'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 15px; color: var(--text-primary);">Quick Actions</h4>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="showSettingsTab('security')" style="text-align: left; padding: 12px 16px;">
+                        🔐 Manage Two-Factor Authentication
+                    </button>
+                </div>
+            `;
+        }
+
+        // Open add user modal
+        function openAddUserModal() {
+            document.getElementById('userModalTitle').textContent = '➕ Add New User';
+            document.getElementById('editingUserId').value = '';
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newDisplayName').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newPassword').required = true;
+            document.getElementById('passwordHint').textContent = '';
+            document.getElementById('newUserRole').value = 'Viewer';
+            document.getElementById('requirePasswordChange').checked = false;
+            document.getElementById('newUsername').disabled = false;
+
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        // Edit user
+        function editUser(userId) {
+            const user = localUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById('userModalTitle').textContent = '✏️ Edit User';
+            document.getElementById('editingUserId').value = userId;
+            document.getElementById('newUsername').value = user.username;
+            document.getElementById('newUsername').disabled = true; // Can't change username
+            document.getElementById('newDisplayName').value = user.displayName;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('newPassword').required = false;
+            document.getElementById('passwordHint').textContent = 'Leave blank to keep current password';
+            document.getElementById('newUserRole').value = user.role;
+            document.getElementById('requirePasswordChange').checked = user.requirePasswordChange || false;
+
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        // Close user modal
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        // Save user (add or edit)
+        function saveUser(event) {
+            event.preventDefault();
+
+            const editingId = document.getElementById('editingUserId').value;
+            const username = document.getElementById('newUsername').value.trim().toLowerCase();
+            const displayName = document.getElementById('newDisplayName').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newUserRole').value;
+            const requirePasswordChange = document.getElementById('requirePasswordChange').checked;
+
+            if (!username || !displayName) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            if (editingId) {
+                // Editing existing user
+                const userIndex = localUsers.findIndex(u => u.id === editingId);
+                if (userIndex !== -1) {
+                    localUsers[userIndex].displayName = displayName;
+                    localUsers[userIndex].role = role;
+                    localUsers[userIndex].requirePasswordChange = requirePasswordChange;
+                    if (password) {
+                        localUsers[userIndex].password = password;
+                    }
+                }
+            } else {
+                // Adding new user
+                // Check if username already exists
+                if (localUsers.some(u => u.username.toLowerCase() === username)) {
+                    alert('Username already exists');
+                    return;
+                }
+                if (credentialsData && credentialsData[username]) {
+                    alert('Username already exists in Google Sheets credentials');
+                    return;
+                }
+
+                if (!password) {
+                    alert('Password is required for new users');
+                    return;
+                }
+
+                const newUser = {
+                    id: 'local_' + Date.now(),
+                    username: username,
+                    displayName: displayName,
+                    password: password,
+                    role: role,
+                    requirePasswordChange: requirePasswordChange,
+                    canExport: role === 'Administrator',
+                    canRefresh: role !== 'Viewer',
+                    createdAt: new Date().toISOString()
+                };
+
+                localUsers.push(newUser);
+            }
+
+            saveLocalUsers();
+            closeUserModal();
+            renderUserManagement();
+            alert(editingId ? 'User updated successfully!' : 'User added successfully!');
+        }
+
+        // Delete user
+        function deleteUser(userId) {
+            const user = localUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            if (!confirm(`Are you sure you want to delete user "${user.displayName}"?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            localUsers = localUsers.filter(u => u.id !== userId);
+            saveLocalUsers();
+
+            // Also remove their 2FA settings
+            if (localUserSettings[user.username.toLowerCase()]) {
+                delete localUserSettings[user.username.toLowerCase()];
+                saveLocalUserSettings();
+            }
+
+            renderUserManagement();
+            alert('User deleted successfully!');
+        }
+
+        // Prompt password change for user
+        function promptPasswordChange(userId) {
+            const user = localUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById('changePasswordUserId').value = userId;
+            document.getElementById('changeNewPassword').value = '';
+            document.getElementById('changeConfirmPassword').value = '';
+            document.getElementById('changePasswordModal').style.display = 'flex';
+        }
+
+        // Close change password modal
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+        }
+
+        // Submit password change
+        function submitPasswordChange(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('changePasswordUserId').value;
+            const newPassword = document.getElementById('changeNewPassword').value;
+            const confirmPassword = document.getElementById('changeConfirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            if (newPassword.length < 4) {
+                alert('Password must be at least 4 characters long');
+                return;
+            }
+
+            const userIndex = localUsers.findIndex(u => u.id === userId);
+            if (userIndex !== -1) {
+                localUsers[userIndex].password = newPassword;
+                localUsers[userIndex].requirePasswordChange = false;
+                saveLocalUsers();
+            }
+
+            closeChangePasswordModal();
+            renderUserManagement();
+            alert('Password changed successfully!');
+        }
+
+        // Handle forced password change on login
+        function showForcedPasswordChangeModal() {
+            document.getElementById('forcedNewPassword').value = '';
+            document.getElementById('forcedConfirmPassword').value = '';
+            document.getElementById('forcedPasswordChangeModal').style.display = 'flex';
+        }
+
+        function submitForcedPasswordChange(event) {
+            event.preventDefault();
+
+            const newPassword = document.getElementById('forcedNewPassword').value;
+            const confirmPassword = document.getElementById('forcedConfirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            if (newPassword.length < 4) {
+                alert('Password must be at least 4 characters long');
+                return;
+            }
+
+            // Update password for current user
+            if (currentUser && currentUser.source === 'local') {
+                const userIndex = localUsers.findIndex(u => u.id === currentUser.id);
+                if (userIndex !== -1) {
+                    localUsers[userIndex].password = newPassword;
+                    localUsers[userIndex].requirePasswordChange = false;
+                    saveLocalUsers();
+                    currentUser.requirePasswordChange = false;
+                }
+            }
+
+            document.getElementById('forcedPasswordChangeModal').style.display = 'none';
+            alert('Password changed successfully!');
+
+            // Continue with login flow
+            promptSyncOnLogin();
         }
 
         // ============================================
