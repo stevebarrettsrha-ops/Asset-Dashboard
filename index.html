@@ -6,6 +6,7 @@
     <title>Fixed Asset Management Dashboard - May Pen Hospital</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1151,6 +1152,48 @@
             background: var(--dark-orange);
         }
 
+        /* Save Button - Blue theme for manual save */
+        .save-btn {
+            background: #3498db;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background: #2980b9;
+        }
+
+        .save-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Sync Button - Purple theme for data synchronization */
+        .sync-btn {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .sync-btn:hover {
+            background: #8e44ad;
+        }
+
+        .sync-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sync-btn.syncing {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
         .btn-edit {
             background: var(--primary-orange);
             color: white;
@@ -1189,6 +1232,552 @@
             justify-content: space-between;
             align-items: center;
         }
+
+        /* Public Asset Viewer Styles */
+        .public-asset-viewer {
+            display: none;
+            position: fixed;
+            z-index: 99999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            overflow: auto;
+        }
+
+        .public-asset-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .public-asset-header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .public-asset-header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .public-asset-header p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .public-asset-body {
+            background: white;
+            padding: 25px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .asset-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .asset-info-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #FF6B35;
+        }
+
+        .asset-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .asset-info-label {
+            font-size: 0.8em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .asset-info-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2C3E50;
+        }
+
+        .asset-info-value.highlight {
+            color: #FF6B35;
+            font-size: 1.3em;
+        }
+
+        .public-asset-footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        .close-public-viewer {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 12px;
+            border-radius: 5px;
+        }
+
+        .close-public-viewer:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* QR Code Display Styles */
+        .qr-code-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .qr-code-wrapper {
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .qr-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .qr-download-btn {
+            padding: 10px 20px;
+            background: #2ECC71;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .qr-download-btn:hover {
+            background: #27AE60;
+            transform: translateY(-2px);
+        }
+
+        .batch-qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .batch-qr-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .batch-qr-item h4 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            color: #2C3E50;
+            word-break: break-all;
+        }
+
+        .batch-qr-item p {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        /* ============================================
+           ASSET IMPORT DASHBOARD STYLES
+           ============================================ */
+        .import-dashboard {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+            transition: background 0.3s ease;
+        }
+
+        .import-dropzone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: var(--table-hover);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .import-dropzone:hover,
+        .import-dropzone.drag-over {
+            border-color: var(--primary-green);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .import-dropzone-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .import-dropzone-text {
+            font-size: 1.2em;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .import-dropzone-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .import-file-input {
+            display: none;
+        }
+
+        .import-progress {
+            display: none;
+            margin: 20px 0;
+        }
+
+        .import-progress-bar {
+            height: 10px;
+            background: var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .import-progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .import-progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: var(--text-secondary);
+        }
+
+        .import-mapping-section {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            background: var(--table-hover);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .import-mapping-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .import-mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .import-mapping-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .import-mapping-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .import-mapping-label .required {
+            color: #e74c3c;
+        }
+
+        .import-mapping-select {
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .import-mapping-select:focus {
+            outline: none;
+            border-color: var(--primary-green);
+        }
+
+        .import-mapping-select.mapped {
+            border-color: var(--primary-green);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .import-mapping-select.error {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .import-preview-section {
+            display: none;
+            margin-top: 25px;
+        }
+
+        .import-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .import-preview-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .import-preview-stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .import-preview-stat {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .import-preview-stat.valid {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--dark-green);
+        }
+
+        .import-preview-stat.invalid {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+        }
+
+        .import-preview-stat.duplicate {
+            background: rgba(241, 196, 15, 0.1);
+            color: #9a7b0a;
+        }
+
+        .import-preview-table {
+            max-height: 400px;
+            overflow: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .import-preview-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .import-preview-table th {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+
+        .import-preview-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .import-preview-table tr.valid-row {
+            background: rgba(46, 204, 113, 0.05);
+        }
+
+        .import-preview-table tr.invalid-row {
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .import-preview-table tr.duplicate-row {
+            background: rgba(241, 196, 15, 0.1);
+        }
+
+        .import-row-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .import-row-status.valid {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .import-row-status.invalid {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .import-row-status.duplicate {
+            background: #f39c12;
+            color: white;
+        }
+
+        .import-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .import-action-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .import-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .import-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .import-action-btn.primary {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+        }
+
+        .import-action-btn.secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .import-action-btn.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .import-options {
+            margin: 20px 0;
+            padding: 15px;
+            background: var(--table-hover);
+            border-radius: 8px;
+        }
+
+        .import-options-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .import-option-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            color: var(--text-primary);
+        }
+
+        .import-option-item input[type="checkbox"],
+        .import-option-item input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .import-summary {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .import-summary-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .import-summary-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .import-summary-details {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .import-field-help {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            background: var(--border-color);
+            border-radius: 50%;
+            font-size: 0.75em;
+            cursor: help;
+            margin-left: 5px;
+        }
+
+        .import-detected-format {
+            display: none;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-green);
+        }
+
+        .import-detected-format h4 {
+            color: var(--dark-green);
+            margin-bottom: 8px;
+        }
+
+        .import-detected-format p {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -1196,6 +1785,24 @@
     <button class="night-mode-toggle" id="nightModeBtn" onclick="toggleNightMode()" title="Toggle Night Mode" style="display: none;">
         <span id="nightModeIcon">🌙</span>
     </button>
+
+    <!-- PUBLIC ASSET VIEWER (Accessible via QR Code scan without login) -->
+    <div class="public-asset-viewer" id="publicAssetViewer">
+        <div class="public-asset-container">
+            <div class="public-asset-header" style="position: relative;">
+                <button class="close-public-viewer" onclick="closePublicAssetViewer()">&times;</button>
+                <h1>May Pen Hospital</h1>
+                <p>Fixed Asset Information</p>
+            </div>
+            <div class="public-asset-body" id="publicAssetContent">
+                <!-- Asset details will be loaded here -->
+            </div>
+            <div class="public-asset-footer">
+                <p>Scanned via QR Code</p>
+                <p>&copy; <span id="publicCopyrightYear"></span> May Pen Hospital - Fixed Asset Management System</p>
+            </div>
+        </div>
+    </div>
 
     <!-- LOGIN PAGE -->
     <div class="login-container" id="loginPage">
@@ -1356,6 +1963,137 @@
         </div>
     </div>
 
+    <!-- DATA SYNC & TRANSFER MODAL -->
+    <div id="dataSyncModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Data Sync & Transfer</h2>
+                <span class="close-modal" onclick="closeDataSyncModal()">&times;</span>
+            </div>
+            <div style="padding: 30px;">
+                <!-- Export Section -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-top: 0; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: var(--primary-green); color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">EXPORT</span>
+                        Download Your Data
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Export all your data to transfer to another device or for backup.</p>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <button class="btn-primary" onclick="exportCompleteData()">
+                            📦 Complete Backup (JSON)
+                        </button>
+                        <button class="btn-secondary" onclick="exportToExcel()">
+                            📊 Assets Only (Excel)
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--primary-green);">
+                        <strong style="color: var(--text-primary);">Complete Backup includes:</strong>
+                        <ul style="margin: 10px 0 0 20px; color: var(--text-secondary);">
+                            <li>All asset records</li>
+                            <li>Audit trail history</li>
+                            <li>Custom departments</li>
+                            <li>Warranty overrides</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Import Section -->
+                <div style="margin-bottom: 30px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <h3 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: var(--primary-orange); color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">IMPORT</span>
+                        Load Data from Backup
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Import data from a backup file or cloud storage link.</p>
+
+                    <!-- Import Mode Selection -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">Import Mode:</label>
+                        <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
+                            <input type="radio" name="importMode" value="replace" checked style="margin-right: 8px;">
+                            <span style="color: var(--text-primary);">Replace all data</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="importMode" value="merge" style="margin-right: 8px;">
+                            <span style="color: var(--text-primary);">Merge with existing</span>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                        <button class="btn-primary" onclick="importCompleteData()">
+                            📁 Import from File
+                        </button>
+                        <button class="btn-secondary" onclick="showUrlImport()">
+                            🔗 Import from URL
+                        </button>
+                    </div>
+
+                    <!-- URL Import Section (hidden by default) -->
+                    <div id="urlImportSection" style="display: none; margin-top: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">Paste Cloud Storage Link:</label>
+                        <input type="text" id="importUrlInput" class="calc-input" placeholder="https://drive.google.com/... or https://www.dropbox.com/..." style="width: 100%; margin-bottom: 10px;">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-primary" onclick="importFromUrl()">Import</button>
+                            <button class="btn-secondary" onclick="hideUrlImport()">Cancel</button>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                            Supports: Google Drive (share link), Dropbox (direct link), OneDrive (direct link), or any direct JSON file URL.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Cloud Sharing Instructions -->
+                <div style="padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <h3 style="color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                        <span style="background: #3498db; color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px;">SHARE</span>
+                        Access Data from Any Device
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">Follow these steps to access your data from any device:</p>
+
+                    <div style="display: grid; gap: 15px;">
+                        <!-- Google Drive -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #4285f4;">
+                            <strong style="color: var(--text-primary);">Google Drive</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Upload the JSON file to Google Drive</li>
+                                <li>Right-click the file → Share → Copy link</li>
+                                <li>On another device, use "Import from URL" and paste the link</li>
+                            </ol>
+                        </div>
+
+                        <!-- Dropbox -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #0061ff;">
+                            <strong style="color: var(--text-primary);">Dropbox</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Upload the JSON file to Dropbox</li>
+                                <li>Click Share → Copy link (change ?dl=0 to ?dl=1 for direct download)</li>
+                                <li>On another device, use "Import from URL" and paste the link</li>
+                            </ol>
+                        </div>
+
+                        <!-- Email/USB -->
+                        <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #9b59b6;">
+                            <strong style="color: var(--text-primary);">Email or USB Drive</strong>
+                            <ol style="margin: 10px 0 0 20px; color: var(--text-secondary); font-size: 14px;">
+                                <li>Export your data using "Complete Backup"</li>
+                                <li>Email the JSON file to yourself or copy to USB</li>
+                                <li>On another device, download the file</li>
+                                <li>Use "Import from File" to load the data</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; text-align: right;">
+                    <button class="btn-secondary" onclick="closeDataSyncModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DASHBOARD (Hidden until login) -->
     <div class="dashboard-container" id="dashboardContainer" style="display: none;">
         <!-- PAGE 1: MAIN DASHBOARD -->
@@ -1379,9 +2117,12 @@
                             <span id="lastUpdateText">Starting up...</span>
                         </div>
                         <button class="btn refresh-btn" id="refreshBtn" onclick="loadData()">🔄 Refresh</button>
+                        <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
+                        <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
                         <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
                     </div>
                 </div>
             </div>
@@ -1608,7 +2349,9 @@
                             <option value="Asset Updated">Asset Updated</option>
                             <option value="Other">Other</option>
                         </select>
-                        <input type="text" id="auditLocation" class="calc-input" placeholder="Department/Location">
+                        <select id="auditLocation" class="calc-input">
+                            <option value="">Select Department</option>
+                        </select>
                     </div>
                     <textarea id="auditNotes" class="calc-input" placeholder="Notes/Details (optional)" style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"></textarea>
                     <div style="margin-top: 15px;">
@@ -1617,13 +2360,60 @@
                     </div>
                 </div>
                 
-                <!-- Department Filter -->
-                <div style="margin-bottom: 20px; padding: 15px; background: var(--table-hover); border-radius: 8px;">
-                    <label style="font-weight: 600; margin-right: 10px; color: var(--text-primary);">Filter by Department:</label>
-                    <select id="auditDepartmentFilter" class="calc-input" style="width: auto; display: inline-block;" onchange="displayAuditTrail()">
-                        <option value="">All Departments</option>
-                    </select>
-                    <button class="search-btn" onclick="displayAuditTrail()" style="margin-left: 10px;">🔄 Refresh</button>
+                <!-- Enhanced Filter Section -->
+                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange);">
+                    <h3 style="margin-bottom: 15px; color: var(--text-primary);">🔍 Filter Audit Trail</h3>
+                    <div class="calc-grid" style="margin-bottom: 15px;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Department:</label>
+                            <select id="auditDepartmentFilter" class="calc-input" onchange="displayAuditTrail()">
+                                <option value="">All Departments</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Action Type:</label>
+                            <select id="auditActionFilter" class="calc-input" onchange="displayAuditTrail()">
+                                <option value="">All Actions</option>
+                                <option value="Asset Created">Asset Created</option>
+                                <option value="Asset Assigned">Asset Assigned</option>
+                                <option value="Asset Transferred">Asset Transferred</option>
+                                <option value="Asset Maintenance">Asset Maintenance</option>
+                                <option value="Asset Disposed">Asset Disposed</option>
+                                <option value="Asset Inspection">Asset Inspection</option>
+                                <option value="Asset Updated">Asset Updated</option>
+                                <option value="Updated">Updated</option>
+                                <option value="Disposed">Disposed</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date From:</label>
+                            <input type="date" id="auditDateFrom" class="calc-input" onchange="displayAuditTrail()">
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date To:</label>
+                            <input type="date" id="auditDateTo" class="calc-input" onchange="displayAuditTrail()">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="search-btn" onclick="displayAuditTrail()">🔄 Apply Filters</button>
+                        <button class="search-btn" onclick="clearAuditFilters()" style="background: #6c757d;">✖️ Clear Filters</button>
+                        <button class="search-btn" onclick="toggleDepartmentSummary()" style="background: #17a2b8;">📊 Toggle Department Summary</button>
+                    </div>
+                </div>
+
+                <!-- Department Summary Dashboard -->
+                <div id="departmentSummarySection" style="display: none; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        📊 Department Activity Summary
+                        <span id="summaryPeriodLabel" style="font-size: 0.8em; opacity: 0.8;"></span>
+                    </h3>
+                    <div id="departmentSummaryCards" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                        <!-- Department summary cards will be populated here -->
+                    </div>
+                    <div id="departmentSummaryStats" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                        <!-- Overall stats will be populated here -->
+                    </div>
                 </div>
 
                 <div id="auditEntries">
@@ -1631,16 +2421,14 @@
                 </div>
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="exportAuditTrail()">Export Audit Trail</button>
-                    <button class="search-btn" onclick="importFromJSON()" style="margin-left: 10px;">📥 Import Data</button>
-                    <button class="search-btn" onclick="exportToJSON()" style="margin-left: 10px;">💾 Export JSON</button>
-                    <button class="search-btn" onclick="exportToExcel()" style="margin-left: 10px;">📊 Export Excel</button>
+                    <button class="search-btn" onclick="openDataSyncModal()" style="margin-left: 10px; background: linear-gradient(135deg, #3498db, #2980b9);">🔄 Data Sync & Transfer</button>
                 </div>
             </div>
 
-            <!-- Google Sheet Data View -->
+            <!-- Sheet Data View -->
             <div class="audit-trail" id="sheetdataTab" style="display: none;">
-                <h2 class="section-title">📊 Google Sheet Data View</h2>
-                <p style="margin-bottom: 20px; color: var(--text-secondary);">View key asset information from the Google Sheets including asset codes, descriptions, costs, and relocation details.</p>
+                <h2 class="section-title">📊 Sheet Data View</h2>
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">View key asset information including asset codes, descriptions, costs, and relocation details.</p>
 
                 <div style="margin-bottom: 20px;">
                     <label style="margin-right: 15px;">
@@ -1664,6 +2452,7 @@
 
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="exportSheetData()">📥 Export to Excel</button>
+                    <button class="search-btn" onclick="exportSheetDataPDF()" style="margin-left: 10px;">📄 Export to PDF</button>
                     <button class="search-btn" onclick="displaySheetData()" style="margin-left: 10px;">🔄 Refresh Data</button>
                 </div>
             </div>
@@ -1690,6 +2479,196 @@
                 <p>Fixed Asset Management System © <span id="copyrightYear3"></span> • May Pen Hospital</p>
             </div>
         </div>
+
+        <!-- PAGE 4: ASSET IMPORT DASHBOARD -->
+        <div class="page" id="page4">
+            <div class="header" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Asset Import Dashboard</h1>
+                            <div class="dashboard-subtitle">Import assets from Excel files with smart column detection</div>
+                        </div>
+                        <div class="user-info" id="userInfo4"></div>
+                    </div>
+
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                        <button class="btn monthly-view-btn" onclick="resetImportDashboard()">🔄 Reset Import</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Dashboard Content -->
+            <div class="import-dashboard">
+                <h2 class="section-title">📥 Import Assets from Excel</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Upload any Excel file (.xlsx, .xls) and the system will automatically detect columns matching the required asset fields.
+                </p>
+
+                <!-- File Upload Dropzone -->
+                <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()">
+                    <div class="import-dropzone-icon">📁</div>
+                    <div class="import-dropzone-text">Drag & Drop your Excel file here</div>
+                    <div class="import-dropzone-subtext">or click to browse • Supports .xlsx and .xls files</div>
+                </div>
+                <input type="file" class="import-file-input" id="importFileInput" accept=".xlsx,.xls" onchange="handleImportFile(event)">
+
+                <!-- Progress Bar -->
+                <div class="import-progress" id="importProgress">
+                    <div class="import-progress-bar">
+                        <div class="import-progress-fill" id="importProgressFill"></div>
+                    </div>
+                    <div class="import-progress-text" id="importProgressText">Processing file...</div>
+                </div>
+
+                <!-- Detected Format Info -->
+                <div class="import-detected-format" id="importDetectedFormat">
+                    <h4>📋 File Detected</h4>
+                    <p id="importFileInfo"></p>
+                </div>
+
+                <!-- Column Mapping Section -->
+                <div class="import-mapping-section" id="importMappingSection">
+                    <div class="import-mapping-title">🔗 Column Mapping</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                        The system has auto-detected column mappings. Review and adjust if needed.
+                    </p>
+                    <div class="import-mapping-grid" id="importMappingGrid">
+                        <!-- Mapping items will be inserted here -->
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="import-action-btn secondary" onclick="autoDetectColumns()">🔍 Auto-Detect Again</button>
+                    </div>
+                </div>
+
+                <!-- Import Options -->
+                <div class="import-options" id="importOptions" style="display: none;">
+                    <div class="import-options-title">⚙️ Import Options</div>
+                    <div class="import-option-item">
+                        <input type="radio" name="importMode" value="merge" id="importModeMerge" checked>
+                        <label for="importModeMerge"><strong>Merge:</strong> Add new assets, skip duplicates (by Asset Code)</label>
+                    </div>
+                    <div class="import-option-item">
+                        <input type="radio" name="importMode" value="replace" id="importModeReplace">
+                        <label for="importModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
+                    </div>
+                    <div class="import-option-item">
+                        <input type="checkbox" id="importSkipInvalid" checked>
+                        <label for="importSkipInvalid">Skip rows with missing required fields</label>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="import-preview-section" id="importPreviewSection">
+                    <div class="import-preview-header">
+                        <div class="import-preview-title">👁️ Import Preview</div>
+                        <div class="import-preview-stats">
+                            <span class="import-preview-stat valid" id="previewValidCount">0 Valid</span>
+                            <span class="import-preview-stat invalid" id="previewInvalidCount">0 Invalid</span>
+                            <span class="import-preview-stat duplicate" id="previewDuplicateCount">0 Duplicates</span>
+                        </div>
+                    </div>
+                    <div class="import-preview-table" id="importPreviewTable">
+                        <!-- Preview table will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="import-actions" id="importActions" style="display: none;">
+                    <button class="import-action-btn primary" id="importConfirmBtn" onclick="confirmImport()">
+                        ✅ Import Valid Assets
+                    </button>
+                    <button class="import-action-btn secondary" onclick="showPage(1)">
+                        ❌ Cancel
+                    </button>
+                    <button class="import-action-btn danger" onclick="resetImportDashboard()">
+                        🗑️ Clear & Start Over
+                    </button>
+                </div>
+
+                <!-- Import Summary -->
+                <div class="import-summary" id="importSummary">
+                    <div class="import-summary-icon">✅</div>
+                    <div class="import-summary-title">Import Successful!</div>
+                    <div class="import-summary-details" id="importSummaryDetails"></div>
+                    <div style="margin-top: 20px;">
+                        <button class="import-action-btn" style="background: white; color: #27ae60;" onclick="showPage(1)">
+                            Go to Dashboard
+                        </button>
+                        <button class="import-action-btn" style="background: rgba(255,255,255,0.2); color: white; margin-left: 10px;" onclick="resetImportDashboard()">
+                            Import More Assets
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Required Fields Reference -->
+            <div class="import-dashboard" style="margin-top: 20px;">
+                <h3 class="section-title" style="font-size: 1.2em;">📋 Required Fields Reference</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                    The following fields are expected. The system will try to match column headers automatically.
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>1. Asset Code</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Unique identifier (e.g., MPH-MS-001-2025)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>2. Asset Description</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Name/description of the asset</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>3. Date In</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Purchase/acquisition date</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>4. Supplier</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Vendor name or donor</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>5. Location/Department</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Where the asset is located</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>6. Source</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Purchased or Donated</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>7. Month</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">APR, MAY, JUN, etc. (fiscal year)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>8. Category</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Medical Equipment or Furniture & Appliances</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>9. Serial/Model</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Serial number or model number</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>10. Quantity</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Number of items (default: 1)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>11. Unit Price</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Price per unit (JMD)</div>
+                    </div>
+                    <div style="padding: 10px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>12. Total Price</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Total value (Qty × Unit Price)</div>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85em;">
+                    <span style="color: #e74c3c;">*</span> Required fields • Fields with <span style="color: var(--primary-orange);">orange</span> border are optional
+                </p>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear4"></span> • May Pen Hospital</p>
+            </div>
+        </div>
     </div>
 
     <button class="export-btn" id="exportBtn" onclick="exportData()" style="display: none;">📥 Export</button>
@@ -1700,8 +2679,8 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3'];
-            
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4'];
+
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
@@ -1854,7 +2833,7 @@
                 <button class="logout-btn" onclick="handleLogout()">Logout</button>
             `;
             
-            ['userInfo', 'userInfo2', 'userInfo3'].forEach(id => {
+            ['userInfo', 'userInfo2', 'userInfo3', 'userInfo4'].forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) elem.innerHTML = userHTML;
             });
@@ -2073,6 +3052,20 @@
                 if (currentValue) auditDeptFilter.value = currentValue;
             }
 
+            // Update audit entry form department dropdown
+            const auditLocationSelect = document.getElementById('auditLocation');
+            if (auditLocationSelect) {
+                const currentValue = auditLocationSelect.value;
+                auditLocationSelect.innerHTML = '<option value="">Select Department</option>';
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    auditLocationSelect.appendChild(option);
+                });
+                if (currentValue) auditLocationSelect.value = currentValue;
+            }
+
             // Update department management list
             updateDepartmentManagementUI();
         }
@@ -2149,6 +3142,243 @@
             };
             auditRecords.unshift(entry); // Add to beginning
             saveAuditToStorage(auditRecords);
+        }
+
+        // ============================================
+        // SAVE & SYNC FUNCTIONS
+        // ============================================
+
+        // Manual Save - Saves all current data to browser storage
+        function saveAllData() {
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.innerHTML;
+
+            try {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '⏳ Saving...';
+                updateStatus('loading', 'Saving all data...');
+
+                // Get all current assets from memory and save to storage
+                const allAssets = loadAssetsFromStorage();
+                const auditRecords = loadAuditFromStorage();
+                const departments = loadDepartments();
+
+                // Re-save all data to ensure consistency
+                const assetsSaved = saveAssetsToStorage(allAssets);
+                const auditSaved = saveAuditToStorage(auditRecords);
+                saveDepartments(departments);
+
+                // Save warranty overrides
+                const warrantyOverrides = localStorage.getItem('warrantyOverrides');
+                if (warrantyOverrides) {
+                    localStorage.setItem('warrantyOverrides', warrantyOverrides);
+                }
+
+                if (assetsSaved && auditSaved) {
+                    updateStatus('connected', 'All data saved successfully!');
+                    addAuditEntry('SYSTEM', 'Manual Save', 'All', `Manual save performed - ${allAssets.length} assets, ${auditRecords.length} audit records`);
+
+                    // Show success feedback
+                    saveBtn.innerHTML = '✅ Saved!';
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error('Failed to save some data');
+                }
+            } catch (error) {
+                console.error('Error during manual save:', error);
+                updateStatus('error', 'Error saving data: ' + error.message);
+                saveBtn.innerHTML = '❌ Error';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        // Sync Data - Fixes inconsistencies in the data
+        function syncData() {
+            const syncBtn = document.getElementById('syncBtn');
+            const originalText = syncBtn.innerHTML;
+
+            try {
+                syncBtn.disabled = true;
+                syncBtn.classList.add('syncing');
+                syncBtn.innerHTML = '🔄 Syncing...';
+                updateStatus('loading', 'Synchronizing and fixing data inconsistencies...');
+
+                let fixedCount = 0;
+                let issues = [];
+
+                // Load all data
+                let assets = loadAssetsFromStorage();
+                let auditRecords = loadAuditFromStorage();
+                let departments = loadDepartments();
+
+                // ====== FIX 1: Remove duplicate assets ======
+                const seenAssetCodes = new Map();
+                const uniqueAssets = [];
+                assets.forEach(asset => {
+                    const key = asset.assetCode + '_' + asset.id;
+                    if (!seenAssetCodes.has(key)) {
+                        seenAssetCodes.set(key, true);
+                        uniqueAssets.push(asset);
+                    } else {
+                        fixedCount++;
+                        issues.push(`Removed duplicate asset: ${asset.assetCode}`);
+                    }
+                });
+                assets = uniqueAssets;
+
+                // ====== FIX 2: Validate and fix asset data ======
+                assets = assets.map(asset => {
+                    let fixed = false;
+
+                    // Ensure ID exists
+                    if (!asset.id) {
+                        asset.id = generateAssetId();
+                        fixed = true;
+                    }
+
+                    // Ensure numeric fields are numbers
+                    if (typeof asset.quantity !== 'number' || isNaN(asset.quantity)) {
+                        asset.quantity = parseInt(asset.quantity) || 1;
+                        fixed = true;
+                    }
+                    if (typeof asset.unitPrice !== 'number' || isNaN(asset.unitPrice)) {
+                        asset.unitPrice = parseFloat(asset.unitPrice) || 0;
+                        fixed = true;
+                    }
+                    if (typeof asset.totalPrice !== 'number' || isNaN(asset.totalPrice)) {
+                        asset.totalPrice = parseFloat(asset.totalPrice) || (asset.quantity * asset.unitPrice);
+                        fixed = true;
+                    }
+
+                    // Recalculate totalPrice if incorrect
+                    const calculatedTotal = asset.quantity * asset.unitPrice;
+                    if (Math.abs(asset.totalPrice - calculatedTotal) > 0.01) {
+                        asset.totalPrice = calculatedTotal;
+                        fixed = true;
+                        issues.push(`Fixed total price for: ${asset.assetCode}`);
+                    }
+
+                    // Ensure source is valid
+                    if (!['Purchased', 'Donated'].includes(asset.source)) {
+                        asset.source = 'Purchased';
+                        fixed = true;
+                    }
+
+                    // Ensure category is valid
+                    if (!['Medical Equipment', 'Furniture & Appliances'].includes(asset.category)) {
+                        asset.category = 'Medical Equipment';
+                        fixed = true;
+                    }
+
+                    // Ensure month is valid
+                    const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+                    if (!validMonths.includes(asset.month)) {
+                        // Try to extract from dateIn
+                        if (asset.dateIn) {
+                            const monthPart = asset.dateIn.split('-')[1];
+                            if (monthPart) {
+                                asset.month = monthPart.toUpperCase();
+                            }
+                        }
+                        if (!validMonths.includes(asset.month)) {
+                            asset.month = 'APR';
+                        }
+                        fixed = true;
+                    }
+
+                    // Trim string fields
+                    if (asset.description) asset.description = asset.description.trim();
+                    if (asset.assetCode) asset.assetCode = asset.assetCode.trim();
+                    if (asset.department) asset.department = asset.department.trim();
+                    if (asset.supplier) asset.supplier = asset.supplier.trim();
+
+                    if (fixed) fixedCount++;
+                    return asset;
+                });
+
+                // ====== FIX 3: Sync departments from assets ======
+                const assetDepartments = new Set(assets.map(a => a.department).filter(d => d && d.trim()));
+                assetDepartments.forEach(dept => {
+                    if (!departments.includes(dept)) {
+                        departments.push(dept);
+                        fixedCount++;
+                        issues.push(`Added missing department: ${dept}`);
+                    }
+                });
+
+                // ====== FIX 4: Clean up orphaned audit records ======
+                const assetCodes = new Set(assets.map(a => a.assetCode));
+                const validAuditRecords = auditRecords.filter(record => {
+                    // Keep system records and records for existing assets
+                    if (record.assetCode === 'SYSTEM') return true;
+                    if (assetCodes.has(record.assetCode)) return true;
+                    if (record.action.includes('Deleted')) return true; // Keep delete records
+                    return true; // Keep all for history
+                });
+
+                // ====== FIX 5: Validate audit record timestamps ======
+                auditRecords = validAuditRecords.map(record => {
+                    if (!record.timestamp || isNaN(new Date(record.timestamp).getTime())) {
+                        record.timestamp = new Date().toISOString();
+                        fixedCount++;
+                    }
+                    if (!record.id) {
+                        record.id = generateAssetId();
+                        fixedCount++;
+                    }
+                    return record;
+                });
+
+                // ====== SAVE ALL FIXED DATA ======
+                saveAssetsToStorage(assets);
+                saveAuditToStorage(auditRecords);
+                saveDepartments(departments);
+
+                // Add sync audit entry
+                addAuditEntry('SYSTEM', 'Data Sync', 'All', `Sync completed: ${fixedCount} issues fixed`);
+
+                // Reload the UI
+                loadData();
+
+                // Show results
+                setTimeout(() => {
+                    syncBtn.classList.remove('syncing');
+                    if (fixedCount > 0) {
+                        updateStatus('connected', `Sync complete! Fixed ${fixedCount} issue(s)`);
+                        syncBtn.innerHTML = '✅ Synced!';
+                        console.log('Sync issues fixed:', issues);
+                        if (issues.length > 0 && issues.length <= 10) {
+                            alert(`Sync Complete!\n\nFixed ${fixedCount} issue(s):\n• ${issues.slice(0, 10).join('\n• ')}${issues.length > 10 ? '\n• ...' : ''}`);
+                        } else if (fixedCount > 0) {
+                            alert(`Sync Complete!\n\nFixed ${fixedCount} issue(s). Check console for details.`);
+                        }
+                    } else {
+                        updateStatus('connected', 'Sync complete! No issues found.');
+                        syncBtn.innerHTML = '✅ All Good!';
+                    }
+
+                    setTimeout(() => {
+                        syncBtn.innerHTML = originalText;
+                        syncBtn.disabled = false;
+                    }, 2000);
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error during sync:', error);
+                updateStatus('error', 'Error during sync: ' + error.message);
+                syncBtn.classList.remove('syncing');
+                syncBtn.innerHTML = '❌ Error';
+                setTimeout(() => {
+                    syncBtn.innerHTML = originalText;
+                    syncBtn.disabled = false;
+                }, 2000);
+            }
         }
 
         // ============================================
@@ -2517,6 +3747,378 @@
             input.click();
         }
 
+        // ============================================
+        // DATA SYNC & TRANSFER FUNCTIONS
+        // ============================================
+
+        function openDataSyncModal() {
+            document.getElementById('dataSyncModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            // Reset the URL import section
+            hideUrlImport();
+        }
+
+        function closeDataSyncModal() {
+            document.getElementById('dataSyncModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function showUrlImport() {
+            document.getElementById('urlImportSection').style.display = 'block';
+            document.getElementById('importUrlInput').focus();
+        }
+
+        function hideUrlImport() {
+            document.getElementById('urlImportSection').style.display = 'none';
+            document.getElementById('importUrlInput').value = '';
+        }
+
+        // Export complete data including all assets, audit trail, departments, and warranty overrides
+        function exportCompleteData() {
+            try {
+                const assets = loadAssetsFromStorage();
+                const auditTrail = loadAuditFromStorage();
+                const departments = loadDepartments();
+                const warrantyOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
+
+                const completeBackup = {
+                    version: '2.0',
+                    exportDate: new Date().toISOString(),
+                    exportedBy: currentUser ? currentUser.displayName : 'Unknown',
+                    deviceInfo: navigator.userAgent,
+                    data: {
+                        assets: assets,
+                        auditTrail: auditTrail,
+                        departments: departments,
+                        warrantyOverrides: warrantyOverrides
+                    },
+                    summary: {
+                        totalAssets: assets.length,
+                        totalAuditEntries: auditTrail.length,
+                        totalDepartments: departments.length,
+                        totalWarrantyOverrides: Object.keys(warrantyOverrides).length
+                    }
+                };
+
+                const dataStr = JSON.stringify(completeBackup, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `asset-complete-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                alert(`✅ Complete backup exported successfully!\n\nIncluded:\n• ${assets.length} assets\n• ${auditTrail.length} audit entries\n• ${departments.length} departments\n• ${Object.keys(warrantyOverrides).length} warranty overrides\n\nUpload this file to Google Drive, Dropbox, or email it to access from another device.`);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('⚠️ Error exporting data. Please try again.');
+            }
+        }
+
+        // Import complete data from file
+        function importCompleteData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        processImportData(importedData);
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('⚠️ Error reading file. Please check the file format.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Convert cloud storage URLs to direct download links
+        function convertToDirectUrl(url) {
+            // Google Drive: convert sharing link to direct download
+            // Format: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+            // To: https://drive.google.com/uc?export=download&id=FILE_ID
+            const googleDriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (googleDriveMatch) {
+                return `https://drive.google.com/uc?export=download&id=${googleDriveMatch[1]}`;
+            }
+
+            // Google Drive: another format
+            // Format: https://drive.google.com/open?id=FILE_ID
+            const googleDriveMatch2 = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+            if (googleDriveMatch2) {
+                return `https://drive.google.com/uc?export=download&id=${googleDriveMatch2[1]}`;
+            }
+
+            // Dropbox: convert to direct download
+            // Change ?dl=0 to ?dl=1 or add ?dl=1
+            if (url.includes('dropbox.com')) {
+                if (url.includes('?dl=0')) {
+                    return url.replace('?dl=0', '?dl=1');
+                } else if (!url.includes('?dl=1')) {
+                    return url + (url.includes('?') ? '&dl=1' : '?dl=1');
+                }
+            }
+
+            // OneDrive: convert to direct download
+            // Change /view to /download or add ?download=1
+            if (url.includes('onedrive.live.com') || url.includes('1drv.ms')) {
+                if (url.includes('/view')) {
+                    return url.replace('/view', '/download');
+                }
+            }
+
+            return url;
+        }
+
+        // Import from URL
+        async function importFromUrl() {
+            const urlInput = document.getElementById('importUrlInput');
+            let url = urlInput.value.trim();
+
+            if (!url) {
+                alert('⚠️ Please enter a URL');
+                return;
+            }
+
+            // Convert to direct download URL if needed
+            url = convertToDirectUrl(url);
+
+            // Show loading state
+            const importBtn = event.target;
+            const originalText = importBtn.textContent;
+            importBtn.textContent = 'Loading...';
+            importBtn.disabled = true;
+
+            try {
+                // Try to fetch directly first, then use CORS proxy if needed
+                let response;
+                let data;
+
+                try {
+                    response = await fetch(url);
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                } catch (directError) {
+                    console.log('Direct fetch failed, trying CORS proxy...');
+                }
+
+                // If direct fetch failed, try with CORS proxy
+                if (!data) {
+                    const corsProxies = [
+                        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+                    ];
+
+                    for (const proxyUrl of corsProxies) {
+                        try {
+                            response = await fetch(proxyUrl);
+                            if (response.ok) {
+                                const text = await response.text();
+                                data = JSON.parse(text);
+                                break;
+                            }
+                        } catch (proxyError) {
+                            console.log(`Proxy ${proxyUrl} failed:`, proxyError);
+                        }
+                    }
+                }
+
+                if (!data) {
+                    throw new Error('Could not fetch data from URL. Please check the URL or try downloading the file manually.');
+                }
+
+                processImportData(data);
+                hideUrlImport();
+
+            } catch (error) {
+                console.error('URL import error:', error);
+                alert(`⚠️ Error importing from URL:\n${error.message}\n\nTip: If this is a Google Drive link, make sure the file is shared publicly (anyone with the link can view).`);
+            } finally {
+                importBtn.textContent = originalText;
+                importBtn.disabled = false;
+            }
+        }
+
+        // Process imported data (handles both old format and new complete backup format)
+        function processImportData(importedData) {
+            const importMode = document.querySelector('input[name="importMode"]:checked')?.value || 'replace';
+
+            let assets, auditTrail, departments, warrantyOverrides;
+            let isCompleteBackup = false;
+
+            // Check if this is the new complete backup format
+            if (importedData.version && importedData.data) {
+                isCompleteBackup = true;
+                assets = importedData.data.assets || [];
+                auditTrail = importedData.data.auditTrail || [];
+                departments = importedData.data.departments || [];
+                warrantyOverrides = importedData.data.warrantyOverrides || {};
+
+                // Show backup info
+                const summary = importedData.summary || {};
+                console.log('Importing complete backup:', {
+                    exportDate: importedData.exportDate,
+                    exportedBy: importedData.exportedBy,
+                    summary: summary
+                });
+            } else if (Array.isArray(importedData)) {
+                // Old format: just an array of assets
+                assets = importedData;
+                auditTrail = null;
+                departments = null;
+                warrantyOverrides = null;
+            } else {
+                alert('⚠️ Invalid file format. The file does not appear to be a valid backup.');
+                return;
+            }
+
+            // Validate assets
+            if (!Array.isArray(assets)) {
+                alert('⚠️ Invalid data format: assets must be an array.');
+                return;
+            }
+
+            const validAssets = assets.filter(asset =>
+                asset.assetCode && asset.description && asset.category && asset.source
+            );
+
+            if (validAssets.length === 0 && assets.length > 0) {
+                alert('⚠️ No valid assets found. Assets must have assetCode, description, category, and source fields.');
+                return;
+            }
+
+            // Build confirmation message
+            let confirmMessage = `Import ${validAssets.length} assets`;
+            if (isCompleteBackup) {
+                confirmMessage += `\n• ${auditTrail?.length || 0} audit entries`;
+                confirmMessage += `\n• ${departments?.length || 0} departments`;
+                confirmMessage += `\n• ${Object.keys(warrantyOverrides || {}).length} warranty overrides`;
+            }
+
+            if (importMode === 'replace') {
+                confirmMessage += '\n\n⚠️ This will REPLACE all existing data.';
+            } else {
+                confirmMessage += '\n\nNew records will be MERGED with existing data.';
+                confirmMessage += '\nDuplicate asset codes will be skipped.';
+            }
+
+            confirmMessage += '\n\nContinue?';
+
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            let importedCount = 0;
+            let skippedCount = 0;
+
+            if (importMode === 'replace') {
+                // Replace mode: clear existing data and import new
+                validAssets.forEach(asset => {
+                    if (!asset.id) asset.id = generateAssetId();
+                    if (!asset.department) asset.department = '';
+                });
+
+                saveAssetsToStorage(validAssets);
+                importedCount = validAssets.length;
+
+                if (isCompleteBackup) {
+                    if (auditTrail && auditTrail.length > 0) {
+                        saveAuditToStorage(auditTrail);
+                    }
+                    if (departments && departments.length > 0) {
+                        saveDepartments(departments);
+                        updateAllDepartmentDropdowns();
+                    }
+                    if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
+                        localStorage.setItem('warrantyOverrides', JSON.stringify(warrantyOverrides));
+                    }
+                }
+            } else {
+                // Merge mode: add new records, skip duplicates
+                const existingAssets = loadAssetsFromStorage();
+                const existingCodes = new Set(existingAssets.map(a => a.assetCode.toLowerCase()));
+
+                validAssets.forEach(asset => {
+                    if (!existingCodes.has(asset.assetCode.toLowerCase())) {
+                        if (!asset.id) asset.id = generateAssetId();
+                        if (!asset.department) asset.department = '';
+                        existingAssets.push(asset);
+                        importedCount++;
+                    } else {
+                        skippedCount++;
+                    }
+                });
+
+                saveAssetsToStorage(existingAssets);
+
+                if (isCompleteBackup) {
+                    // Merge audit trail
+                    if (auditTrail && auditTrail.length > 0) {
+                        const existingAudit = loadAuditFromStorage();
+                        const existingAuditIds = new Set(existingAudit.map(a => a.id));
+                        auditTrail.forEach(entry => {
+                            if (!existingAuditIds.has(entry.id)) {
+                                existingAudit.push(entry);
+                            }
+                        });
+                        // Sort by timestamp descending
+                        existingAudit.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        saveAuditToStorage(existingAudit);
+                    }
+
+                    // Merge departments
+                    if (departments && departments.length > 0) {
+                        const existingDepts = loadDepartments();
+                        const existingDeptSet = new Set(existingDepts.map(d => d.toLowerCase()));
+                        departments.forEach(dept => {
+                            if (!existingDeptSet.has(dept.toLowerCase())) {
+                                existingDepts.push(dept);
+                            }
+                        });
+                        existingDepts.sort();
+                        saveDepartments(existingDepts);
+                        updateAllDepartmentDropdowns();
+                    }
+
+                    // Merge warranty overrides (new ones take precedence)
+                    if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
+                        const existingOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
+                        const mergedOverrides = { ...existingOverrides, ...warrantyOverrides };
+                        localStorage.setItem('warrantyOverrides', JSON.stringify(mergedOverrides));
+                    }
+                }
+            }
+
+            // Add audit entry for the import
+            addAuditEntry('SYSTEM', 'Data Import', 'All Departments',
+                `${importMode === 'replace' ? 'Replaced' : 'Merged'} data: ${importedCount} assets imported${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}`
+            );
+
+            // Reload data and close modal
+            loadData();
+            closeDataSyncModal();
+
+            // Show success message
+            let successMessage = `✅ Import complete!\n\n${importedCount} assets imported`;
+            if (skippedCount > 0) {
+                successMessage += `\n${skippedCount} duplicate assets skipped`;
+            }
+            if (isCompleteBackup) {
+                successMessage += '\n\nAudit trail, departments, and warranty settings have also been ' +
+                    (importMode === 'replace' ? 'restored.' : 'merged.');
+            }
+            alert(successMessage);
+        }
+
         let distributionChart = null;
         let monthlyChart = null;
         const months = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
@@ -2698,7 +4300,7 @@
             let assetCount = 0;
             
             purchasedAssets.forEach(asset => {
-                const assetLocation = asset.supplier || 'Location not specified';
+                const assetLocation = asset.department || 'Department not specified';
 
                 // Check for warranty override
                 const override = warrantyOverrides[asset.assetCode];
@@ -2880,76 +4482,145 @@
         }
 
         // ============================================
-        // QR CODE GENERATOR
+        // QR CODE GENERATOR (Real QR Codes with qrcode.js)
         // ============================================
-        
+
+        // Get the base URL for QR codes (current page URL without query params)
+        function getQRBaseURL() {
+            return window.location.origin + window.location.pathname;
+        }
+
+        // Generate QR code URL for an asset
+        function getAssetQRURL(assetCode) {
+            return `${getQRBaseURL()}?asset=${encodeURIComponent(assetCode)}`;
+        }
+
         function generateQRCode() {
-            const assetCode = document.getElementById('qrAssetCode').value;
+            const assetCode = document.getElementById('qrAssetCode').value.trim();
             const format = document.getElementById('qrDataFormat').value;
-            
+
             if (!assetCode) {
                 alert('Please enter an asset code');
                 return;
             }
-            
-            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
-            
-            let qrData = assetCode;
-            let displayInfo = `<p><strong>Asset Code:</strong> ${assetCode}</p>`;
-            
-            if (asset) {
-                switch(format) {
-                    case 'detailed':
-                        qrData = `${asset.assetCode}: ${asset.description}`;
-                        displayInfo += `<p><strong>Description:</strong> ${asset.description}</p>`;
-                        break;
-                    case 'full':
-                        qrData = JSON.stringify({
-                            code: asset.assetCode,
-                            desc: asset.description,
-                            value: asset.totalPrice,
-                            location: asset.supplier,
-                            date: asset.dateIn
-                        });
-                        displayInfo += `
-                            <p><strong>Description:</strong> ${asset.description}</p>
-                            <p><strong>Value:</strong> JMD ${formatCurrency(asset.totalPrice)}</p>
-                            <p><strong>Source:</strong> ${asset.source}</p>
-                        `;
-                        break;
-                    case 'url':
-                        qrData = `https://maypen-hospital.assets.jm/asset/${assetCode}`;
-                        displayInfo += `<p><strong>Asset URL:</strong> ${qrData}</p>`;
-                        break;
-                }
-            }
-            
-            const qrOutput = document.getElementById('qrOutput');
-            const escapedAssetCode = escapeHtml(assetCode);
-            const escapedQrData = escapeHtml(qrData);
-            const qrDataDisplay = qrData.length > 50 ? escapeHtml(qrData.substring(0, 50)) + '...' : escapedQrData;
 
+            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            // Always use URL format for scannable QR codes
+            const qrURL = getAssetQRURL(asset ? asset.assetCode : assetCode);
+
+            let displayInfo = '';
+            if (asset) {
+                displayInfo = `
+                    <div class="asset-info-grid" style="margin: 15px 0;">
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Asset Code</div>
+                            <div class="asset-info-value">${escapeHtml(asset.assetCode)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Description</div>
+                            <div class="asset-info-value">${escapeHtml(asset.description)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Category</div>
+                            <div class="asset-info-value">${escapeHtml(asset.category)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Value</div>
+                            <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayInfo = `<p style="color: #e74c3c; margin: 15px 0;">Asset not found in database. QR code will link to this asset code.</p>`;
+            }
+
+            const qrOutput = document.getElementById('qrOutput');
             qrOutput.innerHTML = `
-                <div style="display: flex; justify-content: center; margin: 20px 0;">
-                    <div style="width: 200px; height: 200px; background: black; display: grid; grid-template-columns: repeat(25, 1fr); grid-template-rows: repeat(25, 1fr); gap: 1px;">
-                        ${generateQRPattern()}
+                <div class="qr-code-container">
+                    <div class="qr-code-wrapper">
+                        <div id="qrCodeDisplay"></div>
+                    </div>
+                    <div class="qr-actions">
+                        <button class="qr-download-btn" onclick="downloadQRCode('${escapeHtml(asset ? asset.assetCode : assetCode)}')">
+                            📥 Download PNG
+                        </button>
+                        <button class="qr-download-btn" style="background: #3498db;" onclick="printSingleQRCode('${escapeHtml(asset ? asset.assetCode : assetCode)}')">
+                            🖨️ Print
+                        </button>
                     </div>
                 </div>
                 ${displayInfo}
-                <p><strong>QR Data:</strong> ${qrDataDisplay}</p>
-                <div style="margin-top: 15px;">
-                    <button class="search-btn" data-asset-code="${escapedAssetCode}" data-qr-data="${escapedQrData}" onclick="printQRCode(this.dataset.assetCode, this.dataset.qrData)">Print QR Code</button>
-                </div>
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.9em;">
+                    <strong>Scan URL:</strong> ${escapeHtml(qrURL)}
+                </p>
             `;
+
+            // Generate actual QR code
+            const qrContainer = document.getElementById('qrCodeDisplay');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: qrURL,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
         }
 
-        function generateQRPattern() {
-            const pattern = [];
-            for (let i = 0; i < 625; i++) {
-                const isBlack = Math.random() > 0.5;
-                pattern.push(`<div style="background: ${isBlack ? 'black' : 'white'};"></div>`);
+        function downloadQRCode(assetCode) {
+            const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
+            if (!qrCanvas) {
+                alert('Please generate a QR code first');
+                return;
             }
-            return pattern.join('');
+
+            const link = document.createElement('a');
+            link.download = `QR_${assetCode}_${new Date().toISOString().split('T')[0]}.png`;
+            link.href = qrCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function printSingleQRCode(assetCode) {
+            const qrCanvas = document.querySelector('#qrCodeDisplay canvas');
+            if (!qrCanvas) {
+                alert('Please generate a QR code first');
+                return;
+            }
+
+            const asset = allAssetsData.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+            const qrImageData = qrCanvas.toDataURL('image/png');
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>QR Code - ${escapeHtml(assetCode)}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+                        .qr-label { margin-top: 20px; }
+                        .asset-code { font-size: 1.5em; font-weight: bold; margin: 10px 0; }
+                        .description { color: #666; margin-bottom: 20px; }
+                        img { border: 1px solid #ddd; padding: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>May Pen Hospital</h2>
+                    <h3>Fixed Asset QR Code</h3>
+                    <img src="${qrImageData}" width="250" height="250" alt="QR Code">
+                    <div class="qr-label">
+                        <div class="asset-code">${escapeHtml(assetCode)}</div>
+                        ${asset ? `<div class="description">${escapeHtml(asset.description)}</div>` : ''}
+                    </div>
+                    <p style="font-size: 0.8em; color: #999;">Scan with smartphone camera to view asset details</p>
+                    <script>
+                        window.onload = function() { window.print(); };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         function generateBatchQR() {
@@ -2957,80 +4628,250 @@
                 alert('Please load asset data first');
                 return;
             }
-            
+
             const userInput = prompt('How many QR codes to generate? (Max 50)', '10');
-            if (userInput === null) return; // User cancelled
+            if (userInput === null) return;
 
             const batchSize = parseInt(userInput);
             if (isNaN(batchSize) || batchSize < 1 || batchSize > 50) {
                 alert('Please enter a valid number between 1 and 50');
                 return;
             }
-            
+
             const assets = allAssetsData.slice(0, batchSize);
-            let batchHTML = '<h3>Batch QR Code Generation</h3>';
-            
+            const qrOutput = document.getElementById('qrOutput');
+
+            qrOutput.innerHTML = `
+                <h3 style="margin-bottom: 15px;">Batch QR Code Generation (${assets.length} codes)</h3>
+                <div class="batch-qr-grid" id="batchQRGrid"></div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="qr-download-btn" style="background: #9b59b6;" onclick="downloadAllQRCodes()">
+                        📦 Download All (ZIP)
+                    </button>
+                    <button class="qr-download-btn" style="background: #3498db;" onclick="printBatchQRCodes()">
+                        🖨️ Print All
+                    </button>
+                </div>
+            `;
+
+            const grid = document.getElementById('batchQRGrid');
+
+            // Generate QR codes for each asset
             assets.forEach((asset, index) => {
-                batchHTML += `
-                    <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px;">
-                        <strong>${asset.assetCode}</strong> - ${asset.description}
-                        <div style="margin: 10px 0;">QR Code would be generated here</div>
-                    </div>
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'batch-qr-item';
+                itemDiv.innerHTML = `
+                    <h4>${escapeHtml(asset.assetCode)}</h4>
+                    <div id="batchQR_${index}"></div>
+                    <p>${escapeHtml(asset.description.substring(0, 30))}${asset.description.length > 30 ? '...' : ''}</p>
                 `;
+                grid.appendChild(itemDiv);
+
+                // Generate QR code
+                const qrURL = getAssetQRURL(asset.assetCode);
+                new QRCode(document.getElementById(`batchQR_${index}`), {
+                    text: qrURL,
+                    width: 150,
+                    height: 150,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
             });
-            
-            batchHTML += `<button class="search-btn" onclick="printBatchQR()">Print All QR Codes</button>`;
-            
-            document.getElementById('qrOutput').innerHTML = batchHTML;
         }
 
-        function printQRCode(assetCode, qrData) {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                <head><title>QR Code - ${assetCode}</title></head>
-                <body style="text-align: center; font-family: Arial, sans-serif;">
-                    <h2>May Pen Hospital</h2>
-                    <h3>Asset QR Code</h3>
-                    <div style="width: 300px; height: 300px; border: 2px solid black; margin: 20px auto; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                        QR Code for ${assetCode}<br>
-                        <small>Scan with smartphone</small>
-                    </div>
-                    <p style="font-size: 1.2em;"><strong>${assetCode}</strong></p>
-                    <p>Data: ${qrData}</p>
-                    <script>window.print(); window.close();<\/script>
-                </body>
-                </html>
-            `);
+        async function downloadAllQRCodes() {
+            const canvases = document.querySelectorAll('#batchQRGrid canvas');
+            if (canvases.length === 0) {
+                alert('No QR codes to download');
+                return;
+            }
+
+            // Download each QR code individually (ZIP would require additional library)
+            const items = document.querySelectorAll('.batch-qr-item');
+            items.forEach((item, index) => {
+                const canvas = item.querySelector('canvas');
+                const assetCode = item.querySelector('h4').textContent;
+                if (canvas) {
+                    setTimeout(() => {
+                        const link = document.createElement('a');
+                        link.download = `QR_${assetCode}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }, index * 200); // Stagger downloads
+                }
+            });
+
+            alert(`Downloading ${canvases.length} QR codes...`);
         }
 
-        function printBatchQR() {
+        function printBatchQRCodes() {
+            const items = document.querySelectorAll('.batch-qr-item');
+            if (items.length === 0) {
+                alert('No QR codes to print');
+                return;
+            }
+
+            let qrImagesHTML = '';
+            items.forEach(item => {
+                const canvas = item.querySelector('canvas');
+                const assetCode = item.querySelector('h4').textContent;
+                const description = item.querySelector('p').textContent;
+                if (canvas) {
+                    qrImagesHTML += `
+                        <div style="display: inline-block; margin: 15px; text-align: center; page-break-inside: avoid;">
+                            <img src="${canvas.toDataURL('image/png')}" width="150" height="150" style="border: 1px solid #ddd;">
+                            <div style="font-weight: bold; margin-top: 8px;">${escapeHtml(assetCode)}</div>
+                            <div style="font-size: 0.8em; color: #666;">${escapeHtml(description)}</div>
+                        </div>
+                    `;
+                }
+            });
+
             const printWindow = window.open('', '_blank');
-            const qrOutput = document.getElementById('qrOutput').innerHTML;
             printWindow.document.write(`
                 <html>
                 <head>
                     <title>Batch QR Codes - May Pen Hospital</title>
                     <style>
                         body { font-family: Arial, sans-serif; padding: 20px; }
-                        h2 { text-align: center; }
+                        h2 { text-align: center; margin-bottom: 30px; }
+                        .qr-grid { text-align: center; }
                         @media print {
-                            button { display: none; }
+                            @page { margin: 0.5in; }
                         }
                     </style>
                 </head>
                 <body>
-                    <h2>May Pen Hospital - Batch QR Codes</h2>
-                    ${qrOutput}
+                    <h2>May Pen Hospital - Asset QR Codes</h2>
+                    <p style="text-align: center; color: #666;">Generated: ${new Date().toLocaleString()}</p>
+                    <div class="qr-grid">
+                        ${qrImagesHTML}
+                    </div>
                     <script>
-                        // Remove the print button from the printed version
-                        const buttons = document.querySelectorAll('button');
-                        buttons.forEach(btn => btn.remove());
-                        window.print();
+                        window.onload = function() { window.print(); };
                     <\/script>
                 </body>
                 </html>
             `);
+            printWindow.document.close();
+        }
+
+        // ============================================
+        // PUBLIC ASSET VIEWER (For QR Code Scanning)
+        // ============================================
+
+        function showPublicAssetViewer(assetCode) {
+            const viewer = document.getElementById('publicAssetViewer');
+            const content = document.getElementById('publicAssetContent');
+            const copyrightYear = document.getElementById('publicCopyrightYear');
+
+            copyrightYear.textContent = new Date().getFullYear();
+
+            // Load assets from localStorage
+            const assets = loadAssetsFromStorage();
+            const asset = assets.find(item => item.assetCode.toLowerCase() === assetCode.toLowerCase());
+
+            if (asset) {
+                content.innerHTML = `
+                    <div class="asset-info-grid">
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Asset Code</div>
+                            <div class="asset-info-value highlight">${escapeHtml(asset.assetCode)}</div>
+                        </div>
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Description</div>
+                            <div class="asset-info-value">${escapeHtml(asset.description)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Category</div>
+                            <div class="asset-info-value">${escapeHtml(asset.category)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Item Type</div>
+                            <div class="asset-info-value">${escapeHtml(asset.itemType || 'N/A')}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Source</div>
+                            <div class="asset-info-value">${escapeHtml(asset.source)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Date Acquired</div>
+                            <div class="asset-info-value">${escapeHtml(asset.dateIn)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Quantity</div>
+                            <div class="asset-info-value">${asset.quantity}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Unit Price</div>
+                            <div class="asset-info-value">JMD ${formatCurrency(asset.unitPrice)}</div>
+                        </div>
+                        <div class="asset-info-item full-width">
+                            <div class="asset-info-label">Total Value</div>
+                            <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Supplier/Donor</div>
+                            <div class="asset-info-value">${escapeHtml(asset.supplier || 'N/A')}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Department</div>
+                            <div class="asset-info-value">${escapeHtml(asset.department || 'N/A')}</div>
+                        </div>
+                        ${asset.serialNumber ? `
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Serial Number</div>
+                            <div class="asset-info-value">${escapeHtml(asset.serialNumber)}</div>
+                        </div>
+                        ` : ''}
+                        ${asset.modelNumber ? `
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Model Number</div>
+                            <div class="asset-info-value">${escapeHtml(asset.modelNumber)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="font-size: 3em; margin-bottom: 20px;">🔍</p>
+                        <h3 style="color: #e74c3c; margin-bottom: 10px;">Asset Not Found</h3>
+                        <p style="color: #666;">The asset with code <strong>${escapeHtml(assetCode)}</strong> was not found in the database.</p>
+                        <p style="color: #999; font-size: 0.9em; margin-top: 20px;">This may be because:</p>
+                        <ul style="text-align: left; display: inline-block; color: #666; margin-top: 10px;">
+                            <li>The asset hasn't been registered yet</li>
+                            <li>The QR code contains an incorrect code</li>
+                            <li>The asset data is stored on a different device</li>
+                        </ul>
+                    </div>
+                `;
+            }
+
+            viewer.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePublicAssetViewer() {
+            const viewer = document.getElementById('publicAssetViewer');
+            viewer.style.display = 'none';
+            document.body.style.overflow = '';
+
+            // Remove asset parameter from URL
+            const url = new URL(window.location);
+            url.searchParams.delete('asset');
+            window.history.replaceState({}, '', url);
+        }
+
+        // Check for asset parameter in URL on page load
+        function checkForAssetParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const assetCode = urlParams.get('asset');
+
+            if (assetCode) {
+                showPublicAssetViewer(assetCode);
+            }
         }
 
         // ============================================
@@ -3102,7 +4943,7 @@
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);"><strong>${asset.assetCode}</strong></td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.description}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600;">JMD ${formatCurrency(asset.totalPrice)}</td>
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.supplier || 'N/A'}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.department || 'N/A'}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">
                                 <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.85em; ${asset.source === 'Purchased' ? 'background: rgba(46, 204, 113, 0.1); color: #27AE60;' : 'background: rgba(52, 152, 219, 0.1); color: #2980B9;'}">
                                     ${asset.source}
@@ -3162,7 +5003,7 @@
                     asset.assetCode,
                     asset.description,
                     asset.totalPrice,
-                    asset.supplier || 'N/A',
+                    asset.department || 'N/A',
                     asset.source,
                     asset.dateIn
                 ]);
@@ -3171,6 +5012,233 @@
             const ws = XLSX.utils.aoa_to_sheet(sheetData);
             XLSX.utils.book_append_sheet(wb, ws, 'Sheet Data');
             XLSX.writeFile(wb, `Asset_Sheet_Data_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        function exportSheetDataPDF() {
+            if (!allAssetsData || allAssetsData.length === 0) {
+                alert('No data available to export. Please load asset data first.');
+                return;
+            }
+
+            const sourceFilter = document.querySelector('input[name="sheetDataSource"]:checked').value;
+            const searchTerm = document.getElementById('sheetDataSearch').value.toLowerCase();
+
+            // Filter data
+            let filteredAssets = allAssetsData;
+
+            if (sourceFilter === 'purchased') {
+                filteredAssets = filteredAssets.filter(asset => asset.source === 'Purchased');
+            } else if (sourceFilter === 'donated') {
+                filteredAssets = filteredAssets.filter(asset => asset.source === 'Donated');
+            }
+
+            if (searchTerm) {
+                filteredAssets = filteredAssets.filter(asset =>
+                    asset.assetCode.toLowerCase().includes(searchTerm) ||
+                    asset.description.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            if (filteredAssets.length === 0) {
+                alert('No assets found matching your criteria.');
+                return;
+            }
+
+            // Calculate totals
+            const totalValue = filteredAssets.reduce((sum, asset) => sum + asset.totalPrice, 0);
+            const purchasedCount = filteredAssets.filter(a => a.source === 'Purchased').length;
+            const donatedCount = filteredAssets.filter(a => a.source === 'Donated').length;
+
+            // Build table rows
+            let tableRows = '';
+            filteredAssets.forEach(asset => {
+                tableRows += `
+                    <tr>
+                        <td style="white-space: nowrap;">${escapeHtml(asset.assetCode)}</td>
+                        <td>${escapeHtml(asset.description)}</td>
+                        <td style="text-align: right;">JMD ${formatCurrency(asset.totalPrice)}</td>
+                        <td>${escapeHtml(asset.department || 'N/A')}</td>
+                        <td>${escapeHtml(asset.source)}</td>
+                        <td>${escapeHtml(asset.dateIn)}</td>
+                    </tr>
+                `;
+            });
+
+            // Filter description for report title
+            let filterDesc = 'All Assets';
+            if (sourceFilter === 'purchased') filterDesc = 'Purchased Assets';
+            if (sourceFilter === 'donated') filterDesc = 'Donated Assets';
+            if (searchTerm) filterDesc += ` (Search: "${searchTerm}")`;
+
+            // Create PDF report in new window
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Sheet Data Report - May Pen Hospital</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            margin: 20px;
+                            font-size: 12px;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 3px solid #FF6B35;
+                            padding-bottom: 20px;
+                            margin-bottom: 20px;
+                        }
+                        .logo {
+                            font-size: 1.8em;
+                            color: #FF6B35;
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                        }
+                        h1 {
+                            color: #2C3E50;
+                            margin: 10px 0;
+                        }
+                        h2 {
+                            color: #666;
+                            font-weight: normal;
+                            margin: 5px 0;
+                        }
+                        .summary-box {
+                            background: #f8f9fa;
+                            border: 2px solid #FF6B35;
+                            border-radius: 8px;
+                            padding: 15px;
+                            margin: 20px 0;
+                        }
+                        .summary-grid {
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 15px;
+                        }
+                        .summary-item {
+                            text-align: center;
+                            padding: 10px;
+                        }
+                        .summary-label {
+                            font-weight: bold;
+                            color: #2C3E50;
+                            margin-bottom: 5px;
+                            font-size: 0.9em;
+                        }
+                        .summary-value {
+                            font-size: 1.4em;
+                            color: #2ECC71;
+                            font-weight: bold;
+                        }
+                        h3 {
+                            color: #2C3E50;
+                            border-bottom: 2px solid #2ECC71;
+                            padding-bottom: 5px;
+                            margin: 25px 0 15px 0;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 15px 0;
+                            font-size: 11px;
+                        }
+                        th {
+                            background: #2ECC71;
+                            color: white;
+                            padding: 10px 5px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #27AE60;
+                        }
+                        td {
+                            border: 1px solid #ddd;
+                            padding: 8px 5px;
+                        }
+                        tr:nth-child(even) {
+                            background: #f8f9fa;
+                        }
+                        tr:hover {
+                            background: #e8f5e9;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 2px solid #ddd;
+                            font-size: 0.9em;
+                            color: #7f8c8d;
+                        }
+                        .timestamp {
+                            text-align: right;
+                            font-size: 0.85em;
+                            color: #999;
+                            margin-top: 10px;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                            .summary-box { break-inside: avoid; }
+                            table { page-break-inside: auto; }
+                            tr { page-break-inside: avoid; page-break-after: auto; }
+                            thead { display: table-header-group; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">🏥 May Pen Hospital</div>
+                        <h1>Sheet Data Report</h1>
+                        <h2>${filterDesc}</h2>
+                        <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
+                    </div>
+
+                    <div class="summary-box">
+                        <h3 style="text-align: center; margin-top: 0; border: none;">Summary Statistics</h3>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <div class="summary-label">Total Assets</div>
+                                <div class="summary-value">${filteredAssets.length}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Total Value</div>
+                                <div class="summary-value">JMD ${formatCurrency(totalValue)}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Purchased</div>
+                                <div class="summary-value">${purchasedCount}</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-label">Donated</div>
+                                <div class="summary-value">${donatedCount}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3>Asset Details</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Asset Code</th>
+                                <th>Description</th>
+                                <th>Total Cost (JMD)</th>
+                                <th>Department/Location</th>
+                                <th>Source</th>
+                                <th>Date In</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>May Pen Hospital - Fixed Asset Management System</p>
+                        <p>This report contains ${filteredAssets.length} assets with a total value of JMD ${formatCurrency(totalValue)}</p>
+                    </div>
+
+                    <script>window.print();<\/script>
+                </body>
+                </html>
+            `);
         }
 
         // ============================================
@@ -3241,24 +5309,60 @@
 
         function displayAuditTrail() {
             const auditEntries = document.getElementById('auditEntries');
-            const departmentFilter = document.getElementById('auditDepartmentFilter').value;
+            const departmentFilter = document.getElementById('auditDepartmentFilter')?.value || '';
+            const actionFilter = document.getElementById('auditActionFilter')?.value || '';
+            const dateFrom = document.getElementById('auditDateFrom')?.value || '';
+            const dateTo = document.getElementById('auditDateTo')?.value || '';
 
             let auditRecords = loadAuditFromStorage();
+            const totalRecords = auditRecords.length;
 
             // Filter by department if selected
             if (departmentFilter) {
                 auditRecords = auditRecords.filter(record => record.department === departmentFilter);
             }
 
+            // Filter by action type if selected
+            if (actionFilter) {
+                auditRecords = auditRecords.filter(record => record.action === actionFilter);
+            }
+
+            // Filter by date range
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
+            }
+
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
+            }
+
+            // Update department summary if visible
+            updateDepartmentSummary();
+
             if (auditRecords.length === 0) {
-                auditEntries.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No audit trail entries found</p>';
+                auditEntries.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No audit trail entries found matching the selected filters</p>';
                 window.currentAuditData = [];
                 return;
             }
 
             window.currentAuditData = auditRecords;
 
-            let html = `
+            // Show filter status
+            const filterStatus = (departmentFilter || actionFilter || dateFrom || dateTo)
+                ? `<div style="margin-bottom: 10px; padding: 10px; background: #e8f4f8; border-radius: 4px; color: #0c5460;">
+                    Showing ${auditRecords.length} of ${totalRecords} entries
+                    ${departmentFilter ? ' | Department: <strong>' + escapeHtml(departmentFilter) + '</strong>' : ''}
+                    ${actionFilter ? ' | Action: <strong>' + escapeHtml(actionFilter) + '</strong>' : ''}
+                    ${dateFrom ? ' | From: <strong>' + dateFrom + '</strong>' : ''}
+                    ${dateTo ? ' | To: <strong>' + dateTo + '</strong>' : ''}
+                   </div>`
+                : '';
+
+            let html = filterStatus + `
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -3294,6 +5398,166 @@
 
             html += '</tbody></table></div>';
             auditEntries.innerHTML = html;
+        }
+
+        // Clear all audit filters
+        function clearAuditFilters() {
+            const deptFilter = document.getElementById('auditDepartmentFilter');
+            const actionFilter = document.getElementById('auditActionFilter');
+            const dateFrom = document.getElementById('auditDateFrom');
+            const dateTo = document.getElementById('auditDateTo');
+
+            if (deptFilter) deptFilter.value = '';
+            if (actionFilter) actionFilter.value = '';
+            if (dateFrom) dateFrom.value = '';
+            if (dateTo) dateTo.value = '';
+
+            displayAuditTrail();
+        }
+
+        // Toggle department summary visibility
+        function toggleDepartmentSummary() {
+            const summarySection = document.getElementById('departmentSummarySection');
+            if (summarySection) {
+                const isHidden = summarySection.style.display === 'none';
+                summarySection.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    updateDepartmentSummary();
+                }
+            }
+        }
+
+        // Update department summary dashboard
+        function updateDepartmentSummary() {
+            const summarySection = document.getElementById('departmentSummarySection');
+            if (!summarySection || summarySection.style.display === 'none') return;
+
+            const cardsContainer = document.getElementById('departmentSummaryCards');
+            const statsContainer = document.getElementById('departmentSummaryStats');
+            const periodLabel = document.getElementById('summaryPeriodLabel');
+
+            let auditRecords = loadAuditFromStorage();
+
+            // Apply date filters for summary
+            const dateFrom = document.getElementById('auditDateFrom')?.value || '';
+            const dateTo = document.getElementById('auditDateTo')?.value || '';
+
+            if (dateFrom) {
+                const fromDate = new Date(dateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
+            }
+
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
+            }
+
+            // Update period label
+            if (dateFrom || dateTo) {
+                periodLabel.textContent = `(${dateFrom || 'Start'} to ${dateTo || 'Present'})`;
+            } else {
+                periodLabel.textContent = '(All Time)';
+            }
+
+            // Calculate department statistics
+            const deptStats = {};
+            const actionStats = {};
+            const departments = loadDepartments();
+
+            auditRecords.forEach(record => {
+                const dept = record.department || 'Unassigned';
+                const action = record.action || 'Unknown';
+
+                // Count by department
+                if (!deptStats[dept]) {
+                    deptStats[dept] = { count: 0, actions: {} };
+                }
+                deptStats[dept].count++;
+
+                // Count actions within department
+                if (!deptStats[dept].actions[action]) {
+                    deptStats[dept].actions[action] = 0;
+                }
+                deptStats[dept].actions[action]++;
+
+                // Global action stats
+                if (!actionStats[action]) {
+                    actionStats[action] = 0;
+                }
+                actionStats[action]++;
+            });
+
+            // Sort departments by activity count
+            const sortedDepts = Object.entries(deptStats).sort((a, b) => b[1].count - a[1].count);
+
+            // Generate department cards
+            let cardsHtml = '';
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#00b894'];
+
+            sortedDepts.forEach(([dept, stats], index) => {
+                const color = colors[index % colors.length];
+                const topAction = Object.entries(stats.actions).sort((a, b) => b[1] - a[1])[0];
+
+                cardsHtml += `
+                    <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; cursor: pointer; transition: transform 0.2s;"
+                         onclick="filterByDepartmentFromSummary('${escapeHtml(dept)}')"
+                         onmouseover="this.style.transform='scale(1.02)'"
+                         onmouseout="this.style.transform='scale(1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="width: 12px; height: 12px; background: ${color}; border-radius: 50%; display: inline-block;"></span>
+                            <strong style="font-size: 0.95em;">${escapeHtml(dept)}</strong>
+                        </div>
+                        <div style="font-size: 2em; font-weight: bold; margin-bottom: 5px;">${stats.count}</div>
+                        <div style="font-size: 0.8em; opacity: 0.8;">
+                            entries${topAction ? ` | Top: ${topAction[0]}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (cardsHtml === '') {
+                cardsHtml = '<p style="opacity: 0.8;">No audit entries found for the selected period.</p>';
+            }
+
+            cardsContainer.innerHTML = cardsHtml;
+
+            // Generate overall stats
+            const totalEntries = auditRecords.length;
+            const uniqueDepts = Object.keys(deptStats).length;
+            const uniqueActions = Object.keys(actionStats).length;
+            const topAction = Object.entries(actionStats).sort((a, b) => b[1] - a[1])[0];
+
+            statsContainer.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: center;">
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${totalEntries}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Total Entries</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${uniqueDepts}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Active Departments</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${uniqueActions}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Action Types</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${topAction ? topAction[0] : 'N/A'}</div>
+                        <div style="font-size: 0.85em; opacity: 0.8;">Most Common Action${topAction ? ` (${topAction[1]})` : ''}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Filter by department when clicking summary card
+        function filterByDepartmentFromSummary(department) {
+            const deptFilter = document.getElementById('auditDepartmentFilter');
+            if (deptFilter) {
+                deptFilter.value = department === 'Unassigned' ? '' : department;
+                displayAuditTrail();
+            }
         }
 
         function deleteAuditEntry(entryId) {
@@ -3477,12 +5741,12 @@
                         <td>${warrantyEndDate.toLocaleDateString()}</td>
                         <td>${status}</td>
                         <td>${daysRemaining > 0 ? daysRemaining + ' days' : Math.abs(daysRemaining) + ' days expired'}</td>
-                        <td>${asset.supplier || 'N/A'}</td>
+                        <td>${asset.department || 'N/A'}</td>
                         <td>JMD ${formatCurrency(asset.totalPrice)}</td>
                     </tr>
                 `;
             });
-            
+
             return `
                 <h3>Warranty Status Report</h3>
                 <p>Comprehensive warranty information for all purchased assets (2-year coverage period)</p>
@@ -4480,10 +6744,703 @@
         }
         
         // ============================================
+        // ASSET IMPORT DASHBOARD FUNCTIONS
+        // ============================================
+
+        // Import state variables
+        let importedExcelData = [];
+        let importColumnMapping = {};
+        let importPreviewData = [];
+        let importFileHeaders = [];
+
+        // Field definitions with aliases for auto-detection
+        const importFieldDefinitions = {
+            assetCode: {
+                label: 'Asset Code',
+                required: true,
+                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'asset_id', 'code', 'asset no', 'asset number', 'asset#', 'id']
+            },
+            description: {
+                label: 'Asset Description',
+                required: true,
+                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc', 'asset']
+            },
+            dateIn: {
+                label: 'Date In',
+                required: true,
+                aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date']
+            },
+            supplier: {
+                label: 'Supplier',
+                required: false,
+                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'donor name', 'source name', 'from', 'purchased from']
+            },
+            department: {
+                label: 'Location/Department',
+                required: true,
+                aliases: ['department', 'location', 'dept', 'asset location', 'asset department', 'dept name', 'location name', 'ward', 'unit', 'area', 'section']
+            },
+            source: {
+                label: 'Source (Purchased/Donated)',
+                required: true,
+                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source']
+            },
+            month: {
+                label: 'Month',
+                required: false,
+                aliases: ['month', 'fiscal month', 'period', 'month acquired']
+            },
+            category: {
+                label: 'Category',
+                required: true,
+                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'type', 'class', 'classification', 'group']
+            },
+            serialModel: {
+                label: 'Serial/Model',
+                required: false,
+                aliases: ['serial', 'model', 'serial number', 'serialnumber', 'serial_number', 'model number', 'modelnumber', 'model_number', 'serial/model', 'serial no', 'model no', 's/n', 'm/n']
+            },
+            quantity: {
+                label: 'Quantity',
+                required: false,
+                aliases: ['quantity', 'qty', 'count', 'amount', 'units', 'no of items', 'number']
+            },
+            unitPrice: {
+                label: 'Unit Price',
+                required: false,
+                aliases: ['unit price', 'unitprice', 'unit_price', 'price', 'unit cost', 'cost per unit', 'cost', 'price per unit', 'unit value']
+            },
+            totalPrice: {
+                label: 'Total Price',
+                required: false,
+                aliases: ['total price', 'totalprice', 'total_price', 'total', 'total cost', 'total value', 'value', 'amount', 'total amount']
+            }
+        };
+
+        // Initialize import dropzone drag-and-drop
+        function initImportDropzone() {
+            const dropzone = document.getElementById('importDropzone');
+            if (!dropzone) return;
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-over');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('drag-over');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleImportFileSelection(files[0]);
+                }
+            });
+        }
+
+        // Handle file input change
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleImportFileSelection(file);
+            }
+        }
+
+        // Process the selected file
+        function handleImportFileSelection(file) {
+            // Validate file type
+            const validTypes = ['.xlsx', '.xls'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+            if (!validTypes.includes(fileExtension)) {
+                alert('⚠️ Please select a valid Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            // Show progress
+            const progress = document.getElementById('importProgress');
+            const progressFill = document.getElementById('importProgressFill');
+            const progressText = document.getElementById('importProgressText');
+
+            progress.style.display = 'block';
+            progressFill.style.width = '10%';
+            progressText.textContent = 'Reading file...';
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    progressFill.style.width = '40%';
+                    progressText.textContent = 'Parsing Excel data...';
+
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    progressFill.style.width = '60%';
+                    progressText.textContent = 'Analyzing columns...';
+
+                    // Get first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    // Convert to JSON with headers
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                    if (jsonData.length < 2) {
+                        throw new Error('File appears to be empty or has no data rows');
+                    }
+
+                    // Store headers (first row) and data
+                    importFileHeaders = jsonData[0].map(h => String(h || '').trim());
+                    importedExcelData = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+
+                    progressFill.style.width = '80%';
+                    progressText.textContent = 'Auto-detecting column mappings...';
+
+                    // Show file info
+                    const fileInfo = document.getElementById('importFileInfo');
+                    const formatSection = document.getElementById('importDetectedFormat');
+                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                    formatSection.style.display = 'block';
+
+                    // Auto-detect column mappings
+                    autoDetectColumns();
+
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'Complete!';
+
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }, 500);
+
+                } catch (error) {
+                    console.error('Error parsing Excel file:', error);
+                    progress.style.display = 'none';
+                    alert('⚠️ Error reading Excel file: ' + error.message);
+                }
+            };
+
+            reader.onerror = function() {
+                progress.style.display = 'none';
+                alert('⚠️ Error reading file. Please try again.');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Auto-detect column mappings based on header names
+        function autoDetectColumns() {
+            importColumnMapping = {};
+
+            importFileHeaders.forEach((header, index) => {
+                const normalizedHeader = header.toLowerCase().trim();
+
+                // Check each field's aliases
+                for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                    if (importColumnMapping[fieldKey] !== undefined) continue; // Already mapped
+
+                    // Check if header matches any alias
+                    const matchFound = fieldDef.aliases.some(alias => {
+                        return normalizedHeader === alias ||
+                               normalizedHeader.includes(alias) ||
+                               alias.includes(normalizedHeader);
+                    });
+
+                    if (matchFound) {
+                        importColumnMapping[fieldKey] = index;
+                        break;
+                    }
+                }
+            });
+
+            // Build mapping UI
+            buildMappingUI();
+
+            // Generate preview
+            generatePreview();
+        }
+
+        // Build the column mapping UI
+        function buildMappingUI() {
+            const mappingGrid = document.getElementById('importMappingGrid');
+            const mappingSection = document.getElementById('importMappingSection');
+
+            let html = '';
+
+            for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                const currentMapping = importColumnMapping[fieldKey];
+                const isMapped = currentMapping !== undefined;
+                const isRequired = fieldDef.required;
+
+                html += `
+                    <div class="import-mapping-item">
+                        <label class="import-mapping-label">
+                            ${fieldDef.label} ${isRequired ? '<span class="required">*</span>' : ''}
+                        </label>
+                        <select class="import-mapping-select ${isMapped ? 'mapped' : (isRequired ? 'error' : '')}"
+                                id="mapping_${fieldKey}"
+                                onchange="updateColumnMapping('${fieldKey}', this.value)">
+                            <option value="">-- Not Mapped --</option>
+                            ${importFileHeaders.map((header, idx) => `
+                                <option value="${idx}" ${currentMapping === idx ? 'selected' : ''}>
+                                    ${header || `Column ${idx + 1}`}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            mappingGrid.innerHTML = html;
+            mappingSection.style.display = 'block';
+        }
+
+        // Update column mapping when user changes selection
+        function updateColumnMapping(fieldKey, value) {
+            if (value === '') {
+                delete importColumnMapping[fieldKey];
+            } else {
+                importColumnMapping[fieldKey] = parseInt(value);
+            }
+
+            // Update select styling
+            const select = document.getElementById(`mapping_${fieldKey}`);
+            const fieldDef = importFieldDefinitions[fieldKey];
+
+            if (value !== '') {
+                select.classList.add('mapped');
+                select.classList.remove('error');
+            } else {
+                select.classList.remove('mapped');
+                if (fieldDef.required) {
+                    select.classList.add('error');
+                }
+            }
+
+            // Regenerate preview
+            generatePreview();
+        }
+
+        // Parse date from various formats
+        function parseImportDate(value) {
+            if (!value) return '';
+
+            // If it's already a Date object
+            if (value instanceof Date) {
+                const day = String(value.getDate()).padStart(2, '0');
+                const month = String(value.getMonth() + 1).padStart(2, '0');
+                const year = value.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            const strValue = String(value).trim();
+
+            // Try to parse various date formats
+            const datePatterns = [
+                // DD/MM/YYYY
+                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                // MM/DD/YYYY
+                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+                // YYYY-MM-DD
+                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+                // DD-MM-YYYY
+                /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+                // DD-MMM-YYYY (e.g., 15-Jan-2024)
+                /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/
+            ];
+
+            // Try Excel serial date number
+            if (/^\d+(\.\d+)?$/.test(strValue)) {
+                const excelDate = parseFloat(strValue);
+                if (excelDate > 1000 && excelDate < 100000) {
+                    const date = new Date((excelDate - 25569) * 86400 * 1000);
+                    if (!isNaN(date.getTime())) {
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${day}/${month}/${year}`;
+                    }
+                }
+            }
+
+            // Try to parse with Date object
+            const parsedDate = new Date(strValue);
+            if (!isNaN(parsedDate.getTime())) {
+                const day = String(parsedDate.getDate()).padStart(2, '0');
+                const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                const year = parsedDate.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            return strValue; // Return as-is if can't parse
+        }
+
+        // Parse currency/number values
+        function parseImportNumber(value) {
+            if (!value && value !== 0) return 0;
+
+            // Remove currency symbols, commas, and spaces
+            const cleaned = String(value).replace(/[$,\s¤JMD]/gi, '').trim();
+            const num = parseFloat(cleaned);
+
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Detect month from date or value
+        function detectMonth(dateStr, monthValue) {
+            if (monthValue) {
+                const monthStr = String(monthValue).toUpperCase().trim();
+                const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+                if (validMonths.includes(monthStr)) {
+                    return monthStr;
+                }
+                // Try to match partial month names
+                const monthMap = {
+                    'JANUARY': 'JAN', 'FEBRUARY': 'FEB', 'MARCH': 'MAR', 'APRIL': 'APR',
+                    'MAY': 'MAY', 'JUNE': 'JUN', 'JULY': 'JUL', 'AUGUST': 'AUG',
+                    'SEPTEMBER': 'SEP', 'OCTOBER': 'OCT', 'NOVEMBER': 'NOV', 'DECEMBER': 'DEC'
+                };
+                for (const [fullMonth, abbr] of Object.entries(monthMap)) {
+                    if (monthStr.includes(fullMonth) || fullMonth.includes(monthStr)) {
+                        return abbr;
+                    }
+                }
+            }
+
+            // Try to extract from date
+            if (dateStr) {
+                const parts = dateStr.split(/[\/\-]/);
+                if (parts.length >= 2) {
+                    let month = parseInt(parts[1]);
+                    // Handle DD/MM/YYYY format
+                    if (parts[0].length <= 2 && parts[2] && parts[2].length === 4) {
+                        month = parseInt(parts[1]);
+                    }
+                    const monthAbbrs = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+                    if (month >= 1 && month <= 12) {
+                        return monthAbbrs[month - 1];
+                    }
+                }
+            }
+
+            return 'APR'; // Default
+        }
+
+        // Normalize source value
+        function normalizeSource(value) {
+            if (!value) return 'Purchased';
+
+            const normalizedValue = String(value).toLowerCase().trim();
+
+            if (normalizedValue.includes('donat') || normalizedValue.includes('gift') || normalizedValue.includes('grant')) {
+                return 'Donated';
+            }
+
+            return 'Purchased';
+        }
+
+        // Normalize category value
+        function normalizeCategory(value) {
+            if (!value) return 'Medical Equipment';
+
+            const normalizedValue = String(value).toLowerCase().trim();
+
+            if (normalizedValue.includes('furniture') || normalizedValue.includes('appliance') ||
+                normalizedValue.includes('office') || normalizedValue.includes('equipment') === false) {
+                return 'Furniture & Appliances';
+            }
+
+            return 'Medical Equipment';
+        }
+
+        // Generate preview data
+        function generatePreview() {
+            const previewSection = document.getElementById('importPreviewSection');
+            const previewTable = document.getElementById('importPreviewTable');
+            const importOptions = document.getElementById('importOptions');
+            const importActions = document.getElementById('importActions');
+
+            // Get existing asset codes for duplicate detection
+            const existingAssets = loadAssetsFromStorage();
+            const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+
+            importPreviewData = [];
+            let validCount = 0;
+            let invalidCount = 0;
+            let duplicateCount = 0;
+
+            // Process each row
+            importedExcelData.forEach((row, rowIndex) => {
+                const rowData = {
+                    rowNumber: rowIndex + 2, // Account for header row
+                    raw: row,
+                    parsed: {},
+                    status: 'valid',
+                    errors: []
+                };
+
+                // Extract values based on mapping
+                const getValue = (fieldKey) => {
+                    const colIndex = importColumnMapping[fieldKey];
+                    return colIndex !== undefined ? row[colIndex] : undefined;
+                };
+
+                // Parse each field
+                rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
+                rowData.parsed.description = String(getValue('description') || '').trim();
+                rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
+                rowData.parsed.supplier = String(getValue('supplier') || '').trim();
+                rowData.parsed.department = String(getValue('department') || '').trim();
+                rowData.parsed.source = normalizeSource(getValue('source'));
+                rowData.parsed.category = normalizeCategory(getValue('category'));
+                rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
+                rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
+                rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
+                rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
+
+                // Detect month
+                rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
+
+                // Calculate total if not provided
+                if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice) {
+                    rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
+                }
+
+                // Validate required fields
+                const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
+                requiredFields.forEach(field => {
+                    if (!rowData.parsed[field]) {
+                        rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
+                        rowData.status = 'invalid';
+                    }
+                });
+
+                // Check for duplicates
+                if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                    rowData.status = 'duplicate';
+                    rowData.errors.push('Asset code already exists');
+                }
+
+                // Count by status
+                if (rowData.status === 'valid') validCount++;
+                else if (rowData.status === 'invalid') invalidCount++;
+                else if (rowData.status === 'duplicate') duplicateCount++;
+
+                importPreviewData.push(rowData);
+            });
+
+            // Update stats
+            document.getElementById('previewValidCount').textContent = `${validCount} Valid`;
+            document.getElementById('previewInvalidCount').textContent = `${invalidCount} Invalid`;
+            document.getElementById('previewDuplicateCount').textContent = `${duplicateCount} Duplicates`;
+
+            // Build preview table
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Row</th>
+                            <th>Status</th>
+                            <th>Asset Code</th>
+                            <th>Description</th>
+                            <th>Date In</th>
+                            <th>Department</th>
+                            <th>Source</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Show first 50 rows for preview
+            const previewRows = importPreviewData.slice(0, 50);
+
+            previewRows.forEach(row => {
+                const statusClass = row.status === 'valid' ? 'valid-row' :
+                                   row.status === 'invalid' ? 'invalid-row' : 'duplicate-row';
+                const statusLabel = row.status === 'valid' ? '✓ Valid' :
+                                   row.status === 'invalid' ? '✗ Invalid' : '⚠ Duplicate';
+                const statusBadgeClass = row.status;
+
+                tableHtml += `
+                    <tr class="${statusClass}" title="${row.errors.join(', ') || 'Ready to import'}">
+                        <td>${row.rowNumber}</td>
+                        <td><span class="import-row-status ${statusBadgeClass}">${statusLabel}</span></td>
+                        <td>${escapeHtml(row.parsed.assetCode || '-')}</td>
+                        <td>${escapeHtml(row.parsed.description || '-')}</td>
+                        <td>${escapeHtml(row.parsed.dateIn || '-')}</td>
+                        <td>${escapeHtml(row.parsed.department || '-')}</td>
+                        <td>${escapeHtml(row.parsed.source || '-')}</td>
+                        <td>${escapeHtml(row.parsed.category || '-')}</td>
+                        <td>${row.parsed.quantity}</td>
+                        <td>${formatCurrency(row.parsed.unitPrice)}</td>
+                        <td>${formatCurrency(row.parsed.totalPrice)}</td>
+                    </tr>
+                `;
+            });
+
+            if (importPreviewData.length > 50) {
+                tableHtml += `
+                    <tr>
+                        <td colspan="11" style="text-align: center; font-style: italic; color: var(--text-secondary);">
+                            ... and ${importPreviewData.length - 50} more rows
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += '</tbody></table>';
+
+            previewTable.innerHTML = tableHtml;
+            previewSection.style.display = 'block';
+            importOptions.style.display = 'block';
+            importActions.style.display = 'flex';
+
+            // Enable/disable import button
+            const importBtn = document.getElementById('importConfirmBtn');
+            importBtn.disabled = validCount === 0;
+            importBtn.textContent = validCount > 0 ?
+                `✅ Import ${validCount} Valid Assets` :
+                '✅ No Valid Assets to Import';
+        }
+
+        // Confirm and execute import
+        function confirmImport() {
+            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            const skipInvalid = document.getElementById('importSkipInvalid').checked;
+
+            // Filter rows to import
+            let rowsToImport = importPreviewData.filter(row => row.status === 'valid');
+
+            if (rowsToImport.length === 0) {
+                alert('⚠️ No valid assets to import.');
+                return;
+            }
+
+            // Confirm with user
+            const confirmMsg = importMode === 'replace' ?
+                `⚠️ WARNING: This will REPLACE all existing assets!\n\n` +
+                `You are about to import ${rowsToImport.length} assets.\n` +
+                `All current data will be lost.\n\n` +
+                `Are you sure you want to continue?` :
+                `You are about to import ${rowsToImport.length} new assets.\n` +
+                `Existing assets will be preserved.\n\n` +
+                `Continue with import?`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            try {
+                let existingAssets = loadAssetsFromStorage();
+                let importedCount = 0;
+
+                if (importMode === 'replace') {
+                    // Clear existing assets
+                    existingAssets = [];
+                }
+
+                // Create new assets
+                rowsToImport.forEach(row => {
+                    const newAsset = {
+                        id: generateAssetId(),
+                        assetCode: row.parsed.assetCode,
+                        description: row.parsed.description,
+                        dateIn: row.parsed.dateIn,
+                        supplier: row.parsed.supplier || '',
+                        department: row.parsed.department,
+                        source: row.parsed.source,
+                        category: row.parsed.category,
+                        serialModel: row.parsed.serialModel || '',
+                        quantity: row.parsed.quantity,
+                        unitPrice: row.parsed.unitPrice,
+                        totalPrice: row.parsed.totalPrice,
+                        month: row.parsed.month,
+                        itemType: row.parsed.description // Use description as item type
+                    };
+
+                    existingAssets.push(newAsset);
+                    importedCount++;
+
+                    // Add audit entry
+                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
+                });
+
+                // Save to storage
+                saveAssetsToStorage(existingAssets);
+
+                // Show success summary
+                const summary = document.getElementById('importSummary');
+                const summaryDetails = document.getElementById('importSummaryDetails');
+
+                summaryDetails.innerHTML = `
+                    <p>Successfully imported <strong>${importedCount}</strong> assets.</p>
+                    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.9;">
+                        Mode: ${importMode === 'replace' ? 'Replace All' : 'Merge'} •
+                        Total Assets Now: ${existingAssets.length}
+                    </p>
+                `;
+
+                summary.style.display = 'block';
+
+                // Hide other sections
+                document.getElementById('importMappingSection').style.display = 'none';
+                document.getElementById('importPreviewSection').style.display = 'none';
+                document.getElementById('importOptions').style.display = 'none';
+                document.getElementById('importActions').style.display = 'none';
+                document.getElementById('importDetectedFormat').style.display = 'none';
+                document.getElementById('importDropzone').style.display = 'none';
+
+                // Reload main dashboard data
+                loadData();
+
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('⚠️ Error during import: ' + error.message);
+            }
+        }
+
+        // Reset import dashboard
+        function resetImportDashboard() {
+            // Reset state
+            importedExcelData = [];
+            importColumnMapping = {};
+            importPreviewData = [];
+            importFileHeaders = [];
+
+            // Reset file input
+            document.getElementById('importFileInput').value = '';
+
+            // Hide all sections
+            document.getElementById('importProgress').style.display = 'none';
+            document.getElementById('importDetectedFormat').style.display = 'none';
+            document.getElementById('importMappingSection').style.display = 'none';
+            document.getElementById('importPreviewSection').style.display = 'none';
+            document.getElementById('importOptions').style.display = 'none';
+            document.getElementById('importActions').style.display = 'none';
+            document.getElementById('importSummary').style.display = 'none';
+
+            // Show dropzone
+            document.getElementById('importDropzone').style.display = 'block';
+        }
+
+        // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
         window.addEventListener('DOMContentLoaded', async function() {
+            // Initialize import dropzone
+            initImportDropzone();
             setDynamicCopyrightYear();
+
+            // Check if page was opened via QR code scan (asset parameter in URL)
+            checkForAssetParameter();
 
             // Preload credentials from Google Sheets
             console.log('Preloading credentials...');
