@@ -2079,6 +2079,408 @@
         }
 
         /* ============================================
+           GOOGLE DRIVE ASSET IMPORT DASHBOARD STYLES
+           ============================================ */
+        .gdrive-import-container {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .gdrive-connection-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            background: var(--table-hover);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gdrive-connection-status.connected {
+            border-left: 4px solid var(--primary-green);
+        }
+
+        .gdrive-connection-status.disconnected {
+            border-left: 4px solid #e74c3c;
+        }
+
+        .gdrive-status-icon {
+            font-size: 2em;
+        }
+
+        .gdrive-status-text {
+            flex: 1;
+        }
+
+        .gdrive-status-text h4 {
+            margin: 0 0 5px 0;
+            color: var(--text-primary);
+        }
+
+        .gdrive-status-text p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .gdrive-folder-info {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gdrive-folder-info h3 {
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gdrive-folder-info p {
+            margin: 5px 0;
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        .gdrive-files-list {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gdrive-file-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .gdrive-file-item:last-child {
+            border-bottom: none;
+        }
+
+        .gdrive-file-item:hover {
+            background: var(--table-hover);
+        }
+
+        .gdrive-file-item.selected {
+            background: rgba(46, 204, 113, 0.15);
+            border-left: 4px solid var(--primary-green);
+        }
+
+        .gdrive-file-item.imported {
+            background: rgba(241, 196, 15, 0.1);
+            border-left: 4px solid #f1c40f;
+        }
+
+        .gdrive-file-checkbox {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        .gdrive-file-icon {
+            font-size: 2em;
+        }
+
+        .gdrive-file-info {
+            flex: 1;
+        }
+
+        .gdrive-file-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .gdrive-file-meta {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .gdrive-file-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .gdrive-file-badge.new {
+            background: rgba(46, 204, 113, 0.15);
+            color: var(--dark-green);
+        }
+
+        .gdrive-file-badge.imported {
+            background: rgba(241, 196, 15, 0.15);
+            color: #9a7b0a;
+        }
+
+        .gdrive-file-badge.sheets {
+            background: rgba(66, 133, 244, 0.15);
+            color: #4285f4;
+        }
+
+        .gdrive-sheets-preview {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--table-hover);
+            border-radius: 10px;
+            border-left: 4px solid #4285f4;
+        }
+
+        .gdrive-sheets-preview h4 {
+            margin: 0 0 15px 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gdrive-sheet-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .gdrive-sheet-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gdrive-sheet-chip:hover {
+            border-color: var(--primary-green);
+        }
+
+        .gdrive-sheet-chip.selected {
+            background: rgba(46, 204, 113, 0.15);
+            border-color: var(--primary-green);
+        }
+
+        .gdrive-sheet-chip input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .gdrive-sheet-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .gdrive-sheet-rows {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .gdrive-import-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .gdrive-scan-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gdrive-scan-btn.primary {
+            background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+            color: white;
+        }
+
+        .gdrive-scan-btn.success {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+        }
+
+        .gdrive-scan-btn.secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .gdrive-scan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .gdrive-scan-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .gdrive-empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-secondary);
+        }
+
+        .gdrive-empty-state .empty-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .gdrive-empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .gdrive-import-history {
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--table-hover);
+            border-radius: 10px;
+        }
+
+        .gdrive-import-history h3 {
+            margin: 0 0 15px 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gdrive-history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .gdrive-history-table th,
+        .gdrive-history-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .gdrive-history-table th {
+            background: var(--bg-card);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .gdrive-history-table td {
+            color: var(--text-secondary);
+        }
+
+        .gdrive-processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .gdrive-processing-modal {
+            background: var(--bg-card);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .gdrive-processing-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-green);
+            border-radius: 50%;
+            animation: gdrive-spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes gdrive-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .gdrive-processing-text {
+            color: var(--text-primary);
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .gdrive-processing-subtext {
+            color: var(--text-secondary);
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .gdrive-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .gdrive-tab-btn {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95em;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+        }
+
+        .gdrive-tab-btn:hover {
+            background: var(--table-hover);
+            color: var(--text-primary);
+        }
+
+        .gdrive-tab-btn.active {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .gdrive-tab-content {
+            display: none;
+        }
+
+        .gdrive-tab-content.active {
+            display: block;
+        }
+
+        /* ============================================
            TWO-FACTOR AUTHENTICATION STYLES
            ============================================ */
         .twofa-setup-btn {
@@ -3728,6 +4130,7 @@
                         <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
                         <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
                         <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(5)" style="background: linear-gradient(135deg, #4285f4, #1a73e8);">☁️ Google Drive Import</button>
                     </div>
                 </div>
             </div>
@@ -4445,6 +4848,288 @@
                 <p>Fixed Asset Management System © <span id="copyrightYear4"></span> • May Pen Hospital</p>
             </div>
         </div>
+
+        <!-- Page 5: Google Drive Asset Import Dashboard -->
+        <div class="page" id="page5">
+            <div class="header" style="background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Google Drive Asset Import</h1>
+                            <div class="dashboard-subtitle">Import assets from Excel files in your Google Drive folder</div>
+                        </div>
+                        <div class="user-info" id="userInfo5"></div>
+                    </div>
+
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(4)">📥 Manual Import</button>
+                        <button class="btn monthly-view-btn" onclick="refreshGDriveFiles()" style="background: white; color: #4285f4;">🔄 Refresh Files</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google Drive Import Dashboard Content -->
+            <div class="gdrive-import-container">
+                <!-- Connection Status -->
+                <div class="gdrive-connection-status disconnected" id="gdriveConnectionStatus">
+                    <div class="gdrive-status-icon">☁️</div>
+                    <div class="gdrive-status-text">
+                        <h4 id="gdriveStatusTitle">Not Connected to Google Drive</h4>
+                        <p id="gdriveStatusDesc">Click "Connect to Google Drive" to access your asset files</p>
+                    </div>
+                    <button class="gdrive-scan-btn primary" id="gdriveConnectBtn" onclick="connectGDriveForImport()">
+                        🔗 Connect to Google Drive
+                    </button>
+                </div>
+
+                <!-- Folder Info -->
+                <div class="gdrive-folder-info" id="gdriveFolderInfo" style="display: none;">
+                    <h3>📁 Asset Import Folder</h3>
+                    <p><strong>Folder:</strong> May Pen Hospital Asset Files</p>
+                    <p><strong>Status:</strong> <span id="gdriveFolderFileCount">Scanning for files...</span></p>
+                    <p style="font-size: 0.85em; margin-top: 10px; opacity: 0.8;">
+                        <a href="https://drive.google.com/drive/folders/16_p753mxRvoVrahzjbnx8cXogDrIhYd4" target="_blank" style="color: white; text-decoration: underline;">
+                            Open folder in Google Drive ↗
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="gdrive-tabs" id="gdriveTabs" style="display: none;">
+                    <button class="gdrive-tab-btn active" onclick="switchGDriveTab('files', this)">📂 Available Files</button>
+                    <button class="gdrive-tab-btn" onclick="switchGDriveTab('process', this)">⚙️ Process & Import</button>
+                    <button class="gdrive-tab-btn" onclick="switchGDriveTab('history', this)">📋 Import History</button>
+                </div>
+
+                <!-- Tab Content: Available Files -->
+                <div class="gdrive-tab-content active" id="gdriveFilesTab">
+                    <h2 class="section-title" style="display: flex; align-items: center; gap: 10px;">
+                        📂 Excel Files in Import Folder
+                        <span id="gdriveFileCountBadge" class="gdrive-file-badge new" style="display: none;">0 files</span>
+                    </h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        Select the Excel files you want to import. The system will scan all sheets in each file and extract asset data.
+                    </p>
+
+                    <!-- Files List -->
+                    <div class="gdrive-files-list" id="gdriveFilesList">
+                        <div class="gdrive-empty-state">
+                            <div class="empty-icon">📁</div>
+                            <h3>No Files Loaded</h3>
+                            <p>Connect to Google Drive and scan for Excel files</p>
+                        </div>
+                    </div>
+
+                    <!-- Selection Actions -->
+                    <div class="gdrive-import-actions" id="gdriveSelectionActions" style="display: none;">
+                        <button class="gdrive-scan-btn secondary" onclick="selectAllGDriveFiles()">☑️ Select All</button>
+                        <button class="gdrive-scan-btn secondary" onclick="deselectAllGDriveFiles()">☐ Deselect All</button>
+                        <button class="gdrive-scan-btn success" id="gdriveProcessBtn" onclick="processSelectedGDriveFiles()" disabled>
+                            ⚙️ Process Selected Files (<span id="gdriveSelectedCount">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Process & Import -->
+                <div class="gdrive-tab-content" id="gdriveProcessTab">
+                    <h2 class="section-title">⚙️ Process & Import Assets</h2>
+
+                    <!-- Sheet Selection -->
+                    <div class="gdrive-sheets-preview" id="gdriveSheetsPreview" style="display: none;">
+                        <h4>📊 Sheets Found in Selected Files</h4>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                            Select the sheets you want to import assets from. Each sheet will be processed separately.
+                        </p>
+                        <div class="gdrive-sheet-selector" id="gdriveSheetSelector">
+                            <!-- Sheet chips will be inserted here -->
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button class="gdrive-scan-btn secondary" onclick="selectAllGDriveSheets()">☑️ Select All Sheets</button>
+                            <button class="gdrive-scan-btn secondary" onclick="deselectAllGDriveSheets()">☐ Deselect All Sheets</button>
+                        </div>
+                    </div>
+
+                    <!-- Column Mapping Preview -->
+                    <div class="import-mapping-section" id="gdriveColumnMapping" style="display: none; margin-top: 20px;">
+                        <div class="import-mapping-title">🔗 Column Mapping</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                            The system has auto-detected column mappings from the selected sheets. Review and adjust if needed.
+                        </p>
+                        <div class="import-mapping-grid" id="gdriveMappingGrid">
+                            <!-- Mapping items will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Import Preview -->
+                    <div class="import-preview-section" id="gdriveImportPreview" style="display: none; margin-top: 20px;">
+                        <div class="import-preview-header">
+                            <div class="import-preview-title">👁️ Import Preview</div>
+                            <div class="import-preview-stats">
+                                <span class="import-preview-stat valid" id="gdrivePreviewValid">0 Valid</span>
+                                <span class="import-preview-stat invalid" id="gdrivePreviewInvalid">0 Invalid</span>
+                                <span class="import-preview-stat duplicate" id="gdrivePreviewDuplicate">0 Duplicates</span>
+                            </div>
+                        </div>
+                        <div class="import-preview-table" id="gdrivePreviewTable">
+                            <!-- Preview table will be inserted here -->
+                        </div>
+                    </div>
+
+                    <!-- Import Options -->
+                    <div class="import-options" id="gdriveImportOptions" style="display: none;">
+                        <div class="import-options-title">⚙️ Import Options</div>
+                        <div class="import-option-item">
+                            <input type="radio" name="gdriveImportMode" value="merge" id="gdriveModeMerge" checked>
+                            <label for="gdriveModeMerge"><strong>Merge:</strong> Add new assets, skip duplicates (by Asset Code)</label>
+                        </div>
+                        <div class="import-option-item">
+                            <input type="radio" name="gdriveImportMode" value="replace" id="gdriveModeReplace">
+                            <label for="gdriveModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
+                        </div>
+                        <div class="import-option-item">
+                            <input type="checkbox" id="gdriveSkipInvalid" checked>
+                            <label for="gdriveSkipInvalid">Skip rows with missing required fields</label>
+                        </div>
+                    </div>
+
+                    <!-- Import Actions -->
+                    <div class="gdrive-import-actions" id="gdriveImportActions" style="display: none; margin-top: 20px;">
+                        <button class="gdrive-scan-btn success" id="gdriveConfirmImportBtn" onclick="confirmGDriveImport()">
+                            ✅ Import Valid Assets
+                        </button>
+                        <button class="gdrive-scan-btn secondary" onclick="resetGDriveImport()">
+                            🔄 Start Over
+                        </button>
+                    </div>
+
+                    <!-- Success Message -->
+                    <div class="import-summary" id="gdriveImportSuccess" style="display: none;">
+                        <div class="import-summary-icon">✅</div>
+                        <div class="import-summary-title">Import Successful!</div>
+                        <div class="import-summary-details" id="gdriveImportSummary"></div>
+                        <div style="margin-top: 20px;">
+                            <button class="import-action-btn" style="background: white; color: #27ae60;" onclick="showPage(1)">
+                                Go to Dashboard
+                            </button>
+                            <button class="import-action-btn" style="background: rgba(255,255,255,0.2); color: white; margin-left: 10px;" onclick="resetGDriveImport()">
+                                Import More Files
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State for Process Tab -->
+                    <div class="gdrive-empty-state" id="gdriveProcessEmpty">
+                        <div class="empty-icon">⚙️</div>
+                        <h3>No Files Selected for Processing</h3>
+                        <p>Go to "Available Files" tab and select files to process</p>
+                        <button class="gdrive-scan-btn primary" style="margin-top: 15px;" onclick="switchGDriveTab('files', document.querySelector('.gdrive-tab-btn'))">
+                            📂 Select Files
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Import History -->
+                <div class="gdrive-tab-content" id="gdriveHistoryTab">
+                    <h2 class="section-title">📋 Import History</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        Track all asset imports from Google Drive files.
+                    </p>
+
+                    <div class="gdrive-import-history">
+                        <h3>📜 Recent Imports</h3>
+                        <div id="gdriveHistoryContent">
+                            <table class="gdrive-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>File Name</th>
+                                        <th>Sheets</th>
+                                        <th>Assets Imported</th>
+                                        <th>User</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gdriveHistoryTableBody">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                            No import history yet. Import some files to see history here.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="gdrive-scan-btn secondary" onclick="clearGDriveImportHistory()">🗑️ Clear History</button>
+                        <button class="gdrive-scan-btn secondary" onclick="exportGDriveImportHistory()">📥 Export History</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Required Fields Reference -->
+            <div class="gdrive-import-container" style="margin-top: 20px;">
+                <h3 class="section-title" style="font-size: 1.2em;">📋 Supported Excel Column Headers</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                    The system automatically detects these column headers in your Excel files:
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Asset Code</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">asset code, code, asset id, asset no, asset number</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Description</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">description, asset description, item, name</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Date In</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">date in, purchase date, acquisition date</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Department/Location</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">department, location, ward, unit, area</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Source</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">source, acquisition type, funded by</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
+                        <strong>Category</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">category, asset category, asset type, class</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Supplier/Donor</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">supplier, vendor, donor</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Serial/Model</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">serial, model, serial number, model number</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Quantity & Pricing</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">quantity, qty, unit price, total price, total</div>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85em;">
+                    <span style="color: #e74c3c;">*</span> Required fields • Fields with <span style="color: var(--primary-orange);">orange</span> border are optional
+                </p>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear5"></span> • May Pen Hospital</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Drive Processing Overlay -->
+    <div class="gdrive-processing-overlay" id="gdriveProcessingOverlay">
+        <div class="gdrive-processing-modal">
+            <div class="gdrive-processing-spinner"></div>
+            <div class="gdrive-processing-text" id="gdriveProcessingText">Processing...</div>
+            <div class="gdrive-processing-subtext" id="gdriveProcessingSubtext">Please wait while we process your files</div>
+        </div>
     </div>
 
     <button class="export-btn" id="exportBtn" onclick="exportData()" style="display: none;">📥 Export</button>
@@ -4455,7 +5140,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -7949,13 +8634,29 @@
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
-            
+
             // Update copyright year when switching pages
             setDynamicCopyrightYear();
-            
+
             if (pageNum === 2) {
                 updateFiscalYearDisplay();
                 displayMonthlyBreakdown();
+            }
+
+            // Handle Google Drive Import page
+            if (pageNum === 5) {
+                // Update user info display
+                const userInfo5 = document.getElementById('userInfo5');
+                if (userInfo5 && currentUser) {
+                    userInfo5.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    `;
+                }
+                // Check connection status and try to auto-connect if already have token
+                if (googleAccessToken && !gdriveImportState.isConnected) {
+                    connectGDriveForImport();
+                }
             }
         }
 
@@ -12058,12 +12759,944 @@
         }
 
         // ============================================
+        // GOOGLE DRIVE ASSET IMPORT DASHBOARD
+        // ============================================
+
+        // Configuration for the asset import folder
+        const GDRIVE_IMPORT_CONFIG = {
+            FOLDER_ID: '16_p753mxRvoVrahzjbnx8cXogDrIhYd4',
+            FOLDER_URL: 'https://drive.google.com/drive/folders/16_p753mxRvoVrahzjbnx8cXogDrIhYd4'
+        };
+
+        // State management for Google Drive Import
+        let gdriveImportState = {
+            isConnected: false,
+            files: [],
+            selectedFiles: [],
+            processedData: [],
+            sheetsData: {},
+            columnMapping: {},
+            previewData: [],
+            importHistory: JSON.parse(localStorage.getItem('gdriveImportHistory') || '[]')
+        };
+
+        // Connect to Google Drive for import
+        async function connectGDriveForImport() {
+            if (!googleAccessToken) {
+                // Trigger Google OAuth
+                if (googleTokenClient) {
+                    googleTokenClient.requestAccessToken();
+                } else {
+                    alert('Google authentication is not ready. Please wait and try again.');
+                }
+                return;
+            }
+
+            updateGDriveConnectionStatus(true);
+            await scanGDriveFolder();
+        }
+
+        // Update connection status UI
+        function updateGDriveConnectionStatus(connected) {
+            const statusDiv = document.getElementById('gdriveConnectionStatus');
+            const statusTitle = document.getElementById('gdriveStatusTitle');
+            const statusDesc = document.getElementById('gdriveStatusDesc');
+            const connectBtn = document.getElementById('gdriveConnectBtn');
+            const folderInfo = document.getElementById('gdriveFolderInfo');
+            const tabs = document.getElementById('gdriveTabs');
+
+            gdriveImportState.isConnected = connected;
+
+            if (connected) {
+                statusDiv.classList.remove('disconnected');
+                statusDiv.classList.add('connected');
+                statusTitle.textContent = 'Connected to Google Drive';
+                statusDesc.textContent = 'Successfully connected. Scanning for Excel files...';
+                connectBtn.innerHTML = '✅ Connected';
+                connectBtn.disabled = true;
+                folderInfo.style.display = 'block';
+                tabs.style.display = 'flex';
+            } else {
+                statusDiv.classList.remove('connected');
+                statusDiv.classList.add('disconnected');
+                statusTitle.textContent = 'Not Connected to Google Drive';
+                statusDesc.textContent = 'Click "Connect to Google Drive" to access your asset files';
+                connectBtn.innerHTML = '🔗 Connect to Google Drive';
+                connectBtn.disabled = false;
+                folderInfo.style.display = 'none';
+                tabs.style.display = 'none';
+            }
+        }
+
+        // Scan Google Drive folder for Excel files
+        async function scanGDriveFolder() {
+            showGDriveProcessing('Scanning folder...', 'Looking for Excel files in your Google Drive folder');
+
+            try {
+                // Query for Excel files in the specified folder
+                const query = `'${GDRIVE_IMPORT_CONFIG.FOLDER_ID}' in parents and (mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType='application/vnd.ms-excel') and trashed=false`;
+
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,size,modifiedTime,createdTime)&orderBy=modifiedTime desc`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to access Google Drive folder');
+                }
+
+                const data = await response.json();
+                gdriveImportState.files = data.files || [];
+
+                // Check which files have been imported before
+                const importedFileIds = gdriveImportState.importHistory.map(h => h.fileId);
+                gdriveImportState.files.forEach(file => {
+                    file.imported = importedFileIds.includes(file.id);
+                });
+
+                displayGDriveFiles();
+                updateFolderFileCount();
+                hideGDriveProcessing();
+
+            } catch (error) {
+                console.error('Error scanning Google Drive folder:', error);
+                hideGDriveProcessing();
+                alert('Error scanning folder: ' + error.message);
+            }
+        }
+
+        // Display files in the list
+        function displayGDriveFiles() {
+            const filesList = document.getElementById('gdriveFilesList');
+            const selectionActions = document.getElementById('gdriveSelectionActions');
+            const fileCountBadge = document.getElementById('gdriveFileCountBadge');
+
+            if (gdriveImportState.files.length === 0) {
+                filesList.innerHTML = `
+                    <div class="gdrive-empty-state">
+                        <div class="empty-icon">📁</div>
+                        <h3>No Excel Files Found</h3>
+                        <p>Upload Excel files (.xlsx, .xls) to your Google Drive folder to import assets</p>
+                        <a href="${GDRIVE_IMPORT_CONFIG.FOLDER_URL}" target="_blank" class="gdrive-scan-btn primary" style="display: inline-block; margin-top: 15px; text-decoration: none;">
+                            📁 Open Google Drive Folder
+                        </a>
+                    </div>
+                `;
+                selectionActions.style.display = 'none';
+                fileCountBadge.style.display = 'none';
+                return;
+            }
+
+            fileCountBadge.style.display = 'inline-block';
+            fileCountBadge.textContent = `${gdriveImportState.files.length} file${gdriveImportState.files.length !== 1 ? 's' : ''}`;
+            selectionActions.style.display = 'flex';
+
+            let html = '';
+            gdriveImportState.files.forEach((file, index) => {
+                const fileSize = formatFileSize(file.size);
+                const modifiedDate = new Date(file.modifiedTime).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const isSelected = gdriveImportState.selectedFiles.includes(file.id);
+                const isImported = file.imported;
+
+                html += `
+                    <div class="gdrive-file-item ${isSelected ? 'selected' : ''} ${isImported ? 'imported' : ''}"
+                         onclick="toggleGDriveFileSelection('${file.id}')" data-file-id="${file.id}">
+                        <input type="checkbox" class="gdrive-file-checkbox"
+                               ${isSelected ? 'checked' : ''}
+                               onclick="event.stopPropagation(); toggleGDriveFileSelection('${file.id}')">
+                        <div class="gdrive-file-icon">📊</div>
+                        <div class="gdrive-file-info">
+                            <div class="gdrive-file-name">${escapeHtml(file.name)}</div>
+                            <div class="gdrive-file-meta">
+                                <span>📁 ${fileSize}</span>
+                                <span>📅 ${modifiedDate}</span>
+                            </div>
+                        </div>
+                        ${isImported ? '<span class="gdrive-file-badge imported">Previously Imported</span>' : '<span class="gdrive-file-badge new">New</span>'}
+                    </div>
+                `;
+            });
+
+            filesList.innerHTML = html;
+            updateSelectedCount();
+        }
+
+        // Toggle file selection
+        function toggleGDriveFileSelection(fileId) {
+            const index = gdriveImportState.selectedFiles.indexOf(fileId);
+            if (index > -1) {
+                gdriveImportState.selectedFiles.splice(index, 1);
+            } else {
+                gdriveImportState.selectedFiles.push(fileId);
+            }
+            displayGDriveFiles();
+        }
+
+        // Select all files
+        function selectAllGDriveFiles() {
+            gdriveImportState.selectedFiles = gdriveImportState.files.map(f => f.id);
+            displayGDriveFiles();
+        }
+
+        // Deselect all files
+        function deselectAllGDriveFiles() {
+            gdriveImportState.selectedFiles = [];
+            displayGDriveFiles();
+        }
+
+        // Update selected count
+        function updateSelectedCount() {
+            const countSpan = document.getElementById('gdriveSelectedCount');
+            const processBtn = document.getElementById('gdriveProcessBtn');
+            const count = gdriveImportState.selectedFiles.length;
+
+            countSpan.textContent = count;
+            processBtn.disabled = count === 0;
+        }
+
+        // Update folder file count
+        function updateFolderFileCount() {
+            const countSpan = document.getElementById('gdriveFolderFileCount');
+            const count = gdriveImportState.files.length;
+            countSpan.textContent = `${count} Excel file${count !== 1 ? 's' : ''} found`;
+        }
+
+        // Process selected files
+        async function processSelectedGDriveFiles() {
+            if (gdriveImportState.selectedFiles.length === 0) {
+                alert('Please select at least one file to process');
+                return;
+            }
+
+            showGDriveProcessing('Processing files...', 'Downloading and analyzing Excel files');
+            gdriveImportState.sheetsData = {};
+            gdriveImportState.processedData = [];
+
+            try {
+                for (let i = 0; i < gdriveImportState.selectedFiles.length; i++) {
+                    const fileId = gdriveImportState.selectedFiles[i];
+                    const file = gdriveImportState.files.find(f => f.id === fileId);
+
+                    updateGDriveProcessingText(
+                        `Processing file ${i + 1} of ${gdriveImportState.selectedFiles.length}`,
+                        `Downloading: ${file.name}`
+                    );
+
+                    await processGDriveExcelFile(file);
+                }
+
+                hideGDriveProcessing();
+                displaySheetsForSelection();
+                switchGDriveTab('process', document.querySelectorAll('.gdrive-tab-btn')[1]);
+
+            } catch (error) {
+                console.error('Error processing files:', error);
+                hideGDriveProcessing();
+                alert('Error processing files: ' + error.message);
+            }
+        }
+
+        // Process a single Excel file from Google Drive
+        async function processGDriveExcelFile(file) {
+            try {
+                // Download the file content
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`Failed to download file: ${file.name}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                // Process ALL sheets in the workbook
+                gdriveImportState.sheetsData[file.id] = {
+                    fileName: file.name,
+                    fileId: file.id,
+                    sheets: []
+                };
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                    if (jsonData.length >= 2) {
+                        const headers = jsonData[0].map(h => String(h || '').trim());
+                        const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+
+                        gdriveImportState.sheetsData[file.id].sheets.push({
+                            name: sheetName,
+                            headers: headers,
+                            rows: rows,
+                            rowCount: rows.length,
+                            selected: true // Default to selected
+                        });
+                    }
+                });
+
+                console.log(`Processed ${file.name}: ${gdriveImportState.sheetsData[file.id].sheets.length} sheets found`);
+
+            } catch (error) {
+                console.error(`Error processing file ${file.name}:`, error);
+                throw error;
+            }
+        }
+
+        // Display sheets for selection
+        function displaySheetsForSelection() {
+            const sheetsPreview = document.getElementById('gdriveSheetsPreview');
+            const sheetSelector = document.getElementById('gdriveSheetSelector');
+            const processEmpty = document.getElementById('gdriveProcessEmpty');
+
+            if (Object.keys(gdriveImportState.sheetsData).length === 0) {
+                sheetsPreview.style.display = 'none';
+                processEmpty.style.display = 'block';
+                return;
+            }
+
+            processEmpty.style.display = 'none';
+            sheetsPreview.style.display = 'block';
+
+            let html = '';
+            let totalSheets = 0;
+            let totalRows = 0;
+
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                html += `<div style="margin-bottom: 10px; width: 100%;">
+                    <strong style="color: var(--text-primary);">📊 ${escapeHtml(fileData.fileName)}</strong>
+                </div>`;
+
+                fileData.sheets.forEach((sheet, idx) => {
+                    const sheetId = `${fileData.fileId}_${idx}`;
+                    totalSheets++;
+                    totalRows += sheet.rowCount;
+
+                    html += `
+                        <div class="gdrive-sheet-chip ${sheet.selected ? 'selected' : ''}"
+                             onclick="toggleGDriveSheetSelection('${fileData.fileId}', ${idx})">
+                            <input type="checkbox" ${sheet.selected ? 'checked' : ''}
+                                   onclick="event.stopPropagation(); toggleGDriveSheetSelection('${fileData.fileId}', ${idx})">
+                            <span class="gdrive-sheet-name">${escapeHtml(sheet.name)}</span>
+                            <span class="gdrive-sheet-rows">(${sheet.rowCount} rows)</span>
+                        </div>
+                    `;
+                });
+            });
+
+            sheetSelector.innerHTML = html;
+
+            // Update header
+            document.querySelector('#gdriveSheetsPreview h4').innerHTML = `📊 Sheets Found: ${totalSheets} sheets with ${totalRows} total rows`;
+
+            // Auto-detect column mappings
+            autoDetectGDriveColumnMappings();
+        }
+
+        // Toggle sheet selection
+        function toggleGDriveSheetSelection(fileId, sheetIndex) {
+            const sheet = gdriveImportState.sheetsData[fileId].sheets[sheetIndex];
+            sheet.selected = !sheet.selected;
+            displaySheetsForSelection();
+        }
+
+        // Select all sheets
+        function selectAllGDriveSheets() {
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    sheet.selected = true;
+                });
+            });
+            displaySheetsForSelection();
+        }
+
+        // Deselect all sheets
+        function deselectAllGDriveSheets() {
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    sheet.selected = false;
+                });
+            });
+            displaySheetsForSelection();
+        }
+
+        // Auto-detect column mappings from selected sheets
+        function autoDetectGDriveColumnMappings() {
+            // Get all unique headers from selected sheets
+            let allHeaders = new Set();
+
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    if (sheet.selected) {
+                        sheet.headers.forEach(h => {
+                            if (h) allHeaders.add(h);
+                        });
+                    }
+                });
+            });
+
+            const headerList = Array.from(allHeaders);
+            gdriveImportState.columnMapping = {};
+
+            // Use the existing field definitions for mapping
+            headerList.forEach((header, index) => {
+                const normalizedHeader = header.toLowerCase().trim();
+
+                for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                    if (gdriveImportState.columnMapping[fieldKey] !== undefined) continue;
+
+                    const matchFound = fieldDef.aliases.some(alias => {
+                        return normalizedHeader === alias ||
+                               normalizedHeader.includes(alias) ||
+                               alias.includes(normalizedHeader);
+                    });
+
+                    if (matchFound) {
+                        gdriveImportState.columnMapping[fieldKey] = header;
+                        break;
+                    }
+                }
+            });
+
+            displayGDriveColumnMapping(headerList);
+            generateGDrivePreview();
+        }
+
+        // Display column mapping UI
+        function displayGDriveColumnMapping(headers) {
+            const mappingSection = document.getElementById('gdriveColumnMapping');
+            const mappingGrid = document.getElementById('gdriveMappingGrid');
+
+            let html = '';
+            for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
+                const mappedHeader = gdriveImportState.columnMapping[fieldKey];
+                const isRequired = fieldDef.required;
+                const isMapped = mappedHeader !== undefined;
+
+                html += `
+                    <div class="import-mapping-item">
+                        <label class="import-mapping-label">
+                            ${fieldDef.label} ${isRequired ? '<span class="required">*</span>' : ''}
+                        </label>
+                        <select class="import-mapping-select ${isMapped ? 'mapped' : (isRequired ? 'error' : '')}"
+                                onchange="updateGDriveColumnMapping('${fieldKey}', this.value)">
+                            <option value="">-- Not Mapped --</option>
+                            ${headers.map(h => `
+                                <option value="${escapeHtml(h)}" ${mappedHeader === h ? 'selected' : ''}>
+                                    ${escapeHtml(h)}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            mappingGrid.innerHTML = html;
+            mappingSection.style.display = 'block';
+        }
+
+        // Update column mapping
+        function updateGDriveColumnMapping(fieldKey, headerValue) {
+            if (headerValue) {
+                gdriveImportState.columnMapping[fieldKey] = headerValue;
+            } else {
+                delete gdriveImportState.columnMapping[fieldKey];
+            }
+
+            // Refresh the mapping display
+            let allHeaders = new Set();
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    if (sheet.selected) {
+                        sheet.headers.forEach(h => {
+                            if (h) allHeaders.add(h);
+                        });
+                    }
+                });
+            });
+
+            displayGDriveColumnMapping(Array.from(allHeaders));
+            generateGDrivePreview();
+        }
+
+        // Generate import preview
+        function generateGDrivePreview() {
+            const previewSection = document.getElementById('gdriveImportPreview');
+            const previewTable = document.getElementById('gdrivePreviewTable');
+            const importOptions = document.getElementById('gdriveImportOptions');
+            const importActions = document.getElementById('gdriveImportActions');
+
+            gdriveImportState.previewData = [];
+
+            // Get existing asset codes for duplicate detection
+            const existingAssets = JSON.parse(localStorage.getItem('allAssetsData') || '[]');
+            const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+
+            // Process all selected sheets
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    if (!sheet.selected) return;
+
+                    sheet.rows.forEach((row, rowIndex) => {
+                        const rowData = {
+                            sourceFile: fileData.fileName,
+                            sourceSheet: sheet.name,
+                            rowIndex: rowIndex + 2, // +2 for header and 1-indexing
+                            parsed: {},
+                            status: 'valid',
+                            errors: []
+                        };
+
+                        // Map columns to fields
+                        const getValue = (fieldKey) => {
+                            const mappedHeader = gdriveImportState.columnMapping[fieldKey];
+                            if (!mappedHeader) return '';
+                            const colIndex = sheet.headers.indexOf(mappedHeader);
+                            return colIndex >= 0 ? row[colIndex] : '';
+                        };
+
+                        // Parse all fields
+                        rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
+                        rowData.parsed.description = String(getValue('description') || '').trim();
+                        rowData.parsed.dateIn = parseExcelDate(getValue('dateIn'));
+                        rowData.parsed.supplier = String(getValue('supplier') || '').trim();
+                        rowData.parsed.department = String(getValue('department') || '').trim();
+                        rowData.parsed.source = String(getValue('source') || '').trim();
+                        rowData.parsed.month = String(getValue('month') || '').trim();
+                        rowData.parsed.category = String(getValue('category') || '').trim();
+                        rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
+                        rowData.parsed.quantity = parseInt(getValue('quantity')) || 1;
+                        rowData.parsed.unitPrice = parseFloat(String(getValue('unitPrice')).replace(/[^0-9.-]/g, '')) || 0;
+                        rowData.parsed.totalPrice = parseFloat(String(getValue('totalPrice')).replace(/[^0-9.-]/g, '')) || 0;
+
+                        // Auto-calculate total price if not provided
+                        if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice && rowData.parsed.quantity) {
+                            rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
+                        }
+
+                        // Validate required fields
+                        const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
+                        requiredFields.forEach(field => {
+                            if (!rowData.parsed[field]) {
+                                rowData.status = 'invalid';
+                                rowData.errors.push(`Missing ${field}`);
+                            }
+                        });
+
+                        // Check for duplicates
+                        if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                            rowData.status = 'duplicate';
+                            rowData.errors.push('Asset code already exists');
+                        }
+
+                        // Only add rows that have at least some data
+                        if (rowData.parsed.assetCode || rowData.parsed.description) {
+                            gdriveImportState.previewData.push(rowData);
+                        }
+                    });
+                });
+            });
+
+            // Display preview
+            if (gdriveImportState.previewData.length === 0) {
+                previewSection.style.display = 'none';
+                importOptions.style.display = 'none';
+                importActions.style.display = 'none';
+                return;
+            }
+
+            previewSection.style.display = 'block';
+            importOptions.style.display = 'block';
+            importActions.style.display = 'flex';
+
+            // Calculate stats
+            const validCount = gdriveImportState.previewData.filter(r => r.status === 'valid').length;
+            const invalidCount = gdriveImportState.previewData.filter(r => r.status === 'invalid').length;
+            const duplicateCount = gdriveImportState.previewData.filter(r => r.status === 'duplicate').length;
+
+            document.getElementById('gdrivePreviewValid').textContent = `${validCount} Valid`;
+            document.getElementById('gdrivePreviewInvalid').textContent = `${invalidCount} Invalid`;
+            document.getElementById('gdrivePreviewDuplicate').textContent = `${duplicateCount} Duplicates`;
+
+            // Build preview table
+            let tableHtml = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                    <thead>
+                        <tr style="background: var(--bg-secondary);">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Status</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Source</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Asset Code</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Description</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Department</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Category</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid var(--border-color);">Total Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Show first 50 rows for preview
+            const previewRows = gdriveImportState.previewData.slice(0, 50);
+            previewRows.forEach(row => {
+                const statusIcon = row.status === 'valid' ? '✅' : (row.status === 'duplicate' ? '⚠️' : '❌');
+                const statusColor = row.status === 'valid' ? 'var(--dark-green)' : (row.status === 'duplicate' ? '#9a7b0a' : '#c0392b');
+
+                tableHtml += `
+                    <tr style="border-bottom: 1px solid var(--border-color);" title="${row.errors.join(', ') || 'Valid'}">
+                        <td style="padding: 8px; color: ${statusColor};">${statusIcon}</td>
+                        <td style="padding: 8px; font-size: 0.85em; color: var(--text-secondary);">${escapeHtml(row.sourceSheet)}</td>
+                        <td style="padding: 8px;">${escapeHtml(row.parsed.assetCode || '-')}</td>
+                        <td style="padding: 8px;">${escapeHtml((row.parsed.description || '-').substring(0, 40))}${(row.parsed.description || '').length > 40 ? '...' : ''}</td>
+                        <td style="padding: 8px;">${escapeHtml(row.parsed.department || '-')}</td>
+                        <td style="padding: 8px;">${escapeHtml(row.parsed.category || '-')}</td>
+                        <td style="padding: 8px; text-align: right;">$${(row.parsed.totalPrice || 0).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            if (gdriveImportState.previewData.length > 50) {
+                tableHtml += `
+                    <tr>
+                        <td colspan="7" style="padding: 15px; text-align: center; color: var(--text-secondary);">
+                            ... and ${gdriveImportState.previewData.length - 50} more rows
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += '</tbody></table>';
+            previewTable.innerHTML = tableHtml;
+
+            // Enable/disable import button based on valid count
+            document.getElementById('gdriveConfirmImportBtn').disabled = validCount === 0;
+        }
+
+        // Helper function to parse Excel dates
+        function parseExcelDate(value) {
+            if (!value) return '';
+
+            // If it's already a Date object
+            if (value instanceof Date) {
+                return value.toISOString().split('T')[0];
+            }
+
+            // If it's a number (Excel serial date)
+            if (typeof value === 'number') {
+                const date = new Date((value - 25569) * 86400 * 1000);
+                return date.toISOString().split('T')[0];
+            }
+
+            // If it's a string, try to parse it
+            const dateStr = String(value).trim();
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) {
+                return parsed.toISOString().split('T')[0];
+            }
+
+            return dateStr;
+        }
+
+        // Confirm and execute import
+        async function confirmGDriveImport() {
+            const importMode = document.querySelector('input[name="gdriveImportMode"]:checked').value;
+            const skipInvalid = document.getElementById('gdriveSkipInvalid').checked;
+
+            // Filter data to import
+            let dataToImport = gdriveImportState.previewData.filter(row => {
+                if (skipInvalid && row.status === 'invalid') return false;
+                if (importMode === 'merge' && row.status === 'duplicate') return false;
+                return row.status === 'valid' || (!skipInvalid && row.status !== 'duplicate');
+            });
+
+            if (dataToImport.length === 0) {
+                alert('No valid assets to import.');
+                return;
+            }
+
+            const confirmMsg = `You are about to import ${dataToImport.length} assets.\n\nMode: ${importMode === 'replace' ? 'REPLACE ALL (this will delete existing assets!)' : 'Merge (add new, skip duplicates)'}\n\nProceed?`;
+
+            if (!confirm(confirmMsg)) return;
+
+            showGDriveProcessing('Importing assets...', `Processing ${dataToImport.length} assets`);
+
+            try {
+                let existingAssets = JSON.parse(localStorage.getItem('allAssetsData') || '[]');
+
+                if (importMode === 'replace') {
+                    existingAssets = [];
+                }
+
+                const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+                let importedCount = 0;
+                const importedFiles = new Set();
+                const importedSheets = new Set();
+
+                dataToImport.forEach(row => {
+                    if (importMode === 'merge' && existingCodes.has(row.parsed.assetCode?.toLowerCase())) {
+                        return; // Skip duplicates in merge mode
+                    }
+
+                    const newAsset = {
+                        id: generateAssetId(),
+                        assetCode: row.parsed.assetCode,
+                        description: row.parsed.description,
+                        dateIn: row.parsed.dateIn,
+                        supplier: row.parsed.supplier,
+                        department: row.parsed.department,
+                        source: row.parsed.source,
+                        month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
+                        category: row.parsed.category,
+                        serialModel: row.parsed.serialModel,
+                        quantity: row.parsed.quantity,
+                        unitPrice: row.parsed.unitPrice,
+                        totalPrice: row.parsed.totalPrice
+                    };
+
+                    existingAssets.push(newAsset);
+                    existingCodes.add(newAsset.assetCode?.toLowerCase());
+                    importedCount++;
+                    importedFiles.add(row.sourceFile);
+                    importedSheets.add(row.sourceSheet);
+
+                    // Add audit entry
+                    if (typeof addAuditEntry === 'function') {
+                        addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, `Imported from Google Drive: ${row.sourceFile} - ${row.sourceSheet}`);
+                    }
+                });
+
+                // Save to storage
+                localStorage.setItem('allAssetsData', JSON.stringify(existingAssets));
+
+                // Record import history
+                const historyEntry = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    files: Array.from(importedFiles),
+                    fileId: gdriveImportState.selectedFiles[0], // Primary file ID
+                    sheets: Array.from(importedSheets),
+                    assetsImported: importedCount,
+                    user: currentUser?.displayName || currentUser?.username || 'Unknown',
+                    status: 'success'
+                };
+
+                gdriveImportState.importHistory.unshift(historyEntry);
+                localStorage.setItem('gdriveImportHistory', JSON.stringify(gdriveImportState.importHistory));
+
+                hideGDriveProcessing();
+
+                // Show success
+                document.getElementById('gdriveSheetsPreview').style.display = 'none';
+                document.getElementById('gdriveColumnMapping').style.display = 'none';
+                document.getElementById('gdriveImportPreview').style.display = 'none';
+                document.getElementById('gdriveImportOptions').style.display = 'none';
+                document.getElementById('gdriveImportActions').style.display = 'none';
+
+                const successDiv = document.getElementById('gdriveImportSuccess');
+                successDiv.style.display = 'block';
+                document.getElementById('gdriveImportSummary').innerHTML = `
+                    <p>Successfully imported <strong>${importedCount}</strong> assets from ${importedFiles.size} file(s).</p>
+                    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.9;">
+                        Mode: ${importMode === 'replace' ? 'Replace All' : 'Merge'} •
+                        Sheets processed: ${importedSheets.size} •
+                        Total Assets Now: ${existingAssets.length}
+                    </p>
+                `;
+
+                // Reload main dashboard data
+                if (typeof loadData === 'function') {
+                    loadData();
+                }
+
+                // Update import history display
+                displayGDriveImportHistory();
+
+            } catch (error) {
+                console.error('Import error:', error);
+                hideGDriveProcessing();
+                alert('Error during import: ' + error.message);
+            }
+        }
+
+        // Generate unique asset ID
+        function generateAssetId() {
+            return 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Get month abbreviation from date
+        function getMonthFromDate(dateStr) {
+            if (!dateStr) return '';
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? '' : months[date.getMonth()];
+        }
+
+        // Reset Google Drive import state
+        function resetGDriveImport() {
+            gdriveImportState.processedData = [];
+            gdriveImportState.sheetsData = {};
+            gdriveImportState.previewData = [];
+            gdriveImportState.selectedFiles = [];
+
+            document.getElementById('gdriveSheetsPreview').style.display = 'none';
+            document.getElementById('gdriveColumnMapping').style.display = 'none';
+            document.getElementById('gdriveImportPreview').style.display = 'none';
+            document.getElementById('gdriveImportOptions').style.display = 'none';
+            document.getElementById('gdriveImportActions').style.display = 'none';
+            document.getElementById('gdriveImportSuccess').style.display = 'none';
+            document.getElementById('gdriveProcessEmpty').style.display = 'block';
+
+            displayGDriveFiles();
+            switchGDriveTab('files', document.querySelector('.gdrive-tab-btn'));
+        }
+
+        // Refresh files from Google Drive
+        async function refreshGDriveFiles() {
+            if (!gdriveImportState.isConnected) {
+                await connectGDriveForImport();
+            } else {
+                await scanGDriveFolder();
+            }
+        }
+
+        // Switch between tabs
+        function switchGDriveTab(tabName, btn) {
+            // Update button states
+            document.querySelectorAll('.gdrive-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Show/hide content
+            document.querySelectorAll('.gdrive-tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`gdrive${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`).classList.add('active');
+        }
+
+        // Display import history
+        function displayGDriveImportHistory() {
+            const tbody = document.getElementById('gdriveHistoryTableBody');
+
+            if (gdriveImportState.importHistory.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                            No import history yet. Import some files to see history here.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            gdriveImportState.importHistory.slice(0, 20).forEach(entry => {
+                const date = new Date(entry.timestamp).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                html += `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${escapeHtml(entry.files?.join(', ') || 'Unknown')}</td>
+                        <td>${entry.sheets?.length || 0} sheet(s)</td>
+                        <td><strong>${entry.assetsImported}</strong></td>
+                        <td>${escapeHtml(entry.user || 'Unknown')}</td>
+                        <td><span style="color: var(--dark-green);">✅ ${entry.status}</span></td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // Clear import history
+        function clearGDriveImportHistory() {
+            if (confirm('Are you sure you want to clear all import history? This cannot be undone.')) {
+                gdriveImportState.importHistory = [];
+                localStorage.setItem('gdriveImportHistory', '[]');
+                displayGDriveImportHistory();
+            }
+        }
+
+        // Export import history
+        function exportGDriveImportHistory() {
+            const data = JSON.stringify(gdriveImportState.importHistory, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gdrive_import_history_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Show processing overlay
+        function showGDriveProcessing(title, subtitle) {
+            document.getElementById('gdriveProcessingText').textContent = title;
+            document.getElementById('gdriveProcessingSubtext').textContent = subtitle;
+            document.getElementById('gdriveProcessingOverlay').style.display = 'flex';
+        }
+
+        // Update processing text
+        function updateGDriveProcessingText(title, subtitle) {
+            document.getElementById('gdriveProcessingText').textContent = title;
+            document.getElementById('gdriveProcessingSubtext').textContent = subtitle;
+        }
+
+        // Hide processing overlay
+        function hideGDriveProcessing() {
+            document.getElementById('gdriveProcessingOverlay').style.display = 'none';
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Initialize Google Drive Import on page load
+        function initGDriveImport() {
+            // Load import history
+            gdriveImportState.importHistory = JSON.parse(localStorage.getItem('gdriveImportHistory') || '[]');
+            displayGDriveImportHistory();
+
+            // Check if already connected to Google Drive
+            if (googleAccessToken) {
+                updateGDriveConnectionStatus(true);
+                scanGDriveFolder();
+            }
+        }
+
+        // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
         window.addEventListener('DOMContentLoaded', async function() {
             // Initialize import dropzone
             initImportDropzone();
             setDynamicCopyrightYear();
+
+            // Initialize Google Drive Import Dashboard
+            initGDriveImport();
 
             // Check if page was opened via QR code scan (asset parameter in URL)
             checkForAssetParameter();
