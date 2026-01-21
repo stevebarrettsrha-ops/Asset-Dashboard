@@ -13642,7 +13642,7 @@
             showGDriveProcessing('Importing assets...', `Processing ${dataToImport.length} assets`);
 
             try {
-                let existingAssets = JSON.parse(localStorage.getItem('allAssetsData') || '[]');
+                let existingAssets = loadAssetsFromStorage();
 
                 if (importMode === 'replace') {
                     existingAssets = [];
@@ -13687,7 +13687,7 @@
                 });
 
                 // Save to storage
-                localStorage.setItem('allAssetsData', JSON.stringify(existingAssets));
+                saveAssetsToStorage(existingAssets);
 
                 // Record import history
                 const historyEntry = {
