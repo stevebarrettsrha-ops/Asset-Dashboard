@@ -4950,6 +4950,30 @@
                         </div>
                     </div>
 
+                    <!-- Raw Data Preview -->
+                    <div class="import-mapping-section" id="gdriveRawDataPreview" style="display: none; margin-top: 20px;">
+                        <div class="import-mapping-title">📋 Raw Data Preview</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                            This shows exactly what the system is reading from your spreadsheet. <strong>Row 1 is used as column headers.</strong>
+                        </p>
+                        <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                            <label style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span>Header row:</span>
+                                <select id="gdriveHeaderRowSelect" onchange="changeGDriveHeaderRow(this.value)" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary);">
+                                    <option value="1">Row 1 (default)</option>
+                                    <option value="2">Row 2</option>
+                                    <option value="3">Row 3</option>
+                                    <option value="4">Row 4</option>
+                                    <option value="5">Row 5</option>
+                                </select>
+                                <span style="font-size: 0.85em; color: var(--text-secondary);">Change this if your headers are not in the first row</span>
+                            </label>
+                        </div>
+                        <div class="import-preview-table" id="gdriveRawDataTable" style="max-height: 300px; overflow: auto;">
+                            <!-- Raw data table will be inserted here -->
+                        </div>
+                    </div>
+
                     <!-- Column Mapping Preview -->
                     <div class="import-mapping-section" id="gdriveColumnMapping" style="display: none; margin-top: 20px;">
                         <div class="import-mapping-title">🔗 Column Mapping</div>
@@ -12777,7 +12801,8 @@
             sheetsData: {},
             columnMapping: {},
             previewData: [],
-            importHistory: JSON.parse(localStorage.getItem('gdriveImportHistory') || '[]')
+            importHistory: JSON.parse(localStorage.getItem('gdriveImportHistory') || '[]'),
+            headerRow: 1  // Which row to use as headers (1-indexed)
         };
 
         // Connect to Google Drive for import
@@ -13039,11 +13064,14 @@
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
                     if (jsonData.length >= 2) {
-                        const headers = jsonData[0].map(h => String(h || '').trim());
-                        const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+                        // Store all raw data - headers will be determined by headerRow setting
+                        const headerRowIndex = gdriveImportState.headerRow - 1;
+                        const headers = (jsonData[headerRowIndex] || jsonData[0]).map(h => String(h || '').trim());
+                        const rows = jsonData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
 
                         gdriveImportState.sheetsData[file.id].sheets.push({
                             name: sheetName,
+                            rawData: jsonData,  // Store all raw data for preview
                             headers: headers,
                             rows: rows,
                             rowCount: rows.length,
@@ -13106,6 +13134,9 @@
             // Update header
             document.querySelector('#gdriveSheetsPreview h4').innerHTML = `📊 Sheets Found: ${totalSheets} sheets with ${totalRows} total rows`;
 
+            // Display raw data preview
+            displayGDriveRawDataPreview();
+
             // Auto-detect column mappings
             autoDetectGDriveColumnMappings();
         }
@@ -13135,6 +13166,114 @@
                 });
             });
             displaySheetsForSelection();
+        }
+
+        // Display raw data preview
+        function displayGDriveRawDataPreview() {
+            const previewSection = document.getElementById('gdriveRawDataPreview');
+            const previewTable = document.getElementById('gdriveRawDataTable');
+            const headerSelect = document.getElementById('gdriveHeaderRowSelect');
+
+            if (!previewSection || !previewTable) return;
+
+            // Get first selected sheet's raw data
+            let rawData = null;
+            let sheetName = '';
+            let fileName = '';
+
+            for (const fileData of Object.values(gdriveImportState.sheetsData)) {
+                for (const sheet of fileData.sheets) {
+                    if (sheet.selected && sheet.rawData && sheet.rawData.length > 0) {
+                        rawData = sheet.rawData;
+                        sheetName = sheet.name;
+                        fileName = fileData.fileName;
+                        break;
+                    }
+                }
+                if (rawData) break;
+            }
+
+            if (!rawData || rawData.length === 0) {
+                previewSection.style.display = 'none';
+                return;
+            }
+
+            previewSection.style.display = 'block';
+
+            // Set header row selector value
+            if (headerSelect) {
+                headerSelect.value = gdriveImportState.headerRow;
+            }
+
+            // Build table showing first 10 rows of raw data
+            const maxRows = Math.min(10, rawData.length);
+            const maxCols = Math.min(10, Math.max(...rawData.slice(0, maxRows).map(r => r.length)));
+
+            let html = `
+                <div style="margin-bottom: 10px; font-size: 0.9em; color: var(--text-secondary);">
+                    Showing data from: <strong>${escapeHtml(fileName)}</strong> - Sheet: <strong>${escapeHtml(sheetName)}</strong>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
+                    <thead>
+                        <tr style="background: var(--bg-secondary);">
+                            <th style="padding: 8px; text-align: center; border: 1px solid var(--border-color); width: 50px;">Row</th>
+            `;
+
+            for (let col = 0; col < maxCols; col++) {
+                html += `<th style="padding: 8px; text-align: left; border: 1px solid var(--border-color);">Col ${col + 1}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+
+            for (let row = 0; row < maxRows; row++) {
+                const isHeaderRow = (row + 1) === gdriveImportState.headerRow;
+                const rowStyle = isHeaderRow ? 'background: rgba(39, 174, 96, 0.2); font-weight: bold;' : '';
+                const rowLabel = isHeaderRow ? `${row + 1} (HDR)` : (row + 1).toString();
+
+                html += `<tr style="${rowStyle}">`;
+                html += `<td style="padding: 8px; text-align: center; border: 1px solid var(--border-color); background: var(--bg-secondary);">${rowLabel}</td>`;
+
+                for (let col = 0; col < maxCols; col++) {
+                    const cellValue = rawData[row] && rawData[row][col] !== undefined ? String(rawData[row][col]) : '';
+                    const truncatedValue = cellValue.length > 25 ? cellValue.substring(0, 25) + '...' : cellValue;
+                    html += `<td style="padding: 8px; border: 1px solid var(--border-color);" title="${escapeHtml(cellValue)}">${escapeHtml(truncatedValue)}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            if (rawData.length > maxRows) {
+                html += `<tr><td colspan="${maxCols + 1}" style="padding: 10px; text-align: center; color: var(--text-secondary); border: 1px solid var(--border-color);">... and ${rawData.length - maxRows} more rows</td></tr>`;
+            }
+
+            html += '</tbody></table>';
+
+            if (maxCols < Math.max(...rawData.slice(0, maxRows).map(r => r.length))) {
+                html += `<div style="margin-top: 10px; font-size: 0.85em; color: var(--text-secondary);">Note: Only showing first ${maxCols} columns. Your data has more columns.</div>`;
+            }
+
+            previewTable.innerHTML = html;
+        }
+
+        // Change header row and reprocess data
+        function changeGDriveHeaderRow(rowNum) {
+            gdriveImportState.headerRow = parseInt(rowNum);
+
+            // Reprocess the headers and rows based on new header row
+            Object.values(gdriveImportState.sheetsData).forEach(fileData => {
+                fileData.sheets.forEach(sheet => {
+                    if (sheet.rawData && sheet.rawData.length > 0) {
+                        const headerRowIndex = gdriveImportState.headerRow - 1;
+                        if (headerRowIndex < sheet.rawData.length) {
+                            sheet.headers = (sheet.rawData[headerRowIndex] || []).map(h => String(h || '').trim());
+                            sheet.rows = sheet.rawData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
+                            sheet.rowCount = sheet.rows.length;
+                        }
+                    }
+                });
+            });
+
+            // Refresh displays
+            displayGDriveRawDataPreview();
+            autoDetectGDriveColumnMappings();
         }
 
         // Auto-detect column mappings from selected sheets
@@ -13184,7 +13323,33 @@
             const mappingSection = document.getElementById('gdriveColumnMapping');
             const mappingGrid = document.getElementById('gdriveMappingGrid');
 
+            // Count how many required fields are auto-mapped
+            const requiredFields = Object.entries(importFieldDefinitions).filter(([k, v]) => v.required);
+            const mappedRequiredCount = requiredFields.filter(([k, v]) => gdriveImportState.columnMapping[k]).length;
+            const totalMappedCount = Object.keys(gdriveImportState.columnMapping).length;
+
             let html = '';
+
+            // Show warning if few or no columns were auto-detected
+            if (mappedRequiredCount < 3) {
+                html += `
+                    <div style="margin-bottom: 15px; padding: 15px; background: rgba(231, 76, 60, 0.1); border: 1px solid #e74c3c; border-radius: 8px;">
+                        <div style="font-weight: bold; color: #e74c3c; margin-bottom: 8px;">⚠️ Column Headers Not Recognized</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9em;">
+                            The system could not automatically match your spreadsheet columns to asset fields. This usually means:
+                            <ul style="margin: 10px 0 0 20px; padding: 0;">
+                                <li><strong>Your column headers use different names</strong> - Use the dropdowns below to manually select which column corresponds to each field</li>
+                                <li><strong>Headers are not in Row 1</strong> - Check the "Raw Data Preview" above and use the header row selector to change which row contains your column names</li>
+                                <li><strong>Wrong file selected</strong> - Make sure you've selected an asset inventory spreadsheet</li>
+                            </ul>
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 4px; font-size: 0.85em;">
+                            <strong>Your detected column headers:</strong> ${headers.length > 0 ? headers.map(h => `"${escapeHtml(h)}"`).join(', ') : 'None found'}
+                        </div>
+                    </div>
+                `;
+            }
+
             for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
                 const mappedHeader = gdriveImportState.columnMapping[fieldKey];
                 const isRequired = fieldDef.required;
@@ -13553,14 +13718,21 @@
             gdriveImportState.sheetsData = {};
             gdriveImportState.previewData = [];
             gdriveImportState.selectedFiles = [];
+            gdriveImportState.headerRow = 1;  // Reset header row to default
+            gdriveImportState.columnMapping = {};
 
             document.getElementById('gdriveSheetsPreview').style.display = 'none';
+            document.getElementById('gdriveRawDataPreview').style.display = 'none';
             document.getElementById('gdriveColumnMapping').style.display = 'none';
             document.getElementById('gdriveImportPreview').style.display = 'none';
             document.getElementById('gdriveImportOptions').style.display = 'none';
             document.getElementById('gdriveImportActions').style.display = 'none';
             document.getElementById('gdriveImportSuccess').style.display = 'none';
             document.getElementById('gdriveProcessEmpty').style.display = 'block';
+
+            // Reset header row selector
+            const headerSelect = document.getElementById('gdriveHeaderRowSelect');
+            if (headerSelect) headerSelect.value = '1';
 
             displayGDriveFiles();
             switchGDriveTab('files', document.querySelector('.gdrive-tab-btn'));
