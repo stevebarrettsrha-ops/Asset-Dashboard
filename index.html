@@ -2747,6 +2747,363 @@
                 margin-top: 10px;
             }
         }
+
+        /* ============================================
+           INVOICE UPLOAD STYLES
+           ============================================ */
+        .invoice-upload-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+            transition: background 0.3s ease;
+        }
+
+        .invoice-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .invoice-upload-card {
+            background: var(--table-hover);
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .invoice-upload-card:hover {
+            border-color: var(--primary-orange);
+            box-shadow: 0 6px 25px var(--shadow);
+        }
+
+        .invoice-upload-card h3 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .invoice-upload-card p {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .invoice-camera-preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+            margin: 15px auto;
+            display: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .invoice-camera-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .invoice-camera-preview canvas {
+            display: none;
+        }
+
+        .invoice-captured-image {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            margin: 15px auto;
+            display: none;
+        }
+
+        .invoice-captured-image img {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+
+        .invoice-dropzone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            background: var(--bg-card);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin: 15px 0;
+        }
+
+        .invoice-dropzone:hover,
+        .invoice-dropzone.drag-over {
+            border-color: var(--primary-orange);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .invoice-dropzone-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .invoice-dropzone-text {
+            font-size: 1em;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .invoice-dropzone-subtext {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+
+        .invoice-file-input {
+            display: none;
+        }
+
+        .invoice-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .invoice-btn-primary {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: white;
+        }
+
+        .invoice-btn-secondary {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+        }
+
+        .invoice-btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .invoice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .invoice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .invoice-camera-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .invoice-upload-progress {
+            margin: 15px 0;
+            display: none;
+        }
+
+        .invoice-progress-bar {
+            height: 10px;
+            background: var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .invoice-progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .invoice-progress-text {
+            text-align: center;
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .invoice-list-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: var(--table-hover);
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-orange);
+        }
+
+        .invoice-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .invoice-list-header h3 {
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .invoice-list-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 30px;
+        }
+
+        .invoice-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .invoice-item:hover {
+            border-color: var(--primary-orange);
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+
+        .invoice-item-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .invoice-item-icon {
+            font-size: 2em;
+        }
+
+        .invoice-item-details h4 {
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .invoice-item-details span {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+
+        .invoice-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .invoice-item-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .invoice-item-btn.view {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .invoice-item-btn.delete {
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+        }
+
+        .invoice-item-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .invoice-status-badge {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .invoice-status-badge.uploaded {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--dark-green);
+        }
+
+        .invoice-status-badge.pending {
+            background: rgba(241, 196, 15, 0.1);
+            color: #856404;
+        }
+
+        .invoice-status-badge.error {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+        }
+
+        .invoice-drive-info {
+            background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .invoice-drive-info-text {
+            flex: 1;
+        }
+
+        .invoice-drive-info-text strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .invoice-drive-info-text small {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .invoice-upload-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-camera-preview {
+                height: 250px;
+            }
+
+            .invoice-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .invoice-item-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3494,6 +3851,7 @@
                 <button class="tab-btn" onclick="switchTab('qrcode', this)">📱 QR Code Generator</button>
                 <button class="tab-btn" onclick="switchTab('audit', this)">📋 Audit Trail</button>
                 <button class="tab-btn" onclick="switchTab('sheetdata', this)">📊 Sheet Data View</button>
+                <button class="tab-btn" onclick="switchTab('invoice', this)">📄 Invoice Upload</button>
                 <button class="tab-btn" onclick="switchTab('print', this)">🖨️ Print Reports</button>
             </div>
 
@@ -3767,6 +4125,111 @@
                     <button class="search-btn" onclick="exportSheetData()">📥 Export to Excel</button>
                     <button class="search-btn" onclick="exportSheetDataPDF()" style="margin-left: 10px;">📄 Export to PDF</button>
                     <button class="search-btn" onclick="displaySheetData()" style="margin-left: 10px;">🔄 Refresh Data</button>
+                </div>
+            </div>
+
+            <!-- Invoice Upload -->
+            <div class="invoice-upload-section" id="invoiceTab" style="display: none;">
+                <h2 class="section-title">📄 Invoice Upload</h2>
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                    Capture invoice photos with your camera or upload PDF files. All invoices are automatically saved to Google Drive.
+                </p>
+
+                <!-- Google Drive Connection Info -->
+                <div class="invoice-drive-info">
+                    <span style="font-size: 2em;">📁</span>
+                    <div class="invoice-drive-info-text">
+                        <strong>Google Drive Folder</strong>
+                        <small>Invoices will be uploaded to your designated Google Drive folder</small>
+                    </div>
+                    <button class="invoice-btn invoice-btn-secondary" onclick="openInvoiceDriveFolder()" style="background: rgba(255,255,255,0.2);">
+                        <span>🔗</span> Open Folder
+                    </button>
+                </div>
+
+                <div class="invoice-upload-grid">
+                    <!-- Camera Capture Card -->
+                    <div class="invoice-upload-card">
+                        <h3><span>📷</span> Capture Invoice Photo</h3>
+                        <p>Use your device camera to take a photo of an invoice. Great for quick captures on mobile devices.</p>
+
+                        <div class="invoice-camera-preview" id="invoiceCameraPreview">
+                            <video id="invoiceCameraVideo" autoplay playsinline></video>
+                            <canvas id="invoiceCameraCanvas"></canvas>
+                        </div>
+
+                        <div class="invoice-captured-image" id="invoiceCapturedImage">
+                            <img id="invoiceCapturedImg" src="" alt="Captured Invoice">
+                        </div>
+
+                        <div class="invoice-camera-controls">
+                            <button class="invoice-btn invoice-btn-primary" id="startInvoiceCameraBtn" onclick="startInvoiceCamera()">
+                                <span>📷</span> Start Camera
+                            </button>
+                            <button class="invoice-btn invoice-btn-secondary" id="captureInvoiceBtn" onclick="captureInvoicePhoto()" style="display: none;">
+                                <span>📸</span> Capture Photo
+                            </button>
+                            <button class="invoice-btn invoice-btn-danger" id="stopInvoiceCameraBtn" onclick="stopInvoiceCamera()" style="display: none;">
+                                <span>⏹️</span> Stop Camera
+                            </button>
+                            <button class="invoice-btn invoice-btn-primary" id="retakeInvoiceBtn" onclick="retakeInvoicePhoto()" style="display: none;">
+                                <span>🔄</span> Retake
+                            </button>
+                            <button class="invoice-btn invoice-btn-secondary" id="uploadCapturedInvoiceBtn" onclick="uploadCapturedInvoice()" style="display: none;">
+                                <span>☁️</span> Upload to Drive
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PDF Upload Card -->
+                    <div class="invoice-upload-card">
+                        <h3><span>📑</span> Upload PDF Invoice</h3>
+                        <p>Upload PDF copies of invoices directly from your computer or device.</p>
+
+                        <div class="invoice-dropzone" id="invoicePdfDropzone" onclick="document.getElementById('invoicePdfInput').click()">
+                            <div class="invoice-dropzone-icon">📄</div>
+                            <div class="invoice-dropzone-text">Drag & Drop PDF here</div>
+                            <div class="invoice-dropzone-subtext">or click to browse • Supports PDF, JPG, PNG files</div>
+                        </div>
+                        <input type="file" class="invoice-file-input" id="invoicePdfInput" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleInvoiceFileSelect(event)">
+
+                        <div id="invoiceSelectedFiles" style="display: none; margin-top: 15px;">
+                            <h4 style="margin-bottom: 10px; color: var(--text-primary);">Selected Files:</h4>
+                            <div id="invoiceFileList"></div>
+                            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                                <button class="invoice-btn invoice-btn-secondary" onclick="uploadSelectedInvoices()">
+                                    <span>☁️</span> Upload All to Drive
+                                </button>
+                                <button class="invoice-btn invoice-btn-danger" onclick="clearSelectedInvoices()">
+                                    <span>🗑️</span> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Progress -->
+                <div class="invoice-upload-progress" id="invoiceUploadProgress">
+                    <div class="invoice-progress-bar">
+                        <div class="invoice-progress-fill" id="invoiceProgressFill"></div>
+                    </div>
+                    <div class="invoice-progress-text" id="invoiceProgressText">Uploading...</div>
+                </div>
+
+                <!-- Uploaded Invoices List -->
+                <div class="invoice-list-section">
+                    <div class="invoice-list-header">
+                        <h3><span>📋</span> Recent Uploads</h3>
+                        <button class="invoice-btn invoice-btn-primary" onclick="refreshInvoiceList()" style="padding: 8px 15px; font-size: 0.9em;">
+                            <span>🔄</span> Refresh
+                        </button>
+                    </div>
+                    <div id="invoiceListContainer">
+                        <div class="invoice-list-empty">
+                            <p>📭 No invoices uploaded yet</p>
+                            <p style="font-size: 0.85em; margin-top: 10px;">Use the camera or file upload above to add invoices</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -7503,17 +7966,540 @@
         function switchTab(tabName, button) {
             document.querySelectorAll('[id$="Tab"]').forEach(tab => tab.style.display = 'none');
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
+
             document.getElementById(tabName + 'Tab').style.display = 'block';
             button.classList.add('active');
-            
+
             // Update copyright year when switching tabs
             setDynamicCopyrightYear();
-            
+
             if (tabName === 'warranty') {
                 updateWarrantyStatus();
             } else if (tabName === 'audit') {
                 loadAssetAuditTrail();
+            } else if (tabName === 'invoice') {
+                initInvoiceUpload();
+            }
+        }
+
+        // ============================================
+        // INVOICE UPLOAD FUNCTIONS
+        // ============================================
+
+        // Invoice Upload Configuration
+        const INVOICE_DRIVE_CONFIG = {
+            FOLDER_ID: '1XoFL2Ew5jzrH4h4OjKkVXwlKsKSyzki5',
+            FOLDER_URL: 'https://drive.google.com/drive/folders/1XoFL2Ew5jzrH4h4OjKkVXwlKsKSyzki5'
+        };
+
+        // Invoice upload state
+        let invoiceCameraStream = null;
+        let capturedInvoiceBlob = null;
+        let selectedInvoiceFiles = [];
+        let uploadedInvoices = [];
+
+        // Initialize invoice upload section
+        function initInvoiceUpload() {
+            initInvoiceDropzone();
+            loadUploadedInvoices();
+        }
+
+        // Initialize invoice PDF dropzone
+        function initInvoiceDropzone() {
+            const dropzone = document.getElementById('invoicePdfDropzone');
+            if (!dropzone) return;
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-over');
+            });
+
+            dropzone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-over');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleInvoiceFiles(files);
+                }
+            });
+        }
+
+        // Open invoice Google Drive folder
+        function openInvoiceDriveFolder() {
+            window.open(INVOICE_DRIVE_CONFIG.FOLDER_URL, '_blank');
+        }
+
+        // ============================================
+        // CAMERA FUNCTIONS FOR INVOICE CAPTURE
+        // ============================================
+
+        // Start invoice camera
+        async function startInvoiceCamera() {
+            try {
+                const video = document.getElementById('invoiceCameraVideo');
+                const preview = document.getElementById('invoiceCameraPreview');
+                const capturedImage = document.getElementById('invoiceCapturedImage');
+
+                // Hide any previously captured image
+                capturedImage.style.display = 'none';
+
+                // Request camera access with preference for back camera on mobile
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                invoiceCameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = invoiceCameraStream;
+                preview.style.display = 'block';
+
+                // Update button visibility
+                document.getElementById('startInvoiceCameraBtn').style.display = 'none';
+                document.getElementById('captureInvoiceBtn').style.display = 'inline-flex';
+                document.getElementById('stopInvoiceCameraBtn').style.display = 'inline-flex';
+                document.getElementById('retakeInvoiceBtn').style.display = 'none';
+                document.getElementById('uploadCapturedInvoiceBtn').style.display = 'none';
+
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert('❌ Could not access camera. Please ensure camera permissions are granted.\n\nError: ' + error.message);
+            }
+        }
+
+        // Stop invoice camera
+        function stopInvoiceCamera() {
+            if (invoiceCameraStream) {
+                invoiceCameraStream.getTracks().forEach(track => track.stop());
+                invoiceCameraStream = null;
+            }
+
+            const preview = document.getElementById('invoiceCameraPreview');
+            const video = document.getElementById('invoiceCameraVideo');
+
+            preview.style.display = 'none';
+            video.srcObject = null;
+
+            // Reset button visibility
+            document.getElementById('startInvoiceCameraBtn').style.display = 'inline-flex';
+            document.getElementById('captureInvoiceBtn').style.display = 'none';
+            document.getElementById('stopInvoiceCameraBtn').style.display = 'none';
+            document.getElementById('retakeInvoiceBtn').style.display = 'none';
+            document.getElementById('uploadCapturedInvoiceBtn').style.display = 'none';
+        }
+
+        // Capture invoice photo
+        function captureInvoicePhoto() {
+            const video = document.getElementById('invoiceCameraVideo');
+            const canvas = document.getElementById('invoiceCameraCanvas');
+            const preview = document.getElementById('invoiceCameraPreview');
+            const capturedImage = document.getElementById('invoiceCapturedImage');
+            const capturedImg = document.getElementById('invoiceCapturedImg');
+
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw the current video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                capturedInvoiceBlob = blob;
+
+                // Create URL for preview
+                const imageUrl = URL.createObjectURL(blob);
+                capturedImg.src = imageUrl;
+
+                // Show captured image, hide video
+                stopInvoiceCamera();
+                capturedImage.style.display = 'block';
+                preview.style.display = 'none';
+
+                // Update buttons
+                document.getElementById('startInvoiceCameraBtn').style.display = 'none';
+                document.getElementById('retakeInvoiceBtn').style.display = 'inline-flex';
+                document.getElementById('uploadCapturedInvoiceBtn').style.display = 'inline-flex';
+            }, 'image/jpeg', 0.95);
+        }
+
+        // Retake invoice photo
+        function retakeInvoicePhoto() {
+            capturedInvoiceBlob = null;
+            document.getElementById('invoiceCapturedImage').style.display = 'none';
+            document.getElementById('invoiceCapturedImg').src = '';
+            startInvoiceCamera();
+        }
+
+        // Upload captured invoice photo
+        async function uploadCapturedInvoice() {
+            if (!capturedInvoiceBlob) {
+                alert('No photo captured. Please capture a photo first.');
+                return;
+            }
+
+            const filename = `invoice-photo-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+            await uploadInvoiceToDrive(capturedInvoiceBlob, filename, 'image/jpeg');
+
+            // Reset after upload
+            capturedInvoiceBlob = null;
+            document.getElementById('invoiceCapturedImage').style.display = 'none';
+            document.getElementById('invoiceCapturedImg').src = '';
+            document.getElementById('startInvoiceCameraBtn').style.display = 'inline-flex';
+            document.getElementById('retakeInvoiceBtn').style.display = 'none';
+            document.getElementById('uploadCapturedInvoiceBtn').style.display = 'none';
+        }
+
+        // ============================================
+        // FILE UPLOAD FUNCTIONS
+        // ============================================
+
+        // Handle invoice file selection
+        function handleInvoiceFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                handleInvoiceFiles(files);
+            }
+        }
+
+        // Process selected invoice files
+        function handleInvoiceFiles(files) {
+            selectedInvoiceFiles = Array.from(files);
+
+            const container = document.getElementById('invoiceSelectedFiles');
+            const fileList = document.getElementById('invoiceFileList');
+
+            fileList.innerHTML = '';
+
+            selectedInvoiceFiles.forEach((file, index) => {
+                const fileIcon = file.type === 'application/pdf' ? '📄' : '🖼️';
+                const fileSize = (file.size / 1024).toFixed(1) + ' KB';
+
+                const fileItem = document.createElement('div');
+                fileItem.className = 'invoice-item';
+                fileItem.innerHTML = `
+                    <div class="invoice-item-info">
+                        <span class="invoice-item-icon">${fileIcon}</span>
+                        <div class="invoice-item-details">
+                            <h4>${file.name}</h4>
+                            <span>${fileSize}</span>
+                        </div>
+                    </div>
+                    <button class="invoice-item-btn delete" onclick="removeSelectedInvoice(${index})">🗑️ Remove</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+
+            container.style.display = 'block';
+        }
+
+        // Remove selected invoice from list
+        function removeSelectedInvoice(index) {
+            selectedInvoiceFiles.splice(index, 1);
+            if (selectedInvoiceFiles.length === 0) {
+                document.getElementById('invoiceSelectedFiles').style.display = 'none';
+            } else {
+                handleInvoiceFiles(selectedInvoiceFiles);
+            }
+        }
+
+        // Clear all selected invoices
+        function clearSelectedInvoices() {
+            selectedInvoiceFiles = [];
+            document.getElementById('invoiceSelectedFiles').style.display = 'none';
+            document.getElementById('invoicePdfInput').value = '';
+        }
+
+        // Upload all selected invoices
+        async function uploadSelectedInvoices() {
+            if (selectedInvoiceFiles.length === 0) {
+                alert('No files selected. Please select files to upload.');
+                return;
+            }
+
+            const progressContainer = document.getElementById('invoiceUploadProgress');
+            const progressFill = document.getElementById('invoiceProgressFill');
+            const progressText = document.getElementById('invoiceProgressText');
+
+            progressContainer.style.display = 'block';
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < selectedInvoiceFiles.length; i++) {
+                const file = selectedInvoiceFiles[i];
+                const progress = ((i + 1) / selectedInvoiceFiles.length) * 100;
+
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `Uploading ${i + 1} of ${selectedInvoiceFiles.length}: ${file.name}`;
+
+                try {
+                    await uploadInvoiceToDrive(file, file.name, file.type);
+                    successCount++;
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    failCount++;
+                }
+            }
+
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+
+            clearSelectedInvoices();
+
+            if (failCount === 0) {
+                alert(`✅ Successfully uploaded ${successCount} invoice(s) to Google Drive!`);
+            } else {
+                alert(`Upload complete:\n✅ ${successCount} succeeded\n❌ ${failCount} failed`);
+            }
+
+            refreshInvoiceList();
+        }
+
+        // ============================================
+        // GOOGLE DRIVE UPLOAD
+        // ============================================
+
+        // Upload invoice to Google Drive
+        async function uploadInvoiceToDrive(fileData, filename, mimeType) {
+            // Check if connected to Google Drive
+            if (!googleAccessToken) {
+                const connect = confirm('You need to connect to Google Drive first to upload invoices.\n\nWould you like to connect now?');
+                if (connect) {
+                    connectToGoogleDrive();
+                }
+                throw new Error('Not connected to Google Drive');
+            }
+
+            const progressContainer = document.getElementById('invoiceUploadProgress');
+            const progressFill = document.getElementById('invoiceProgressFill');
+            const progressText = document.getElementById('invoiceProgressText');
+
+            try {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '30%';
+                progressText.textContent = 'Preparing upload...';
+
+                // Create metadata for the file
+                const metadata = {
+                    name: filename,
+                    parents: [INVOICE_DRIVE_CONFIG.FOLDER_ID],
+                    mimeType: mimeType
+                };
+
+                // Create form data for multipart upload
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', fileData);
+
+                progressFill.style.width = '50%';
+                progressText.textContent = 'Uploading to Google Drive...';
+
+                const response = await fetch(
+                    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,createdTime',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        },
+                        body: form
+                    }
+                );
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Your Google Drive session has expired. Please reconnect.');
+                        disconnectFromGoogleDrive();
+                        throw new Error('Session expired');
+                    }
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Upload complete!';
+
+                // Save to local storage for tracking
+                saveUploadedInvoice({
+                    id: result.id,
+                    name: result.name,
+                    webViewLink: result.webViewLink,
+                    createdTime: result.createdTime || new Date().toISOString(),
+                    type: mimeType.includes('pdf') ? 'pdf' : 'image'
+                });
+
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 1500);
+
+                return result;
+
+            } catch (error) {
+                progressContainer.style.display = 'none';
+                progressFill.style.width = '0%';
+                console.error('Upload error:', error);
+                throw error;
+            }
+        }
+
+        // ============================================
+        // INVOICE TRACKING (LOCAL STORAGE)
+        // ============================================
+
+        // Save uploaded invoice to local tracking
+        function saveUploadedInvoice(invoice) {
+            const invoices = JSON.parse(localStorage.getItem('uploadedInvoices') || '[]');
+            invoices.unshift(invoice);
+            // Keep only last 50 entries
+            if (invoices.length > 50) {
+                invoices.pop();
+            }
+            localStorage.setItem('uploadedInvoices', JSON.stringify(invoices));
+            uploadedInvoices = invoices;
+            renderInvoiceList();
+        }
+
+        // Load uploaded invoices from storage
+        function loadUploadedInvoices() {
+            uploadedInvoices = JSON.parse(localStorage.getItem('uploadedInvoices') || '[]');
+            renderInvoiceList();
+        }
+
+        // Refresh invoice list from Google Drive
+        async function refreshInvoiceList() {
+            if (!googleAccessToken) {
+                loadUploadedInvoices();
+                return;
+            }
+
+            try {
+                const query = `'${INVOICE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false`;
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,webViewLink,createdTime,mimeType)&orderBy=createdTime desc&pageSize=50`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    uploadedInvoices = data.files.map(file => ({
+                        id: file.id,
+                        name: file.name,
+                        webViewLink: file.webViewLink,
+                        createdTime: file.createdTime,
+                        type: file.mimeType.includes('pdf') ? 'pdf' : 'image'
+                    }));
+                    localStorage.setItem('uploadedInvoices', JSON.stringify(uploadedInvoices));
+                    renderInvoiceList();
+                }
+            } catch (error) {
+                console.error('Error refreshing invoice list:', error);
+                loadUploadedInvoices();
+            }
+        }
+
+        // Render invoice list in UI
+        function renderInvoiceList() {
+            const container = document.getElementById('invoiceListContainer');
+
+            if (uploadedInvoices.length === 0) {
+                container.innerHTML = `
+                    <div class="invoice-list-empty">
+                        <p>📭 No invoices uploaded yet</p>
+                        <p style="font-size: 0.85em; margin-top: 10px;">Use the camera or file upload above to add invoices</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = uploadedInvoices.map(invoice => {
+                const icon = invoice.type === 'pdf' ? '📄' : '🖼️';
+                const date = new Date(invoice.createdTime).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                return `
+                    <div class="invoice-item">
+                        <div class="invoice-item-info">
+                            <span class="invoice-item-icon">${icon}</span>
+                            <div class="invoice-item-details">
+                                <h4>${invoice.name}</h4>
+                                <span>${date}</span>
+                            </div>
+                            <span class="invoice-status-badge uploaded">Uploaded</span>
+                        </div>
+                        <div class="invoice-item-actions">
+                            <button class="invoice-item-btn view" onclick="viewInvoice('${invoice.webViewLink || invoice.id}')">👁️ View</button>
+                            <button class="invoice-item-btn delete" onclick="deleteInvoice('${invoice.id}', '${invoice.name}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // View invoice in Google Drive
+        function viewInvoice(linkOrId) {
+            if (linkOrId.startsWith('http')) {
+                window.open(linkOrId, '_blank');
+            } else {
+                window.open(`https://drive.google.com/file/d/${linkOrId}/view`, '_blank');
+            }
+        }
+
+        // Delete invoice from Google Drive
+        async function deleteInvoice(fileId, fileName) {
+            if (!confirm(`Are you sure you want to delete "${fileName}"?\n\nThis will permanently remove the file from Google Drive.`)) {
+                return;
+            }
+
+            if (!googleAccessToken) {
+                // Just remove from local storage if not connected
+                uploadedInvoices = uploadedInvoices.filter(inv => inv.id !== fileId);
+                localStorage.setItem('uploadedInvoices', JSON.stringify(uploadedInvoices));
+                renderInvoiceList();
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (response.ok || response.status === 204) {
+                    // Remove from local tracking
+                    uploadedInvoices = uploadedInvoices.filter(inv => inv.id !== fileId);
+                    localStorage.setItem('uploadedInvoices', JSON.stringify(uploadedInvoices));
+                    renderInvoiceList();
+                    alert('✅ Invoice deleted successfully');
+                } else {
+                    throw new Error(`Delete failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('❌ Failed to delete invoice. Please try again.');
             }
         }
 
