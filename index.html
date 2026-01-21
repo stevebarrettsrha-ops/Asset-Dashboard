@@ -4965,11 +4965,21 @@
                                     <option value="3">Row 3</option>
                                     <option value="4">Row 4</option>
                                     <option value="5">Row 5</option>
+                                    <option value="6">Row 6</option>
+                                    <option value="7">Row 7</option>
+                                    <option value="8">Row 8</option>
+                                    <option value="9">Row 9</option>
+                                    <option value="10">Row 10</option>
+                                    <option value="11">Row 11</option>
+                                    <option value="12">Row 12</option>
+                                    <option value="13">Row 13</option>
+                                    <option value="14">Row 14</option>
+                                    <option value="15">Row 15</option>
                                 </select>
                                 <span style="font-size: 0.85em; color: var(--text-secondary);">Change this if your headers are not in the first row</span>
                             </label>
                         </div>
-                        <div class="import-preview-table" id="gdriveRawDataTable" style="max-height: 300px; overflow: auto;">
+                        <div class="import-preview-table" id="gdriveRawDataTable" style="max-height: 400px; overflow: auto;">
                             <!-- Raw data table will be inserted here -->
                         </div>
                     </div>
@@ -13205,9 +13215,11 @@
                 headerSelect.value = gdriveImportState.headerRow;
             }
 
-            // Build table showing first 10 rows of raw data
-            const maxRows = Math.min(10, rawData.length);
-            const maxCols = Math.min(10, Math.max(...rawData.slice(0, maxRows).map(r => r.length)));
+            // Build table showing first 15 rows of raw data (enough to find header row)
+            const maxRows = Math.min(15, rawData.length);
+            // Show ALL columns so user can see complete data structure
+            const totalCols = Math.max(...rawData.slice(0, maxRows).map(r => r.length || 0));
+            const maxCols = totalCols; // No limit - show all columns
 
             let html = `
                 <div style="margin-bottom: 10px; font-size: 0.9em; color: var(--text-secondary);">
@@ -13246,9 +13258,8 @@
 
             html += '</tbody></table>';
 
-            if (maxCols < Math.max(...rawData.slice(0, maxRows).map(r => r.length))) {
-                html += `<div style="margin-top: 10px; font-size: 0.85em; color: var(--text-secondary);">Note: Only showing first ${maxCols} columns. Your data has more columns.</div>`;
-            }
+            // Show total columns info
+            html += `<div style="margin-top: 10px; font-size: 0.85em; color: var(--text-secondary);">Showing ${maxCols} columns and first ${maxRows} rows of your data.</div>`;
 
             previewTable.innerHTML = html;
         }
@@ -13278,20 +13289,40 @@
 
         // Auto-detect column mappings from selected sheets
         function autoDetectGDriveColumnMappings() {
-            // Get all unique headers from selected sheets
+            // Get all unique headers from selected sheets, including empty ones with position labels
             let allHeaders = new Set();
+            let maxColumnCount = 0;
 
+            // First pass: find max column count and add all non-empty headers
             Object.values(gdriveImportState.sheetsData).forEach(fileData => {
                 fileData.sheets.forEach(sheet => {
-                    if (sheet.selected) {
-                        sheet.headers.forEach(h => {
-                            if (h) allHeaders.add(h);
+                    if (sheet.selected && sheet.headers) {
+                        maxColumnCount = Math.max(maxColumnCount, sheet.headers.length);
+                        sheet.headers.forEach((h, idx) => {
+                            if (h && h.trim()) {
+                                allHeaders.add(h);
+                            } else {
+                                // Add position-based label for empty headers
+                                allHeaders.add(`[Column ${idx + 1}]`);
+                            }
                         });
                     }
                 });
             });
 
-            const headerList = Array.from(allHeaders);
+            const headerList = Array.from(allHeaders).sort((a, b) => {
+                // Sort: position-based columns at end, named columns alphabetically
+                const aIsPositional = a.startsWith('[Column');
+                const bIsPositional = b.startsWith('[Column');
+                if (aIsPositional && !bIsPositional) return 1;
+                if (!aIsPositional && bIsPositional) return -1;
+                if (aIsPositional && bIsPositional) {
+                    const aNum = parseInt(a.match(/\d+/)[0]);
+                    const bNum = parseInt(b.match(/\d+/)[0]);
+                    return aNum - bNum;
+                }
+                return a.localeCompare(b);
+            });
             gdriveImportState.columnMapping = {};
 
             // Use the existing field definitions for mapping
@@ -13433,6 +13464,15 @@
                         const getValue = (fieldKey) => {
                             const mappedHeader = gdriveImportState.columnMapping[fieldKey];
                             if (!mappedHeader) return '';
+
+                            // Check if it's a position-based column reference like "[Column 5]"
+                            const posMatch = mappedHeader.match(/^\[Column (\d+)\]$/);
+                            if (posMatch) {
+                                const colIndex = parseInt(posMatch[1]) - 1; // Convert to 0-indexed
+                                return row[colIndex] !== undefined ? row[colIndex] : '';
+                            }
+
+                            // Otherwise find by header name
                             const colIndex = sheet.headers.indexOf(mappedHeader);
                             return colIndex >= 0 ? row[colIndex] : '';
                         };
