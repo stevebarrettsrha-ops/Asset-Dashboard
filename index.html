@@ -10739,7 +10739,7 @@
                         <td>${escapeHtml(record.action)}</td>
                         <td>${escapeHtml(record.department || 'N/A')}</td>
                         <td>${escapeHtml(record.user)}</td>
-                        <td>${escapeHtml(record.notes || '')}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(record.notes || '')}">${escapeHtml(record.notes || '')}</td>
                         <td>
                             <button class="btn-edit" onclick='deleteAuditEntry("${record.id}")' title="Delete Entry">🗑️</button>
                         </td>
