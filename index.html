@@ -5068,48 +5068,60 @@
                 </div>
             </div>
 
-            <!-- Required Fields Reference -->
+            <!-- Required Fields Reference - Matching Fixed Asset Register -->
             <div class="gdrive-import-container" style="margin-top: 20px;">
-                <h3 class="section-title" style="font-size: 1.2em;">📋 Supported Excel Column Headers</h3>
+                <h3 class="section-title" style="font-size: 1.2em;">📋 Supported Column Headers (Fixed Asset Register)</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 15px;">
-                    The system automatically detects these column headers in your Excel files:
+                    The system automatically detects these column headers from your May Pen Hospital Fixed Asset Register:
                 </p>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
                         <strong>Asset Code</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">asset code, code, asset id, asset no, asset number</div>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Asset Code, asset code, code, asset id</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
                         <strong>Description</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">description, asset description, item, name</div>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Description, asset description, item name</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
-                        <strong>Date In</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">date in, purchase date, acquisition date</div>
+                        <strong>Date Recorded</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Date Recorded, date in, purchase date</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
-                        <strong>Department/Location</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">department, location, ward, unit, area</div>
+                        <strong>Asset Location</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Asset Location, Asset Site Location, department, location</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
-                        <strong>Source</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">source, acquisition type, funded by</div>
+                        <strong>Purchased / Donated</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Purchased / Donated, source, acquisition type</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-green);">
-                        <strong>Category</strong> <span style="color: #e74c3c;">*</span>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">category, asset category, asset type, class</div>
+                        <strong>Categories</strong> <span style="color: #e74c3c;">*</span>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Categories, category, asset type, class</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
-                        <strong>Supplier/Donor</strong>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">supplier, vendor, donor</div>
+                        <strong>Supplier</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Supplier, vendor, donor</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
-                        <strong>Serial/Model</strong>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">serial, model, serial number, model number</div>
+                        <strong>Serial Number</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Serial Number, serial, model number</div>
                     </div>
                     <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
-                        <strong>Quantity & Pricing</strong>
-                        <div style="font-size: 0.85em; color: var(--text-secondary);">quantity, qty, unit price, total price, total</div>
+                        <strong>Quantity</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Quantity, qty, count</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Price / Total Price</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Price, Total Price, Prices (inc. GCT)</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Condition When Recorded</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Condition When Recorded, condition, status</div>
+                    </div>
+                    <div style="padding: 12px; background: var(--table-hover); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <strong>Comments / Year</strong>
+                        <div style="font-size: 0.85em; color: var(--text-secondary);">Comments, notes, Year, fiscal year</div>
                     </div>
                 </div>
                 <p style="margin-top: 15px; color: var(--text-secondary); font-size: 0.85em;">
@@ -12095,32 +12107,32 @@
             dateIn: {
                 label: 'Date In',
                 required: true,
-                aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date']
+                aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date', 'date recorded', 'daterecorded', 'recorded date']
             },
             supplier: {
                 label: 'Supplier',
                 required: false,
-                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'donor name', 'source name', 'from', 'purchased from']
+                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'donor name', 'source name', 'from', 'purchased from', 'medco medical supplies', 'medco']
             },
             department: {
                 label: 'Location/Department',
                 required: true,
-                aliases: ['department', 'location', 'dept', 'asset location', 'asset department', 'dept name', 'location name', 'ward', 'unit', 'area', 'section']
+                aliases: ['department', 'location', 'dept', 'asset location', 'asset department', 'dept name', 'location name', 'ward', 'unit', 'area', 'section', 'asset site location', 'site location', 'site']
             },
             source: {
                 label: 'Source (Purchased/Donated)',
                 required: true,
-                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source']
+                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source', 'purchased / donated', 'purchased/donated', 'purchased or donated', 'purchase/donate']
             },
             month: {
                 label: 'Month',
                 required: false,
-                aliases: ['month', 'fiscal month', 'period', 'month acquired']
+                aliases: ['month', 'fiscal month', 'period', 'month acquired', 'year', 'fiscal year']
             },
             category: {
                 label: 'Category',
                 required: true,
-                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'type', 'class', 'classification', 'group']
+                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'type', 'class', 'classification', 'group', 'categories']
             },
             serialModel: {
                 label: 'Serial/Model',
@@ -12140,7 +12152,27 @@
             totalPrice: {
                 label: 'Total Price',
                 required: false,
-                aliases: ['total price', 'totalprice', 'total_price', 'total', 'total cost', 'total value', 'value', 'amount', 'total amount']
+                aliases: ['total price', 'totalprice', 'total_price', 'total', 'total cost', 'total value', 'value', 'total amount', 'prices (inc. gct)', 'prices inc gct', 'price inc gct', 'price with gct', 'gct price']
+            },
+            condition: {
+                label: 'Condition',
+                required: false,
+                aliases: ['condition', 'condition when recorded', 'asset condition', 'status', 'state', 'condition status']
+            },
+            comments: {
+                label: 'Comments/Notes',
+                required: false,
+                aliases: ['comments', 'notes', 'remarks', 'comment', 'note', 'remark', 'additional info', 'additional information']
+            },
+            siteLocation: {
+                label: 'Site Location',
+                required: false,
+                aliases: ['asset site location', 'site location', 'site', 'facility', 'hospital', 'building', 'campus']
+            },
+            year: {
+                label: 'Year',
+                required: false,
+                aliases: ['year', 'fiscal year', 'fy', 'financial year', 'acquisition year']
             }
         };
 
@@ -12528,6 +12560,16 @@
                 rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
                 rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
                 rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
+                // New fields from Fixed Asset Register
+                rowData.parsed.condition = String(getValue('condition') || '').trim();
+                rowData.parsed.comments = String(getValue('comments') || '').trim();
+                rowData.parsed.siteLocation = String(getValue('siteLocation') || '').trim();
+                rowData.parsed.year = String(getValue('year') || '').trim();
+
+                // If department is empty but siteLocation has data, use siteLocation
+                if (!rowData.parsed.department && rowData.parsed.siteLocation) {
+                    rowData.parsed.department = rowData.parsed.siteLocation;
+                }
 
                 // Detect month
                 rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
@@ -12690,7 +12732,12 @@
                         unitPrice: row.parsed.unitPrice,
                         totalPrice: row.parsed.totalPrice,
                         month: row.parsed.month,
-                        itemType: row.parsed.description // Use description as item type
+                        itemType: row.parsed.description, // Use description as item type
+                        // New fields from Fixed Asset Register
+                        condition: row.parsed.condition || '',
+                        comments: row.parsed.comments || '',
+                        siteLocation: row.parsed.siteLocation || '',
+                        year: row.parsed.year || ''
                     };
 
                     existingAssets.push(newAsset);
@@ -13285,6 +13332,16 @@
                         rowData.parsed.quantity = parseInt(getValue('quantity')) || 1;
                         rowData.parsed.unitPrice = parseFloat(String(getValue('unitPrice')).replace(/[^0-9.-]/g, '')) || 0;
                         rowData.parsed.totalPrice = parseFloat(String(getValue('totalPrice')).replace(/[^0-9.-]/g, '')) || 0;
+                        // New fields from Fixed Asset Register
+                        rowData.parsed.condition = String(getValue('condition') || '').trim();
+                        rowData.parsed.comments = String(getValue('comments') || '').trim();
+                        rowData.parsed.siteLocation = String(getValue('siteLocation') || '').trim();
+                        rowData.parsed.year = String(getValue('year') || '').trim();
+
+                        // If department is empty but siteLocation has data, use siteLocation
+                        if (!rowData.parsed.department && rowData.parsed.siteLocation) {
+                            rowData.parsed.department = rowData.parsed.siteLocation;
+                        }
 
                         // Auto-calculate total price if not provided
                         if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice && rowData.parsed.quantity) {
@@ -13466,7 +13523,12 @@
                         serialModel: row.parsed.serialModel,
                         quantity: row.parsed.quantity,
                         unitPrice: row.parsed.unitPrice,
-                        totalPrice: row.parsed.totalPrice
+                        totalPrice: row.parsed.totalPrice,
+                        // New fields from Fixed Asset Register
+                        condition: row.parsed.condition || '',
+                        comments: row.parsed.comments || '',
+                        siteLocation: row.parsed.siteLocation || '',
+                        year: row.parsed.year || ''
                     };
 
                     existingAssets.push(newAsset);
