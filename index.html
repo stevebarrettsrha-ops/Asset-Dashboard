@@ -1121,6 +1121,28 @@
             box-sizing: border-box;
         }
 
+        /* Fix for department dropdown overflow - ensure proper dropdown display */
+        #auditTab .calc-grid select.calc-input {
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Allow the filter container to show dropdown options */
+        #auditTab .calc-grid > div {
+            position: relative;
+            overflow: visible;
+        }
+
+        /* Style select options for better readability */
+        #auditDepartmentFilter option {
+            max-width: 350px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Responsive adjustments for audit trail */
         @media (max-width: 768px) {
             #auditTab .calc-grid {
@@ -7636,7 +7658,10 @@
                 departments.forEach(dept => {
                     const option = document.createElement('option');
                     option.value = dept;
-                    option.textContent = dept;
+                    // Truncate long department names for better dropdown display
+                    const maxLength = 40;
+                    option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
+                    option.title = dept; // Show full name on hover
                     auditDeptFilter.appendChild(option);
                 });
                 if (currentValue) auditDeptFilter.value = currentValue;
