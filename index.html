@@ -13442,7 +13442,7 @@
             gdriveImportState.previewData = [];
 
             // Get existing asset codes for duplicate detection
-            const existingAssets = JSON.parse(localStorage.getItem('allAssetsData') || '[]');
+            const existingAssets = loadAssetsFromStorage();
             const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
 
             // Process all selected sheets
