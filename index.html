@@ -10579,7 +10579,7 @@
             filteredAssets.forEach(asset => {
                 tableRows += `
                     <tr>
-                        <td style="white-space: nowrap;">${escapeHtml(asset.assetCode)}</td>
+                        <td>${escapeHtml(asset.assetCode)}</td>
                         <td>${escapeHtml(asset.description)}</td>
                         <td style="text-align: right;">JMD ${formatCurrency(asset.totalPrice)}</td>
                         <td>${escapeHtml(asset.department || 'N/A')}</td>
@@ -10666,6 +10666,7 @@
                             border-collapse: collapse;
                             margin: 15px 0;
                             font-size: 11px;
+                            table-layout: fixed;
                         }
                         th {
                             background: #2ECC71;
@@ -10675,9 +10676,18 @@
                             font-weight: bold;
                             border: 1px solid #27AE60;
                         }
+                        /* Column widths for print report */
+                        th:nth-child(1), td:nth-child(1) { width: 18%; } /* Asset Code */
+                        th:nth-child(2), td:nth-child(2) { width: 20%; } /* Description */
+                        th:nth-child(3), td:nth-child(3) { width: 14%; } /* Total Cost */
+                        th:nth-child(4), td:nth-child(4) { width: 25%; } /* Department/Location */
+                        th:nth-child(5), td:nth-child(5) { width: 10%; } /* Source */
+                        th:nth-child(6), td:nth-child(6) { width: 13%; } /* Date In */
                         td {
                             border: 1px solid #ddd;
                             padding: 8px 5px;
+                            word-wrap: break-word;
+                            overflow-wrap: break-word;
                         }
                         tr:nth-child(even) {
                             background: #f8f9fa;
