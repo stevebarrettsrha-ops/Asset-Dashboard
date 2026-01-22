@@ -4708,6 +4708,43 @@
                     <p id="importFileInfo"></p>
                 </div>
 
+                <!-- Raw Data Preview -->
+                <div class="import-mapping-section" id="importRawDataPreview" style="display: none; margin-top: 20px;">
+                    <div class="import-mapping-title">📋 Raw Data Preview</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+                        This shows exactly what the system is reading from your spreadsheet. <strong>Row 1 is used as column headers.</strong>
+                    </p>
+                    <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <label style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span>Header row:</span>
+                            <select id="importHeaderRowSelect" onchange="changeImportHeaderRow(this.value)" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary);">
+                                <option value="1">Row 1 (default)</option>
+                                <option value="2">Row 2</option>
+                                <option value="3">Row 3</option>
+                                <option value="4">Row 4</option>
+                                <option value="5">Row 5</option>
+                                <option value="6">Row 6</option>
+                                <option value="7">Row 7</option>
+                                <option value="8">Row 8</option>
+                                <option value="9">Row 9</option>
+                                <option value="10">Row 10</option>
+                                <option value="11">Row 11</option>
+                                <option value="12">Row 12</option>
+                                <option value="13">Row 13</option>
+                                <option value="14">Row 14</option>
+                                <option value="15">Row 15</option>
+                            </select>
+                            <span style="font-size: 0.85em; color: var(--text-secondary);">Change this if your headers are not in the first row</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 10px; font-size: 0.9em; color: var(--text-secondary);" id="importRawDataInfo">
+                        <!-- File info will be inserted here -->
+                    </div>
+                    <div class="import-preview-table" id="importRawDataTable" style="max-height: 400px; overflow: auto;">
+                        <!-- Raw data table will be inserted here -->
+                    </div>
+                </div>
+
                 <!-- Column Mapping Section -->
                 <div class="import-mapping-section" id="importMappingSection">
                     <div class="import-mapping-title">🔗 Column Mapping</div>
@@ -12113,6 +12150,9 @@
         let importColumnMapping = {};
         let importPreviewData = [];
         let importFileHeaders = [];
+        let importRawData = [];          // Store raw Excel data for preview
+        let importHeaderRow = 1;         // Which row to use as headers (1-indexed)
+        let importFileName = '';         // Store the imported file name
 
         // Field definitions with aliases for auto-detection
         const importFieldDefinitions = {
@@ -12254,9 +12294,19 @@
                         throw new Error('File appears to be empty or has no data rows');
                     }
 
-                    // Store headers (first row) and data
-                    importFileHeaders = jsonData[0].map(h => String(h || '').trim());
-                    importedExcelData = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+                    // Store raw data for preview and header row selection
+                    importRawData = jsonData;
+                    importFileName = file.name;
+                    importHeaderRow = 1; // Reset to default
+
+                    // Reset header row selector
+                    const headerSelect = document.getElementById('importHeaderRowSelect');
+                    if (headerSelect) headerSelect.value = '1';
+
+                    // Extract headers and data based on current header row
+                    const headerRowIndex = importHeaderRow - 1;
+                    importFileHeaders = (jsonData[headerRowIndex] || []).map(h => String(h || '').trim());
+                    importedExcelData = jsonData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
 
                     progressFill.style.width = '80%';
                     progressText.textContent = 'Auto-detecting column mappings...';
@@ -12264,8 +12314,11 @@
                     // Show file info
                     const fileInfo = document.getElementById('importFileInfo');
                     const formatSection = document.getElementById('importDetectedFormat');
-                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(firstSheetName)}</strong>`;
                     formatSection.style.display = 'block';
+
+                    // Display raw data preview
+                    displayRawDataPreview();
 
                     // Auto-detect column mappings
                     autoDetectColumns();
@@ -12325,12 +12378,137 @@
             generatePreview();
         }
 
+        // Display raw data preview table
+        function displayRawDataPreview() {
+            const previewSection = document.getElementById('importRawDataPreview');
+            const previewTable = document.getElementById('importRawDataTable');
+            const previewInfo = document.getElementById('importRawDataInfo');
+            const headerSelect = document.getElementById('importHeaderRowSelect');
+
+            if (!previewSection || !previewTable || !importRawData || importRawData.length === 0) {
+                if (previewSection) previewSection.style.display = 'none';
+                return;
+            }
+
+            previewSection.style.display = 'block';
+
+            // Set header row selector value
+            if (headerSelect) {
+                headerSelect.value = importHeaderRow;
+            }
+
+            // Show file info
+            if (previewInfo) {
+                previewInfo.innerHTML = `Showing data from: <strong>${escapeHtml(importFileName)}</strong>`;
+            }
+
+            // Build table showing first 15 rows of raw data (enough to find header row)
+            const maxRows = Math.min(15, importRawData.length);
+            // Show ALL columns so user can see complete data structure
+            const totalCols = Math.max(...importRawData.slice(0, maxRows).map(r => r ? r.length : 0));
+            const maxCols = totalCols; // No limit - show all columns
+
+            let html = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8em;">
+                    <thead>
+                        <tr style="background: var(--bg-secondary);">
+                            <th style="padding: 8px; text-align: center; border: 1px solid var(--border-color); width: 50px;">Row</th>
+            `;
+
+            for (let col = 0; col < maxCols; col++) {
+                html += `<th style="padding: 8px; text-align: left; border: 1px solid var(--border-color);">Col ${col + 1}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+
+            for (let row = 0; row < maxRows; row++) {
+                const isHeaderRow = (row + 1) === importHeaderRow;
+                const rowStyle = isHeaderRow ? 'background: rgba(39, 174, 96, 0.2); font-weight: bold;' : '';
+                const rowLabel = isHeaderRow ? `${row + 1} (HDR)` : (row + 1).toString();
+
+                html += `<tr style="${rowStyle}">`;
+                html += `<td style="padding: 8px; text-align: center; border: 1px solid var(--border-color); background: var(--bg-secondary);">${rowLabel}</td>`;
+
+                for (let col = 0; col < maxCols; col++) {
+                    const cellValue = importRawData[row] && importRawData[row][col] !== undefined ? String(importRawData[row][col]) : '';
+                    const truncatedValue = cellValue.length > 25 ? cellValue.substring(0, 25) + '...' : cellValue;
+                    html += `<td style="padding: 8px; border: 1px solid var(--border-color);" title="${escapeHtml(cellValue)}">${escapeHtml(truncatedValue)}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            if (importRawData.length > maxRows) {
+                html += `<tr><td colspan="${maxCols + 1}" style="padding: 10px; text-align: center; color: var(--text-secondary); border: 1px solid var(--border-color);">... and ${importRawData.length - maxRows} more rows</td></tr>`;
+            }
+
+            html += '</tbody></table>';
+
+            // Show total columns info
+            html += `<div style="margin-top: 10px; font-size: 0.85em; color: var(--text-secondary);">Showing ${maxCols} columns and first ${maxRows} rows of your data.</div>`;
+
+            previewTable.innerHTML = html;
+        }
+
+        // Change header row and reprocess data
+        function changeImportHeaderRow(rowNum) {
+            importHeaderRow = parseInt(rowNum);
+
+            // Reprocess headers and data based on new header row
+            if (importRawData && importRawData.length > 0) {
+                const headerRowIndex = importHeaderRow - 1;
+                if (headerRowIndex < importRawData.length) {
+                    importFileHeaders = (importRawData[headerRowIndex] || []).map(h => String(h || '').trim());
+                    importedExcelData = importRawData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
+
+                    // Update file info
+                    const fileInfo = document.getElementById('importFileInfo');
+                    if (fileInfo) {
+                        fileInfo.innerHTML = `<strong>${escapeHtml(importFileName)}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                    }
+                }
+            }
+
+            // Refresh displays
+            displayRawDataPreview();
+            autoDetectColumns();
+        }
+
         // Build the column mapping UI
         function buildMappingUI() {
             const mappingGrid = document.getElementById('importMappingGrid');
             const mappingSection = document.getElementById('importMappingSection');
 
+            // Create header list with position labels for empty headers
+            const headerOptions = importFileHeaders.map((header, idx) => {
+                const label = header && header.trim() ? header : `[Column ${idx + 1}]`;
+                return { index: idx, label: label, original: header };
+            });
+
+            // Count how many required fields are auto-mapped
+            const requiredFields = Object.entries(importFieldDefinitions).filter(([k, v]) => v.required);
+            const mappedRequiredCount = requiredFields.filter(([k, v]) => importColumnMapping[k] !== undefined).length;
+
             let html = '';
+
+            // Show warning if few or no columns were auto-detected
+            if (mappedRequiredCount < 3) {
+                const detectedHeaders = headerOptions.map(h => `"${escapeHtml(h.label)}"`).join(', ');
+                html += `
+                    <div style="margin-bottom: 15px; padding: 15px; background: rgba(231, 76, 60, 0.1); border: 1px solid #e74c3c; border-radius: 8px;">
+                        <div style="font-weight: bold; color: #e74c3c; margin-bottom: 8px;">⚠️ Column Headers Not Recognized</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9em;">
+                            The system could not automatically match your spreadsheet columns to asset fields. This usually means:
+                            <ul style="margin: 10px 0 0 20px; padding: 0;">
+                                <li><strong>Your column headers use different names</strong> - Use the dropdowns below to manually select which column corresponds to each field</li>
+                                <li><strong>Headers are not in Row 1</strong> - Check the "Raw Data Preview" above and use the header row selector to change which row contains your column names</li>
+                                <li><strong>Wrong file selected</strong> - Make sure you've selected an asset inventory spreadsheet</li>
+                            </ul>
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 4px; font-size: 0.85em; max-height: 150px; overflow-y: auto;">
+                            <strong>Your detected column headers:</strong> ${headerOptions.length > 0 ? detectedHeaders : 'None found'}
+                        </div>
+                    </div>
+                `;
+            }
 
             for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
                 const currentMapping = importColumnMapping[fieldKey];
@@ -12346,9 +12524,9 @@
                                 id="mapping_${fieldKey}"
                                 onchange="updateColumnMapping('${fieldKey}', this.value)">
                             <option value="">-- Not Mapped --</option>
-                            ${importFileHeaders.map((header, idx) => `
-                                <option value="${idx}" ${currentMapping === idx ? 'selected' : ''}>
-                                    ${header || `Column ${idx + 1}`}
+                            ${headerOptions.map(h => `
+                                <option value="${h.index}" ${currentMapping === h.index ? 'selected' : ''}>
+                                    ${escapeHtml(h.label)}
                                 </option>
                             `).join('')}
                         </select>
@@ -12757,6 +12935,7 @@
                 document.getElementById('importOptions').style.display = 'none';
                 document.getElementById('importActions').style.display = 'none';
                 document.getElementById('importDetectedFormat').style.display = 'none';
+                document.getElementById('importRawDataPreview').style.display = 'none';
                 document.getElementById('importDropzone').style.display = 'none';
 
                 // Reload main dashboard data
@@ -12775,13 +12954,21 @@
             importColumnMapping = {};
             importPreviewData = [];
             importFileHeaders = [];
+            importRawData = [];
+            importHeaderRow = 1;
+            importFileName = '';
 
             // Reset file input
             document.getElementById('importFileInput').value = '';
 
+            // Reset header row selector
+            const headerSelect = document.getElementById('importHeaderRowSelect');
+            if (headerSelect) headerSelect.value = '1';
+
             // Hide all sections
             document.getElementById('importProgress').style.display = 'none';
             document.getElementById('importDetectedFormat').style.display = 'none';
+            document.getElementById('importRawDataPreview').style.display = 'none';
             document.getElementById('importMappingSection').style.display = 'none';
             document.getElementById('importPreviewSection').style.display = 'none';
             document.getElementById('importOptions').style.display = 'none';
