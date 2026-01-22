@@ -1121,7 +1121,97 @@
             box-sizing: border-box;
         }
 
-        /* Fix for department dropdown overflow - ensure proper dropdown display */
+        /* Custom dropdown wrapper for department selection */
+        .custom-dropdown-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-dropdown-trigger {
+            width: 100%;
+            padding: 12px 35px 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: all 0.3s;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .custom-dropdown-trigger::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7em;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .custom-dropdown-trigger:hover,
+        .custom-dropdown-trigger:focus {
+            border-color: var(--primary-orange);
+            outline: none;
+        }
+
+        .custom-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 2px solid var(--primary-orange);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .custom-dropdown-menu.show {
+            display: block;
+        }
+
+        .custom-dropdown-menu.show-above {
+            top: auto;
+            bottom: 100%;
+            margin-top: 0;
+            margin-bottom: 4px;
+        }
+
+        .custom-dropdown-option {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .custom-dropdown-option:last-child {
+            border-bottom: none;
+        }
+
+        .custom-dropdown-option:hover {
+            background: var(--table-hover);
+        }
+
+        .custom-dropdown-option.selected {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--primary-orange);
+            font-weight: 600;
+        }
+
+        /* Fix for native department dropdown overflow - ensure dropdown stays within viewport */
         #auditTab .calc-grid select.calc-input {
             max-width: 220px;
             overflow: hidden;
@@ -1129,18 +1219,37 @@
             white-space: nowrap;
         }
 
+        /* Ensure filter section container allows dropdown to display properly */
+        #auditTab > div[style*="border-left"] {
+            overflow: visible !important;
+            position: relative;
+            z-index: 10;
+        }
+
         /* Allow the filter container to show dropdown options */
         #auditTab .calc-grid > div {
             position: relative;
-            overflow: visible;
+            overflow: visible !important;
         }
 
         /* Style select options for better readability */
-        #auditDepartmentFilter option {
+        #auditDepartmentFilter option,
+        #auditLocation option {
             max-width: 350px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            padding: 8px 12px;
+        }
+
+        /* Ensure audit trail section allows dropdown overflow */
+        .audit-trail#auditTab {
+            overflow: visible !important;
+        }
+
+        /* Ensure page3 allows dropdown overflow */
+        #page3 {
+            overflow: visible !important;
         }
 
         /* Responsive adjustments for audit trail */
@@ -1152,6 +1261,9 @@
             #auditTab .calc-grid > input,
             #auditTab .calc-grid > select {
                 max-width: none;
+            }
+            .custom-dropdown-menu {
+                max-height: 200px;
             }
         }
 
@@ -4540,11 +4652,17 @@
                 <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange);">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">🔍 Filter Audit Trail</h3>
                     <div class="calc-grid" style="margin-bottom: 15px;">
-                        <div>
+                        <div style="position: relative;">
                             <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Department:</label>
-                            <select id="auditDepartmentFilter" class="calc-input" onchange="displayAuditTrail()">
-                                <option value="">All Departments</option>
-                            </select>
+                            <div class="custom-dropdown-wrapper" id="deptDropdownWrapper">
+                                <button type="button" class="custom-dropdown-trigger" id="deptDropdownTrigger" onclick="toggleDeptDropdown()">
+                                    All Departments
+                                </button>
+                                <div class="custom-dropdown-menu" id="deptDropdownMenu">
+                                    <!-- Options populated dynamically -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="auditDepartmentFilter" value="">
                         </div>
                         <div>
                             <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Action Type:</label>
@@ -7650,21 +7768,37 @@
                 if (currentValue) assetDeptSelect.value = currentValue;
             }
 
-            // Update audit trail filter dropdown
+            // Update audit trail filter custom dropdown
             const auditDeptFilter = document.getElementById('auditDepartmentFilter');
-            if (auditDeptFilter) {
-                const currentValue = auditDeptFilter.value;
-                auditDeptFilter.innerHTML = '<option value="">All Departments</option>';
+            const deptDropdownMenu = document.getElementById('deptDropdownMenu');
+            const deptDropdownTrigger = document.getElementById('deptDropdownTrigger');
+            if (deptDropdownMenu && deptDropdownTrigger) {
+                const currentValue = auditDeptFilter ? auditDeptFilter.value : '';
+                deptDropdownMenu.innerHTML = '';
+
+                // Add "All Departments" option
+                const allOption = document.createElement('div');
+                allOption.className = 'custom-dropdown-option' + (currentValue === '' ? ' selected' : '');
+                allOption.textContent = 'All Departments';
+                allOption.onclick = function() { selectDeptOption('', 'All Departments'); };
+                deptDropdownMenu.appendChild(allOption);
+
+                // Add department options
                 departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    // Truncate long department names for better dropdown display
+                    const option = document.createElement('div');
+                    option.className = 'custom-dropdown-option' + (currentValue === dept ? ' selected' : '');
                     const maxLength = 40;
                     option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
                     option.title = dept; // Show full name on hover
-                    auditDeptFilter.appendChild(option);
+                    option.onclick = function() { selectDeptOption(dept, dept); };
+                    deptDropdownMenu.appendChild(option);
                 });
-                if (currentValue) auditDeptFilter.value = currentValue;
+
+                // Update trigger text if there's a current value
+                if (currentValue && currentValue !== '') {
+                    const maxLength = 25;
+                    deptDropdownTrigger.textContent = currentValue.length > maxLength ? currentValue.substring(0, maxLength) + '...' : currentValue;
+                }
             }
 
             // Update audit entry form department dropdown
@@ -7684,6 +7818,71 @@
             // Update department management list
             updateDepartmentManagementUI();
         }
+
+        // Custom dropdown functions for department filter
+        function toggleDeptDropdown() {
+            const menu = document.getElementById('deptDropdownMenu');
+            const trigger = document.getElementById('deptDropdownTrigger');
+            const wrapper = document.getElementById('deptDropdownWrapper');
+
+            if (!menu || !trigger || !wrapper) return;
+
+            const isOpen = menu.classList.contains('show');
+
+            if (isOpen) {
+                menu.classList.remove('show', 'show-above');
+            } else {
+                // Calculate available space
+                const triggerRect = trigger.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceBelow = viewportHeight - triggerRect.bottom;
+                const spaceAbove = triggerRect.top;
+                const menuHeight = 250; // max-height from CSS
+
+                // Show above if not enough space below but enough above
+                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.classList.add('show', 'show-above');
+                } else {
+                    menu.classList.add('show');
+                    menu.classList.remove('show-above');
+                }
+            }
+        }
+
+        function selectDeptOption(value, text) {
+            const hiddenInput = document.getElementById('auditDepartmentFilter');
+            const trigger = document.getElementById('deptDropdownTrigger');
+            const menu = document.getElementById('deptDropdownMenu');
+
+            if (hiddenInput) hiddenInput.value = value;
+            if (trigger) {
+                const maxLength = 25;
+                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            }
+            if (menu) {
+                menu.classList.remove('show', 'show-above');
+                // Update selected state
+                const options = menu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if ((value === '' && opt.textContent === 'All Departments') || opt.title === value || opt.textContent === value) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
+
+            // Trigger the audit trail display update
+            displayAuditTrail();
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('deptDropdownWrapper');
+            const menu = document.getElementById('deptDropdownMenu');
+            if (wrapper && menu && !wrapper.contains(e.target)) {
+                menu.classList.remove('show', 'show-above');
+            }
+        });
 
         // Load assets from localStorage
         function loadAssetsFromStorage() {
@@ -10569,10 +10768,11 @@
                 return;
             }
 
-            // Calculate totals
+            // Calculate totals using quantity sums (consistent with KPI cards)
             const totalValue = filteredAssets.reduce((sum, asset) => sum + asset.totalPrice, 0);
-            const purchasedCount = filteredAssets.filter(a => a.source === 'Purchased').length;
-            const donatedCount = filteredAssets.filter(a => a.source === 'Donated').length;
+            const totalAssets = filteredAssets.reduce((sum, asset) => sum + (asset.quantity || 1), 0);
+            const purchasedCount = filteredAssets.filter(a => a.source === 'Purchased').reduce((sum, asset) => sum + (asset.quantity || 1), 0);
+            const donatedCount = filteredAssets.filter(a => a.source === 'Donated').reduce((sum, asset) => sum + (asset.quantity || 1), 0);
 
             // Build table rows
             let tableRows = '';
@@ -10735,7 +10935,7 @@
                         <div class="summary-grid">
                             <div class="summary-item">
                                 <div class="summary-label">Total Assets</div>
-                                <div class="summary-value">${filteredAssets.length}</div>
+                                <div class="summary-value">${totalAssets}</div>
                             </div>
                             <div class="summary-item">
                                 <div class="summary-label">Total Value</div>
@@ -10771,7 +10971,7 @@
 
                     <div class="footer">
                         <p>May Pen Hospital - Fixed Asset Management System</p>
-                        <p>This report contains ${filteredAssets.length} assets with a total value of JMD ${formatCurrency(totalValue)}</p>
+                        <p>This report contains ${totalAssets} assets with a total value of JMD ${formatCurrency(totalValue)}</p>
                     </div>
 
                     <script>window.print();<\/script>
@@ -10945,11 +11145,27 @@
             const actionFilter = document.getElementById('auditActionFilter');
             const dateFrom = document.getElementById('auditDateFrom');
             const dateTo = document.getElementById('auditDateTo');
+            const deptDropdownTrigger = document.getElementById('deptDropdownTrigger');
+            const deptDropdownMenu = document.getElementById('deptDropdownMenu');
 
             if (deptFilter) deptFilter.value = '';
             if (actionFilter) actionFilter.value = '';
             if (dateFrom) dateFrom.value = '';
             if (dateTo) dateTo.value = '';
+
+            // Reset custom dropdown trigger text
+            if (deptDropdownTrigger) deptDropdownTrigger.textContent = 'All Departments';
+
+            // Reset selected state in dropdown menu
+            if (deptDropdownMenu) {
+                const options = deptDropdownMenu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if (opt.textContent === 'All Departments') {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
 
             displayAuditTrail();
         }
@@ -11093,10 +11309,34 @@
         // Filter by department when clicking summary card
         function filterByDepartmentFromSummary(department) {
             const deptFilter = document.getElementById('auditDepartmentFilter');
+            const deptDropdownTrigger = document.getElementById('deptDropdownTrigger');
+            const deptDropdownMenu = document.getElementById('deptDropdownMenu');
+
+            const value = department === 'Unassigned' ? '' : department;
+            const displayText = department === 'Unassigned' ? 'All Departments' : department;
+
             if (deptFilter) {
-                deptFilter.value = department === 'Unassigned' ? '' : department;
-                displayAuditTrail();
+                deptFilter.value = value;
             }
+
+            // Update custom dropdown trigger text
+            if (deptDropdownTrigger) {
+                const maxLength = 25;
+                deptDropdownTrigger.textContent = displayText.length > maxLength ? displayText.substring(0, maxLength) + '...' : displayText;
+            }
+
+            // Update selected state in dropdown menu
+            if (deptDropdownMenu) {
+                const options = deptDropdownMenu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if ((value === '' && opt.textContent === 'All Departments') || opt.title === value || opt.textContent === value) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
+
+            displayAuditTrail();
         }
 
         function deleteAuditEntry(entryId) {
