@@ -1078,6 +1078,61 @@
         th:nth-child(11), td:nth-child(11) { width: 60px; min-width: 50px; }  /* Month */
         th:nth-child(12), td:nth-child(12) { width: 60px; min-width: 50px; }  /* Actions */
 
+        /* Audit Trail Table - specific column widths for 7-column layout */
+        #auditEntries table {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { width: 150px; min-width: 130px; }  /* Timestamp */
+        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { width: 140px; min-width: 120px; }  /* Asset Code */
+        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { width: 120px; min-width: 100px; }  /* Action */
+        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 130px; min-width: 100px; }  /* Department */
+        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { width: 80px; min-width: 70px; }    /* User */
+        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: auto; min-width: 150px; }   /* Notes - flexible */
+        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { width: 70px; min-width: 60px; }    /* Actions */
+
+        #auditEntries td:nth-child(6) {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        /* Audit Trail Filter Section - constrain grid items */
+        #auditTab .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 220px));
+            gap: 15px;
+            justify-content: start;
+        }
+
+        #auditTab .calc-grid > div,
+        #auditTab .calc-grid > input,
+        #auditTab .calc-grid > select {
+            max-width: 220px;
+            min-width: 150px;
+        }
+
+        #auditTab .calc-grid .calc-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Responsive adjustments for audit trail */
+        @media (max-width: 768px) {
+            #auditTab .calc-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+            #auditTab .calc-grid > div,
+            #auditTab .calc-grid > input,
+            #auditTab .calc-grid > select {
+                max-width: none;
+            }
+        }
+
         tbody tr {
             border-bottom: 1px solid var(--border-color);
             transition: all 0.3s;
