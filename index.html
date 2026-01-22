@@ -8756,20 +8756,52 @@
         }
 
         function getFiscalYearFromDate(dateStr) {
-            // Parse date in format "DD-MMM-YYYY" and determine fiscal year
-            if (!dateStr) return currentFiscalYear;
+            // Parse date and determine fiscal year
+            // Supports multiple formats: DD-MMM-YYYY, DD/MM/YYYY, YYYY-MM-DD, etc.
+            if (!dateStr) return null;
 
             try {
-                const parts = dateStr.split('-');
-                if (parts.length === 3) {
-                    const monthMap = {
-                        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-                        'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
-                    };
-                    const month = monthMap[parts[1].toLowerCase()];
-                    const year = parseInt(parts[2]);
+                const dateString = String(dateStr).trim();
+                if (!dateString) return null;
 
-                    // If month is Jan, Feb, Mar, fiscal year started previous year
+                const monthMap = {
+                    'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                    'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11,
+                    'january': 0, 'february': 1, 'march': 2, 'april': 3, 'june': 5,
+                    'july': 6, 'august': 7, 'september': 8, 'october': 9, 'november': 10, 'december': 11
+                };
+
+                let month = null;
+                let year = null;
+
+                // Try DD-MMM-YYYY or DD/MMM/YYYY format (e.g., "15-May-2025")
+                const parts = dateString.split(/[-\/]/);
+                if (parts.length === 3) {
+                    const part0 = parts[0].trim();
+                    const part1 = parts[1].trim().toLowerCase();
+                    const part2 = parts[2].trim();
+
+                    // Check if middle part is a month name
+                    if (monthMap.hasOwnProperty(part1)) {
+                        // Format: DD-MMM-YYYY
+                        month = monthMap[part1];
+                        year = parseInt(part2);
+                    } else if (part0.length === 4 && !isNaN(parseInt(part0))) {
+                        // Format: YYYY-MM-DD (ISO format)
+                        year = parseInt(part0);
+                        month = parseInt(part1) - 1; // Convert to 0-indexed
+                    } else if (part2.length === 4 && !isNaN(parseInt(part2))) {
+                        // Format: DD/MM/YYYY or MM/DD/YYYY
+                        year = parseInt(part2);
+                        // Assume DD/MM/YYYY format
+                        month = parseInt(part1) - 1; // Convert to 0-indexed
+                    }
+                }
+
+                // Validate parsed values
+                if (year !== null && !isNaN(year) && year >= 1900 && year <= 2100 &&
+                    month !== null && !isNaN(month) && month >= 0 && month <= 11) {
+                    // If month is Jan (0), Feb (1), Mar (2), fiscal year started previous year
                     if (month >= 0 && month <= 2) {
                         return year - 1;
                     } else {
@@ -8777,9 +8809,9 @@
                     }
                 }
             } catch (e) {
-                console.error('Error parsing date for fiscal year:', e);
+                console.error('Error parsing date for fiscal year:', e, dateStr);
             }
-            return currentFiscalYear;
+            return null;
         }
 
         function showPage(pageNum) {
@@ -11330,7 +11362,9 @@
                 // Filter assets by current fiscal year
                 const assets = allAssets.filter(asset => {
                     const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
-                    return assetFiscalYear === currentFiscalYear;
+                    // Only include assets with a determinable fiscal year that matches
+                    // Assets with null fiscal year (unparseable dates) are excluded
+                    return assetFiscalYear !== null && assetFiscalYear === currentFiscalYear;
                 });
 
                 // Process assets into the expected format
@@ -11909,6 +11943,10 @@
 
             // Create report in new window (similar to other printReport function)
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                alert('Unable to open PDF window. Please allow popups for this site and try again.');
+                return;
+            }
             printWindow.document.write(`
                 <html>
                 <head>
