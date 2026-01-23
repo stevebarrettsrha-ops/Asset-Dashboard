@@ -3720,6 +3720,614 @@
                 justify-content: flex-end;
             }
         }
+
+        /* ============================================
+           BOARD OF SURVEY (DISPOSAL) DASHBOARD STYLES
+           ============================================ */
+        .disposal-container {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .disposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .disposal-header h2 {
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .disposal-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .disposal-stat-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-orange);
+            transition: transform 0.3s ease;
+        }
+
+        .disposal-stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .disposal-stat-card.disposed {
+            border-left-color: #e74c3c;
+        }
+
+        .disposal-stat-card.damaged {
+            border-left-color: #f39c12;
+        }
+
+        .disposal-stat-card.obsolete {
+            border-left-color: #9b59b6;
+        }
+
+        .disposal-stat-card.total-value {
+            border-left-color: var(--primary-green);
+        }
+
+        .disposal-stat-label {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .disposal-stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .disposal-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .disposal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .disposal-btn-primary {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .disposal-btn-secondary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .disposal-btn-success {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+        }
+
+        .disposal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .disposal-table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .disposal-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+        }
+
+        .disposal-table th,
+        .disposal-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .disposal-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            position: sticky;
+            top: 0;
+        }
+
+        .disposal-table tr:hover {
+            background: var(--table-hover);
+        }
+
+        .disposal-reason-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .disposal-reason-badge.damaged {
+            background: rgba(243, 156, 18, 0.15);
+            color: #d68910;
+        }
+
+        .disposal-reason-badge.obsolete {
+            background: rgba(155, 89, 182, 0.15);
+            color: #8e44ad;
+        }
+
+        .disposal-reason-badge.surplus {
+            background: rgba(52, 152, 219, 0.15);
+            color: #2980b9;
+        }
+
+        .disposal-reason-badge.other {
+            background: rgba(149, 165, 166, 0.15);
+            color: #7f8c8d;
+        }
+
+        .disposal-method-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .disposal-method-badge.auction {
+            background: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+        }
+
+        .disposal-method-badge.donation {
+            background: rgba(52, 152, 219, 0.15);
+            color: #2980b9;
+        }
+
+        .disposal-method-badge.destruction {
+            background: rgba(231, 76, 60, 0.15);
+            color: #c0392b;
+        }
+
+        .disposal-method-badge.transfer {
+            background: rgba(155, 89, 182, 0.15);
+            color: #8e44ad;
+        }
+
+        .disposal-action-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .disposal-action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .disposal-action-btn.edit {
+            background: rgba(52, 152, 219, 0.15);
+            color: #2980b9;
+        }
+
+        .disposal-action-btn.delete {
+            background: rgba(231, 76, 60, 0.15);
+            color: #c0392b;
+        }
+
+        .disposal-action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Disposal Modal */
+        .disposal-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .disposal-modal-content {
+            background: var(--bg-card);
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .disposal-modal-header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .disposal-modal-header h2 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .disposal-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .disposal-modal-close:hover {
+            opacity: 1;
+        }
+
+        .disposal-modal-body {
+            padding: 25px;
+        }
+
+        .disposal-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .disposal-form-group {
+            margin-bottom: 0;
+        }
+
+        .disposal-form-group.full-width {
+            grid-column: span 2;
+        }
+
+        .disposal-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .disposal-form-group input,
+        .disposal-form-group select,
+        .disposal-form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: border-color 0.3s ease;
+        }
+
+        .disposal-form-group input:focus,
+        .disposal-form-group select:focus,
+        .disposal-form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+        }
+
+        .disposal-form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            justify-content: flex-end;
+        }
+
+        /* Asset Search for Disposal */
+        .disposal-asset-search {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .disposal-asset-search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .disposal-asset-search-results.active {
+            display: block;
+        }
+
+        .disposal-search-result-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .disposal-search-result-item:hover {
+            background: var(--table-hover);
+        }
+
+        .disposal-search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .disposal-search-result-code {
+            font-weight: 600;
+            color: var(--primary-orange);
+        }
+
+        .disposal-search-result-desc {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           ASSET REGISTER DASHBOARD STYLES
+           ============================================ */
+        .register-container {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            margin-bottom: 30px;
+        }
+
+        .register-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .register-header h2 {
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .register-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .register-stat-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-green);
+            text-align: center;
+        }
+
+        .register-stat-card.orange {
+            border-left-color: var(--primary-orange);
+        }
+
+        .register-stat-card.blue {
+            border-left-color: #3498db;
+        }
+
+        .register-stat-card.purple {
+            border-left-color: #9b59b6;
+        }
+
+        .register-stat-label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .register-stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .register-filters {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        .register-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .register-filter-group label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .register-filter-group select,
+        .register-filter-group input {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .register-search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .register-search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .register-table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .register-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .register-table th,
+        .register-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .register-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            position: sticky;
+            top: 0;
+            white-space: nowrap;
+        }
+
+        .register-table tr:hover {
+            background: var(--table-hover);
+        }
+
+        .register-table .asset-code-link {
+            color: var(--primary-orange);
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .register-table .asset-code-link:hover {
+            text-decoration: underline;
+        }
+
+        .register-export-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .register-export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .register-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .register-pagination button {
+            padding: 8px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .register-pagination button:hover:not(:disabled) {
+            background: var(--primary-green);
+            color: white;
+            border-color: var(--primary-green);
+        }
+
+        .register-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .register-pagination span {
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .disposal-form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .disposal-form-group.full-width {
+                grid-column: span 1;
+            }
+
+            .disposal-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .register-filters {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -4345,6 +4953,7 @@
                         <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
                         <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
                         <button class="btn monthly-view-btn" onclick="showPage(5)" style="background: linear-gradient(135deg, #4285f4, #1a73e8);">☁️ Google Drive Import</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(6)" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Board of Survey</button>
                     </div>
                 </div>
             </div>
@@ -5412,6 +6021,297 @@
                 <p>Fixed Asset Management System © <span id="copyrightYear5"></span> • May Pen Hospital</p>
             </div>
         </div>
+
+        <!-- PAGE 6: BOARD OF SURVEY (ASSET DISPOSAL) -->
+        <div class="page" id="page6">
+            <div class="header" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Board of Survey</h1>
+                            <div class="dashboard-subtitle">Disposal of Obsolete and Damaged Assets</div>
+                        </div>
+                        <div class="user-info" id="userInfo6"></div>
+                    </div>
+
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="showPage(7)" style="background: linear-gradient(135deg, #3498db, #2980b9);">📋 Asset Register</button>
+                        <button class="btn monthly-view-btn" onclick="openDisposalModal()" style="background: linear-gradient(135deg, #27ae60, #219a52);">➕ Add Disposal Record</button>
+                        <button class="btn monthly-view-btn" onclick="exportDisposalRecords()">📥 Export Records</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="disposal-container">
+                <!-- Disposal Statistics -->
+                <div class="disposal-stats">
+                    <div class="disposal-stat-card disposed">
+                        <div class="disposal-stat-label">Total Disposed Assets</div>
+                        <div class="disposal-stat-value" id="totalDisposedCount">0</div>
+                    </div>
+                    <div class="disposal-stat-card damaged">
+                        <div class="disposal-stat-label">Damaged Assets</div>
+                        <div class="disposal-stat-value" id="damagedAssetCount">0</div>
+                    </div>
+                    <div class="disposal-stat-card obsolete">
+                        <div class="disposal-stat-label">Obsolete Assets</div>
+                        <div class="disposal-stat-value" id="obsoleteAssetCount">0</div>
+                    </div>
+                    <div class="disposal-stat-card total-value">
+                        <div class="disposal-stat-label">Total Value Disposed</div>
+                        <div class="disposal-stat-value" id="totalDisposedValue">JMD 0.00</div>
+                    </div>
+                </div>
+
+                <!-- Disposal Records Header -->
+                <div class="disposal-header">
+                    <h2>📋 Disposal Records</h2>
+                    <div class="disposal-actions">
+                        <input type="text" id="disposalSearchInput" placeholder="Search by asset code or description..."
+                               style="padding: 10px 15px; border: 2px solid var(--border-color); border-radius: 8px; min-width: 280px;"
+                               oninput="filterDisposalRecords()">
+                        <select id="disposalReasonFilter" onchange="filterDisposalRecords()"
+                                style="padding: 10px 15px; border: 2px solid var(--border-color); border-radius: 8px;">
+                            <option value="">All Reasons</option>
+                            <option value="Damaged">Damaged</option>
+                            <option value="Obsolete">Obsolete</option>
+                            <option value="Surplus">Surplus</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Disposal Records Table -->
+                <div class="disposal-table-container">
+                    <table class="disposal-table">
+                        <thead>
+                            <tr>
+                                <th>Asset Code</th>
+                                <th>Description</th>
+                                <th>Disposal Date</th>
+                                <th>Reason</th>
+                                <th>Method</th>
+                                <th>Original Value</th>
+                                <th>Disposal Value</th>
+                                <th>Approved By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disposalTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                    No disposal records found. Click "Add Disposal Record" to create one.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear6"></span> • May Pen Hospital</p>
+            </div>
+        </div>
+
+        <!-- PAGE 7: ASSET REGISTER -->
+        <div class="page" id="page7">
+            <div class="header" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+                <div class="header-content">
+                    <div class="header-top">
+                        <div class="header-left">
+                            <h1 class="dashboard-title">Asset Register</h1>
+                            <div class="dashboard-subtitle">Complete Register of All Assets (All Years)</div>
+                        </div>
+                        <div class="user-info" id="userInfo7"></div>
+                    </div>
+
+                    <div class="status-bar">
+                        <button class="btn refresh-btn" onclick="showPage(6)">← Back to Board of Survey</button>
+                        <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
+                        <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
+                        <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="register-container">
+                <!-- Register Statistics -->
+                <div class="register-stats">
+                    <div class="register-stat-card">
+                        <div class="register-stat-label">Total Assets</div>
+                        <div class="register-stat-value" id="registerTotalAssets">0</div>
+                    </div>
+                    <div class="register-stat-card orange">
+                        <div class="register-stat-label">Total Value</div>
+                        <div class="register-stat-value" id="registerTotalValue">JMD 0</div>
+                    </div>
+                    <div class="register-stat-card blue">
+                        <div class="register-stat-label">Purchased</div>
+                        <div class="register-stat-value" id="registerPurchasedCount">0</div>
+                    </div>
+                    <div class="register-stat-card purple">
+                        <div class="register-stat-label">Donated</div>
+                        <div class="register-stat-value" id="registerDonatedCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="register-filters">
+                    <div class="register-filter-group">
+                        <label>Category:</label>
+                        <select id="registerCategoryFilter" onchange="filterAssetRegister()">
+                            <option value="">All Categories</option>
+                            <option value="Medical Equipment">Medical Equipment</option>
+                            <option value="Furniture & Appliances">Furniture & Appliances</option>
+                        </select>
+                    </div>
+                    <div class="register-filter-group">
+                        <label>Source:</label>
+                        <select id="registerSourceFilter" onchange="filterAssetRegister()">
+                            <option value="">All Sources</option>
+                            <option value="Purchased">Purchased</option>
+                            <option value="Donated">Donated</option>
+                        </select>
+                    </div>
+                    <div class="register-filter-group">
+                        <label>Department:</label>
+                        <select id="registerDepartmentFilter" onchange="filterAssetRegister()">
+                            <option value="">All Departments</option>
+                        </select>
+                    </div>
+                    <div class="register-search-box">
+                        <input type="text" id="registerSearchInput" placeholder="Search by asset code, description, supplier..."
+                               oninput="filterAssetRegister()">
+                    </div>
+                </div>
+
+                <!-- Asset Register Table -->
+                <div class="register-table-container" style="max-height: 600px; overflow-y: auto;">
+                    <table class="register-table">
+                        <thead>
+                            <tr>
+                                <th>Asset Code</th>
+                                <th>Date In</th>
+                                <th>Description</th>
+                                <th>Department</th>
+                                <th>Category</th>
+                                <th>Supplier/Donor</th>
+                                <th>Source</th>
+                                <th>Serial/Model</th>
+                                <th>Qty</th>
+                                <th>Total Price (JMD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registerTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                    Loading all assets...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="register-pagination">
+                    <button onclick="prevRegisterPage()" id="registerPrevBtn">← Previous</button>
+                    <span id="registerPageInfo">Page 1 of 1</span>
+                    <button onclick="nextRegisterPage()" id="registerNextBtn">Next →</button>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Fixed Asset Management System © <span id="copyrightYear7"></span> • May Pen Hospital</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disposal Modal -->
+    <div class="disposal-modal" id="disposalModal">
+        <div class="disposal-modal-content">
+            <div class="disposal-modal-header">
+                <h2 id="disposalModalTitle">🗑️ Add Disposal Record</h2>
+                <button class="disposal-modal-close" onclick="closeDisposalModal()">&times;</button>
+            </div>
+            <div class="disposal-modal-body">
+                <form id="disposalForm" onsubmit="saveDisposalRecord(event)">
+                    <!-- Asset Search -->
+                    <div class="disposal-asset-search">
+                        <div class="disposal-form-group">
+                            <label>Search Asset to Dispose *</label>
+                            <input type="text" id="disposalAssetSearch" placeholder="Type asset code or description to search..."
+                                   oninput="searchAssetsForDisposal(this.value)" autocomplete="off">
+                            <div class="disposal-asset-search-results" id="disposalSearchResults"></div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Asset Info (Hidden initially) -->
+                    <div id="selectedAssetInfo" style="display: none; background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-green);">
+                        <h4 style="margin-bottom: 10px; color: var(--text-primary);">Selected Asset:</h4>
+                        <div id="selectedAssetDetails"></div>
+                        <input type="hidden" id="disposalAssetId">
+                        <input type="hidden" id="disposalAssetCode">
+                        <input type="hidden" id="disposalAssetDescription">
+                        <input type="hidden" id="disposalOriginalValue">
+                    </div>
+
+                    <div class="disposal-form-grid">
+                        <div class="disposal-form-group">
+                            <label>Disposal Date *</label>
+                            <input type="date" id="disposalDate" required>
+                        </div>
+
+                        <div class="disposal-form-group">
+                            <label>Disposal Reason *</label>
+                            <select id="disposalReason" required>
+                                <option value="">Select Reason</option>
+                                <option value="Damaged">Damaged</option>
+                                <option value="Obsolete">Obsolete</option>
+                                <option value="Surplus">Surplus</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="disposal-form-group">
+                            <label>Disposal Method *</label>
+                            <select id="disposalMethod" required>
+                                <option value="">Select Method</option>
+                                <option value="Auction">Auction</option>
+                                <option value="Donation">Donation</option>
+                                <option value="Destruction">Destruction</option>
+                                <option value="Transfer">Transfer</option>
+                            </select>
+                        </div>
+
+                        <div class="disposal-form-group">
+                            <label>Disposal Value (JMD)</label>
+                            <input type="number" id="disposalValue" min="0" step="0.01" placeholder="0.00">
+                        </div>
+
+                        <div class="disposal-form-group">
+                            <label>Approved By *</label>
+                            <input type="text" id="disposalApprovedBy" required placeholder="Name of approving officer">
+                        </div>
+
+                        <div class="disposal-form-group">
+                            <label>Board of Survey Reference</label>
+                            <input type="text" id="disposalReference" placeholder="BOS Reference Number">
+                        </div>
+
+                        <div class="disposal-form-group full-width">
+                            <label>Remarks</label>
+                            <textarea id="disposalRemarks" rows="3" placeholder="Additional notes or comments..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="disposal-form-actions">
+                        <button type="button" class="disposal-btn disposal-btn-secondary" onclick="closeDisposalModal()">Cancel</button>
+                        <button type="submit" class="disposal-btn disposal-btn-primary" id="disposalSubmitBtn">Save Disposal Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Google Drive Processing Overlay -->
@@ -5431,7 +6331,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -9064,6 +9964,30 @@
                 if (googleAccessToken && !gdriveImportState.isConnected) {
                     connectGDriveForImport();
                 }
+            }
+
+            // Handle Board of Survey page
+            if (pageNum === 6) {
+                const userInfo6 = document.getElementById('userInfo6');
+                if (userInfo6 && currentUser) {
+                    userInfo6.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    `;
+                }
+                loadDisposalRecords();
+            }
+
+            // Handle Asset Register page
+            if (pageNum === 7) {
+                const userInfo7 = document.getElementById('userInfo7');
+                if (userInfo7 && currentUser) {
+                    userInfo7.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    `;
+                }
+                loadAssetRegister();
             }
         }
 
@@ -14491,6 +15415,490 @@
                 updateGDriveConnectionStatus(true);
                 scanGDriveFolder();
             }
+        }
+
+        // ============================================
+        // BOARD OF SURVEY (DISPOSAL) FUNCTIONS
+        // ============================================
+
+        const DISPOSAL_STORAGE_KEY = 'assetDisposalRecords';
+        let disposalRecords = [];
+        let filteredDisposalRecords = [];
+        let currentEditingDisposal = null;
+
+        // Load disposal records from localStorage
+        function loadDisposalRecords() {
+            try {
+                disposalRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                filteredDisposalRecords = [...disposalRecords];
+                updateDisposalStats();
+                displayDisposalRecords();
+            } catch (error) {
+                console.error('Error loading disposal records:', error);
+                disposalRecords = [];
+                filteredDisposalRecords = [];
+            }
+        }
+
+        // Save disposal records to localStorage
+        function saveDisposalRecords() {
+            localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(disposalRecords));
+        }
+
+        // Update disposal statistics
+        function updateDisposalStats() {
+            const totalDisposed = disposalRecords.length;
+            const damagedCount = disposalRecords.filter(r => r.reason === 'Damaged').length;
+            const obsoleteCount = disposalRecords.filter(r => r.reason === 'Obsolete').length;
+            const totalValue = disposalRecords.reduce((sum, r) => sum + (parseFloat(r.originalValue) || 0), 0);
+
+            document.getElementById('totalDisposedCount').textContent = totalDisposed;
+            document.getElementById('damagedAssetCount').textContent = damagedCount;
+            document.getElementById('obsoleteAssetCount').textContent = obsoleteCount;
+            document.getElementById('totalDisposedValue').textContent = 'JMD ' + formatCurrency(totalValue);
+        }
+
+        // Display disposal records in table
+        function displayDisposalRecords() {
+            const tbody = document.getElementById('disposalTableBody');
+
+            if (filteredDisposalRecords.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            No disposal records found. Click "Add Disposal Record" to create one.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filteredDisposalRecords.map(record => `
+                <tr>
+                    <td><span class="asset-code">${escapeHtml(record.assetCode)}</span></td>
+                    <td>${escapeHtml(record.assetDescription || 'N/A')}</td>
+                    <td>${escapeHtml(record.disposalDate)}</td>
+                    <td><span class="disposal-reason-badge ${record.reason.toLowerCase()}">${escapeHtml(record.reason)}</span></td>
+                    <td><span class="disposal-method-badge ${record.method.toLowerCase()}">${escapeHtml(record.method)}</span></td>
+                    <td>JMD ${formatCurrency(parseFloat(record.originalValue) || 0)}</td>
+                    <td>JMD ${formatCurrency(parseFloat(record.disposalValue) || 0)}</td>
+                    <td>${escapeHtml(record.approvedBy)}</td>
+                    <td>
+                        <div class="disposal-action-btns">
+                            <button class="disposal-action-btn edit" onclick="editDisposalRecord('${record.id}')" title="Edit">✏️</button>
+                            <button class="disposal-action-btn delete" onclick="deleteDisposalRecord('${record.id}')" title="Delete">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Filter disposal records
+        function filterDisposalRecords() {
+            const searchTerm = document.getElementById('disposalSearchInput').value.toLowerCase();
+            const reasonFilter = document.getElementById('disposalReasonFilter').value;
+
+            filteredDisposalRecords = disposalRecords.filter(record => {
+                const matchesSearch = !searchTerm ||
+                    record.assetCode.toLowerCase().includes(searchTerm) ||
+                    (record.assetDescription && record.assetDescription.toLowerCase().includes(searchTerm));
+                const matchesReason = !reasonFilter || record.reason === reasonFilter;
+                return matchesSearch && matchesReason;
+            });
+
+            displayDisposalRecords();
+        }
+
+        // Open disposal modal
+        function openDisposalModal(record = null) {
+            currentEditingDisposal = record;
+            const modal = document.getElementById('disposalModal');
+            const title = document.getElementById('disposalModalTitle');
+            const submitBtn = document.getElementById('disposalSubmitBtn');
+
+            if (record) {
+                title.textContent = '✏️ Edit Disposal Record';
+                submitBtn.textContent = 'Update Record';
+
+                // Populate form
+                document.getElementById('disposalAssetId').value = record.assetId || '';
+                document.getElementById('disposalAssetCode').value = record.assetCode;
+                document.getElementById('disposalAssetDescription').value = record.assetDescription || '';
+                document.getElementById('disposalOriginalValue').value = record.originalValue || 0;
+                document.getElementById('disposalDate').value = record.disposalDate;
+                document.getElementById('disposalReason').value = record.reason;
+                document.getElementById('disposalMethod').value = record.method;
+                document.getElementById('disposalValue').value = record.disposalValue || '';
+                document.getElementById('disposalApprovedBy').value = record.approvedBy;
+                document.getElementById('disposalReference').value = record.reference || '';
+                document.getElementById('disposalRemarks').value = record.remarks || '';
+
+                // Show selected asset info
+                document.getElementById('selectedAssetInfo').style.display = 'block';
+                document.getElementById('selectedAssetDetails').innerHTML = `
+                    <p><strong>Asset Code:</strong> ${escapeHtml(record.assetCode)}</p>
+                    <p><strong>Description:</strong> ${escapeHtml(record.assetDescription || 'N/A')}</p>
+                    <p><strong>Original Value:</strong> JMD ${formatCurrency(parseFloat(record.originalValue) || 0)}</p>
+                `;
+                document.getElementById('disposalAssetSearch').style.display = 'none';
+            } else {
+                title.textContent = '🗑️ Add Disposal Record';
+                submitBtn.textContent = 'Save Disposal Record';
+                document.getElementById('disposalForm').reset();
+                document.getElementById('selectedAssetInfo').style.display = 'none';
+                document.getElementById('disposalAssetSearch').style.display = 'block';
+                document.getElementById('disposalAssetSearch').parentElement.style.display = 'block';
+
+                // Set default date to today
+                document.getElementById('disposalDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        // Close disposal modal
+        function closeDisposalModal() {
+            document.getElementById('disposalModal').style.display = 'none';
+            document.getElementById('disposalForm').reset();
+            document.getElementById('selectedAssetInfo').style.display = 'none';
+            document.getElementById('disposalSearchResults').classList.remove('active');
+            currentEditingDisposal = null;
+        }
+
+        // Search assets for disposal
+        function searchAssetsForDisposal(searchTerm) {
+            const resultsDiv = document.getElementById('disposalSearchResults');
+
+            if (!searchTerm || searchTerm.length < 2) {
+                resultsDiv.classList.remove('active');
+                return;
+            }
+
+            const allAssets = loadAssetsFromStorage();
+            const searchLower = searchTerm.toLowerCase();
+
+            const matchingAssets = allAssets.filter(asset =>
+                asset.assetCode.toLowerCase().includes(searchLower) ||
+                (asset.description && asset.description.toLowerCase().includes(searchLower))
+            ).slice(0, 10);
+
+            if (matchingAssets.length === 0) {
+                resultsDiv.innerHTML = '<div class="disposal-search-result-item">No assets found</div>';
+            } else {
+                resultsDiv.innerHTML = matchingAssets.map(asset => `
+                    <div class="disposal-search-result-item" onclick="selectAssetForDisposal('${asset.id}', '${escapeHtml(asset.assetCode).replace(/'/g, "\\'")}', '${escapeHtml(asset.description || '').replace(/'/g, "\\'")}', ${asset.totalPrice || 0})">
+                        <div class="disposal-search-result-code">${escapeHtml(asset.assetCode)}</div>
+                        <div class="disposal-search-result-desc">${escapeHtml(asset.description || 'No description')} | JMD ${formatCurrency(asset.totalPrice || 0)}</div>
+                    </div>
+                `).join('');
+            }
+
+            resultsDiv.classList.add('active');
+        }
+
+        // Select asset for disposal
+        function selectAssetForDisposal(assetId, assetCode, description, originalValue) {
+            document.getElementById('disposalAssetId').value = assetId;
+            document.getElementById('disposalAssetCode').value = assetCode;
+            document.getElementById('disposalAssetDescription').value = description;
+            document.getElementById('disposalOriginalValue').value = originalValue;
+            document.getElementById('disposalAssetSearch').value = assetCode;
+
+            document.getElementById('selectedAssetInfo').style.display = 'block';
+            document.getElementById('selectedAssetDetails').innerHTML = `
+                <p><strong>Asset Code:</strong> ${escapeHtml(assetCode)}</p>
+                <p><strong>Description:</strong> ${escapeHtml(description || 'N/A')}</p>
+                <p><strong>Original Value:</strong> JMD ${formatCurrency(originalValue)}</p>
+            `;
+
+            document.getElementById('disposalSearchResults').classList.remove('active');
+        }
+
+        // Save disposal record
+        function saveDisposalRecord(event) {
+            event.preventDefault();
+
+            const assetCode = document.getElementById('disposalAssetCode').value;
+            if (!assetCode) {
+                alert('Please select an asset to dispose.');
+                return;
+            }
+
+            const record = {
+                id: currentEditingDisposal ? currentEditingDisposal.id : 'disposal_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                assetId: document.getElementById('disposalAssetId').value,
+                assetCode: assetCode,
+                assetDescription: document.getElementById('disposalAssetDescription').value,
+                originalValue: document.getElementById('disposalOriginalValue').value,
+                disposalDate: document.getElementById('disposalDate').value,
+                reason: document.getElementById('disposalReason').value,
+                method: document.getElementById('disposalMethod').value,
+                disposalValue: document.getElementById('disposalValue').value || 0,
+                approvedBy: document.getElementById('disposalApprovedBy').value,
+                reference: document.getElementById('disposalReference').value,
+                remarks: document.getElementById('disposalRemarks').value,
+                createdBy: currentUser ? currentUser.username : 'Unknown',
+                createdAt: currentEditingDisposal ? currentEditingDisposal.createdAt : new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            if (currentEditingDisposal) {
+                const index = disposalRecords.findIndex(r => r.id === currentEditingDisposal.id);
+                if (index !== -1) {
+                    disposalRecords[index] = record;
+                }
+            } else {
+                disposalRecords.push(record);
+            }
+
+            saveDisposalRecords();
+            addAuditEntry(assetCode, currentEditingDisposal ? 'Disposal Updated' : 'Disposed',
+                `Reason: ${record.reason}, Method: ${record.method}`,
+                currentUser ? currentUser.username : 'Unknown');
+
+            closeDisposalModal();
+            loadDisposalRecords();
+            alert(currentEditingDisposal ? 'Disposal record updated successfully!' : 'Disposal record added successfully!');
+        }
+
+        // Edit disposal record
+        function editDisposalRecord(recordId) {
+            const record = disposalRecords.find(r => r.id === recordId);
+            if (record) {
+                openDisposalModal(record);
+            }
+        }
+
+        // Delete disposal record
+        function deleteDisposalRecord(recordId) {
+            if (!confirm('Are you sure you want to delete this disposal record? This action cannot be undone.')) {
+                return;
+            }
+
+            const record = disposalRecords.find(r => r.id === recordId);
+            disposalRecords = disposalRecords.filter(r => r.id !== recordId);
+            saveDisposalRecords();
+
+            if (record) {
+                addAuditEntry(record.assetCode, 'Disposal Record Deleted',
+                    `Reason was: ${record.reason}`,
+                    currentUser ? currentUser.username : 'Unknown');
+            }
+
+            loadDisposalRecords();
+            alert('Disposal record deleted successfully.');
+        }
+
+        // Export disposal records
+        function exportDisposalRecords() {
+            if (disposalRecords.length === 0) {
+                alert('No disposal records to export.');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const headers = ['Asset Code', 'Description', 'Disposal Date', 'Reason', 'Method',
+                           'Original Value (JMD)', 'Disposal Value (JMD)', 'Approved By', 'Reference', 'Remarks'];
+            const rows = disposalRecords.map(r => [
+                r.assetCode,
+                r.assetDescription || '',
+                r.disposalDate,
+                r.reason,
+                r.method,
+                r.originalValue || 0,
+                r.disposalValue || 0,
+                r.approvedBy,
+                r.reference || '',
+                r.remarks || ''
+            ]);
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.utils.book_append_sheet(wb, ws, 'Disposal Records');
+            XLSX.writeFile(wb, `BoardOfSurvey_DisposalRecords_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // ============================================
+        // ASSET REGISTER FUNCTIONS
+        // ============================================
+
+        let assetRegisterData = [];
+        let filteredRegisterData = [];
+        let registerCurrentPage = 1;
+        const REGISTER_PAGE_SIZE = 50;
+
+        // Load all assets (ignoring fiscal year filter)
+        function loadAssetRegister() {
+            try {
+                assetRegisterData = loadAssetsFromStorage();
+                filteredRegisterData = [...assetRegisterData];
+                registerCurrentPage = 1;
+
+                updateRegisterStats();
+                populateRegisterDepartmentFilter();
+                displayAssetRegister();
+            } catch (error) {
+                console.error('Error loading asset register:', error);
+                assetRegisterData = [];
+                filteredRegisterData = [];
+            }
+        }
+
+        // Refresh asset register
+        function refreshAssetRegister() {
+            loadAssetRegister();
+        }
+
+        // Update register statistics
+        function updateRegisterStats() {
+            const totalAssets = assetRegisterData.length;
+            const totalValue = assetRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
+            const purchasedCount = assetRegisterData.filter(a => a.source === 'Purchased').length;
+            const donatedCount = assetRegisterData.filter(a => a.source === 'Donated').length;
+
+            document.getElementById('registerTotalAssets').textContent = totalAssets.toLocaleString();
+            document.getElementById('registerTotalValue').textContent = 'JMD ' + formatCurrency(totalValue);
+            document.getElementById('registerPurchasedCount').textContent = purchasedCount.toLocaleString();
+            document.getElementById('registerDonatedCount').textContent = donatedCount.toLocaleString();
+        }
+
+        // Populate department filter dropdown
+        function populateRegisterDepartmentFilter() {
+            const departments = [...new Set(assetRegisterData.map(a => a.department).filter(Boolean))];
+            const select = document.getElementById('registerDepartmentFilter');
+
+            // Keep existing first option
+            select.innerHTML = '<option value="">All Departments</option>';
+
+            departments.sort().forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                select.appendChild(option);
+            });
+        }
+
+        // Filter asset register
+        function filterAssetRegister() {
+            const searchTerm = document.getElementById('registerSearchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('registerCategoryFilter').value;
+            const sourceFilter = document.getElementById('registerSourceFilter').value;
+            const departmentFilter = document.getElementById('registerDepartmentFilter').value;
+
+            filteredRegisterData = assetRegisterData.filter(asset => {
+                const matchesSearch = !searchTerm ||
+                    asset.assetCode.toLowerCase().includes(searchTerm) ||
+                    (asset.description && asset.description.toLowerCase().includes(searchTerm)) ||
+                    (asset.supplier && asset.supplier.toLowerCase().includes(searchTerm)) ||
+                    (asset.department && asset.department.toLowerCase().includes(searchTerm));
+                const matchesCategory = !categoryFilter || asset.category === categoryFilter;
+                const matchesSource = !sourceFilter || asset.source === sourceFilter;
+                const matchesDepartment = !departmentFilter || asset.department === departmentFilter;
+
+                return matchesSearch && matchesCategory && matchesSource && matchesDepartment;
+            });
+
+            registerCurrentPage = 1;
+            displayAssetRegister();
+        }
+
+        // Display asset register table
+        function displayAssetRegister() {
+            const tbody = document.getElementById('registerTableBody');
+            const totalPages = Math.ceil(filteredRegisterData.length / REGISTER_PAGE_SIZE);
+            const startIndex = (registerCurrentPage - 1) * REGISTER_PAGE_SIZE;
+            const endIndex = startIndex + REGISTER_PAGE_SIZE;
+            const pageData = filteredRegisterData.slice(startIndex, endIndex);
+
+            if (filteredRegisterData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            No assets found matching your criteria.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = pageData.map(asset => {
+                    const categoryBadge = asset.category === 'Medical Equipment'
+                        ? '<span class="item-type-badge medical">Medical</span>'
+                        : '<span class="item-type-badge furniture">Furniture</span>';
+
+                    return `
+                        <tr>
+                            <td><span class="asset-code-link" onclick="viewAssetDetails('${asset.id}')">${escapeHtml(asset.assetCode)}</span></td>
+                            <td>${escapeHtml(asset.dateIn || 'N/A')}</td>
+                            <td>${escapeHtml(asset.description || 'N/A')}</td>
+                            <td>${escapeHtml(asset.department || 'N/A')}</td>
+                            <td>${categoryBadge}</td>
+                            <td>${escapeHtml(asset.supplier || 'N/A')}</td>
+                            <td>${escapeHtml(asset.source || 'N/A')}</td>
+                            <td>${escapeHtml(asset.serialModel || 'N/A')}</td>
+                            <td>${asset.quantity || 1}</td>
+                            <td>JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Update pagination
+            document.getElementById('registerPageInfo').textContent =
+                `Page ${registerCurrentPage} of ${totalPages || 1} (${filteredRegisterData.length} assets)`;
+            document.getElementById('registerPrevBtn').disabled = registerCurrentPage <= 1;
+            document.getElementById('registerNextBtn').disabled = registerCurrentPage >= totalPages;
+        }
+
+        // Pagination functions
+        function prevRegisterPage() {
+            if (registerCurrentPage > 1) {
+                registerCurrentPage--;
+                displayAssetRegister();
+            }
+        }
+
+        function nextRegisterPage() {
+            const totalPages = Math.ceil(filteredRegisterData.length / REGISTER_PAGE_SIZE);
+            if (registerCurrentPage < totalPages) {
+                registerCurrentPage++;
+                displayAssetRegister();
+            }
+        }
+
+        // View asset details (opens edit modal)
+        function viewAssetDetails(assetId) {
+            const asset = assetRegisterData.find(a => a.id === assetId);
+            if (asset) {
+                editAsset(asset);
+            }
+        }
+
+        // Export asset register
+        function exportAssetRegister() {
+            if (filteredRegisterData.length === 0) {
+                alert('No assets to export.');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const headers = ['Asset Code', 'Date In', 'Description', 'Department', 'Category',
+                           'Supplier/Donor', 'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month'];
+            const rows = filteredRegisterData.map(asset => [
+                asset.assetCode,
+                asset.dateIn || '',
+                asset.description || '',
+                asset.department || '',
+                asset.category || '',
+                asset.supplier || '',
+                asset.source || '',
+                asset.serialModel || '',
+                asset.quantity || 1,
+                asset.unitPrice || 0,
+                asset.totalPrice || 0,
+                asset.month || ''
+            ]);
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.utils.book_append_sheet(wb, ws, 'Asset Register');
+            XLSX.writeFile(wb, `AssetRegister_AllYears_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         // ============================================
