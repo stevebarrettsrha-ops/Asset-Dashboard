@@ -4178,6 +4178,9 @@
             padding: 15px;
             background: var(--bg-secondary);
             border-radius: 10px;
+            overflow: visible;
+            position: relative;
+            z-index: 10;
         }
 
         .register-filter-group {
@@ -4200,6 +4203,20 @@
             background: var(--bg-card);
             color: var(--text-primary);
             font-size: 0.9em;
+        }
+
+        .register-filter-group select#registerDepartmentFilter {
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .register-filter-group select#registerDepartmentFilter option {
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .register-search-box {
@@ -6220,9 +6237,9 @@
                             <option value="Donated">Donated</option>
                         </select>
                     </div>
-                    <div class="register-filter-group">
+                    <div class="register-filter-group" style="position: relative;">
                         <label>Department:</label>
-                        <select id="registerDepartmentFilter" onchange="filterAssetRegister()">
+                        <select id="registerDepartmentFilter" onchange="filterAssetRegister()" style="max-width: 250px;">
                             <option value="">All Departments</option>
                         </select>
                     </div>
@@ -15818,7 +15835,10 @@
             departments.sort().forEach(dept => {
                 const option = document.createElement('option');
                 option.value = dept;
-                option.textContent = dept;
+                // Truncate long department names for display
+                const displayText = dept.length > 40 ? dept.substring(0, 40) + '...' : dept;
+                option.textContent = displayText;
+                option.title = dept; // Show full name on hover
                 select.appendChild(option);
             });
         }
