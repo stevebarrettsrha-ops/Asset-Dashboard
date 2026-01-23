@@ -4311,6 +4311,47 @@
             color: var(--text-secondary);
         }
 
+        /* Disposed asset indicator */
+        .asset-code-disposed {
+            color: #c0392b;
+            font-weight: 600;
+            padding: 4px 8px;
+            border: 2px solid #e74c3c;
+            border-radius: 4px;
+            background: rgba(231, 76, 60, 0.1);
+            display: inline-block;
+        }
+
+        .disposed-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-left: 5px;
+            font-weight: 600;
+        }
+
+        /* Print button for register */
+        .register-print-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            color: white;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .register-print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
         @media (max-width: 768px) {
             .disposal-form-grid {
                 grid-template-columns: 1fr;
@@ -6131,6 +6172,7 @@
                         <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
+                        <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                     </div>
                 </div>
             </div>
@@ -15801,6 +15843,18 @@
             displayAssetRegister();
         }
 
+        // Check if an asset is disposed
+        function isAssetDisposed(assetCode) {
+            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            return disposedRecords.some(record => record.assetCode === assetCode);
+        }
+
+        // Get disposal info for an asset
+        function getDisposalInfo(assetCode) {
+            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            return disposedRecords.find(record => record.assetCode === assetCode);
+        }
+
         // Display asset register table
         function displayAssetRegister() {
             const tbody = document.getElementById('registerTableBody');
@@ -15823,9 +15877,18 @@
                         ? '<span class="item-type-badge medical">Medical</span>'
                         : '<span class="item-type-badge furniture">Furniture</span>';
 
+                    // Check if asset is disposed
+                    const disposed = isAssetDisposed(asset.assetCode);
+                    const disposalInfo = disposed ? getDisposalInfo(asset.assetCode) : null;
+
+                    // Asset code with disposal indicator if disposed
+                    const assetCodeDisplay = disposed
+                        ? `<span class="asset-code-disposed" title="Disposed: ${disposalInfo ? disposalInfo.reason : 'Unknown'}">${escapeHtml(asset.assetCode)}<span class="disposed-badge">DISPOSED</span></span>`
+                        : `<span class="asset-code-link" onclick="viewAssetDetails('${asset.id}')">${escapeHtml(asset.assetCode)}</span>`;
+
                     return `
-                        <tr>
-                            <td><span class="asset-code-link" onclick="viewAssetDetails('${asset.id}')">${escapeHtml(asset.assetCode)}</span></td>
+                        <tr${disposed ? ' style="background: rgba(231, 76, 60, 0.05);"' : ''}>
+                            <td>${assetCodeDisplay}</td>
                             <td>${escapeHtml(asset.dateIn || 'N/A')}</td>
                             <td>${escapeHtml(asset.description || 'N/A')}</td>
                             <td>${escapeHtml(asset.department || 'N/A')}</td>
@@ -15899,6 +15962,255 @@
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
             XLSX.utils.book_append_sheet(wb, ws, 'Asset Register');
             XLSX.writeFile(wb, `AssetRegister_AllYears_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // Print asset register
+        function printAssetRegister() {
+            if (filteredRegisterData.length === 0) {
+                alert('No assets to print.');
+                return;
+            }
+
+            // Get disposal records to check status
+            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
+
+            // Calculate totals
+            const totalAssets = filteredRegisterData.length;
+            const totalValue = filteredRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
+            const purchasedCount = filteredRegisterData.filter(a => a.source === 'Purchased').length;
+            const donatedCount = filteredRegisterData.filter(a => a.source === 'Donated').length;
+            const disposedCount = filteredRegisterData.filter(a => disposedAssetCodes.has(a.assetCode)).length;
+
+            // Generate table rows
+            const tableRows = filteredRegisterData.map((asset, index) => {
+                const isDisposed = disposedAssetCodes.has(asset.assetCode);
+                const disposalInfo = isDisposed ? disposedRecords.find(r => r.assetCode === asset.assetCode) : null;
+
+                return `
+                    <tr${isDisposed ? ' class="disposed-row"' : ''}>
+                        <td>${index + 1}</td>
+                        <td class="${isDisposed ? 'disposed-asset-code' : ''}">${asset.assetCode}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
+                        <td>${asset.dateIn || 'N/A'}</td>
+                        <td>${asset.description || 'N/A'}</td>
+                        <td>${asset.department || 'N/A'}</td>
+                        <td>${asset.category || 'N/A'}</td>
+                        <td>${asset.supplier || 'N/A'}</td>
+                        <td>${asset.source || 'N/A'}</td>
+                        <td>${asset.serialModel || 'N/A'}</td>
+                        <td style="text-align: center;">${asset.quantity || 1}</td>
+                        <td style="text-align: right;">JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
+                        <td>${isDisposed ? (disposalInfo ? disposalInfo.reason : 'Yes') : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Fixed Asset Register - May Pen Hospital</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: Arial, sans-serif;
+                            font-size: 10px;
+                            line-height: 1.4;
+                            color: #333;
+                            padding: 15px;
+                        }
+                        .header {
+                            text-align: center;
+                            margin-bottom: 20px;
+                            padding-bottom: 15px;
+                            border-bottom: 2px solid #2C3E50;
+                        }
+                        .header h1 {
+                            font-size: 18px;
+                            color: #2C3E50;
+                            margin-bottom: 5px;
+                        }
+                        .header h2 {
+                            font-size: 14px;
+                            color: #7f8c8d;
+                            font-weight: normal;
+                        }
+                        .header p {
+                            font-size: 10px;
+                            color: #95a5a6;
+                            margin-top: 5px;
+                        }
+                        .summary {
+                            display: flex;
+                            justify-content: space-around;
+                            margin-bottom: 15px;
+                            padding: 10px;
+                            background: #f8f9fa;
+                            border-radius: 5px;
+                        }
+                        .summary-item {
+                            text-align: center;
+                        }
+                        .summary-item .label {
+                            font-size: 9px;
+                            color: #7f8c8d;
+                        }
+                        .summary-item .value {
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #2C3E50;
+                        }
+                        .legend {
+                            margin-bottom: 10px;
+                            padding: 8px;
+                            background: #fff3cd;
+                            border: 1px solid #ffc107;
+                            border-radius: 4px;
+                            font-size: 9px;
+                        }
+                        .legend-item {
+                            display: inline-block;
+                            margin-right: 15px;
+                        }
+                        .legend-disposed {
+                            color: #c0392b;
+                            font-weight: bold;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 9px;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 5px 4px;
+                            text-align: left;
+                        }
+                        th {
+                            background: #2C3E50;
+                            color: white;
+                            font-weight: bold;
+                            font-size: 8px;
+                        }
+                        tr:nth-child(even) {
+                            background: #f9f9f9;
+                        }
+                        tr:hover {
+                            background: #f5f5f5;
+                        }
+                        .disposed-row {
+                            background: rgba(231, 76, 60, 0.1) !important;
+                        }
+                        .disposed-asset-code {
+                            color: #c0392b;
+                            font-weight: bold;
+                            border: 2px solid #e74c3c;
+                            padding: 2px 4px;
+                            border-radius: 3px;
+                            background: rgba(231, 76, 60, 0.1);
+                        }
+                        .disposed-tag {
+                            background: #e74c3c;
+                            color: white;
+                            padding: 1px 4px;
+                            border-radius: 3px;
+                            font-size: 7px;
+                            margin-left: 4px;
+                            vertical-align: middle;
+                        }
+                        .footer {
+                            margin-top: 20px;
+                            padding-top: 10px;
+                            border-top: 1px solid #ddd;
+                            text-align: center;
+                            font-size: 8px;
+                            color: #7f8c8d;
+                        }
+                        @media print {
+                            body { padding: 10px; }
+                            .header { margin-bottom: 15px; }
+                            table { page-break-inside: auto; }
+                            tr { page-break-inside: avoid; }
+                            thead { display: table-header-group; }
+                        }
+                        @page {
+                            size: landscape;
+                            margin: 10mm;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>FIXED ASSET REGISTER</h1>
+                        <h2>May Pen Hospital</h2>
+                        <p>Generated on: ${new Date().toLocaleString()}</p>
+                    </div>
+
+                    <div class="summary">
+                        <div class="summary-item">
+                            <div class="label">Total Assets</div>
+                            <div class="value">${totalAssets.toLocaleString()}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="label">Total Value</div>
+                            <div class="value">JMD ${formatCurrency(totalValue)}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="label">Purchased</div>
+                            <div class="value">${purchasedCount.toLocaleString()}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="label">Donated</div>
+                            <div class="value">${donatedCount.toLocaleString()}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="label">Disposed</div>
+                            <div class="value" style="color: #c0392b;">${disposedCount.toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <div class="legend">
+                        <span class="legend-item"><span class="legend-disposed">■</span> Red bordered = Disposed Asset</span>
+                        <span class="legend-item">Total records shown: ${totalAssets}</span>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Asset Code</th>
+                                <th>Date In</th>
+                                <th>Description</th>
+                                <th>Department</th>
+                                <th>Category</th>
+                                <th>Supplier/Donor</th>
+                                <th>Source</th>
+                                <th>Serial/Model</th>
+                                <th>Qty</th>
+                                <th>Total Price</th>
+                                <th>Disposed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>Fixed Asset Management System - May Pen Hospital</p>
+                        <p>This is a computer-generated document. No signature required.</p>
+                    </div>
+
+                    <script>
+                        window.onload = function() { window.print(); };
+                    </script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
         }
 
         // ============================================
