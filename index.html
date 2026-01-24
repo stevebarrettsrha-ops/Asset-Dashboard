@@ -5041,10 +5041,16 @@
                     </div>
                     <div class="form-group">
                         <label for="department">Department *</label>
-                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                            <select id="department" required style="flex: 1; min-width: 0; max-width: 100%;">
-                                <option value="">Select Department</option>
-                            </select>
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: flex-start;">
+                            <div class="custom-dropdown-wrapper" id="assetDeptDropdownWrapper" style="flex: 1; min-width: 150px;">
+                                <button type="button" class="custom-dropdown-trigger" id="assetDeptDropdownTrigger" onclick="toggleAssetDeptDropdown()" style="width: 100%;">
+                                    Select Department
+                                </button>
+                                <div class="custom-dropdown-menu" id="assetDeptDropdownMenu">
+                                    <!-- Options populated dynamically -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="department" required value="">
                             <button type="button" class="btn-secondary" onclick="openDepartmentManager()" title="Manage Departments" style="padding: 8px 12px; flex-shrink: 0;">⚙️</button>
                         </div>
                     </div>
@@ -9049,19 +9055,10 @@
         function updateAllDepartmentDropdowns() {
             const departments = loadDepartments();
 
-            // Update asset form dropdown
-            const assetDeptSelect = document.getElementById('department');
-            if (assetDeptSelect) {
-                const currentValue = assetDeptSelect.value;
-                assetDeptSelect.innerHTML = '<option value="">Select Department</option>';
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = dept;
-                    assetDeptSelect.appendChild(option);
-                });
-                if (currentValue) assetDeptSelect.value = currentValue;
-            }
+            // Update asset form custom dropdown
+            const assetDeptHidden = document.getElementById('department');
+            const currentAssetValue = assetDeptHidden ? assetDeptHidden.value : '';
+            populateAssetDeptDropdown(currentAssetValue);
 
             // Update audit trail filter custom dropdown
             const auditDeptFilter = document.getElementById('auditDepartmentFilter');
@@ -9185,7 +9182,111 @@
             if (registerWrapper && registerMenu && !registerWrapper.contains(e.target)) {
                 registerMenu.classList.remove('show', 'show-above');
             }
+
+            // Close Asset Modal department dropdown
+            const assetWrapper = document.getElementById('assetDeptDropdownWrapper');
+            const assetMenu = document.getElementById('assetDeptDropdownMenu');
+            if (assetWrapper && assetMenu && !assetWrapper.contains(e.target)) {
+                assetMenu.classList.remove('show', 'show-above');
+            }
         });
+
+        // Toggle asset modal department dropdown
+        function toggleAssetDeptDropdown() {
+            const menu = document.getElementById('assetDeptDropdownMenu');
+            const trigger = document.getElementById('assetDeptDropdownTrigger');
+            const wrapper = document.getElementById('assetDeptDropdownWrapper');
+
+            if (!menu || !trigger || !wrapper) return;
+
+            const isOpen = menu.classList.contains('show');
+
+            // Close all other custom dropdowns first
+            document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
+                if (m !== menu) m.classList.remove('show', 'show-above');
+            });
+
+            if (isOpen) {
+                menu.classList.remove('show', 'show-above');
+            } else {
+                // Calculate available space and decide direction
+                const triggerRect = trigger.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceBelow = viewportHeight - triggerRect.bottom;
+                const spaceAbove = triggerRect.top;
+                const menuHeight = 250;
+
+                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.classList.add('show', 'show-above');
+                } else {
+                    menu.classList.add('show');
+                    menu.classList.remove('show-above');
+                }
+            }
+        }
+
+        // Select asset modal department option
+        function selectAssetDeptOption(value, text) {
+            const hiddenInput = document.getElementById('department');
+            const trigger = document.getElementById('assetDeptDropdownTrigger');
+            const menu = document.getElementById('assetDeptDropdownMenu');
+
+            if (hiddenInput) hiddenInput.value = value;
+            if (trigger) {
+                const maxLength = 30;
+                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            }
+            if (menu) {
+                menu.classList.remove('show', 'show-above');
+                // Update selected state
+                const options = menu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if (opt.dataset.value === value) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
+        }
+
+        // Populate asset modal department dropdown
+        function populateAssetDeptDropdown(selectedValue = '') {
+            const departments = loadDepartments();
+            const menu = document.getElementById('assetDeptDropdownMenu');
+            const trigger = document.getElementById('assetDeptDropdownTrigger');
+
+            if (!menu) return;
+
+            menu.innerHTML = '';
+
+            // Add placeholder option
+            const placeholderOption = document.createElement('div');
+            placeholderOption.className = 'custom-dropdown-option' + (selectedValue === '' ? ' selected' : '');
+            placeholderOption.textContent = 'Select Department';
+            placeholderOption.dataset.value = '';
+            placeholderOption.onclick = function() { selectAssetDeptOption('', 'Select Department'); };
+            menu.appendChild(placeholderOption);
+
+            // Add department options
+            departments.forEach(dept => {
+                const option = document.createElement('div');
+                option.className = 'custom-dropdown-option' + (selectedValue === dept ? ' selected' : '');
+                const maxLength = 40;
+                option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
+                option.title = dept;
+                option.dataset.value = dept;
+                option.onclick = function() { selectAssetDeptOption(dept, dept); };
+                menu.appendChild(option);
+            });
+
+            // Update trigger text
+            if (selectedValue && trigger) {
+                const maxLength = 30;
+                trigger.textContent = selectedValue.length > maxLength ? selectedValue.substring(0, maxLength) + '...' : selectedValue;
+            } else if (trigger) {
+                trigger.textContent = 'Select Department';
+            }
+        }
 
         // Load assets from localStorage
         function loadAssetsFromStorage() {
@@ -9530,10 +9631,16 @@
                 document.getElementById('totalPrice').value = asset.totalPrice || 0;
                 document.getElementById('source').value = asset.source;
                 document.getElementById('month').value = asset.month;
+
+                // Populate custom department dropdown with current value
+                populateAssetDeptDropdown(asset.department || '');
             } else {
                 // Add mode
                 modalTitle.textContent = 'Add New Asset';
                 deleteBtn.style.display = 'none';
+
+                // Populate custom department dropdown with empty value
+                populateAssetDeptDropdown('');
             }
 
             modal.style.display = 'block';
@@ -9585,6 +9692,13 @@
 
         function saveAsset(event) {
             event.preventDefault();
+
+            // Validate department selection
+            const departmentValue = document.getElementById('department').value;
+            if (!departmentValue) {
+                alert('⚠️ Please select a department');
+                return;
+            }
 
             const assetData = {
                 id: currentEditingAsset ? currentEditingAsset.id : generateAssetId(),
@@ -10212,6 +10326,25 @@
                         const mergedOverrides = { ...existingOverrides, ...warrantyOverrides };
                         localStorage.setItem('warrantyOverrides', JSON.stringify(mergedOverrides));
                     }
+                }
+            }
+
+            // Extract unique departments from imported assets and add to department list
+            const importedDepts = [...new Set(validAssets.map(a => a.department).filter(d => d && d.trim()))];
+            if (importedDepts.length > 0) {
+                const existingDepts = loadDepartments();
+                const existingDeptSet = new Set(existingDepts.map(d => d.toLowerCase()));
+                let newDeptsAdded = false;
+                importedDepts.forEach(dept => {
+                    if (!existingDeptSet.has(dept.toLowerCase())) {
+                        existingDepts.push(dept);
+                        newDeptsAdded = true;
+                    }
+                });
+                if (newDeptsAdded) {
+                    existingDepts.sort();
+                    saveDepartments(existingDepts);
+                    updateAllDepartmentDropdowns();
                 }
             }
 
@@ -15613,6 +15746,25 @@
 
                 // Save to storage
                 saveAssetsToStorage(existingAssets);
+
+                // Extract unique departments from imported assets and add to department list
+                const importedDepts = [...new Set(dataToImport.map(r => r.parsed.department).filter(d => d && d.trim()))];
+                if (importedDepts.length > 0) {
+                    const existingDepts = loadDepartments();
+                    const existingDeptSet = new Set(existingDepts.map(d => d.toLowerCase()));
+                    let newDeptsAdded = false;
+                    importedDepts.forEach(dept => {
+                        if (!existingDeptSet.has(dept.toLowerCase())) {
+                            existingDepts.push(dept);
+                            newDeptsAdded = true;
+                        }
+                    });
+                    if (newDeptsAdded) {
+                        existingDepts.sort();
+                        saveDepartments(existingDepts);
+                        updateAllDepartmentDropdowns();
+                    }
+                }
 
                 // Record import history
                 const historyEntry = {
