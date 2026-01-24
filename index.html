@@ -1733,11 +1733,19 @@
             font-size: 0.85em;
             margin-left: auto;
             transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+            z-index: 10;
         }
 
         .btn-pdf-download:hover {
             background: #c0392b;
             transform: scale(1.05);
+        }
+
+        .btn-pdf-download:active {
+            transform: scale(0.98);
         }
 
         .month-header {
@@ -13398,13 +13406,17 @@
 
                     <script>
                         window.onload = function() {
-                            window.print();
+                            window.focus();
+                            setTimeout(function() {
+                                window.print();
+                            }, 250);
                         };
                     \x3c/script>
                 </body>
                 </html>
             `);
             printWindow.document.close();
+            printWindow.focus();
         }
 
         function displayMonthlyBreakdown() {
@@ -13425,7 +13437,7 @@
                     <div class="month-card ${hasData ? 'has-data' : ''}">
                         <div class="month-header">
                             ${month} ${actualYear}
-                            ${hasData ? `<button class="btn-pdf-download" onclick="downloadMonthPDF('${month}')" title="Download PDF">📄 PDF</button>` : ''}
+                            ${hasData ? `<button class="btn-pdf-download" onclick="event.stopPropagation(); event.preventDefault(); downloadMonthPDF('${month}'); return false;" title="Download PDF">📄 PDF</button>` : ''}
                         </div>
                         <div class="month-stats">
                             <div class="month-stat">
