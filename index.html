@@ -1079,19 +1079,50 @@
         th:nth-child(11), td:nth-child(11) { min-width: 70px; }  /* Month */
         th:nth-child(12), td:nth-child(12) { min-width: 70px; }  /* Actions */
 
-        /* Audit Trail Table - specific column widths for 7-column layout */
+        /* Audit Trail Table - specific column widths for 9-column layout */
         #auditEntries table {
             width: 100%;
-            min-width: 1100px;
+            min-width: 1400px;
         }
 
-        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { min-width: 160px; }  /* Timestamp */
-        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { min-width: 160px; }  /* Asset Code */
-        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { min-width: 120px; }  /* Action */
-        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { min-width: 180px; }  /* Department */
-        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { min-width: 120px; }  /* User */
-        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { min-width: 280px; }  /* Notes - flexible */
-        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { min-width: 80px; }   /* Actions */
+        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { min-width: 150px; }  /* Timestamp */
+        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { min-width: 140px; }  /* Asset Code */
+        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { min-width: 180px; }  /* Description */
+        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { min-width: 120px; }  /* Action */
+        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { min-width: 150px; }  /* Department */
+        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { min-width: 100px; }  /* Value */
+        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { min-width: 100px; }  /* User */
+        #auditEntries th:nth-child(8), #auditEntries td:nth-child(8) { min-width: 200px; }  /* Notes */
+        #auditEntries th:nth-child(9), #auditEntries td:nth-child(9) { min-width: 70px; }   /* Actions */
+
+        /* Audit table scrollable container */
+        .audit-table-container {
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-orange) var(--bg-secondary);
+        }
+
+        .audit-table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .audit-table-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .audit-table-container::-webkit-scrollbar-thumb {
+            background: var(--primary-orange);
+            border-radius: 4px;
+        }
+
+        .audit-table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-orange);
+        }
+
+        #auditEntries thead th {
+            background: var(--bg-secondary);
+        }
 
         /* Enable text wrapping for all Audit Trail columns */
         #auditEntries td {
@@ -5624,9 +5655,9 @@
                 <h2 class="section-title">📋 Asset Audit Trail</h2>
                 
                 <!-- Add Entry Form (Admin Only) -->
-                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange);">
+                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange); overflow: visible;">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">➕ Add New Audit Entry</h3>
-                    <div class="calc-grid" style="margin-bottom: 15px;">
+                    <div class="calc-grid" style="margin-bottom: 15px; overflow: visible;">
                         <input type="text" id="auditAssetCode" class="calc-input" placeholder="Enter Asset Code (e.g., MPH-001-2025)">
                         <select id="auditAction" class="calc-input">
                             <option value="">Select Action</option>
@@ -5639,9 +5670,17 @@
                             <option value="Asset Updated">Asset Updated</option>
                             <option value="Other">Other</option>
                         </select>
-                        <select id="auditLocation" class="calc-input">
-                            <option value="">Select Department</option>
-                        </select>
+                        <div style="position: relative;">
+                            <div class="custom-dropdown-wrapper" id="auditEntryDeptWrapper">
+                                <button type="button" class="custom-dropdown-trigger" id="auditEntryDeptTrigger" onclick="toggleAuditEntryDeptDropdown()" style="width: 100%;">
+                                    Select Department
+                                </button>
+                                <div class="custom-dropdown-menu" id="auditEntryDeptMenu">
+                                    <!-- Options populated dynamically -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="auditLocation" value="">
+                        </div>
                     </div>
                     <textarea id="auditNotes" class="calc-input" placeholder="Notes/Details (optional)" style="width: 100%; min-height: 80px; resize: vertical; font-family: inherit;"></textarea>
                     <div style="margin-top: 15px;">
@@ -9093,19 +9132,10 @@
                 }
             }
 
-            // Update audit entry form department dropdown
-            const auditLocationSelect = document.getElementById('auditLocation');
-            if (auditLocationSelect) {
-                const currentValue = auditLocationSelect.value;
-                auditLocationSelect.innerHTML = '<option value="">Select Department</option>';
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = dept;
-                    auditLocationSelect.appendChild(option);
-                });
-                if (currentValue) auditLocationSelect.value = currentValue;
-            }
+            // Update audit entry form department custom dropdown
+            const auditLocationHidden = document.getElementById('auditLocation');
+            const currentAuditEntryValue = auditLocationHidden ? auditLocationHidden.value : '';
+            populateAuditEntryDeptDropdown(currentAuditEntryValue);
 
             // Update department management list
             updateDepartmentManagementUI();
@@ -9188,6 +9218,13 @@
             const assetMenu = document.getElementById('assetDeptDropdownMenu');
             if (assetWrapper && assetMenu && !assetWrapper.contains(e.target)) {
                 assetMenu.classList.remove('show', 'show-above');
+            }
+
+            // Close Audit Entry department dropdown
+            const auditEntryWrapper = document.getElementById('auditEntryDeptWrapper');
+            const auditEntryMenu = document.getElementById('auditEntryDeptMenu');
+            if (auditEntryWrapper && auditEntryMenu && !auditEntryWrapper.contains(e.target)) {
+                auditEntryMenu.classList.remove('show', 'show-above');
             }
         });
 
@@ -9288,6 +9325,102 @@
             }
         }
 
+        // Toggle audit entry department dropdown
+        function toggleAuditEntryDeptDropdown() {
+            const menu = document.getElementById('auditEntryDeptMenu');
+            const trigger = document.getElementById('auditEntryDeptTrigger');
+
+            if (!menu || !trigger) return;
+
+            const isOpen = menu.classList.contains('show');
+
+            // Close all other custom dropdowns first
+            document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
+                if (m !== menu) m.classList.remove('show', 'show-above');
+            });
+
+            if (isOpen) {
+                menu.classList.remove('show', 'show-above');
+            } else {
+                // Calculate available space and decide direction
+                const triggerRect = trigger.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceBelow = viewportHeight - triggerRect.bottom;
+                const spaceAbove = triggerRect.top;
+                const menuHeight = 250;
+
+                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.classList.add('show', 'show-above');
+                } else {
+                    menu.classList.add('show');
+                    menu.classList.remove('show-above');
+                }
+            }
+        }
+
+        // Select audit entry department option
+        function selectAuditEntryDeptOption(value, text) {
+            const hiddenInput = document.getElementById('auditLocation');
+            const trigger = document.getElementById('auditEntryDeptTrigger');
+            const menu = document.getElementById('auditEntryDeptMenu');
+
+            if (hiddenInput) hiddenInput.value = value;
+            if (trigger) {
+                const maxLength = 25;
+                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            }
+            if (menu) {
+                menu.classList.remove('show', 'show-above');
+                // Update selected state
+                const options = menu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if (opt.dataset.value === value) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
+        }
+
+        // Populate audit entry department dropdown
+        function populateAuditEntryDeptDropdown(selectedValue = '') {
+            const departments = loadDepartments();
+            const menu = document.getElementById('auditEntryDeptMenu');
+            const trigger = document.getElementById('auditEntryDeptTrigger');
+
+            if (!menu) return;
+
+            menu.innerHTML = '';
+
+            // Add placeholder option
+            const placeholderOption = document.createElement('div');
+            placeholderOption.className = 'custom-dropdown-option' + (selectedValue === '' ? ' selected' : '');
+            placeholderOption.textContent = 'Select Department';
+            placeholderOption.dataset.value = '';
+            placeholderOption.onclick = function() { selectAuditEntryDeptOption('', 'Select Department'); };
+            menu.appendChild(placeholderOption);
+
+            // Add department options
+            departments.forEach(dept => {
+                const option = document.createElement('div');
+                option.className = 'custom-dropdown-option' + (selectedValue === dept ? ' selected' : '');
+                const maxLength = 40;
+                option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
+                option.title = dept;
+                option.dataset.value = dept;
+                option.onclick = function() { selectAuditEntryDeptOption(dept, dept); };
+                menu.appendChild(option);
+            });
+
+            // Update trigger text
+            if (selectedValue && trigger) {
+                const maxLength = 25;
+                trigger.textContent = selectedValue.length > maxLength ? selectedValue.substring(0, maxLength) + '...' : selectedValue;
+            } else if (trigger) {
+                trigger.textContent = 'Select Department';
+            }
+        }
+
         // Load assets from localStorage
         function loadAssetsFromStorage() {
             try {
@@ -9347,13 +9480,31 @@
         }
 
         // Add audit trail entry
-        function addAuditEntry(assetCode, action, department, notes) {
+        function addAuditEntry(assetCode, action, department, notes, description, value) {
             const auditRecords = loadAuditFromStorage();
+
+            // If description and value not provided, try to look up from assets
+            let assetDescription = description || '';
+            let assetValue = value || 0;
+            let assetDepartment = department || '';
+
+            if (!assetDescription || !assetValue) {
+                const assets = loadAssetsFromStorage();
+                const matchingAsset = assets.find(a => a.assetCode === assetCode);
+                if (matchingAsset) {
+                    assetDescription = assetDescription || matchingAsset.description || '';
+                    assetValue = assetValue || matchingAsset.totalPrice || 0;
+                    assetDepartment = assetDepartment || matchingAsset.department || '';
+                }
+            }
+
             const entry = {
                 id: generateAssetId(),
                 assetCode: assetCode,
                 action: action,
-                department: department || '',
+                department: assetDepartment,
+                description: assetDescription,
+                value: assetValue,
                 notes: notes || '',
                 timestamp: new Date().toISOString(),
                 user: currentUser ? currentUser.displayName : 'Unknown'
@@ -12495,6 +12646,10 @@
                 document.getElementById('auditLocation').value = '';
                 document.getElementById('auditNotes').value = '';
 
+                // Reset custom department dropdown trigger
+                const auditEntryDeptTrigger = document.getElementById('auditEntryDeptTrigger');
+                if (auditEntryDeptTrigger) auditEntryDeptTrigger.textContent = 'Select Department';
+
                 setTimeout(() => {
                     statusSpan.textContent = '';
                     displayAuditTrail();
@@ -12562,14 +12717,16 @@
                 : '';
 
             let html = filterStatus + `
-                <div style="overflow-x: auto;">
+                <div class="audit-table-container" style="max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px;">
                     <table>
-                        <thead>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 <th>Timestamp</th>
                                 <th>Asset Code</th>
+                                <th>Description</th>
                                 <th>Action</th>
                                 <th>Department</th>
+                                <th>Value (JMD)</th>
                                 <th>User</th>
                                 <th>Notes</th>
                                 <th>Actions</th>
@@ -12580,12 +12737,15 @@
 
             auditRecords.forEach(record => {
                 const recordJson = JSON.stringify(record).replace(/"/g, '&quot;');
+                const valueDisplay = record.value ? formatCurrency(parseFloat(record.value)) : '0.00';
                 html += `
                     <tr>
                         <td>${new Date(record.timestamp).toLocaleString()}</td>
                         <td><span class="asset-code">${escapeHtml(record.assetCode)}</span></td>
+                        <td>${escapeHtml(record.description || 'N/A')}</td>
                         <td>${escapeHtml(record.action)}</td>
                         <td>${escapeHtml(record.department || 'N/A')}</td>
+                        <td>JMD ${valueDisplay}</td>
                         <td>${escapeHtml(record.user)}</td>
                         <td>${escapeHtml(record.notes || '')}</td>
                         <td>
