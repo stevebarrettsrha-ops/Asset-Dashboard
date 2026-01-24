@@ -223,6 +223,7 @@
             height: 200%;
             background: rgba(255, 255, 255, 0.05);
             transform: rotate(35deg);
+            pointer-events: none;
         }
 
         .header-content {
@@ -6331,9 +6332,15 @@
                     </div>
                     <div class="register-filter-group" style="position: relative;">
                         <label>Department:</label>
-                        <select id="registerDepartmentFilter" onchange="filterAssetRegister()" style="max-width: 250px;">
-                            <option value="">All Departments</option>
-                        </select>
+                        <div class="custom-dropdown-wrapper" id="registerDeptDropdownWrapper" style="min-width: 200px; max-width: 280px;">
+                            <button type="button" class="custom-dropdown-trigger" id="registerDeptDropdownTrigger" onclick="toggleRegisterDeptDropdown()" style="padding: 8px 35px 8px 12px; font-size: 0.9em;">
+                                All Departments
+                            </button>
+                            <div class="custom-dropdown-menu" id="registerDeptDropdownMenu" style="max-height: 300px;">
+                                <!-- Options populated dynamically -->
+                            </div>
+                        </div>
+                        <input type="hidden" id="registerDepartmentFilter" value="">
                     </div>
                     <div class="register-search-box">
                         <input type="text" id="registerSearchInput" placeholder="Search by asset code, description, supplier..."
@@ -8932,10 +8939,18 @@
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
+            // Close Audit Trail department dropdown
             const wrapper = document.getElementById('deptDropdownWrapper');
             const menu = document.getElementById('deptDropdownMenu');
             if (wrapper && menu && !wrapper.contains(e.target)) {
                 menu.classList.remove('show', 'show-above');
+            }
+
+            // Close Asset Register department dropdown
+            const registerWrapper = document.getElementById('registerDeptDropdownWrapper');
+            const registerMenu = document.getElementById('registerDeptDropdownMenu');
+            if (registerWrapper && registerMenu && !registerWrapper.contains(e.target)) {
+                registerMenu.classList.remove('show', 'show-above');
             }
         });
 
@@ -16219,23 +16234,73 @@
             document.getElementById('registerDonatedCount').textContent = donatedCount.toLocaleString();
         }
 
-        // Populate department filter dropdown
+        // Populate department filter dropdown (custom dropdown)
         function populateRegisterDepartmentFilter() {
             const departments = [...new Set(assetRegisterData.map(a => a.department).filter(Boolean))];
-            const select = document.getElementById('registerDepartmentFilter');
+            const menu = document.getElementById('registerDeptDropdownMenu');
 
-            // Keep existing first option
-            select.innerHTML = '<option value="">All Departments</option>';
+            if (!menu) return;
+
+            // Build options HTML
+            let optionsHtml = '<div class="custom-dropdown-option selected" onclick="selectRegisterDeptOption(\'\', \'All Departments\')">All Departments</div>';
 
             departments.sort().forEach(dept => {
-                const option = document.createElement('option');
-                option.value = dept;
                 // Truncate long department names for display
-                const displayText = dept.length > 40 ? dept.substring(0, 40) + '...' : dept;
-                option.textContent = displayText;
-                option.title = dept; // Show full name on hover
-                select.appendChild(option);
+                const displayText = dept.length > 35 ? dept.substring(0, 35) + '...' : dept;
+                optionsHtml += `<div class="custom-dropdown-option" title="${dept}" onclick="selectRegisterDeptOption('${dept.replace(/'/g, "\\'")}', '${displayText.replace(/'/g, "\\'")}')">${displayText}</div>`;
             });
+
+            menu.innerHTML = optionsHtml;
+        }
+
+        // Toggle register department dropdown - always opens downward
+        function toggleRegisterDeptDropdown() {
+            const menu = document.getElementById('registerDeptDropdownMenu');
+            const trigger = document.getElementById('registerDeptDropdownTrigger');
+
+            if (!menu || !trigger) return;
+
+            const isOpen = menu.classList.contains('show');
+
+            // Close all other custom dropdowns first
+            document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
+                if (m !== menu) m.classList.remove('show', 'show-above');
+            });
+
+            if (isOpen) {
+                menu.classList.remove('show', 'show-above');
+            } else {
+                // Always open downward for this dropdown
+                menu.classList.add('show');
+                menu.classList.remove('show-above');
+            }
+        }
+
+        // Select register department option
+        function selectRegisterDeptOption(value, text) {
+            const hiddenInput = document.getElementById('registerDepartmentFilter');
+            const trigger = document.getElementById('registerDeptDropdownTrigger');
+            const menu = document.getElementById('registerDeptDropdownMenu');
+
+            if (hiddenInput) hiddenInput.value = value;
+            if (trigger) {
+                const maxLength = 25;
+                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            }
+            if (menu) {
+                menu.classList.remove('show', 'show-above');
+                // Update selected state
+                const options = menu.querySelectorAll('.custom-dropdown-option');
+                options.forEach(opt => {
+                    opt.classList.remove('selected');
+                    if ((value === '' && opt.textContent === 'All Departments') || opt.title === value || opt.textContent === value) {
+                        opt.classList.add('selected');
+                    }
+                });
+            }
+
+            // Trigger filter
+            filterAssetRegister();
         }
 
         // Filter asset register
