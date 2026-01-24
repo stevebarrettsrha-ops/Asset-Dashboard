@@ -1044,7 +1044,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
+            min-width: 1400px;
         }
 
         thead {
@@ -1065,33 +1065,32 @@
         }
 
         /* Column widths for Asset Inventory table */
-        th:nth-child(1), td:nth-child(1) { width: 130px; min-width: 130px; }  /* Asset Code */
-        th:nth-child(2), td:nth-child(2) { width: 85px; min-width: 85px; }    /* Date In */
-        th:nth-child(3), td:nth-child(3) { width: 180px; min-width: 150px; }  /* Description */
-        th:nth-child(4), td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
-        th:nth-child(5), td:nth-child(5) { width: 90px; min-width: 85px; }    /* Category */
-        th:nth-child(6), td:nth-child(6) { width: 120px; min-width: 100px; }  /* Supplier/Donor */
-        th:nth-child(7), td:nth-child(7) { width: 80px; min-width: 75px; }    /* Source */
-        th:nth-child(8), td:nth-child(8) { width: 100px; min-width: 90px; }   /* Serial/Model */
-        th:nth-child(9), td:nth-child(9) { width: 50px; min-width: 45px; }    /* Qty */
-        th:nth-child(10), td:nth-child(10) { width: 110px; min-width: 100px; } /* Total Price */
-        th:nth-child(11), td:nth-child(11) { width: 65px; min-width: 55px; }  /* Month */
-        th:nth-child(12), td:nth-child(12) { width: 65px; min-width: 55px; }  /* Actions */
+        th:nth-child(1), td:nth-child(1) { min-width: 160px; }  /* Asset Code */
+        th:nth-child(2), td:nth-child(2) { min-width: 100px; }  /* Date In */
+        th:nth-child(3), td:nth-child(3) { min-width: 200px; }  /* Description */
+        th:nth-child(4), td:nth-child(4) { min-width: 180px; }  /* Department */
+        th:nth-child(5), td:nth-child(5) { min-width: 100px; }  /* Category */
+        th:nth-child(6), td:nth-child(6) { min-width: 150px; }  /* Supplier/Donor */
+        th:nth-child(7), td:nth-child(7) { min-width: 100px; }  /* Source */
+        th:nth-child(8), td:nth-child(8) { min-width: 120px; }  /* Serial/Model */
+        th:nth-child(9), td:nth-child(9) { min-width: 50px; }   /* Qty */
+        th:nth-child(10), td:nth-child(10) { min-width: 120px; } /* Total Price */
+        th:nth-child(11), td:nth-child(11) { min-width: 70px; }  /* Month */
+        th:nth-child(12), td:nth-child(12) { min-width: 70px; }  /* Actions */
 
         /* Audit Trail Table - specific column widths for 7-column layout */
         #auditEntries table {
-            table-layout: fixed;
             width: 100%;
-            min-width: 900px;
+            min-width: 1100px;
         }
 
-        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { width: 140px; min-width: 130px; }  /* Timestamp */
-        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { width: 140px; min-width: 130px; }  /* Asset Code */
-        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { width: 110px; min-width: 100px; }  /* Action */
-        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
-        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { width: 100px; min-width: 90px; }   /* User */
-        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: auto; min-width: 200px; }   /* Notes - flexible */
-        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { width: 70px; min-width: 65px; }    /* Actions */
+        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { min-width: 160px; }  /* Timestamp */
+        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { min-width: 160px; }  /* Asset Code */
+        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { min-width: 120px; }  /* Action */
+        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { min-width: 180px; }  /* Department */
+        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { min-width: 120px; }  /* User */
+        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { min-width: 280px; }  /* Notes - flexible */
+        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { min-width: 80px; }   /* Actions */
 
         /* Enable text wrapping for all Audit Trail columns */
         #auditEntries td {
@@ -1100,11 +1099,6 @@
             overflow-wrap: break-word;
             line-height: 1.4;
             vertical-align: top;
-        }
-
-        #auditEntries td:nth-child(6) {
-            max-height: 100px;
-            overflow-y: auto;
         }
 
         /* Audit Trail Filter Section - constrain grid items */
@@ -1291,17 +1285,6 @@
             overflow-wrap: break-word;
             line-height: 1.4;
             vertical-align: top;
-        }
-
-        /* Allow wrapping for all text columns with controlled height */
-        td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(4),
-        td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) {
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            line-height: 1.4;
-            max-height: 80px;
-            overflow-y: auto;
         }
 
         .asset-code {
@@ -3860,8 +3843,7 @@
             width: 100%;
             border-collapse: collapse;
             background: var(--bg-card);
-            table-layout: fixed;
-            min-width: 1000px;
+            min-width: 1200px;
         }
 
         .disposal-table th,
@@ -3890,15 +3872,15 @@
         }
 
         /* Disposal table column widths */
-        .disposal-table th:nth-child(1), .disposal-table td:nth-child(1) { width: 130px; min-width: 120px; }  /* Asset Code */
-        .disposal-table th:nth-child(2), .disposal-table td:nth-child(2) { width: 150px; min-width: 130px; }  /* Description */
-        .disposal-table th:nth-child(3), .disposal-table td:nth-child(3) { width: 110px; min-width: 100px; }  /* Disposal Date */
-        .disposal-table th:nth-child(4), .disposal-table td:nth-child(4) { width: 100px; min-width: 90px; }   /* Reason */
-        .disposal-table th:nth-child(5), .disposal-table td:nth-child(5) { width: 100px; min-width: 90px; }   /* Method */
-        .disposal-table th:nth-child(6), .disposal-table td:nth-child(6) { width: 110px; min-width: 100px; }  /* Original Value */
-        .disposal-table th:nth-child(7), .disposal-table td:nth-child(7) { width: 110px; min-width: 100px; }  /* Disposal Value */
-        .disposal-table th:nth-child(8), .disposal-table td:nth-child(8) { width: 120px; min-width: 110px; }  /* Approved By */
-        .disposal-table th:nth-child(9), .disposal-table td:nth-child(9) { width: 90px; min-width: 80px; }    /* Actions */
+        .disposal-table th:nth-child(1), .disposal-table td:nth-child(1) { min-width: 160px; }  /* Asset Code */
+        .disposal-table th:nth-child(2), .disposal-table td:nth-child(2) { min-width: 180px; }  /* Description */
+        .disposal-table th:nth-child(3), .disposal-table td:nth-child(3) { min-width: 120px; }  /* Disposal Date */
+        .disposal-table th:nth-child(4), .disposal-table td:nth-child(4) { min-width: 100px; }  /* Reason */
+        .disposal-table th:nth-child(5), .disposal-table td:nth-child(5) { min-width: 110px; }  /* Method */
+        .disposal-table th:nth-child(6), .disposal-table td:nth-child(6) { min-width: 130px; }  /* Original Value */
+        .disposal-table th:nth-child(7), .disposal-table td:nth-child(7) { min-width: 130px; }  /* Disposal Value */
+        .disposal-table th:nth-child(8), .disposal-table td:nth-child(8) { min-width: 140px; }  /* Approved By */
+        .disposal-table th:nth-child(9), .disposal-table td:nth-child(9) { min-width: 100px; }  /* Actions */
 
         .disposal-reason-badge {
             padding: 4px 10px;
@@ -4278,8 +4260,7 @@
         .register-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1100px;
-            table-layout: fixed;
+            min-width: 1400px;
         }
 
         .register-table th,
@@ -4308,16 +4289,16 @@
         }
 
         /* Register table column widths */
-        .register-table th:nth-child(1), .register-table td:nth-child(1) { width: 130px; min-width: 120px; }  /* Asset Code */
-        .register-table th:nth-child(2), .register-table td:nth-child(2) { width: 85px; min-width: 80px; }    /* Date In */
-        .register-table th:nth-child(3), .register-table td:nth-child(3) { width: 160px; min-width: 140px; }  /* Description */
-        .register-table th:nth-child(4), .register-table td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
-        .register-table th:nth-child(5), .register-table td:nth-child(5) { width: 90px; min-width: 85px; }    /* Category */
-        .register-table th:nth-child(6), .register-table td:nth-child(6) { width: 120px; min-width: 100px; }  /* Supplier/Donor */
-        .register-table th:nth-child(7), .register-table td:nth-child(7) { width: 80px; min-width: 75px; }    /* Source */
-        .register-table th:nth-child(8), .register-table td:nth-child(8) { width: 100px; min-width: 90px; }   /* Serial/Model */
-        .register-table th:nth-child(9), .register-table td:nth-child(9) { width: 50px; min-width: 45px; }    /* Qty */
-        .register-table th:nth-child(10), .register-table td:nth-child(10) { width: 110px; min-width: 100px; } /* Total Price */
+        .register-table th:nth-child(1), .register-table td:nth-child(1) { min-width: 160px; }  /* Asset Code */
+        .register-table th:nth-child(2), .register-table td:nth-child(2) { min-width: 100px; }  /* Date In */
+        .register-table th:nth-child(3), .register-table td:nth-child(3) { min-width: 200px; }  /* Description */
+        .register-table th:nth-child(4), .register-table td:nth-child(4) { min-width: 180px; }  /* Department */
+        .register-table th:nth-child(5), .register-table td:nth-child(5) { min-width: 100px; }  /* Category */
+        .register-table th:nth-child(6), .register-table td:nth-child(6) { min-width: 150px; }  /* Supplier/Donor */
+        .register-table th:nth-child(7), .register-table td:nth-child(7) { min-width: 100px; }  /* Source */
+        .register-table th:nth-child(8), .register-table td:nth-child(8) { min-width: 120px; }  /* Serial/Model */
+        .register-table th:nth-child(9), .register-table td:nth-child(9) { min-width: 50px; }   /* Qty */
+        .register-table th:nth-child(10), .register-table td:nth-child(10) { min-width: 130px; } /* Total Price */
 
         .register-table .asset-code-link {
             color: var(--primary-orange);
@@ -4445,34 +4426,23 @@
             }
         }
 
-        /* Mobile responsive styles for all tables */
+        /* Mobile responsive styles for all tables - maintain full width for horizontal scrolling */
         @media (max-width: 992px) {
-            /* Asset Inventory table mobile adjustments */
+            /* Tables maintain their full width, users scroll horizontally to see all content */
             table {
-                min-width: 900px;
+                min-width: 1400px;
             }
 
-            th:nth-child(1), td:nth-child(1) { width: 120px; min-width: 110px; }
-            th:nth-child(3), td:nth-child(3) { width: 160px; min-width: 140px; }
-            th:nth-child(4), td:nth-child(4) { width: 130px; min-width: 110px; }
-            th:nth-child(6), td:nth-child(6) { width: 110px; min-width: 95px; }
-
-            /* Audit Trail mobile adjustments */
             #auditEntries table {
-                min-width: 850px;
+                min-width: 1100px;
             }
 
-            #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 130px; min-width: 110px; }
-            #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: 180px; min-width: 160px; }
-
-            /* Disposal table mobile adjustments */
             .disposal-table {
-                min-width: 950px;
+                min-width: 1200px;
             }
 
-            /* Register table mobile adjustments */
             .register-table {
-                min-width: 1050px;
+                min-width: 1400px;
             }
         }
 
