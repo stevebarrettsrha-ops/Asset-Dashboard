@@ -5655,7 +5655,7 @@
                 <h2 class="section-title">📋 Asset Audit Trail</h2>
                 
                 <!-- Add Entry Form (Admin Only) -->
-                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange); overflow: visible;">
+                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 100;">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">➕ Add New Audit Entry</h3>
                     <div class="calc-grid" style="margin-bottom: 15px; overflow: visible;">
                         <input type="text" id="auditAssetCode" class="calc-input" placeholder="Enter Asset Code (e.g., MPH-001-2025)">
@@ -5670,12 +5670,12 @@
                             <option value="Asset Updated">Asset Updated</option>
                             <option value="Other">Other</option>
                         </select>
-                        <div style="position: relative;">
-                            <div class="custom-dropdown-wrapper" id="auditEntryDeptWrapper">
+                        <div style="position: relative; z-index: 101;">
+                            <div class="custom-dropdown-wrapper" id="auditEntryDeptWrapper" style="position: relative; z-index: 102;">
                                 <button type="button" class="custom-dropdown-trigger" id="auditEntryDeptTrigger" onclick="toggleAuditEntryDeptDropdown()" style="width: 100%;">
                                     Select Department
                                 </button>
-                                <div class="custom-dropdown-menu" id="auditEntryDeptMenu">
+                                <div class="custom-dropdown-menu" id="auditEntryDeptMenu" style="z-index: 9999;">
                                     <!-- Options populated dynamically -->
                                 </div>
                             </div>
