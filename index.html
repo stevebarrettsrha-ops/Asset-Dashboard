@@ -1175,8 +1175,8 @@
             background: var(--bg-card);
             border: 2px solid var(--primary-orange);
             border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            z-index: 1000;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+            z-index: 9999;
             margin-top: 4px;
         }
 
@@ -4420,7 +4420,7 @@
             border-radius: 10px;
             overflow: visible;
             position: relative;
-            z-index: 10;
+            z-index: 100;
         }
 
         .register-filter-group {
@@ -4452,6 +4452,16 @@
             white-space: nowrap;
         }
 
+        /* Ensure register department dropdown appears above table */
+        #registerDeptDropdownWrapper {
+            position: relative;
+            z-index: 100;
+        }
+
+        #registerDeptDropdownMenu {
+            z-index: 9999;
+        }
+
         .register-filter-group select#registerDepartmentFilter option {
             max-width: 280px;
             overflow: hidden;
@@ -4477,6 +4487,8 @@
             overflow-x: auto;
             border-radius: 10px;
             border: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
         }
 
         .register-table {
