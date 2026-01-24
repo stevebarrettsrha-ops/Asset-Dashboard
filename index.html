@@ -12737,14 +12737,30 @@
 
             auditRecords.forEach(record => {
                 const recordJson = JSON.stringify(record).replace(/"/g, '&quot;');
-                const valueDisplay = record.value ? formatCurrency(parseFloat(record.value)) : '0.00';
+
+                // Look up asset details if not stored in record
+                let description = record.description || '';
+                let value = record.value || 0;
+                let department = record.department || '';
+
+                if (!description || !value) {
+                    const assets = loadAssetsFromStorage();
+                    const matchingAsset = assets.find(a => a.assetCode === record.assetCode);
+                    if (matchingAsset) {
+                        description = description || matchingAsset.description || '';
+                        value = value || matchingAsset.totalPrice || 0;
+                        department = department || matchingAsset.department || '';
+                    }
+                }
+
+                const valueDisplay = value ? formatCurrency(parseFloat(value)) : '0.00';
                 html += `
                     <tr>
                         <td>${new Date(record.timestamp).toLocaleString()}</td>
                         <td><span class="asset-code">${escapeHtml(record.assetCode)}</span></td>
-                        <td>${escapeHtml(record.description || 'N/A')}</td>
+                        <td>${escapeHtml(description || 'N/A')}</td>
                         <td>${escapeHtml(record.action)}</td>
-                        <td>${escapeHtml(record.department || 'N/A')}</td>
+                        <td>${escapeHtml(department || 'N/A')}</td>
                         <td>JMD ${valueDisplay}</td>
                         <td>${escapeHtml(record.user)}</td>
                         <td>${escapeHtml(record.notes || '')}</td>
@@ -13203,26 +13219,42 @@
                 new Date(b.timestamp) - new Date(a.timestamp)
             );
             
+            // Load assets for looking up values
+            const assets = loadAssetsFromStorage();
+
             auditEntries.forEach(entry => {
                 const timestamp = new Date(entry.timestamp).toLocaleString();
                 const assetCode = entry.assetCode || 'N/A';
-                const description = entry.description || 'N/A';
+
+                // Look up asset details if not stored in entry
+                let description = entry.description || '';
+                let value = entry.value || 0;
+                let department = entry.department || entry.location || '';
+
+                if (!description || !value) {
+                    const matchingAsset = assets.find(a => a.assetCode === entry.assetCode);
+                    if (matchingAsset) {
+                        description = description || matchingAsset.description || '';
+                        value = value || matchingAsset.totalPrice || 0;
+                        department = department || matchingAsset.department || '';
+                    }
+                }
+
                 const action = entry.action || 'N/A';
                 const user = entry.user || 'System';
-                const location = entry.location || entry.supplier || 'N/A';
                 const notes = entry.notes || '-';
-                const value = entry.value ? formatCurrency(parseFloat(entry.value)) : '0.00';
-                
+                const valueDisplay = value ? formatCurrency(parseFloat(value)) : '0.00';
+
                 tableRows += `
                     <tr>
                         <td>${timestamp}</td>
                         <td>${assetCode}</td>
-                        <td>${description}</td>
+                        <td>${description || 'N/A'}</td>
                         <td>${action}</td>
                         <td>${user}</td>
-                        <td>${location}</td>
+                        <td>${department || 'N/A'}</td>
                         <td>${notes}</td>
-                        <td>JMD ${value}</td>
+                        <td>JMD ${valueDisplay}</td>
                     </tr>
                 `;
             });
