@@ -1065,39 +1065,45 @@
         }
 
         /* Column widths for Asset Inventory table */
-        th:nth-child(1), td:nth-child(1) { width: 140px; min-width: 140px; }  /* Asset Code */
-        th:nth-child(2), td:nth-child(2) { width: 90px; min-width: 90px; }    /* Date In */
-        th:nth-child(3), td:nth-child(3) { width: 150px; min-width: 120px; }  /* Description */
-        th:nth-child(4), td:nth-child(4) { width: 120px; min-width: 100px; }  /* Department */
-        th:nth-child(5), td:nth-child(5) { width: 80px; min-width: 80px; }    /* Category */
-        th:nth-child(6), td:nth-child(6) { width: 100px; min-width: 80px; }   /* Supplier/Donor */
-        th:nth-child(7), td:nth-child(7) { width: 80px; min-width: 70px; }    /* Source */
-        th:nth-child(8), td:nth-child(8) { width: 90px; min-width: 80px; }    /* Serial/Model */
-        th:nth-child(9), td:nth-child(9) { width: 50px; min-width: 40px; }    /* Qty */
+        th:nth-child(1), td:nth-child(1) { width: 130px; min-width: 130px; }  /* Asset Code */
+        th:nth-child(2), td:nth-child(2) { width: 85px; min-width: 85px; }    /* Date In */
+        th:nth-child(3), td:nth-child(3) { width: 180px; min-width: 150px; }  /* Description */
+        th:nth-child(4), td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
+        th:nth-child(5), td:nth-child(5) { width: 90px; min-width: 85px; }    /* Category */
+        th:nth-child(6), td:nth-child(6) { width: 120px; min-width: 100px; }  /* Supplier/Donor */
+        th:nth-child(7), td:nth-child(7) { width: 80px; min-width: 75px; }    /* Source */
+        th:nth-child(8), td:nth-child(8) { width: 100px; min-width: 90px; }   /* Serial/Model */
+        th:nth-child(9), td:nth-child(9) { width: 50px; min-width: 45px; }    /* Qty */
         th:nth-child(10), td:nth-child(10) { width: 110px; min-width: 100px; } /* Total Price */
-        th:nth-child(11), td:nth-child(11) { width: 60px; min-width: 50px; }  /* Month */
-        th:nth-child(12), td:nth-child(12) { width: 60px; min-width: 50px; }  /* Actions */
+        th:nth-child(11), td:nth-child(11) { width: 65px; min-width: 55px; }  /* Month */
+        th:nth-child(12), td:nth-child(12) { width: 65px; min-width: 55px; }  /* Actions */
 
         /* Audit Trail Table - specific column widths for 7-column layout */
         #auditEntries table {
             table-layout: fixed;
             width: 100%;
+            min-width: 900px;
         }
 
-        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { width: 150px; min-width: 130px; }  /* Timestamp */
-        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { width: 140px; min-width: 120px; }  /* Asset Code */
-        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { width: 120px; min-width: 100px; }  /* Action */
-        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 130px; min-width: 100px; }  /* Department */
-        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { width: 80px; min-width: 70px; }    /* User */
-        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: auto; min-width: 150px; }   /* Notes - flexible */
-        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { width: 70px; min-width: 60px; }    /* Actions */
+        #auditEntries th:nth-child(1), #auditEntries td:nth-child(1) { width: 140px; min-width: 130px; }  /* Timestamp */
+        #auditEntries th:nth-child(2), #auditEntries td:nth-child(2) { width: 140px; min-width: 130px; }  /* Asset Code */
+        #auditEntries th:nth-child(3), #auditEntries td:nth-child(3) { width: 110px; min-width: 100px; }  /* Action */
+        #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
+        #auditEntries th:nth-child(5), #auditEntries td:nth-child(5) { width: 100px; min-width: 90px; }   /* User */
+        #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: auto; min-width: 200px; }   /* Notes - flexible */
+        #auditEntries th:nth-child(7), #auditEntries td:nth-child(7) { width: 70px; min-width: 65px; }    /* Actions */
 
-        #auditEntries td:nth-child(6) {
+        /* Enable text wrapping for all Audit Trail columns */
+        #auditEntries td {
             white-space: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
             line-height: 1.4;
-            max-height: 80px;
+            vertical-align: top;
+        }
+
+        #auditEntries td:nth-child(6) {
+            max-height: 100px;
             overflow-y: auto;
         }
 
@@ -1280,19 +1286,21 @@
             padding: 12px;
             font-size: 0.95em;
             color: var(--text-primary);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 0; /* Required for text-overflow to work with table-layout: fixed */
-        }
-
-        /* Allow wrapping for description and department columns */
-        td:nth-child(3), td:nth-child(4) {
             white-space: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            line-height: 1.3;
-            max-height: 60px;
+            line-height: 1.4;
+            vertical-align: top;
+        }
+
+        /* Allow wrapping for all text columns with controlled height */
+        td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(4),
+        td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+            max-height: 80px;
             overflow-y: auto;
         }
 
@@ -1300,10 +1308,11 @@
             font-weight: 600;
             color: var(--primary-orange);
             font-family: 'Courier New', monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
             display: block;
+            line-height: 1.3;
         }
 
         .item-type-badge {
@@ -3851,6 +3860,8 @@
             width: 100%;
             border-collapse: collapse;
             background: var(--bg-card);
+            table-layout: fixed;
+            min-width: 1000px;
         }
 
         .disposal-table th,
@@ -3858,6 +3869,11 @@
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            vertical-align: top;
+            line-height: 1.4;
         }
 
         .disposal-table th {
@@ -3866,11 +3882,23 @@
             color: var(--text-primary);
             position: sticky;
             top: 0;
+            white-space: nowrap;
         }
 
         .disposal-table tr:hover {
             background: var(--table-hover);
         }
+
+        /* Disposal table column widths */
+        .disposal-table th:nth-child(1), .disposal-table td:nth-child(1) { width: 130px; min-width: 120px; }  /* Asset Code */
+        .disposal-table th:nth-child(2), .disposal-table td:nth-child(2) { width: 150px; min-width: 130px; }  /* Description */
+        .disposal-table th:nth-child(3), .disposal-table td:nth-child(3) { width: 110px; min-width: 100px; }  /* Disposal Date */
+        .disposal-table th:nth-child(4), .disposal-table td:nth-child(4) { width: 100px; min-width: 90px; }   /* Reason */
+        .disposal-table th:nth-child(5), .disposal-table td:nth-child(5) { width: 100px; min-width: 90px; }   /* Method */
+        .disposal-table th:nth-child(6), .disposal-table td:nth-child(6) { width: 110px; min-width: 100px; }  /* Original Value */
+        .disposal-table th:nth-child(7), .disposal-table td:nth-child(7) { width: 110px; min-width: 100px; }  /* Disposal Value */
+        .disposal-table th:nth-child(8), .disposal-table td:nth-child(8) { width: 120px; min-width: 110px; }  /* Approved By */
+        .disposal-table th:nth-child(9), .disposal-table td:nth-child(9) { width: 90px; min-width: 80px; }    /* Actions */
 
         .disposal-reason-badge {
             padding: 4px 10px;
@@ -4250,7 +4278,8 @@
         .register-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1000px;
+            min-width: 1100px;
+            table-layout: fixed;
         }
 
         .register-table th,
@@ -4258,6 +4287,11 @@
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            vertical-align: top;
+            line-height: 1.4;
         }
 
         .register-table th {
@@ -4272,6 +4306,18 @@
         .register-table tr:hover {
             background: var(--table-hover);
         }
+
+        /* Register table column widths */
+        .register-table th:nth-child(1), .register-table td:nth-child(1) { width: 130px; min-width: 120px; }  /* Asset Code */
+        .register-table th:nth-child(2), .register-table td:nth-child(2) { width: 85px; min-width: 80px; }    /* Date In */
+        .register-table th:nth-child(3), .register-table td:nth-child(3) { width: 160px; min-width: 140px; }  /* Description */
+        .register-table th:nth-child(4), .register-table td:nth-child(4) { width: 140px; min-width: 120px; }  /* Department */
+        .register-table th:nth-child(5), .register-table td:nth-child(5) { width: 90px; min-width: 85px; }    /* Category */
+        .register-table th:nth-child(6), .register-table td:nth-child(6) { width: 120px; min-width: 100px; }  /* Supplier/Donor */
+        .register-table th:nth-child(7), .register-table td:nth-child(7) { width: 80px; min-width: 75px; }    /* Source */
+        .register-table th:nth-child(8), .register-table td:nth-child(8) { width: 100px; min-width: 90px; }   /* Serial/Model */
+        .register-table th:nth-child(9), .register-table td:nth-child(9) { width: 50px; min-width: 45px; }    /* Qty */
+        .register-table th:nth-child(10), .register-table td:nth-child(10) { width: 110px; min-width: 100px; } /* Total Price */
 
         .register-table .asset-code-link {
             color: var(--primary-orange);
@@ -4396,6 +4442,73 @@
 
             .register-filters {
                 flex-direction: column;
+            }
+        }
+
+        /* Mobile responsive styles for all tables */
+        @media (max-width: 992px) {
+            /* Asset Inventory table mobile adjustments */
+            table {
+                min-width: 900px;
+            }
+
+            th:nth-child(1), td:nth-child(1) { width: 120px; min-width: 110px; }
+            th:nth-child(3), td:nth-child(3) { width: 160px; min-width: 140px; }
+            th:nth-child(4), td:nth-child(4) { width: 130px; min-width: 110px; }
+            th:nth-child(6), td:nth-child(6) { width: 110px; min-width: 95px; }
+
+            /* Audit Trail mobile adjustments */
+            #auditEntries table {
+                min-width: 850px;
+            }
+
+            #auditEntries th:nth-child(4), #auditEntries td:nth-child(4) { width: 130px; min-width: 110px; }
+            #auditEntries th:nth-child(6), #auditEntries td:nth-child(6) { width: 180px; min-width: 160px; }
+
+            /* Disposal table mobile adjustments */
+            .disposal-table {
+                min-width: 950px;
+            }
+
+            /* Register table mobile adjustments */
+            .register-table {
+                min-width: 1050px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            /* Smaller mobile screens - increase cell padding and line height for readability */
+            td {
+                padding: 10px 8px;
+                font-size: 0.9em;
+                line-height: 1.5;
+            }
+
+            th {
+                padding: 12px 8px;
+                font-size: 0.85em;
+            }
+
+            /* Ensure table containers scroll smoothly on mobile */
+            .table-container,
+            .disposal-table-container,
+            .register-table-container {
+                -webkit-overflow-scrolling: touch;
+                scroll-behavior: smooth;
+            }
+
+            /* Asset code styling for mobile */
+            .asset-code,
+            .register-table .asset-code-link {
+                font-size: 0.9em;
+            }
+
+            /* Badge sizing for mobile */
+            .item-type-badge,
+            .disposal-reason-badge,
+            .disposal-method-badge {
+                font-size: 0.75em;
+                padding: 3px 8px;
             }
         }
     </style>
