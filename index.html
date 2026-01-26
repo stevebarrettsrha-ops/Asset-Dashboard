@@ -5343,6 +5343,9 @@
                                         <button class="cloud-menu-item" onclick="syncFromCloud()">
                                             <span>🔄</span> Sync from Cloud
                                         </button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;">
+                                            <span>🔀</span> Smart Merge from Cloud
+                                        </button>
                                         <button class="cloud-menu-item" onclick="browseBackupFiles()">
                                             <span>📁</span> Browse Backup Files
                                         </button>
@@ -5431,6 +5434,21 @@
                     <strong style="font-size: 1.2em; color: var(--dark-gray);">Grand Total: </strong>
                     <span id="grandTotalDisplay" style="font-size: 1.5em; font-weight: 700; color: var(--primary-green);">JMD 0.00</span>
                 </div>
+
+                <!-- Merge Controls -->
+                <div id="mergeControls" style="margin-bottom: 1rem; display: none; align-items: center; gap: 1rem; padding: 1rem; background: #F3E5F5; border-radius: 0.5rem; border: 2px solid #9C27B0;">
+                    <span id="selectedCount" style="font-weight: bold; color: #7B1FA2;">0 assets selected</span>
+                    <button class="btn" onclick="openMergeModal()" style="background: #9C27B0; color: white;">
+                        Merge Selected Assets
+                    </button>
+                    <button class="btn" onclick="findAndShowDuplicates()" style="background: #FF9800; color: white;">
+                        Find Duplicates
+                    </button>
+                    <button class="btn" onclick="clearMergeSelection()" style="background: #757575; color: white;">
+                        Clear Selection
+                    </button>
+                </div>
+
                 <div class="table-container" id="tableContainer">
                     <div class="loading">
                         <div class="loading-spinner"></div>
@@ -6754,6 +6772,116 @@
         </div>
     </div>
 
+    <!-- Merge Assets Modal -->
+    <div id="mergeAssetModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header" style="background: #9C27B0;">
+                <h2 style="color: white;">Merge Assets</h2>
+                <span class="close-modal" onclick="closeMergeModal()" style="color: white;">&times;</span>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div style="background: #FFF3E0; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border-left: 4px solid #FF9800;">
+                    <strong>Warning:</strong> This action will merge two asset records into one. This cannot be undone.
+                </div>
+                <div id="mergeComparisonTable"></div>
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label style="font-weight: bold;">What to do with related records?</label>
+                    <select id="mergeDataAction" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color);">
+                        <option value="combine">Combine all quantities and values</option>
+                        <option value="keepPrimary">Keep only primary asset's values</option>
+                    </select>
+                </div>
+                <div class="btn-group" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button class="btn" onclick="executeMerge()" style="background: #9C27B0; color: white; flex: 1;">Confirm Merge</button>
+                    <button class="btn btn-secondary" onclick="closeMergeModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplicates Found Modal -->
+    <div id="duplicatesModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="background: #FF9800;">
+                <h2 style="color: white;">Potential Duplicates Found</h2>
+                <span class="close-modal" onclick="closeDuplicatesModal()" style="color: white;">&times;</span>
+            </div>
+            <div style="padding: 1.5rem;">
+                <p style="margin-bottom: 1rem;">The following assets may be duplicates based on similar descriptions, asset codes, or serial numbers:</p>
+                <div id="duplicatesListContent"></div>
+                <div class="btn-group" style="margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" onclick="closeDuplicatesModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Merge Cloud Sync Modal -->
+    <div id="smartMergeModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%);">
+                <h2 style="color: white;">Smart Merge from Cloud</h2>
+                <span class="close-modal" onclick="closeSmartMergeModal()" style="color: white;">&times;</span>
+            </div>
+            <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
+                <div id="smartMergeLoading" style="text-align: center; padding: 2rem;">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">🔄</div>
+                    <p>Analyzing cloud data and detecting duplicates...</p>
+                </div>
+                <div id="smartMergeContent" style="display: none;">
+                    <!-- Summary Section -->
+                    <div id="mergeSummary" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem;"></div>
+
+                    <!-- Duplicates Section -->
+                    <div id="cloudDuplicatesSection" style="display: none; margin-bottom: 1.5rem;">
+                        <h3 style="color: #E91E63; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>⚠️</span> Potential Duplicates Detected
+                        </h3>
+                        <div id="cloudDuplicatesList"></div>
+                    </div>
+
+                    <!-- New Records Section -->
+                    <div id="newRecordsSection" style="display: none; margin-bottom: 1.5rem;">
+                        <h3 style="color: #4CAF50; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>➕</span> New Records to Add
+                        </h3>
+                        <div id="newRecordsList"></div>
+                    </div>
+
+                    <!-- Merge Options -->
+                    <div style="background: #E3F2FD; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <h4 style="color: #1565C0; margin-bottom: 0.75rem;">Merge Options</h4>
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="mergeSkipDuplicates" checked style="width: 18px; height: 18px;">
+                                <span>Skip records that appear to be duplicates</span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="mergeUpdateExisting" style="width: 18px; height: 18px;">
+                                <span>Update existing records with newer cloud data (if timestamps available)</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="mergeAddNewOnly" checked style="width: 18px; height: 18px;">
+                                <span>Add new unique records from cloud</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button class="btn" id="executeMergeBtn" onclick="executeSmartMerge()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white; flex: 1;" disabled>
+                        Execute Smart Merge
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeSmartMergeModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Google Drive Processing Overlay -->
     <div class="gdrive-processing-overlay" id="gdriveProcessingOverlay">
         <div class="gdrive-processing-modal">
@@ -6795,6 +6923,12 @@
 
         // Local users storage (for users created by admin)
         let localUsers = JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]');
+
+        // Track selected assets for merge
+        let selectedForMerge = [];
+        // Smart merge cloud data
+        let cloudDataForMerge = null;
+        let mergeAnalysis = null;
 
         // Local storage for 2FA settings (since we can't write to Google Sheets)
         let localUserSettings = JSON.parse(localStorage.getItem('assetDashboardUserSettings') || '{}');
@@ -7459,6 +7593,640 @@
             if (backupCodeInput) backupCodeInput.value = '';
             document.getElementById('password').value = '';
             document.getElementById('loginError').style.display = 'none';
+        }
+
+        // ============================================
+        // MERGE ASSETS FUNCTIONALITY
+        // ============================================
+
+        // Toggle asset selection for merge
+        function toggleAssetSelection(index) {
+            const pos = selectedForMerge.indexOf(index);
+            if (pos > -1) {
+                selectedForMerge.splice(pos, 1);
+            } else {
+                if (selectedForMerge.length < 2) {
+                    selectedForMerge.push(index);
+                } else {
+                    alert('You can only select 2 assets to merge at a time. Please deselect one first.');
+                    const checkbox = document.querySelector(`.merge-checkbox[data-index="${index}"]`);
+                    if (checkbox) checkbox.checked = false;
+                    return;
+                }
+            }
+            updateMergeControls();
+        }
+
+        // Update merge controls visibility and count
+        function updateMergeControls() {
+            const controls = document.getElementById('mergeControls');
+            const countSpan = document.getElementById('selectedCount');
+
+            if (!controls || !countSpan) return;
+
+            if (selectedForMerge.length > 0) {
+                controls.style.display = 'flex';
+                countSpan.textContent = `${selectedForMerge.length} asset${selectedForMerge.length > 1 ? 's' : ''} selected`;
+            } else {
+                controls.style.display = 'none';
+            }
+        }
+
+        // Clear merge selection
+        function clearMergeSelection() {
+            selectedForMerge = [];
+            displayTable();
+        }
+
+        // Close merge modal
+        function closeMergeModal() {
+            document.getElementById('mergeAssetModal').style.display = 'none';
+        }
+
+        // Close duplicates modal
+        function closeDuplicatesModal() {
+            document.getElementById('duplicatesModal').style.display = 'none';
+        }
+
+        // Close smart merge modal
+        function closeSmartMergeModal() {
+            document.getElementById('smartMergeModal').style.display = 'none';
+            cloudDataForMerge = null;
+            mergeAnalysis = null;
+        }
+
+        // Open merge modal with comparison table
+        function openMergeModal() {
+            if (selectedForMerge.length !== 2) {
+                alert('Please select exactly 2 assets to merge.');
+                return;
+            }
+
+            const asset1 = filteredData[selectedForMerge[0]];
+            const asset2 = filteredData[selectedForMerge[1]];
+
+            const fields = [
+                { key: 'assetCode', label: 'Asset Code' },
+                { key: 'dateIn', label: 'Date In' },
+                { key: 'description', label: 'Description' },
+                { key: 'department', label: 'Department' },
+                { key: 'category', label: 'Category' },
+                { key: 'supplier', label: 'Supplier/Donor' },
+                { key: 'source', label: 'Source' },
+                { key: 'serialModel', label: 'Serial/Model' },
+                { key: 'itemType', label: 'Item Type' },
+                { key: 'month', label: 'Month' }
+            ];
+
+            let html = `
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;">
+                    <thead>
+                        <tr style="background: var(--primary-blue); color: white;">
+                            <th style="padding: 0.75rem; border: 1px solid var(--border-color); text-align: left;">Field</th>
+                            <th style="padding: 0.75rem; border: 1px solid var(--border-color); text-align: left;">Asset A</th>
+                            <th style="padding: 0.75rem; border: 1px solid var(--border-color); text-align: left;">Asset B</th>
+                            <th style="padding: 0.75rem; border: 1px solid var(--border-color); text-align: center;">Keep Value From</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            fields.forEach(field => {
+                const val1 = asset1[field.key] || '-';
+                const val2 = asset2[field.key] || '-';
+                const isDifferent = val1 !== val2;
+                const rowStyle = isDifferent ? 'background: #FFF8E1;' : '';
+
+                html += `
+                    <tr style="${rowStyle}">
+                        <td style="padding: 0.5rem; border: 1px solid var(--border-color); font-weight: bold;">${field.label}</td>
+                        <td style="padding: 0.5rem; border: 1px solid var(--border-color);">${escapeHtml(String(val1))}</td>
+                        <td style="padding: 0.5rem; border: 1px solid var(--border-color);">${escapeHtml(String(val2))}</td>
+                        <td style="padding: 0.5rem; border: 1px solid var(--border-color); text-align: center;">
+                            <select id="merge_${field.key}" style="width: 100%; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--border-color);">
+                                <option value="A">A: ${escapeHtml(String(val1))}</option>
+                                <option value="B">B: ${escapeHtml(String(val2))}</option>
+                            </select>
+                        </td>
+                    </tr>`;
+            });
+
+            const combinedQty = (asset1.quantity || 1) + (asset2.quantity || 1);
+            const combinedValue = (asset1.totalPrice || 0) + (asset2.totalPrice || 0);
+
+            html += `
+                    </tbody>
+                </table>
+
+                <div style="background: #E8F5E9; padding: 1rem; border-radius: 0.5rem; border: 1px solid #4CAF50;">
+                    <h4 style="color: #2E7D32; margin-bottom: 0.5rem;">Quantity & Value Summary (Auto-Combined)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <p><strong>Asset A:</strong> Qty: ${asset1.quantity || 1}, Value: JMD ${formatCurrency(asset1.totalPrice || 0)}</p>
+                        <p><strong>Asset B:</strong> Qty: ${asset2.quantity || 1}, Value: JMD ${formatCurrency(asset2.totalPrice || 0)}</p>
+                        <p style="grid-column: 1/-1; font-size: 1.1rem; color: #1B5E20;">
+                            <strong>Combined Total: Qty: ${combinedQty}, Value: JMD ${formatCurrency(combinedValue)}</strong>
+                        </p>
+                    </div>
+                </div>`;
+
+            document.getElementById('mergeComparisonTable').innerHTML = html;
+            document.getElementById('mergeAssetModal').style.display = 'flex';
+        }
+
+        // Execute the merge operation
+        function executeMerge() {
+            if (selectedForMerge.length !== 2) {
+                alert('Invalid selection. Please try again.');
+                return;
+            }
+
+            const idx1 = selectedForMerge[0];
+            const idx2 = selectedForMerge[1];
+            const asset1 = filteredData[idx1];
+            const asset2 = filteredData[idx2];
+
+            const mergedAsset = { ...asset1 };
+
+            const fields = ['assetCode', 'dateIn', 'description', 'department', 'category',
+                           'supplier', 'source', 'serialModel', 'itemType', 'month'];
+
+            fields.forEach(field => {
+                const selectEl = document.getElementById(`merge_${field}`);
+                if (selectEl) {
+                    const selection = selectEl.value;
+                    mergedAsset[field] = selection === 'A' ? asset1[field] : asset2[field];
+                }
+            });
+
+            const dataAction = document.getElementById('mergeDataAction').value;
+
+            if (dataAction === 'combine') {
+                mergedAsset.quantity = (asset1.quantity || 1) + (asset2.quantity || 1);
+                mergedAsset.totalPrice = (asset1.totalPrice || 0) + (asset2.totalPrice || 0);
+                mergedAsset.unitPrice = mergedAsset.totalPrice / mergedAsset.quantity;
+            }
+
+            // Get indices in main storage
+            let assets = loadAssetsFromStorage();
+            const storageIdx1 = assets.findIndex(a => a.id === asset1.id);
+            const storageIdx2 = assets.findIndex(a => a.id === asset2.id);
+
+            // Remove both original assets and add merged one
+            const indicesToRemove = [storageIdx1, storageIdx2].filter(i => i !== -1).sort((a, b) => b - a);
+            indicesToRemove.forEach(idx => assets.splice(idx, 1));
+
+            // Update the id of the merged asset
+            mergedAsset.id = Date.now().toString();
+            assets.push(mergedAsset);
+
+            // Save and refresh
+            saveAssetsToStorage(assets);
+
+            // Add audit trail entry
+            const auditEntry = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                action: 'Merge',
+                assetCode: mergedAsset.assetCode,
+                description: mergedAsset.description,
+                value: mergedAsset.totalPrice,
+                user: currentUser ? currentUser.username : 'Unknown',
+                notes: `Merged assets: ${asset1.assetCode} + ${asset2.assetCode}`
+            };
+            let auditRecords = loadAuditFromStorage();
+            auditRecords.push(auditEntry);
+            saveAuditToStorage(auditRecords);
+
+            selectedForMerge = [];
+            loadData();
+            closeMergeModal();
+
+            alert(`Assets merged successfully!\n\nMerged asset: ${mergedAsset.assetCode}\nQuantity: ${mergedAsset.quantity}\nTotal Value: JMD ${formatCurrency(mergedAsset.totalPrice)}`);
+        }
+
+        // Find potential duplicate assets
+        function findDuplicates() {
+            const duplicates = [];
+            const assets = loadAssetsFromStorage();
+
+            for (let i = 0; i < assets.length; i++) {
+                for (let j = i + 1; j < assets.length; j++) {
+                    const a1 = assets[i];
+                    const a2 = assets[j];
+                    const reasons = [];
+
+                    // Check for same asset code
+                    const code1 = (a1.assetCode || '').toLowerCase().trim();
+                    const code2 = (a2.assetCode || '').toLowerCase().trim();
+                    if (code1 && code2 && code1 === code2) {
+                        reasons.push('Same asset code');
+                    }
+
+                    // Check for same description
+                    const desc1 = (a1.description || '').toLowerCase().trim();
+                    const desc2 = (a2.description || '').toLowerCase().trim();
+                    if (desc1 && desc2 && desc1 === desc2) {
+                        reasons.push('Same description');
+                    }
+
+                    // Check for same serial/model
+                    const serial1 = (a1.serialModel || '').toLowerCase().trim();
+                    const serial2 = (a2.serialModel || '').toLowerCase().trim();
+                    if (serial1 && serial2 && serial1 === serial2) {
+                        reasons.push('Same serial/model');
+                    }
+
+                    // Check for same supplier and description (partial match)
+                    const supplier1 = (a1.supplier || '').toLowerCase().trim();
+                    const supplier2 = (a2.supplier || '').toLowerCase().trim();
+                    if (supplier1 && supplier2 && supplier1 === supplier2 && desc1 && desc2) {
+                        const descSimilar = desc1.includes(desc2) || desc2.includes(desc1);
+                        if (descSimilar && !reasons.includes('Same description')) {
+                            reasons.push('Same supplier with similar description');
+                        }
+                    }
+
+                    if (reasons.length > 0) {
+                        duplicates.push({
+                            index1: i,
+                            index2: j,
+                            asset1: a1,
+                            asset2: a2,
+                            reasons: reasons
+                        });
+                    }
+                }
+            }
+
+            return duplicates;
+        }
+
+        // Find and show duplicates in modal
+        function findAndShowDuplicates() {
+            const duplicates = findDuplicates();
+
+            if (duplicates.length === 0) {
+                alert('No potential duplicates found! All asset records appear to be unique.');
+                return;
+            }
+
+            let html = `<div style="max-height: 400px; overflow-y: auto;">`;
+
+            duplicates.forEach((dup, idx) => {
+                html += `
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #FF9800;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                            <div>
+                                <strong style="color: #E65100;">Potential Duplicate #${idx + 1}</strong>
+                                <span style="background: #FFE0B2; color: #E65100; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                                    ${dup.reasons.join(', ')}
+                                </span>
+                            </div>
+                            <button class="btn" onclick="selectDuplicatesForMerge(${dup.index1}, ${dup.index2})"
+                                    style="background: #9C27B0; color: white; padding: 0.25rem 0.75rem; font-size: 0.85rem;">
+                                Select for Merge
+                            </button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div style="background: var(--bg-card); padding: 0.75rem; border-radius: 0.25rem;">
+                                <p><strong>${escapeHtml(dup.asset1.description || 'N/A')}</strong></p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Code: ${escapeHtml(dup.asset1.assetCode || 'N/A')}</p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Dept: ${escapeHtml(dup.asset1.department || 'N/A')}</p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Value: JMD ${formatCurrency(dup.asset1.totalPrice || 0)}</p>
+                            </div>
+                            <div style="background: var(--bg-card); padding: 0.75rem; border-radius: 0.25rem;">
+                                <p><strong>${escapeHtml(dup.asset2.description || 'N/A')}</strong></p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Code: ${escapeHtml(dup.asset2.assetCode || 'N/A')}</p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Dept: ${escapeHtml(dup.asset2.department || 'N/A')}</p>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Value: JMD ${formatCurrency(dup.asset2.totalPrice || 0)}</p>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            html += `</div>
+                <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    Found ${duplicates.length} potential duplicate${duplicates.length > 1 ? 's' : ''}.
+                    Click "Select for Merge" to select a pair, then close this modal and click "Merge Selected Assets".
+                </p>`;
+
+            document.getElementById('duplicatesListContent').innerHTML = html;
+            document.getElementById('duplicatesModal').style.display = 'flex';
+        }
+
+        // Select duplicates for merge from the duplicates modal
+        function selectDuplicatesForMerge(index1, index2) {
+            // Find the indices in filteredData that correspond to these storage indices
+            const assets = loadAssetsFromStorage();
+            const asset1 = assets[index1];
+            const asset2 = assets[index2];
+
+            const filteredIdx1 = filteredData.findIndex(a => a.id === asset1.id);
+            const filteredIdx2 = filteredData.findIndex(a => a.id === asset2.id);
+
+            if (filteredIdx1 === -1 || filteredIdx2 === -1) {
+                alert('One or both assets are not visible in the current view. Please switch to "All" view and try again.');
+                return;
+            }
+
+            selectedForMerge = [filteredIdx1, filteredIdx2];
+            closeDuplicatesModal();
+            displayTable();
+            document.getElementById('mergeControls').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================
+        // SMART MERGE FROM CLOUD
+        // ============================================
+
+        async function smartMergeFromCloud() {
+            if (!isCloudConnected || !googleAccessToken) {
+                alert('Please connect to Google Drive first');
+                return;
+            }
+
+            const menu = document.getElementById('cloudDropdownMenu');
+            if (menu) menu.classList.remove('show');
+
+            if (!cloudFileId) {
+                await findExistingBackupFile();
+            }
+
+            if (!cloudFileId) {
+                alert('No backup file found in Google Drive. Save your data first to create a backup.');
+                return;
+            }
+
+            document.getElementById('smartMergeLoading').style.display = 'block';
+            document.getElementById('smartMergeContent').style.display = 'none';
+            document.getElementById('executeMergeBtn').disabled = true;
+            document.getElementById('smartMergeModal').style.display = 'flex';
+
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to download backup');
+                }
+
+                const backupData = await response.json();
+
+                if (!backupData.data || !backupData.version) {
+                    throw new Error('Invalid backup file format');
+                }
+
+                cloudDataForMerge = backupData;
+                mergeAnalysis = analyzeCloudDataForMerge(backupData.data);
+                displayMergeAnalysis(mergeAnalysis, backupData);
+
+            } catch (error) {
+                console.error('Error loading cloud data for merge:', error);
+                closeSmartMergeModal();
+
+                if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
+                    alert('Your session has expired. Please reconnect to Google Drive.');
+                    disconnectFromGoogleDrive();
+                } else {
+                    alert(`Failed to load cloud data: ${error.message}`);
+                }
+            }
+        }
+
+        function analyzeCloudDataForMerge(cloudData) {
+            const analysis = {
+                assets: { duplicates: [], newRecords: [], total: 0 }
+            };
+
+            const localAssets = loadAssetsFromStorage();
+
+            if (cloudData.assets) {
+                analysis.assets.total = cloudData.assets.length;
+                cloudData.assets.forEach(cloudAsset => {
+                    const duplicate = findAssetDuplicate(cloudAsset, localAssets);
+                    if (duplicate) {
+                        analysis.assets.duplicates.push({
+                            cloud: cloudAsset,
+                            local: duplicate.asset,
+                            reasons: duplicate.reasons
+                        });
+                    } else {
+                        analysis.assets.newRecords.push(cloudAsset);
+                    }
+                });
+            }
+
+            return analysis;
+        }
+
+        function findAssetDuplicate(cloudAsset, localAssets) {
+            for (const localAsset of localAssets) {
+                const reasons = [];
+
+                // Check ID
+                if (cloudAsset.id && localAsset.id && cloudAsset.id === localAsset.id) {
+                    reasons.push('Same ID');
+                }
+
+                // Check asset code
+                const cloudCode = (cloudAsset.assetCode || '').toLowerCase().trim();
+                const localCode = (localAsset.assetCode || '').toLowerCase().trim();
+                if (cloudCode && localCode && cloudCode === localCode) {
+                    reasons.push('Same asset code');
+                }
+
+                // Check description and supplier
+                const cloudDesc = (cloudAsset.description || '').toLowerCase().trim();
+                const localDesc = (localAsset.description || '').toLowerCase().trim();
+                const cloudSupplier = (cloudAsset.supplier || '').toLowerCase().trim();
+                const localSupplier = (localAsset.supplier || '').toLowerCase().trim();
+                if (cloudDesc && localDesc && cloudDesc === localDesc &&
+                    cloudSupplier && localSupplier && cloudSupplier === localSupplier) {
+                    reasons.push('Same description & supplier');
+                }
+
+                // Check serial/model
+                const cloudSerial = (cloudAsset.serialModel || '').toLowerCase().trim();
+                const localSerial = (localAsset.serialModel || '').toLowerCase().trim();
+                if (cloudSerial && localSerial && cloudSerial === localSerial) {
+                    reasons.push('Same serial/model');
+                }
+
+                if (reasons.length > 0) {
+                    return { asset: localAsset, reasons };
+                }
+            }
+            return null;
+        }
+
+        function displayMergeAnalysis(analysis, backupData) {
+            document.getElementById('smartMergeLoading').style.display = 'none';
+            document.getElementById('smartMergeContent').style.display = 'block';
+            document.getElementById('executeMergeBtn').disabled = false;
+
+            const backupTime = new Date(backupData.timestamp).toLocaleString();
+            const savedBy = backupData.savedBy || 'Unknown';
+            const localAssets = loadAssetsFromStorage();
+
+            let summaryHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div style="text-align: center; padding: 1rem; background: var(--bg-card); border-radius: 0.5rem;">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Cloud Backup</div>
+                        <div style="font-size: 0.9rem; margin-top: 0.25rem;">${backupTime}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">by ${escapeHtml(savedBy)}</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: #E8F5E9; border-radius: 0.5rem;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #4CAF50;">
+                            ${analysis.assets.newRecords.length}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #2E7D32;">New Records</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: #FFF3E0; border-radius: 0.5rem;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #FF9800;">
+                            ${analysis.assets.duplicates.length}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #E65100;">Potential Duplicates</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-card); border-radius: 0.5rem;">
+                    <strong>Cloud contains:</strong> ${analysis.assets.total} assets
+                    <br>
+                    <strong>Local has:</strong> ${localAssets.length} assets
+                </div>`;
+
+            document.getElementById('mergeSummary').innerHTML = summaryHtml;
+
+            const totalDuplicates = analysis.assets.duplicates.length;
+
+            if (totalDuplicates > 0) {
+                document.getElementById('cloudDuplicatesSection').style.display = 'block';
+                let dupHtml = '<div style="max-height: 300px; overflow-y: auto;">';
+
+                analysis.assets.duplicates.forEach((dup, idx) => {
+                    dupHtml += `
+                        <div style="background: #FFF8E1; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #FF9800;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: #E65100;">Asset:</strong> ${escapeHtml(dup.cloud.description || 'N/A')}
+                                    <span style="background: #FFE0B2; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-left: 0.5rem;">
+                                        ${dup.reasons.join(', ')}
+                                    </span>
+                                </div>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem;">
+                                    <input type="checkbox" class="dup-override" data-type="asset" data-idx="${idx}">
+                                    Force add anyway
+                                </label>
+                            </div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                Cloud: ${escapeHtml(dup.cloud.assetCode || 'N/A')}, Value: JMD ${formatCurrency(dup.cloud.totalPrice || 0)} |
+                                Local: ${escapeHtml(dup.local.assetCode || 'N/A')}, Value: JMD ${formatCurrency(dup.local.totalPrice || 0)}
+                            </div>
+                        </div>`;
+                });
+
+                dupHtml += '</div>';
+                document.getElementById('cloudDuplicatesList').innerHTML = dupHtml;
+            } else {
+                document.getElementById('cloudDuplicatesSection').style.display = 'none';
+            }
+
+            const totalNew = analysis.assets.newRecords.length;
+
+            if (totalNew > 0) {
+                document.getElementById('newRecordsSection').style.display = 'block';
+                let newHtml = '<div style="max-height: 200px; overflow-y: auto;">';
+
+                analysis.assets.newRecords.forEach(asset => {
+                    newHtml += `
+                        <div style="background: #E8F5E9; padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
+                            <span><strong>Asset:</strong> ${escapeHtml(asset.description || 'N/A')} (${escapeHtml(asset.department || 'N/A')})</span>
+                            <span style="color: #4CAF50;">JMD ${formatCurrency(asset.totalPrice || 0)}</span>
+                        </div>`;
+                });
+
+                newHtml += '</div>';
+                document.getElementById('newRecordsList').innerHTML = newHtml;
+            } else {
+                document.getElementById('newRecordsSection').style.display = 'none';
+            }
+        }
+
+        function executeSmartMerge() {
+            if (!cloudDataForMerge || !mergeAnalysis) {
+                alert('No data to merge. Please try again.');
+                return;
+            }
+
+            const skipDuplicates = document.getElementById('mergeSkipDuplicates').checked;
+            const addNewOnly = document.getElementById('mergeAddNewOnly').checked;
+
+            let addedAssets = 0;
+            let skippedDuplicates = 0;
+
+            const forceAddAssets = new Set();
+            document.querySelectorAll('.dup-override:checked').forEach(cb => {
+                if (cb.dataset.type === 'asset') forceAddAssets.add(parseInt(cb.dataset.idx));
+            });
+
+            let assets = loadAssetsFromStorage();
+
+            // Add new unique records
+            if (addNewOnly) {
+                mergeAnalysis.assets.newRecords.forEach(asset => {
+                    if (!assets.find(a => a.id === asset.id)) {
+                        const newAsset = { ...asset };
+                        if (!newAsset.id) {
+                            newAsset.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                        }
+                        assets.push(newAsset);
+                        addedAssets++;
+                    }
+                });
+            }
+
+            // Handle duplicates
+            if (!skipDuplicates || forceAddAssets.size > 0) {
+                mergeAnalysis.assets.duplicates.forEach((dup, idx) => {
+                    if (forceAddAssets.has(idx)) {
+                        const newAsset = { ...dup.cloud };
+                        newAsset.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                        assets.push(newAsset);
+                        addedAssets++;
+                    } else if (skipDuplicates) {
+                        skippedDuplicates++;
+                    }
+                });
+            }
+
+            // Save
+            saveAssetsToStorage(assets);
+
+            // Update sync time
+            lastSyncTime = new Date();
+            localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+            updateLastSyncDisplay();
+
+            // Reload data
+            loadData();
+
+            closeSmartMergeModal();
+
+            let resultMsg = 'Smart Merge Complete!\n\n';
+            resultMsg += `Added: ${addedAssets} assets\n`;
+            if (skippedDuplicates > 0) {
+                resultMsg += `Skipped: ${skippedDuplicates} potential duplicates\n`;
+            }
+            resultMsg += `\nYour local data now has: ${assets.length} assets`;
+
+            alert(resultMsg);
+
+            cloudDataForMerge = null;
+            mergeAnalysis = null;
         }
 
         // ============================================
@@ -13702,20 +14470,22 @@
 
         function displayTable() {
             const container = document.getElementById('tableContainer');
-            
+
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="loading">No data to display</div>';
                 document.getElementById('grandTotalDisplay').textContent = 'JMD 0.00';
+                updateMergeControls();
                 return;
             }
-            
+
             const grandTotal = filteredData.reduce((sum, item) => sum + item.totalPrice, 0);
             document.getElementById('grandTotalDisplay').textContent = `JMD ${formatCurrency(grandTotal)}`;
-            
+
             let html = `
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;">Select</th>
                             <th>Asset Code</th>
                             <th>Date In</th>
                             <th>Description</th>
@@ -13739,9 +14509,17 @@
                     : '<span class="item-type-badge furniture">Furniture</span>';
 
                 const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+                const isSelected = selectedForMerge.includes(index);
 
                 html += `
                     <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="merge-checkbox"
+                                   data-index="${index}"
+                                   ${isSelected ? 'checked' : ''}
+                                   onchange="toggleAssetSelection(${index})"
+                                   style="width: 18px; height: 18px; cursor: pointer;">
+                        </td>
                         <td><span class="asset-code">${escapeHtml(item.assetCode)}</span></td>
                         <td>${escapeHtml(item.dateIn)}</td>
                         <td>${escapeHtml(item.description)}</td>
@@ -13759,9 +14537,10 @@
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table>';
             container.innerHTML = html;
+            updateMergeControls();
         }
 
         function performSearch() {
