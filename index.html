@@ -6435,8 +6435,8 @@
                         <label for="importModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
                     </div>
                     <div class="import-option-item">
-                        <input type="checkbox" id="importSkipInvalid" checked>
-                        <label for="importSkipInvalid">Skip rows with missing required fields</label>
+                        <input type="checkbox" id="importAllowMissingFields" onchange="generatePreview()">
+                        <label for="importAllowMissingFields">Allow importing rows with missing required fields (fill with "-Data needed-")</label>
                     </div>
                 </div>
 
@@ -17554,11 +17554,17 @@
                 }
 
                 // Validate required fields
+                const allowMissingFields = document.getElementById('importAllowMissingFields').checked;
                 const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
                 requiredFields.forEach(field => {
                     if (!rowData.parsed[field]) {
-                        rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
-                        rowData.status = 'invalid';
+                        if (allowMissingFields) {
+                            // Fill missing fields with "-Data needed-"
+                            rowData.parsed[field] = '-Data needed-';
+                        } else {
+                            rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
+                            rowData.status = 'invalid';
+                        }
                     }
                 });
 
@@ -17657,7 +17663,6 @@
         // Confirm and execute import
         function confirmImport() {
             const importMode = document.querySelector('input[name="importMode"]:checked').value;
-            const skipInvalid = document.getElementById('importSkipInvalid').checked;
 
             // Filter rows to import
             let rowsToImport = importPreviewData.filter(row => row.status === 'valid');
