@@ -12078,7 +12078,7 @@
                 if (userInfo5 && currentUser) {
                     userInfo5.innerHTML = `
                         <span>👤 ${currentUser.displayName || currentUser.username}</span>
-                        <button class="logout-btn" onclick="logout()">Logout</button>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
                 // Check connection status and try to auto-connect if already have token
@@ -12093,7 +12093,7 @@
                 if (userInfo6 && currentUser) {
                     userInfo6.innerHTML = `
                         <span>👤 ${currentUser.displayName || currentUser.username}</span>
-                        <button class="logout-btn" onclick="logout()">Logout</button>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
                 loadDisposalRecords();
@@ -12105,7 +12105,7 @@
                 if (userInfo7 && currentUser) {
                     userInfo7.innerHTML = `
                         <span>👤 ${currentUser.displayName || currentUser.username}</span>
-                        <button class="logout-btn" onclick="logout()">Logout</button>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
                 loadAssetRegister();
@@ -12117,7 +12117,7 @@
                 if (userInfo8 && currentUser) {
                     userInfo8.innerHTML = `
                         <span>👤 ${currentUser.displayName || currentUser.username}</span>
-                        <button class="logout-btn" onclick="logout()">Logout</button>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
                 initAssetCodeLookup();
