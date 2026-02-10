@@ -19478,10 +19478,10 @@
 
         // Update register statistics
         function updateRegisterStats() {
-            const totalAssets = assetRegisterData.length;
+            const totalAssets = assetRegisterData.reduce((sum, a) => sum + (a.quantity || 1), 0);
             const totalValue = assetRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
-            const purchasedCount = assetRegisterData.filter(a => a.source === 'Purchased').length;
-            const donatedCount = assetRegisterData.filter(a => a.source === 'Donated').length;
+            const purchasedCount = assetRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const donatedCount = assetRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
 
             document.getElementById('registerTotalAssets').textContent = totalAssets.toLocaleString();
             document.getElementById('registerTotalValue').textContent = 'JMD ' + formatCurrency(totalValue);
@@ -19715,12 +19715,12 @@
             const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
 
-            // Calculate totals
-            const totalAssets = filteredRegisterData.length;
+            // Calculate totals (sum quantities to be consistent with dashboard KPIs)
+            const totalAssets = filteredRegisterData.reduce((sum, a) => sum + (a.quantity || 1), 0);
             const totalValue = filteredRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
-            const purchasedCount = filteredRegisterData.filter(a => a.source === 'Purchased').length;
-            const donatedCount = filteredRegisterData.filter(a => a.source === 'Donated').length;
-            const disposedCount = filteredRegisterData.filter(a => disposedAssetCodes.has(a.assetCode)).length;
+            const purchasedCount = filteredRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const donatedCount = filteredRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const disposedCount = filteredRegisterData.filter(a => disposedAssetCodes.has(a.assetCode)).reduce((sum, a) => sum + (a.quantity || 1), 0);
 
             // Generate table rows
             const tableRows = filteredRegisterData.map((asset, index) => {
@@ -19911,7 +19911,7 @@
 
                     <div class="legend">
                         <span class="legend-item"><span class="legend-disposed">■</span> Red bordered = Disposed Asset</span>
-                        <span class="legend-item">Total records shown: ${totalAssets}</span>
+                        <span class="legend-item">Total records: ${filteredRegisterData.length} | Total items (qty): ${totalAssets}</span>
                     </div>
 
                     <table>
