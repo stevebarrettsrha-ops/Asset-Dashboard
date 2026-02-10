@@ -19457,6 +19457,7 @@
         function loadAssetRegister() {
             try {
                 assetRegisterData = loadAssetsFromStorage();
+                sortByDateDescending(assetRegisterData);
                 filteredRegisterData = [...assetRegisterData];
                 registerCurrentPage = 1;
 
@@ -19577,6 +19578,7 @@
                 return matchesSearch && matchesCategory && matchesSource && matchesDepartment;
             });
 
+            sortByDateDescending(filteredRegisterData);
             registerCurrentPage = 1;
             displayAssetRegister();
         }
