@@ -7495,20 +7495,82 @@
             saveLocalUserSettings();
         }
 
+        function parseCredentialsFromRows(data) {
+            const parsed = {};
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if (row[0]) {
+                    parsed[row[0].toString().toLowerCase()] = {
+                        password: row[1] ? row[1].toString() : '',
+                        displayName: row[2] ? row[2].toString() : row[0].toString(),
+                        role: row[3] ? row[3].toString() : 'User',
+                        email: row[4] ? row[4].toString() : '',
+                        canExport: row[5] ? (row[5].toString().toLowerCase() === 'true' || row[5] === true) : false,
+                        canRefresh: row[6] ? (row[6].toString().toLowerCase() === 'true' || row[6] === true) : false
+                    };
+                }
+            }
+            return parsed;
+        }
+
+        function cacheCredentials(data) {
+            try {
+                localStorage.setItem('assetDashboardCachedCredentials', JSON.stringify(data));
+                localStorage.setItem('assetDashboardCachedCredentialsTime', Date.now().toString());
+            } catch (e) {
+                console.warn('Failed to cache credentials:', e);
+            }
+        }
+
+        function loadCachedCredentials() {
+            try {
+                const cached = localStorage.getItem('assetDashboardCachedCredentials');
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (e) {
+                console.warn('Failed to read cached credentials:', e);
+            }
+            return null;
+        }
+
         async function loadCredentials() {
             try {
                 const url = `https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/export?format=xlsx`;
 
+                // Try direct Google Sheets CSV endpoint (works for published sheets without CORS proxy)
+                let response = await fetch(`https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/gviz/tq?tqx=out:csv`).catch(() => null);
+
+                if (response && response.ok) {
+                    try {
+                        const csvText = await response.text();
+                        const workbook = XLSX.read(csvText, { type: 'string' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        credentialsData = parseCredentialsFromRows(data);
+                        cacheCredentials(credentialsData);
+                        console.log('Credentials loaded successfully via direct Google Sheets endpoint');
+                        return true;
+                    } catch (parseErr) {
+                        console.warn('Direct endpoint returned data but parsing failed:', parseErr);
+                    }
+                }
+
                 // Try primary CORS proxy
-                let response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`).catch(() => null);
+                response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`).catch(() => null);
 
                 // Fallback to secondary proxy if first fails
                 if (!response || !response.ok) {
-                    response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+                    response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`).catch(() => null);
                 }
 
-                if (!response.ok) {
-                    throw new Error('Failed to load credentials sheet');
+                // Fallback to third proxy
+                if (!response || !response.ok) {
+                    response = await fetch(`https://cors-anywhere.herokuapp.com/${url}`).catch(() => null);
+                }
+
+                if (!response || !response.ok) {
+                    throw new Error('All credential sources failed');
                 }
 
                 const blob = await response.blob();
@@ -7518,25 +7580,21 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-                credentialsData = {};
-                for (let i = 1; i < data.length; i++) {
-                    const row = data[i];
-                    if (row[0]) {
-                        credentialsData[row[0].toString().toLowerCase()] = {
-                            password: row[1] ? row[1].toString() : '',
-                            displayName: row[2] ? row[2].toString() : row[0].toString(),
-                            role: row[3] ? row[3].toString() : 'User',
-                            email: row[4] ? row[4].toString() : '',
-                            canExport: row[5] ? (row[5].toString().toLowerCase() === 'true' || row[5] === true) : false,
-                            canRefresh: row[6] ? (row[6].toString().toLowerCase() === 'true' || row[6] === true) : false
-                        };
-                    }
-                }
-
-                console.log('Credentials loaded successfully from Google Sheets');
+                credentialsData = parseCredentialsFromRows(data);
+                cacheCredentials(credentialsData);
+                console.log('Credentials loaded successfully from Google Sheets via proxy');
                 return true;
             } catch (error) {
-                console.error('Error loading credentials:', error);
+                console.error('Error loading credentials from network:', error);
+
+                // Fall back to cached credentials
+                const cached = loadCachedCredentials();
+                if (cached && Object.keys(cached).length > 0) {
+                    credentialsData = cached;
+                    console.log('Using cached credentials (loaded from previous session)');
+                    return true;
+                }
+
                 return false;
             }
         }
@@ -7585,7 +7643,7 @@
 
                 const loaded = await loadCredentials();
                 if (!loaded) {
-                    errorDiv.textContent = '❌ Failed to load credentials. Please check your connection or try again.';
+                    errorDiv.textContent = '❌ Failed to load credentials. Please check your internet connection and try again.';
                     errorDiv.style.background = '#fee';
                     errorDiv.style.color = '#c33';
                     errorDiv.style.borderLeft = '4px solid #c33';
