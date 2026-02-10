@@ -11474,7 +11474,7 @@
 
             const exportData = assets.map(asset => ({
                 'Asset Code': asset.assetCode,
-                'Date In': asset.dateIn,
+                'Date In': normalizeDateToDisplay(asset.dateIn),
                 'Quantity': asset.quantity,
                 'Description': asset.description,
                 'Supplier/Donor': asset.supplier,
@@ -13930,7 +13930,7 @@
                     <div class="warranty-item">
                         <div>
                             <strong>${asset.description} - ${asset.assetCode}</strong><br>
-                            <small>Purchase Date: ${asset.dateIn} | Warranty expires: ${warrantyEndDate.toLocaleDateString()}</small><br>
+                            <small>Purchase Date: ${normalizeDateToDisplay(asset.dateIn)} | Warranty expires: ${warrantyEndDate.toLocaleDateString()}</small><br>
                             <small>Department/Location: <strong>${assetLocation}</strong> | Value: JMD ${formatCurrency(asset.totalPrice)}</small><br>
                             <small>${daysRemaining > 0 ? daysRemaining + ' days remaining' : Math.abs(daysRemaining) + ' days expired'}</small>
                             ${adminButton}
@@ -13981,7 +13981,7 @@
                 warrantyData.push([
                     asset.assetCode,
                     asset.description,
-                    asset.dateIn,
+                    normalizeDateToDisplay(asset.dateIn),
                     warrantyEndDate.toLocaleDateString(),
                     status,
                     daysRemaining
@@ -14631,7 +14631,7 @@
                     </div>
                     <div class="asset-info-item">
                         <div class="asset-info-label">Date Acquired</div>
-                        <div class="asset-info-value">${escapeHtml(asset.dateIn)}</div>
+                        <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateIn))}</div>
                     </div>
                     <div class="asset-info-item full-width">
                         <div class="asset-info-label">Total Value</div>
@@ -14721,7 +14721,7 @@
                         </div>
                         <div class="asset-info-item">
                             <div class="asset-info-label">Date Acquired</div>
-                            <div class="asset-info-value">${escapeHtml(asset.dateIn)}</div>
+                            <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateIn))}</div>
                         </div>
                         <div class="asset-info-item">
                             <div class="asset-info-label">Quantity</div>
@@ -14873,7 +14873,7 @@
                                     ${asset.source}
                                 </span>
                             </td>
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.dateIn}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${normalizeDateToDisplay(asset.dateIn)}</td>
                         </tr>
                     `;
                 });
@@ -14929,7 +14929,7 @@
                     asset.totalPrice,
                     asset.department || 'N/A',
                     asset.source,
-                    asset.dateIn
+                    normalizeDateToDisplay(asset.dateIn)
                 ]);
             });
 
@@ -14984,7 +14984,7 @@
                         <td style="text-align: right;">JMD ${formatCurrency(asset.totalPrice)}</td>
                         <td>${escapeHtml(asset.department || 'N/A')}</td>
                         <td>${escapeHtml(asset.source)}</td>
-                        <td>${escapeHtml(asset.dateIn)}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(asset.dateIn))}</td>
                     </tr>
                 `;
             });
@@ -15741,7 +15741,7 @@
                     <tr>
                         <td>${asset.assetCode}</td>
                         <td>${asset.description}</td>
-                        <td>${asset.dateIn}</td>
+                        <td>${normalizeDateToDisplay(asset.dateIn)}</td>
                         <td>${warrantyEndDate.toLocaleDateString()}</td>
                         <td>${status}</td>
                         <td>${daysRemaining > 0 ? daysRemaining + ' days' : Math.abs(daysRemaining) + ' days expired'}</td>
@@ -19627,7 +19627,7 @@
                     return `
                         <tr${disposed ? ' style="background: rgba(231, 76, 60, 0.05);"' : ''}>
                             <td>${assetCodeDisplay}</td>
-                            <td>${escapeHtml(asset.dateIn || 'N/A')}</td>
+                            <td>${escapeHtml(normalizeDateToDisplay(asset.dateIn) || 'N/A')}</td>
                             <td>${escapeHtml(asset.description || 'N/A')}</td>
                             <td>${escapeHtml(asset.department || 'N/A')}</td>
                             <td>${categoryBadge}</td>
@@ -19684,7 +19684,7 @@
                            'Supplier/Donor', 'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month'];
             const rows = filteredRegisterData.map(asset => [
                 asset.assetCode,
-                asset.dateIn || '',
+                normalizeDateToDisplay(asset.dateIn) || '',
                 asset.description || '',
                 asset.department || '',
                 asset.category || '',
@@ -19729,7 +19729,7 @@
                     <tr${isDisposed ? ' class="disposed-row"' : ''}>
                         <td>${index + 1}</td>
                         <td class="${isDisposed ? 'disposed-asset-code' : ''}">${asset.assetCode}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
-                        <td>${asset.dateIn || 'N/A'}</td>
+                        <td>${normalizeDateToDisplay(asset.dateIn) || 'N/A'}</td>
                         <td>${asset.description || 'N/A'}</td>
                         <td>${asset.department || 'N/A'}</td>
                         <td>${asset.category || 'N/A'}</td>
