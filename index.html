@@ -4981,6 +4981,155 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
+
+        /* Add Asset Code Modal */
+        .asset-code-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .asset-code-modal-content {
+            background: var(--bg-card);
+            border-radius: 15px;
+            max-width: 550px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .asset-code-modal-header {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .asset-code-modal-header h2 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+
+        .asset-code-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 5px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .asset-code-modal-close:hover {
+            opacity: 1;
+        }
+
+        .asset-code-modal-body {
+            padding: 25px;
+        }
+
+        .asset-code-form-group {
+            margin-bottom: 18px;
+        }
+
+        .asset-code-form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .asset-code-form-group input,
+        .asset-code-form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95em;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+        .asset-code-form-group input:focus,
+        .asset-code-form-group select:focus {
+            outline: none;
+            border-color: #16a085;
+            box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.15);
+        }
+
+        .asset-code-form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .asset-code-form-actions button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .asset-code-btn-save {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+            color: white;
+        }
+
+        .asset-code-btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(22, 160, 133, 0.4);
+        }
+
+        .asset-code-btn-cancel {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color) !important;
+        }
+
+        .asset-code-btn-cancel:hover {
+            background: var(--border-color);
+        }
+
+        .asset-code-btn-delete {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            margin-right: auto;
+        }
+
+        .asset-code-btn-delete:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+
+        .custom-code-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            color: white;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -6937,6 +7086,7 @@
                     <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
                     <button class="btn monthly-view-btn" onclick="showPage(7)">📒 Asset Register</button>
                     <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                    <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()" style="display:none;">➕ Add Asset Code</button>
                 </div>
             </div>
         </div>
@@ -7031,6 +7181,41 @@
 
         <div class="footer">
             <p>Fixed Asset Management System © <span id="copyrightYear8"></span> • May Pen Hospital</p>
+        </div>
+    </div>
+
+    <!-- Add Asset Code Modal (Admin Only) -->
+    <div class="asset-code-modal" id="addAssetCodeModal">
+        <div class="asset-code-modal-content">
+            <div class="asset-code-modal-header">
+                <h2 id="assetCodeModalTitle">➕ Add New Asset Code</h2>
+                <button class="asset-code-modal-close" onclick="closeAddAssetCodeModal()">&times;</button>
+            </div>
+            <div class="asset-code-modal-body">
+                <form id="addAssetCodeForm" onsubmit="saveNewAssetCode(event)">
+                    <div class="asset-code-form-group">
+                        <label>Code List Year *</label>
+                        <select id="newAssetCodeYear" required>
+                            <option value="">-- Select Year --</option>
+                            <option value="1998">1998</option>
+                            <option value="1997">1997</option>
+                        </select>
+                    </div>
+                    <div class="asset-code-form-group">
+                        <label>Asset Code Number *</label>
+                        <input type="text" id="newAssetCodeNumber" placeholder="e.g., 1512" required>
+                    </div>
+                    <div class="asset-code-form-group">
+                        <label>Asset Description *</label>
+                        <input type="text" id="newAssetCodeDescription" placeholder="e.g., Monitor, Vital Signs" required>
+                    </div>
+                    <div class="asset-code-form-actions">
+                        <button type="button" class="asset-code-btn-delete" id="deleteAssetCodeBtn" onclick="deleteCustomAssetCode()" style="display:none;">🗑️ Delete</button>
+                        <button type="button" class="asset-code-btn-cancel" onclick="closeAddAssetCodeModal()">Cancel</button>
+                        <button type="submit" class="asset-code-btn-save" id="saveAssetCodeBtn">Save Asset Code</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -12778,25 +12963,51 @@
             {code: "399", desc: "Wringer, Mop"}
         ];
 
+        // Custom asset codes added by admin, persisted in localStorage
+        let customAssetCodes = JSON.parse(localStorage.getItem('assetDashboardCustomCodes') || '[]');
+        let editingCustomCodeId = null;
+
+        function getAssetCodes(year) {
+            const base = year === '1998' ? ASSET_CODES_1998 : ASSET_CODES_1997;
+            const custom = customAssetCodes.filter(c => c.year === year);
+            return [...base.map(item => ({...item, custom: false})), ...custom.map(item => ({code: item.code, desc: item.desc, custom: true, id: item.id}))];
+        }
+
+        function saveCustomAssetCodes() {
+            localStorage.setItem('assetDashboardCustomCodes', JSON.stringify(customAssetCodes));
+        }
+
+        function isAssetCodeAdmin() {
+            return currentUser && (currentUser.role === 'Administrator' || currentUser.role === 'Admin' || currentUser.isAdmin);
+        }
+
         function initAssetCodeLookup() {
             populateAssetCodeDropdown('1998');
             populateAssetCodeDropdown('1997');
             populateAssetCodeTable();
             updateAssetCodeStats();
+
+            // Show/hide admin button
+            const addBtn = document.getElementById('addAssetCodeBtn');
+            if (addBtn) {
+                addBtn.style.display = isAssetCodeAdmin() ? 'inline-block' : 'none';
+            }
         }
 
         function populateAssetCodeDropdown(year) {
             const select = document.getElementById('assetCode' + year + 'Select');
-            const data = year === '1998' ? ASSET_CODES_1998 : ASSET_CODES_1997;
+            const data = getAssetCodes(year);
             const sorted = [...data].sort((a, b) => a.desc.localeCompare(b.desc));
 
             select.innerHTML = '<option value="">-- Select an Asset Code (' + year + ') --</option>';
             sorted.forEach((item, idx) => {
                 const option = document.createElement('option');
                 option.value = idx;
-                option.textContent = item.code + ' - ' + item.desc;
+                option.textContent = item.code + ' - ' + item.desc + (item.custom ? ' [Custom]' : '');
                 option.dataset.code = item.code;
                 option.dataset.desc = item.desc;
+                option.dataset.custom = item.custom ? 'true' : 'false';
+                option.dataset.customId = item.id || '';
                 select.appendChild(option);
             });
         }
@@ -12804,7 +13015,7 @@
         function filterAssetCodeDropdown(year) {
             const searchVal = document.getElementById('assetCode' + year + 'Search').value.toLowerCase();
             const select = document.getElementById('assetCode' + year + 'Select');
-            const data = year === '1998' ? ASSET_CODES_1998 : ASSET_CODES_1997;
+            const data = getAssetCodes(year);
             const sorted = [...data].sort((a, b) => a.desc.localeCompare(b.desc));
             const filtered = sorted.filter(item =>
                 item.code.toLowerCase().includes(searchVal) ||
@@ -12815,9 +13026,11 @@
             filtered.forEach((item, idx) => {
                 const option = document.createElement('option');
                 option.value = idx;
-                option.textContent = item.code + ' - ' + item.desc;
+                option.textContent = item.code + ' - ' + item.desc + (item.custom ? ' [Custom]' : '');
                 option.dataset.code = item.code;
                 option.dataset.desc = item.desc;
+                option.dataset.custom = item.custom ? 'true' : 'false';
+                option.dataset.customId = item.id || '';
                 select.appendChild(option);
             });
         }
@@ -12834,21 +13047,24 @@
 
             document.getElementById('detailCodeNumber').textContent = selected.dataset.code;
             document.getElementById('detailDescription').textContent = selected.dataset.desc;
-            document.getElementById('detailCodeYear').textContent = year;
+            document.getElementById('detailCodeYear').textContent = year + (selected.dataset.custom === 'true' ? ' (Custom)' : '');
             document.getElementById('assetCodeDetailTitle').textContent = 'Asset Code ' + year + ' - Selected Item';
             card.classList.add('visible');
         }
 
         function populateAssetCodeTable() {
             const tbody = document.getElementById('assetCodeTableBody');
-            const all1998 = ASSET_CODES_1998.map(item => ({...item, year: '1998'}));
-            const all1997 = ASSET_CODES_1997.map(item => ({...item, year: '1997'}));
+            const all1998 = getAssetCodes('1998').map(item => ({...item, year: '1998'}));
+            const all1997 = getAssetCodes('1997').map(item => ({...item, year: '1997'}));
             const allCodes = [...all1998, ...all1997].sort((a, b) => a.desc.localeCompare(b.desc));
+            const admin = isAssetCodeAdmin();
 
             tbody.innerHTML = '';
             allCodes.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = '<td><strong>' + item.code + '</strong></td><td>' + item.desc + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
+                const customBadge = item.custom ? '<span class="custom-code-badge">Custom</span>' : '';
+                const editBtn = (admin && item.custom) ? ' <button onclick="editCustomAssetCode(\'' + item.id + '\')" style="background:none;border:none;cursor:pointer;font-size:0.9em;" title="Edit">✏️</button>' : '';
+                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + customBadge + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
                 tbody.appendChild(tr);
             });
         }
@@ -12857,9 +13073,10 @@
             const searchVal = document.getElementById('assetCodeTableSearch').value.toLowerCase();
             const yearFilter = document.getElementById('assetCodeTableYearFilter').value;
             const tbody = document.getElementById('assetCodeTableBody');
+            const admin = isAssetCodeAdmin();
 
-            const all1998 = ASSET_CODES_1998.map(item => ({...item, year: '1998'}));
-            const all1997 = ASSET_CODES_1997.map(item => ({...item, year: '1997'}));
+            const all1998 = getAssetCodes('1998').map(item => ({...item, year: '1998'}));
+            const all1997 = getAssetCodes('1997').map(item => ({...item, year: '1997'}));
             let allCodes = [...all1998, ...all1997].sort((a, b) => a.desc.localeCompare(b.desc));
 
             if (yearFilter) {
@@ -12875,15 +13092,145 @@
             tbody.innerHTML = '';
             allCodes.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = '<td><strong>' + item.code + '</strong></td><td>' + item.desc + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
+                const customBadge = item.custom ? '<span class="custom-code-badge">Custom</span>' : '';
+                const editBtn = (admin && item.custom) ? ' <button onclick="editCustomAssetCode(\'' + item.id + '\')" style="background:none;border:none;cursor:pointer;font-size:0.9em;" title="Edit">✏️</button>' : '';
+                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + customBadge + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
                 tbody.appendChild(tr);
             });
         }
 
         function updateAssetCodeStats() {
-            document.getElementById('assetCode1998Count').textContent = ASSET_CODES_1998.length;
-            document.getElementById('assetCode1997Count').textContent = ASSET_CODES_1997.length;
-            document.getElementById('assetCodeTotalCount').textContent = ASSET_CODES_1998.length + ASSET_CODES_1997.length;
+            const count1998 = getAssetCodes('1998').length;
+            const count1997 = getAssetCodes('1997').length;
+            document.getElementById('assetCode1998Count').textContent = count1998;
+            document.getElementById('assetCode1997Count').textContent = count1997;
+            document.getElementById('assetCodeTotalCount').textContent = count1998 + count1997;
+        }
+
+        // Admin: Open modal to add a new asset code
+        function openAddAssetCodeModal(existingRecord) {
+            if (!isAssetCodeAdmin()) {
+                alert('Only administrators can add asset codes.');
+                return;
+            }
+
+            const modal = document.getElementById('addAssetCodeModal');
+            const form = document.getElementById('addAssetCodeForm');
+            const title = document.getElementById('assetCodeModalTitle');
+            const deleteBtn = document.getElementById('deleteAssetCodeBtn');
+            const saveBtn = document.getElementById('saveAssetCodeBtn');
+
+            form.reset();
+
+            if (existingRecord) {
+                editingCustomCodeId = existingRecord.id;
+                title.textContent = '✏️ Edit Asset Code';
+                saveBtn.textContent = 'Update Asset Code';
+                deleteBtn.style.display = 'inline-block';
+                document.getElementById('newAssetCodeYear').value = existingRecord.year;
+                document.getElementById('newAssetCodeNumber').value = existingRecord.code;
+                document.getElementById('newAssetCodeDescription').value = existingRecord.desc;
+            } else {
+                editingCustomCodeId = null;
+                title.textContent = '➕ Add New Asset Code';
+                saveBtn.textContent = 'Save Asset Code';
+                deleteBtn.style.display = 'none';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeAddAssetCodeModal() {
+            document.getElementById('addAssetCodeModal').style.display = 'none';
+            editingCustomCodeId = null;
+        }
+
+        function saveNewAssetCode(event) {
+            event.preventDefault();
+
+            if (!isAssetCodeAdmin()) {
+                alert('Only administrators can add asset codes.');
+                return;
+            }
+
+            const year = document.getElementById('newAssetCodeYear').value;
+            const code = document.getElementById('newAssetCodeNumber').value.trim();
+            const desc = document.getElementById('newAssetCodeDescription').value.trim();
+
+            if (!year || !code || !desc) {
+                alert('Please fill in all fields.');
+                return;
+            }
+
+            if (editingCustomCodeId) {
+                // Update existing custom code
+                const idx = customAssetCodes.findIndex(c => c.id === editingCustomCodeId);
+                if (idx !== -1) {
+                    customAssetCodes[idx].year = year;
+                    customAssetCodes[idx].code = code;
+                    customAssetCodes[idx].desc = desc;
+                    customAssetCodes[idx].updatedAt = new Date().toISOString();
+                    customAssetCodes[idx].updatedBy = currentUser ? currentUser.username : 'Unknown';
+                }
+                saveCustomAssetCodes();
+                if (typeof addAuditEntry === 'function') {
+                    addAuditEntry(code, 'Asset Code Updated', 'Year: ' + year + ', Desc: ' + desc, currentUser ? currentUser.username : 'Unknown');
+                }
+                alert('Asset code updated successfully!');
+            } else {
+                // Add new custom code
+                const newEntry = {
+                    id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    year: year,
+                    code: code,
+                    desc: desc,
+                    custom: true,
+                    createdBy: currentUser ? currentUser.username : 'Unknown',
+                    createdAt: new Date().toISOString()
+                };
+                customAssetCodes.push(newEntry);
+                saveCustomAssetCodes();
+                if (typeof addAuditEntry === 'function') {
+                    addAuditEntry(code, 'Asset Code Added', 'Year: ' + year + ', Desc: ' + desc, currentUser ? currentUser.username : 'Unknown');
+                }
+                alert('New asset code added successfully!');
+            }
+
+            closeAddAssetCodeModal();
+            initAssetCodeLookup();
+        }
+
+        function editCustomAssetCode(id) {
+            if (!isAssetCodeAdmin()) {
+                alert('Only administrators can edit asset codes.');
+                return;
+            }
+            const record = customAssetCodes.find(c => c.id === id);
+            if (record) {
+                openAddAssetCodeModal(record);
+            }
+        }
+
+        function deleteCustomAssetCode() {
+            if (!editingCustomCodeId) return;
+            if (!isAssetCodeAdmin()) {
+                alert('Only administrators can delete asset codes.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this custom asset code?')) return;
+
+            const record = customAssetCodes.find(c => c.id === editingCustomCodeId);
+            customAssetCodes = customAssetCodes.filter(c => c.id !== editingCustomCodeId);
+            saveCustomAssetCodes();
+
+            if (record && typeof addAuditEntry === 'function') {
+                addAuditEntry(record.code, 'Asset Code Deleted', 'Year: ' + record.year + ', Desc: ' + record.desc, currentUser ? currentUser.username : 'Unknown');
+            }
+
+            closeAddAssetCodeModal();
+            initAssetCodeLookup();
+            alert('Custom asset code deleted.');
         }
 
         // ============================================
