@@ -11233,15 +11233,34 @@
 
         function formatDateForDisplay(dateInput) {
             // Convert "YYYY-MM-DD" to "DD-MMM-YYYY"
+            // Uses string parsing to avoid timezone-related off-by-one bugs
             if (!dateInput) return '';
             try {
-                const date = new Date(dateInput);
-                const day = date.getDate().toString().padStart(2, '0');
+                const trimmed = String(dateInput).trim();
                 const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                                    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-                const month = monthNames[date.getMonth()];
-                const year = date.getFullYear();
-                return `${day}-${month}-${year}`;
+
+                // Handle YYYY-MM-DD format directly via string parsing (no Date object)
+                const isoParts = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                if (isoParts) {
+                    const year = isoParts[1];
+                    const m = parseInt(isoParts[2]);
+                    const day = isoParts[3].padStart(2, '0');
+                    if (m >= 1 && m <= 12) {
+                        return `${day}-${monthNames[m - 1]}-${year}`;
+                    }
+                }
+
+                // Fallback for other formats: parse as local time to avoid UTC shift
+                const date = new Date(trimmed + 'T00:00:00');
+                if (!isNaN(date.getTime())) {
+                    const day = date.getDate().toString().padStart(2, '0');
+                    const month = monthNames[date.getMonth()];
+                    const year = date.getFullYear();
+                    return `${day}-${month}-${year}`;
+                }
+
+                return dateInput;
             } catch (e) {
                 console.error('Error formatting date for display:', e);
                 return dateInput;
@@ -13892,15 +13911,15 @@
                 let purchaseDate, warrantyEndDate;
 
                 if (override) {
-                    purchaseDate = new Date(override.purchaseDate);
+                    purchaseDate = new Date(override.purchaseDate + 'T00:00:00');
                     warrantyEndDate = new Date(purchaseDate);
                     warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + override.warrantyYears);
                 } else {
-                    purchaseDate = new Date(asset.dateIn);
+                    purchaseDate = new Date(formatDateForInput(asset.dateIn) + 'T00:00:00');
                     warrantyEndDate = new Date(purchaseDate);
                     warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
                 }
-                
+
                 const today = new Date();
                 const daysRemaining = Math.ceil((warrantyEndDate - today) / (1000 * 60 * 60 * 24));
                 
@@ -13966,11 +13985,11 @@
                 let purchaseDate, warrantyEndDate;
 
                 if (override) {
-                    purchaseDate = new Date(override.purchaseDate);
+                    purchaseDate = new Date(override.purchaseDate + 'T00:00:00');
                     warrantyEndDate = new Date(purchaseDate);
                     warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + override.warrantyYears);
                 } else {
-                    purchaseDate = new Date(asset.dateIn);
+                    purchaseDate = new Date(formatDateForInput(asset.dateIn) + 'T00:00:00');
                     warrantyEndDate = new Date(purchaseDate);
                     warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
                 }
@@ -14016,10 +14035,10 @@
                 document.getElementById('warrantyPurchaseDate').value = override.purchaseDate;
                 document.getElementById('warrantyYears').value = override.warrantyYears;
             } else {
-                // Use original purchase date
-                const dateIn = new Date(asset.dateIn);
-                if (!isNaN(dateIn.getTime())) {
-                    document.getElementById('warrantyPurchaseDate').value = dateIn.toISOString().split('T')[0];
+                // Use original purchase date (use string parsing to avoid timezone shift)
+                const dateInputVal = formatDateForInput(asset.dateIn);
+                if (dateInputVal) {
+                    document.getElementById('warrantyPurchaseDate').value = dateInputVal;
                 }
                 document.getElementById('warrantyYears').value = 2;
             }
@@ -15270,16 +15289,14 @@
                 auditRecords = auditRecords.filter(record => record.action === actionFilter);
             }
 
-            // Filter by date range
+            // Filter by date range (append T00:00:00 to parse as local time, not UTC)
             if (dateFrom) {
-                const fromDate = new Date(dateFrom);
-                fromDate.setHours(0, 0, 0, 0);
+                const fromDate = new Date(dateFrom + 'T00:00:00');
                 auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
             }
 
             if (dateTo) {
-                const toDate = new Date(dateTo);
-                toDate.setHours(23, 59, 59, 999);
+                const toDate = new Date(dateTo + 'T23:59:59.999');
                 auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
             }
 
@@ -15423,14 +15440,12 @@
             const dateTo = document.getElementById('auditDateTo')?.value || '';
 
             if (dateFrom) {
-                const fromDate = new Date(dateFrom);
-                fromDate.setHours(0, 0, 0, 0);
+                const fromDate = new Date(dateFrom + 'T00:00:00');
                 auditRecords = auditRecords.filter(record => new Date(record.timestamp) >= fromDate);
             }
 
             if (dateTo) {
-                const toDate = new Date(dateTo);
-                toDate.setHours(23, 59, 59, 999);
+                const toDate = new Date(dateTo + 'T23:59:59.999');
                 auditRecords = auditRecords.filter(record => new Date(record.timestamp) <= toDate);
             }
 
@@ -15721,10 +15736,10 @@
             
             let tableRows = '';
             purchasedAssets.forEach(asset => {
-                const purchaseDate = new Date(asset.dateIn);
+                const purchaseDate = new Date(formatDateForInput(asset.dateIn) + 'T00:00:00');
                 const warrantyEndDate = new Date(purchaseDate);
                 warrantyEndDate.setFullYear(warrantyEndDate.getFullYear() + 2);
-                
+
                 const today = new Date();
                 const daysRemaining = Math.ceil((warrantyEndDate - today) / (1000 * 60 * 60 * 24));
                 
@@ -17286,10 +17301,11 @@
             const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                                'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
+            // Use UTC getters to avoid timezone-related off-by-one bugs
             function formatAsDDMmmYYYY(date) {
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = monthNames[date.getMonth()];
-                const year = date.getFullYear();
+                const day = String(date.getUTCDate()).padStart(2, '0');
+                const month = monthNames[date.getUTCMonth()];
+                const year = date.getUTCFullYear();
                 return `${day}-${month}-${year}`;
             }
 
@@ -18517,10 +18533,11 @@
             const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                                'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
+            // Use UTC getters to avoid timezone-related off-by-one bugs
             function formatDate(date) {
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = monthNames[date.getMonth()];
-                const year = date.getFullYear();
+                const day = date.getUTCDate().toString().padStart(2, '0');
+                const month = monthNames[date.getUTCMonth()];
+                const year = date.getUTCFullYear();
                 return `${day}-${month}-${year}`;
             }
 
@@ -18537,6 +18554,16 @@
 
             // If it's a string, try to parse it
             const dateStr = String(value).trim();
+
+            // Handle YYYY-MM-DD directly to avoid timezone issues
+            const isoParts = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoParts) {
+                const m = parseInt(isoParts[2]);
+                if (m >= 1 && m <= 12) {
+                    return `${isoParts[3].padStart(2, '0')}-${monthNames[m - 1]}-${isoParts[1]}`;
+                }
+            }
+
             const parsed = new Date(dateStr);
             if (!isNaN(parsed.getTime())) {
                 return formatDate(parsed);
@@ -18694,7 +18721,23 @@
         function getMonthFromDate(dateStr) {
             if (!dateStr) return '';
             const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            const date = new Date(dateStr);
+            const trimmed = String(dateStr).trim();
+
+            // Handle YYYY-MM-DD format directly to avoid timezone bugs
+            const isoParts = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoParts) {
+                const m = parseInt(isoParts[2]);
+                if (m >= 1 && m <= 12) return months[m - 1];
+            }
+
+            // Handle DD-MMM-YYYY format directly
+            const dmmyParts = trimmed.match(/^\d{1,2}-([A-Za-z]{3})-\d{4}$/);
+            if (dmmyParts) {
+                return dmmyParts[1].toUpperCase();
+            }
+
+            // Fallback: parse as local time
+            const date = new Date(trimmed + 'T00:00:00');
             return isNaN(date.getTime()) ? '' : months[date.getMonth()];
         }
 
@@ -18977,8 +19020,9 @@
                 document.getElementById('disposalAssetSearch').style.display = 'block';
                 document.getElementById('disposalAssetSearch').parentElement.style.display = 'block';
 
-                // Set default date to today
-                document.getElementById('disposalDate').value = new Date().toISOString().split('T')[0];
+                // Set default date to today (use local date to avoid timezone offset)
+                const today = new Date();
+                document.getElementById('disposalDate').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             }
 
             modal.style.display = 'flex';
