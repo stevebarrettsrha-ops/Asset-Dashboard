@@ -4782,7 +4782,7 @@
 
         .asset-code-dropdown-group {
             flex: 1;
-            min-width: 300px;
+            min-width: 280px;
         }
 
         .asset-code-dropdown-group label {
@@ -7102,6 +7102,10 @@
                     <div class="asset-code-stat-label">Asset Codes 1997</div>
                     <div class="asset-code-stat-value" id="assetCode1997Count">0</div>
                 </div>
+                <div class="asset-code-stat-card" style="border-top-color: #8e44ad;">
+                    <div class="asset-code-stat-label">New Asset Codes</div>
+                    <div class="asset-code-stat-value" id="assetCodeNewCount">0</div>
+                </div>
                 <div class="asset-code-stat-card blue">
                     <div class="asset-code-stat-label">Total Asset Codes</div>
                     <div class="asset-code-stat-value" id="assetCodeTotalCount">0</div>
@@ -7128,6 +7132,15 @@
                         <input type="text" class="asset-code-search-box" id="assetCode1997Search" placeholder="Type to search Asset Code 1997..." oninput="filterAssetCodeDropdown('1997')">
                         <select class="asset-code-select" id="assetCode1997Select" onchange="showAssetCodeDetail('1997')" size="12">
                             <option value="">-- Select an Asset Code (1997) --</option>
+                        </select>
+                    </div>
+
+                    <!-- Dropdown 3: New Asset Codes -->
+                    <div class="asset-code-dropdown-group">
+                        <label>New Asset Codes <span class="year-badge" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">New</span></label>
+                        <input type="text" class="asset-code-search-box" id="assetCodeNewSearch" placeholder="Type to search New Asset Codes..." oninput="filterAssetCodeDropdown('new')">
+                        <select class="asset-code-select" id="assetCodeNewSelect" onchange="showAssetCodeDetail('new')" size="12">
+                            <option value="">-- Select a New Asset Code --</option>
                         </select>
                     </div>
                 </div>
@@ -7161,6 +7174,7 @@
                         <option value="">All Years</option>
                         <option value="1998">1998 Codes Only</option>
                         <option value="1997">1997 Codes Only</option>
+                        <option value="new">New Codes Only</option>
                     </select>
                 </div>
                 <div class="asset-code-table-wrapper" style="max-height: 500px; overflow-y: auto;">
@@ -7194,11 +7208,12 @@
             <div class="asset-code-modal-body">
                 <form id="addAssetCodeForm" onsubmit="saveNewAssetCode(event)">
                     <div class="asset-code-form-group">
-                        <label>Code List Year *</label>
+                        <label>Code List *</label>
                         <select id="newAssetCodeYear" required>
-                            <option value="">-- Select Year --</option>
-                            <option value="1998">1998</option>
-                            <option value="1997">1997</option>
+                            <option value="">-- Select List --</option>
+                            <option value="1998">Asset Code 1998</option>
+                            <option value="1997">Asset Code 1997</option>
+                            <option value="new">New Asset Codes</option>
                         </select>
                     </div>
                     <div class="asset-code-form-group">
@@ -12968,6 +12983,11 @@
         let editingCustomCodeId = null;
 
         function getAssetCodes(year) {
+            if (year === 'new') {
+                // New codes list: only custom codes assigned to the "new" list
+                const custom = customAssetCodes.filter(c => c.year === 'new');
+                return custom.map(item => ({code: item.code, desc: item.desc, custom: true, id: item.id}));
+            }
             const base = year === '1998' ? ASSET_CODES_1998 : ASSET_CODES_1997;
             const custom = customAssetCodes.filter(c => c.year === year);
             return [...base.map(item => ({...item, custom: false})), ...custom.map(item => ({code: item.code, desc: item.desc, custom: true, id: item.id}))];
@@ -12984,6 +13004,7 @@
         function initAssetCodeLookup() {
             populateAssetCodeDropdown('1998');
             populateAssetCodeDropdown('1997');
+            populateAssetCodeDropdown('new');
             populateAssetCodeTable();
             updateAssetCodeStats();
 
@@ -12998,12 +13019,13 @@
             const select = document.getElementById('assetCode' + year + 'Select');
             const data = getAssetCodes(year);
             const sorted = [...data].sort((a, b) => a.desc.localeCompare(b.desc));
+            const label = year === 'new' ? 'New' : year;
 
-            select.innerHTML = '<option value="">-- Select an Asset Code (' + year + ') --</option>';
+            select.innerHTML = '<option value="">-- Select an Asset Code (' + label + ') --</option>';
             sorted.forEach((item, idx) => {
                 const option = document.createElement('option');
                 option.value = idx;
-                option.textContent = item.code + ' - ' + item.desc + (item.custom ? ' [Custom]' : '');
+                option.textContent = item.code + ' - ' + item.desc;
                 option.dataset.code = item.code;
                 option.dataset.desc = item.desc;
                 option.dataset.custom = item.custom ? 'true' : 'false';
@@ -13021,12 +13043,13 @@
                 item.code.toLowerCase().includes(searchVal) ||
                 item.desc.toLowerCase().includes(searchVal)
             );
+            const label = year === 'new' ? 'New' : year;
 
-            select.innerHTML = '<option value="">-- Select an Asset Code (' + year + ') --</option>';
+            select.innerHTML = '<option value="">-- Select an Asset Code (' + label + ') --</option>';
             filtered.forEach((item, idx) => {
                 const option = document.createElement('option');
                 option.value = idx;
-                option.textContent = item.code + ' - ' + item.desc + (item.custom ? ' [Custom]' : '');
+                option.textContent = item.code + ' - ' + item.desc;
                 option.dataset.code = item.code;
                 option.dataset.desc = item.desc;
                 option.dataset.custom = item.custom ? 'true' : 'false';
@@ -13045,26 +13068,35 @@
                 return;
             }
 
+            const yearLabel = year === 'new' ? 'New' : year;
             document.getElementById('detailCodeNumber').textContent = selected.dataset.code;
             document.getElementById('detailDescription').textContent = selected.dataset.desc;
-            document.getElementById('detailCodeYear').textContent = year + (selected.dataset.custom === 'true' ? ' (Custom)' : '');
-            document.getElementById('assetCodeDetailTitle').textContent = 'Asset Code ' + year + ' - Selected Item';
+            document.getElementById('detailCodeYear').textContent = yearLabel;
+            document.getElementById('assetCodeDetailTitle').textContent = 'Asset Code ' + yearLabel + ' - Selected Item';
             card.classList.add('visible');
+        }
+
+        function getYearBadgeStyle(year) {
+            return year === 'new' ? 'background: linear-gradient(135deg, #8e44ad, #9b59b6);' : '';
+        }
+
+        function getYearLabel(year) {
+            return year === 'new' ? 'New' : year;
         }
 
         function populateAssetCodeTable() {
             const tbody = document.getElementById('assetCodeTableBody');
             const all1998 = getAssetCodes('1998').map(item => ({...item, year: '1998'}));
             const all1997 = getAssetCodes('1997').map(item => ({...item, year: '1997'}));
-            const allCodes = [...all1998, ...all1997].sort((a, b) => a.desc.localeCompare(b.desc));
+            const allNew = getAssetCodes('new').map(item => ({...item, year: 'new'}));
+            const allCodes = [...all1998, ...all1997, ...allNew].sort((a, b) => a.desc.localeCompare(b.desc));
             const admin = isAssetCodeAdmin();
 
             tbody.innerHTML = '';
             allCodes.forEach(item => {
                 const tr = document.createElement('tr');
-                const customBadge = item.custom ? '<span class="custom-code-badge">Custom</span>' : '';
                 const editBtn = (admin && item.custom) ? ' <button onclick="editCustomAssetCode(\'' + item.id + '\')" style="background:none;border:none;cursor:pointer;font-size:0.9em;" title="Edit">✏️</button>' : '';
-                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + customBadge + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
+                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + '</td><td><span class="year-badge" style="font-size:0.85em;' + getYearBadgeStyle(item.year) + '">' + getYearLabel(item.year) + '</span></td>';
                 tbody.appendChild(tr);
             });
         }
@@ -13077,7 +13109,8 @@
 
             const all1998 = getAssetCodes('1998').map(item => ({...item, year: '1998'}));
             const all1997 = getAssetCodes('1997').map(item => ({...item, year: '1997'}));
-            let allCodes = [...all1998, ...all1997].sort((a, b) => a.desc.localeCompare(b.desc));
+            const allNew = getAssetCodes('new').map(item => ({...item, year: 'new'}));
+            let allCodes = [...all1998, ...all1997, ...allNew].sort((a, b) => a.desc.localeCompare(b.desc));
 
             if (yearFilter) {
                 allCodes = allCodes.filter(item => item.year === yearFilter);
@@ -13092,9 +13125,8 @@
             tbody.innerHTML = '';
             allCodes.forEach(item => {
                 const tr = document.createElement('tr');
-                const customBadge = item.custom ? '<span class="custom-code-badge">Custom</span>' : '';
                 const editBtn = (admin && item.custom) ? ' <button onclick="editCustomAssetCode(\'' + item.id + '\')" style="background:none;border:none;cursor:pointer;font-size:0.9em;" title="Edit">✏️</button>' : '';
-                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + customBadge + '</td><td><span class="year-badge" style="font-size:0.85em;">' + item.year + '</span></td>';
+                tr.innerHTML = '<td><strong>' + item.code + '</strong>' + editBtn + '</td><td>' + item.desc + '</td><td><span class="year-badge" style="font-size:0.85em;' + getYearBadgeStyle(item.year) + '">' + getYearLabel(item.year) + '</span></td>';
                 tbody.appendChild(tr);
             });
         }
@@ -13102,9 +13134,11 @@
         function updateAssetCodeStats() {
             const count1998 = getAssetCodes('1998').length;
             const count1997 = getAssetCodes('1997').length;
+            const countNew = getAssetCodes('new').length;
             document.getElementById('assetCode1998Count').textContent = count1998;
             document.getElementById('assetCode1997Count').textContent = count1997;
-            document.getElementById('assetCodeTotalCount').textContent = count1998 + count1997;
+            document.getElementById('assetCodeNewCount').textContent = countNew;
+            document.getElementById('assetCodeTotalCount').textContent = count1998 + count1997 + countNew;
         }
 
         // Admin: Open modal to add a new asset code
