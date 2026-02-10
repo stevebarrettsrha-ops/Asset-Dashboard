@@ -14304,14 +14304,33 @@
                     let dateIn = '';
                     if (row[1]) {
                         dateIn = String(row[1]).trim();
-                        
+                        const mNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
                         if (!isNaN(row[1]) && !dateIn.includes('-') && !dateIn.includes('/')) {
+                            // Excel serial date number
                             const excelDate = new Date((parseFloat(row[1]) - 25569) * 86400 * 1000);
                             const day = String(excelDate.getDate()).padStart(2, '0');
-                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                            const monthName = monthNames[excelDate.getMonth()];
+                            const monthName = mNames[excelDate.getMonth()];
                             const year = excelDate.getFullYear();
                             dateIn = `${day}-${monthName}-${year}`;
+                        } else if (/^\d{1,2}[\/](\d{1,2})[\/]\d{4}$/.test(dateIn)) {
+                            // DD/MM/YYYY format - normalize to DD-MMM-YYYY
+                            const parts = dateIn.split('/');
+                            const d = String(parseInt(parts[0])).padStart(2, '0');
+                            const m = parseInt(parts[1]);
+                            const y = parts[2];
+                            if (m >= 1 && m <= 12) {
+                                dateIn = `${d}-${mNames[m - 1]}-${y}`;
+                            }
+                        } else if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(dateIn)) {
+                            // YYYY-MM-DD format - normalize to DD-MMM-YYYY
+                            const parts = dateIn.split('-');
+                            const y = parts[0];
+                            const m = parseInt(parts[1]);
+                            const d = String(parseInt(parts[2])).padStart(2, '0');
+                            if (m >= 1 && m <= 12) {
+                                dateIn = `${d}-${mNames[m - 1]}-${y}`;
+                            }
                         }
                     }
                     
@@ -15482,29 +15501,28 @@
         function parseImportDate(value) {
             if (!value) return '';
 
+            const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                               'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+            function formatAsDDMmmYYYY(date) {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = monthNames[date.getMonth()];
+                const year = date.getFullYear();
+                return `${day}-${month}-${year}`;
+            }
+
             // If it's already a Date object
             if (value instanceof Date) {
-                const day = String(value.getDate()).padStart(2, '0');
-                const month = String(value.getMonth() + 1).padStart(2, '0');
-                const year = value.getFullYear();
-                return `${day}/${month}/${year}`;
+                return formatAsDDMmmYYYY(value);
             }
 
             const strValue = String(value).trim();
 
-            // Try to parse various date formats
-            const datePatterns = [
-                // DD/MM/YYYY
-                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-                // MM/DD/YYYY
-                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-                // YYYY-MM-DD
-                /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-                // DD-MM-YYYY
-                /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
-                // DD-MMM-YYYY (e.g., 15-Jan-2024)
-                /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/
-            ];
+            // Already in DD-MMM-YYYY format (e.g., 15-Oct-2025) - normalize to uppercase
+            if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(strValue)) {
+                const p = strValue.split('-');
+                return `${p[0].padStart(2, '0')}-${p[1].toUpperCase()}-${p[2]}`;
+            }
 
             // Try Excel serial date number
             if (/^\d+(\.\d+)?$/.test(strValue)) {
@@ -15512,21 +15530,37 @@
                 if (excelDate > 1000 && excelDate < 100000) {
                     const date = new Date((excelDate - 25569) * 86400 * 1000);
                     if (!isNaN(date.getTime())) {
-                        const day = String(date.getDate()).padStart(2, '0');
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const year = date.getFullYear();
-                        return `${day}/${month}/${year}`;
+                        return formatAsDDMmmYYYY(date);
                     }
                 }
             }
 
-            // Try to parse with Date object
+            // Try DD/MM/YYYY or DD-MM-YYYY (numeric day/month/year)
+            const numericParts = strValue.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (numericParts) {
+                const day = parseInt(numericParts[1]);
+                const monthNum = parseInt(numericParts[2]);
+                const year = parseInt(numericParts[3]);
+                if (monthNum >= 1 && monthNum <= 12 && day >= 1 && day <= 31) {
+                    return `${String(day).padStart(2, '0')}-${monthNames[monthNum - 1]}-${year}`;
+                }
+            }
+
+            // Try YYYY-MM-DD
+            const isoParts = strValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoParts) {
+                const year = parseInt(isoParts[1]);
+                const monthNum = parseInt(isoParts[2]);
+                const day = parseInt(isoParts[3]);
+                if (monthNum >= 1 && monthNum <= 12 && day >= 1 && day <= 31) {
+                    return `${String(day).padStart(2, '0')}-${monthNames[monthNum - 1]}-${year}`;
+                }
+            }
+
+            // Try to parse with Date object as last resort
             const parsedDate = new Date(strValue);
             if (!isNaN(parsedDate.getTime())) {
-                const day = String(parsedDate.getDate()).padStart(2, '0');
-                const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-                const year = parsedDate.getFullYear();
-                return `${day}/${month}/${year}`;
+                return formatAsDDMmmYYYY(parsedDate);
             }
 
             return strValue; // Return as-is if can't parse
