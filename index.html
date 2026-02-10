@@ -7086,7 +7086,7 @@
                     <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
                     <button class="btn monthly-view-btn" onclick="showPage(7)">📒 Asset Register</button>
                     <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
-                    <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()" style="display:none;">➕ Add Asset Code</button>
+                    <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()">➕ Add Asset Code</button>
                 </div>
             </div>
         </div>
@@ -13008,10 +13008,10 @@
             populateAssetCodeTable();
             updateAssetCodeStats();
 
-            // Show/hide admin button
+            // Show admin button (access control handled in openAddAssetCodeModal)
             const addBtn = document.getElementById('addAssetCodeBtn');
             if (addBtn) {
-                addBtn.style.display = isAssetCodeAdmin() ? 'inline-block' : 'none';
+                addBtn.style.display = 'inline-block';
             }
         }
 
