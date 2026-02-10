@@ -10193,12 +10193,73 @@
         }
 
         // Load assets from localStorage
+        // Normalize a date string to DD-MMM-YYYY format (e.g., 01-OCT-2025)
+        // Handles: DD/MM/YYYY, D/M/YYYY, YYYY-MM-DD, DD-MM-YYYY, and already DD-MMM-YYYY
+        function normalizeDateToDisplay(dateStr) {
+            if (!dateStr) return '';
+            const trimmed = String(dateStr).trim();
+            if (!trimmed) return '';
+
+            const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                               'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+            // Already in DD-MMM-YYYY format - just normalize casing
+            if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
+                const p = trimmed.split('-');
+                return `${p[0].padStart(2, '0')}-${p[1].toUpperCase()}-${p[2]}`;
+            }
+
+            // DD/MM/YYYY or D/M/YYYY (slashes with numeric month)
+            const slashParts = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (slashParts) {
+                const day = parseInt(slashParts[1]);
+                const m = parseInt(slashParts[2]);
+                const year = slashParts[3];
+                if (m >= 1 && m <= 12 && day >= 1 && day <= 31) {
+                    return `${String(day).padStart(2, '0')}-${monthNames[m - 1]}-${year}`;
+                }
+            }
+
+            // YYYY-MM-DD (ISO format)
+            const isoParts = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoParts) {
+                const year = isoParts[1];
+                const m = parseInt(isoParts[2]);
+                const day = parseInt(isoParts[3]);
+                if (m >= 1 && m <= 12 && day >= 1 && day <= 31) {
+                    return `${String(day).padStart(2, '0')}-${monthNames[m - 1]}-${year}`;
+                }
+            }
+
+            // DD-MM-YYYY (dashes with numeric month)
+            const dashParts = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+            if (dashParts) {
+                const day = parseInt(dashParts[1]);
+                const m = parseInt(dashParts[2]);
+                const year = dashParts[3];
+                if (m >= 1 && m <= 12 && day >= 1 && day <= 31) {
+                    return `${String(day).padStart(2, '0')}-${monthNames[m - 1]}-${year}`;
+                }
+            }
+
+            return trimmed;
+        }
+
         function loadAssetsFromStorage() {
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     const assets = JSON.parse(stored);
-                    return Array.isArray(assets) ? assets : [];
+                    if (Array.isArray(assets)) {
+                        // Normalize all date formats to DD-MMM-YYYY
+                        assets.forEach(asset => {
+                            if (asset.dateIn) {
+                                asset.dateIn = normalizeDateToDisplay(asset.dateIn);
+                            }
+                        });
+                        return assets;
+                    }
+                    return [];
                 }
                 return [];
             } catch (error) {
@@ -14622,7 +14683,7 @@
                                    style="width: 18px; height: 18px; cursor: pointer;">
                         </td>
                         <td><span class="asset-code">${escapeHtml(item.assetCode)}</span></td>
-                        <td>${escapeHtml(item.dateIn)}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(item.dateIn))}</td>
                         <td>${escapeHtml(item.description)}</td>
                         <td>${escapeHtml(item.department || 'N/A')}</td>
                         <td>${categoryBadge}</td>
@@ -14738,7 +14799,7 @@
                 tableRows += `
                     <tr>
                         <td style="white-space: nowrap;">${escapeHtml(item.assetCode)}</td>
-                        <td>${escapeHtml(item.dateIn)}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(item.dateIn))}</td>
                         <td>${escapeHtml(item.description)}</td>
                         <td>${escapeHtml(item.department || 'N/A')}</td>
                         <td>${escapeHtml(item.itemType)}</td>
