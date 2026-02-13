@@ -5815,6 +5815,47 @@
                         <button class="toggle-btn" onclick="switchView('donated', this)">Donated</button>
                     </div>
                 </div>
+
+                <!-- Search Filter Section -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; color: white; font-size: 0.85em; margin-bottom: 5px; font-weight: 500;">Asset Code</label>
+                            <input type="text" id="inventorySearchAssetCode" placeholder="Search by code..."
+                                   style="width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.95em;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: white; font-size: 0.85em; margin-bottom: 5px; font-weight: 500;">Description</label>
+                            <input type="text" id="inventorySearchDescription" placeholder="Search description..."
+                                   style="width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.95em;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: white; font-size: 0.85em; margin-bottom: 5px; font-weight: 500;">Department</label>
+                            <input type="text" id="inventorySearchDepartment" placeholder="Search department..."
+                                   style="width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.95em;">
+                        </div>
+                        <div>
+                            <label style="display: block; color: white; font-size: 0.85em; margin-bottom: 5px; font-weight: 500;">Category</label>
+                            <select id="inventorySearchCategory"
+                                    style="width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.95em;">
+                                <option value="">All Categories</option>
+                                <option value="Medical Equipment">Medical Equipment</option>
+                                <option value="Furniture & Appliances">Furniture & Appliances</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="applyInventorySearch()"
+                                style="background: #4CAF50; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            🔍 Search & Filter
+                        </button>
+                        <button onclick="clearInventorySearch()"
+                                style="background: #FF5722; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            🔄 Clear
+                        </button>
+                    </div>
+                </div>
+
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
                     <strong style="font-size: 1.2em; color: var(--dark-gray);">Grand Total: </strong>
                     <span id="grandTotalDisplay" style="font-size: 1.5em; font-weight: 700; color: var(--primary-green);">JMD 0.00</span>
@@ -11421,6 +11462,26 @@
 
             // Initialize departments on page load
             updateAllDepartmentDropdowns();
+
+            // Add Enter key support for inventory search fields
+            const inventorySearchFields = [
+                'inventorySearchAssetCode',
+                'inventorySearchDescription',
+                'inventorySearchDepartment',
+                'inventorySearchCategory'
+            ];
+
+            inventorySearchFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyInventorySearch();
+                        }
+                    });
+                }
+            });
         });
 
         // ============================================
@@ -16873,20 +16934,89 @@
             container.innerHTML = html;
         }
 
+        // Inventory search criteria
+        let inventorySearchCriteria = {
+            assetCode: '',
+            description: '',
+            department: '',
+            category: ''
+        };
+
+        function applyInventorySearch() {
+            // Get search values
+            inventorySearchCriteria = {
+                assetCode: document.getElementById('inventorySearchAssetCode')?.value.toLowerCase().trim() || '',
+                description: document.getElementById('inventorySearchDescription')?.value.toLowerCase().trim() || '',
+                department: document.getElementById('inventorySearchDepartment')?.value.toLowerCase().trim() || '',
+                category: document.getElementById('inventorySearchCategory')?.value || ''
+            };
+
+            // Apply both view filter and search filter
+            applyAllFilters();
+        }
+
+        function clearInventorySearch() {
+            // Clear all search inputs
+            const assetCodeInput = document.getElementById('inventorySearchAssetCode');
+            const descriptionInput = document.getElementById('inventorySearchDescription');
+            const departmentInput = document.getElementById('inventorySearchDepartment');
+            const categorySelect = document.getElementById('inventorySearchCategory');
+
+            if (assetCodeInput) assetCodeInput.value = '';
+            if (descriptionInput) descriptionInput.value = '';
+            if (departmentInput) departmentInput.value = '';
+            if (categorySelect) categorySelect.value = '';
+
+            // Reset search criteria
+            inventorySearchCriteria = {
+                assetCode: '',
+                description: '',
+                department: '',
+                category: ''
+            };
+
+            // Reapply filters (will show all data based on current view)
+            applyAllFilters();
+        }
+
+        function applyAllFilters() {
+            // First apply view filter (All/Purchased/Donated)
+            let viewFilteredData;
+            if (currentView === 'all') {
+                viewFilteredData = allAssetsData;
+            } else {
+                viewFilteredData = allAssetsData.filter(item =>
+                    currentView === 'purchased' ? item.source === 'Purchased' : item.source === 'Donated'
+                );
+            }
+
+            // Then apply search filters
+            filteredData = viewFilteredData.filter(item => {
+                const matchAssetCode = !inventorySearchCriteria.assetCode ||
+                    item.assetCode.toLowerCase().includes(inventorySearchCriteria.assetCode);
+
+                const matchDescription = !inventorySearchCriteria.description ||
+                    item.description.toLowerCase().includes(inventorySearchCriteria.description);
+
+                const matchDepartment = !inventorySearchCriteria.department ||
+                    (item.department && item.department.toLowerCase().includes(inventorySearchCriteria.department));
+
+                const matchCategory = !inventorySearchCriteria.category ||
+                    item.category === inventorySearchCriteria.category;
+
+                return matchAssetCode && matchDescription && matchDepartment && matchCategory;
+            });
+
+            displayTable();
+        }
+
         function switchView(view, button) {
             currentView = view;
             document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            
-            if (view === 'all') {
-                filteredData = allAssetsData;
-            } else {
-                filteredData = allAssetsData.filter(item => 
-                    view === 'purchased' ? item.source === 'Purchased' : item.source === 'Donated'
-                );
-            }
-            
-            displayTable();
+
+            // Apply both view filter and search filter
+            applyAllFilters();
         }
 
         function formatCurrency(value) {
