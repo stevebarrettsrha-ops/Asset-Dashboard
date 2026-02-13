@@ -11371,7 +11371,12 @@
 
             saveAssetsToStorage(assets);
             closeAssetModal();
-            loadData(); // Refresh display
+            loadData(); // Refresh main dashboard display
+
+            // Sync with Asset Register Card Data
+            if (typeof loadAssetRegister === 'function') {
+                loadAssetRegister(); // Refresh Asset Register to sync data
+            }
         }
 
         function deleteCurrentAsset() {
@@ -11389,7 +11394,12 @@
 
             alert('✅ Asset deleted successfully!');
             closeAssetModal();
-            loadData(); // Refresh display
+            loadData(); // Refresh main dashboard display
+
+            // Sync with Asset Register Card Data
+            if (typeof loadAssetRegister === 'function') {
+                loadAssetRegister(); // Refresh Asset Register to sync data
+            }
         }
 
         // Auto-calculate total price
