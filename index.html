@@ -193,6 +193,201 @@
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-open .dashboard-container,
+        body.sidebar-open #page8 {
+            margin-left: 260px;
+        }
+
+        #page8 {
+            transition: margin-left 0.3s ease;
+        }
+
+        /* ============================================
+           LEFT SIDEBAR NAVIGATION
+           ============================================ */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -260px;
+            width: 260px;
+            height: 100vh;
+            background: linear-gradient(180deg, #2C3E50 0%, #1a252f 100%);
+            z-index: 9999;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .sidebar.visible {
+            display: block;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-header h3 {
+            color: white;
+            font-size: 1.1em;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .sidebar-close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .sidebar-close-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .sidebar-section {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-section-title {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.7em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            padding: 8px 20px;
+            margin: 0;
+        }
+
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.75);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 0.92em;
+            font-weight: 500;
+            font-family: inherit;
+        }
+
+        .sidebar-nav-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .sidebar-nav-item.active {
+            background: rgba(255, 107, 53, 0.2);
+            color: #FF6B35;
+            border-left: 3px solid #FF6B35;
+            padding-left: 17px;
+        }
+
+        .sidebar-nav-item .nav-icon {
+            font-size: 1.15em;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav-item .nav-label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 5px 15px;
+        }
+
+        /* Sidebar Toggle Button (hamburger) */
+        .sidebar-toggle-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.3em;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-toggle-btn.visible {
+            display: flex;
+        }
+
+        .sidebar-toggle-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+        }
+
+        body.sidebar-open .sidebar-toggle-btn {
+            left: 275px;
+        }
+
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Dark mode sidebar adjustments */
+        body.dark-mode .sidebar {
+            background: linear-gradient(180deg, #0f1923 0%, #0a1118 100%);
+        }
+
+        body.dark-mode .sidebar-nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        body.dark-mode .sidebar-nav-item.active {
+            background: rgba(255, 107, 53, 0.15);
         }
 
         .page {
@@ -1476,6 +1671,9 @@
         @media print {
             body { background: white; }
             .header, .search-section, .btn, .tab-btn, .no-print, .night-mode-toggle, .export-btn { display: none !important; }
+            .sidebar, .sidebar-toggle-btn, .sidebar-overlay { display: none !important; }
+            .dashboard-container { margin-left: 0 !important; }
+            #page8 { margin-left: 0 !important; }
             .page { display: block !important; }
         }
 
@@ -1505,6 +1703,17 @@
             }
             .chart-section {
                 grid-template-columns: 1fr;
+            }
+
+            /* Sidebar: overlay mode on mobile (no content shift) */
+            body.sidebar-open .dashboard-container,
+            body.sidebar-open #page8 {
+                margin-left: 0;
+            }
+
+            body.sidebar-open .sidebar-toggle-btn {
+                left: 15px;
+                z-index: 10001;
             }
         }
 
@@ -5686,6 +5895,82 @@
         </div>
     </div>
 
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Toggle Navigation Menu">
+        ☰
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>Navigation</h3>
+            <button class="sidebar-close-btn" onclick="closeSidebar()" title="Close menu">✕</button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Dashboards</div>
+            <button class="sidebar-nav-item active" data-page="1" onclick="sidebarNavigate(1)">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Main Dashboard</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="2" onclick="sidebarNavigate(2)">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Monthly Breakdown</span>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Tools</div>
+            <button class="sidebar-nav-item" data-page="3" onclick="sidebarNavigate(3)">
+                <span class="nav-icon">🛠️</span>
+                <span class="nav-label">Tools & Features</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="4" onclick="sidebarNavigate(4)">
+                <span class="nav-icon">📥</span>
+                <span class="nav-label">Import Assets</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="5" onclick="sidebarNavigate(5)">
+                <span class="nav-icon">☁️</span>
+                <span class="nav-label">Google Drive Import</span>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Records</div>
+            <button class="sidebar-nav-item" data-page="6" onclick="sidebarNavigate(6)">
+                <span class="nav-icon">🗑️</span>
+                <span class="nav-label">Board of Survey</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="7" onclick="sidebarNavigate(7)">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Asset Register</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="8" onclick="sidebarNavigate(8)">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-label">Asset Code Lookup</span>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Quick Actions</div>
+            <button class="sidebar-nav-item" onclick="sidebarAction('refresh')">
+                <span class="nav-icon">🔄</span>
+                <span class="nav-label">Refresh Data</span>
+            </button>
+            <button class="sidebar-nav-item" onclick="sidebarAction('save')">
+                <span class="nav-icon">💾</span>
+                <span class="nav-label">Save</span>
+            </button>
+            <button class="sidebar-nav-item" onclick="sidebarAction('sync')">
+                <span class="nav-icon">🔄</span>
+                <span class="nav-label">Sync Data</span>
+            </button>
+            <button class="sidebar-nav-item" onclick="sidebarAction('manage')">
+                <span class="nav-icon">➕</span>
+                <span class="nav-label">Manage Assets</span>
+            </button>
+        </div>
+    </nav>
+
     <!-- DASHBOARD (Hidden until login) -->
     <div class="dashboard-container" id="dashboardContainer" style="display: none;">
         <!-- PAGE 1: MAIN DASHBOARD -->
@@ -5760,12 +6045,6 @@
                         <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
                         <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(5)" style="background: linear-gradient(135deg, #4285f4, #1a73e8);">☁️ Google Drive Import</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(6)" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Board of Survey</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(8)" style="background: linear-gradient(135deg, #16a085, #1abc9c);">📋 Asset Code Lookup</button>
                     </div>
                 </div>
             </div>
@@ -5901,7 +6180,6 @@
                     </div>
 
                     <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
                         <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 8px;">
                             <button class="btn monthly-view-btn" onclick="previousFiscalYear()" title="Previous Year">◀️</button>
                             <span id="fiscalYearDisplay" style="font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center;">FY 2025/2026</span>
@@ -5931,10 +6209,6 @@
                         <div class="user-info" id="userInfo3"></div>
                     </div>
                     
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly View</button>
-                    </div>
                 </div>
             </div>
 
@@ -6377,8 +6651,6 @@
                     </div>
 
                     <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
                         <button class="btn monthly-view-btn" onclick="resetImportDashboard()">🔄 Reset Import</button>
                     </div>
                 </div>
@@ -6604,8 +6876,6 @@
                     </div>
 
                     <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(4)">📥 Manual Import</button>
                         <button class="btn monthly-view-btn" onclick="refreshGDriveFiles()" style="background: white; color: #4285f4;">🔄 Refresh Files</button>
                     </div>
                 </div>
@@ -6911,8 +7181,6 @@
                     </div>
 
                     <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(7)" style="background: linear-gradient(135deg, #3498db, #2980b9);">📋 Asset Register</button>
                         <button class="btn monthly-view-btn" onclick="openDisposalModal()" style="background: linear-gradient(135deg, #27ae60, #219a52);">➕ Add Disposal Record</button>
                         <button class="btn monthly-view-btn" onclick="exportDisposalRecords()">📥 Export Records</button>
                         <button class="btn monthly-view-btn" onclick="printDisposalRecords()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Records</button>
@@ -7004,8 +7272,6 @@
                     </div>
 
                     <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(6)">← Back to Board of Survey</button>
-                        <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
@@ -7124,9 +7390,6 @@
                 </div>
 
                 <div class="status-bar">
-                    <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
-                    <button class="btn monthly-view-btn" onclick="showPage(7)">📒 Asset Register</button>
-                    <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
                     <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()">➕ Add Asset Code</button>
                 </div>
             </div>
@@ -7753,6 +8016,9 @@
                 document.getElementById('dashboardContainer').style.display = 'block';
                 console.log('Step 2: Showing dashboard container');
 
+                // Show sidebar navigation
+                showSidebar();
+
                 // Show night mode button
                 const nightBtn = document.getElementById('nightModeBtn');
                 if (nightBtn) nightBtn.style.display = 'flex';
@@ -7857,6 +8123,7 @@
                 currentUser = null;
                 pendingTwoFAUser = null;
                 document.getElementById('dashboardContainer').style.display = 'none';
+                hideSidebar();
                 document.getElementById('nightModeBtn').style.display = 'none';
                 document.getElementById('exportBtn').style.display = 'none';
                 document.getElementById('loginPage').style.display = 'flex';
@@ -12188,9 +12455,94 @@
             return null;
         }
 
+        // ============================================
+        // LEFT SIDEBAR NAVIGATION FUNCTIONS
+        // ============================================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.add('open');
+            document.body.classList.add('sidebar-open');
+            // Show overlay only on small screens
+            if (window.innerWidth <= 768) {
+                overlay.classList.add('active');
+            }
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            document.body.classList.remove('sidebar-open');
+            overlay.classList.remove('active');
+        }
+
+        function sidebarNavigate(pageNum) {
+            showPage(pageNum);
+            updateSidebarActiveState(pageNum);
+            // Close sidebar on mobile after navigation
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+        }
+
+        function sidebarAction(action) {
+            switch(action) {
+                case 'refresh': loadData(); break;
+                case 'save': saveAllData(); break;
+                case 'sync': syncData(); break;
+                case 'manage': openAssetModal(); break;
+            }
+            // Close sidebar on mobile after action
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+        }
+
+        function updateSidebarActiveState(pageNum) {
+            document.querySelectorAll('.sidebar-nav-item[data-page]').forEach(item => {
+                item.classList.remove('active');
+                if (parseInt(item.getAttribute('data-page')) === pageNum) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        function showSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            if (sidebar) sidebar.classList.add('visible');
+            if (toggleBtn) toggleBtn.classList.add('visible');
+        }
+
+        function hideSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) {
+                sidebar.classList.remove('visible', 'open');
+            }
+            if (toggleBtn) toggleBtn.classList.remove('visible');
+            if (overlay) overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
+
+            // Update sidebar active state
+            updateSidebarActiveState(pageNum);
 
             // Update copyright year when switching pages
             setDynamicCopyrightYear();
