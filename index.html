@@ -17019,8 +17019,14 @@
                     responsive: true,
                     maintainAspectRatio: true,
                     aspectRatio: 1.5,
-                    plugins: { 
-                        legend: { 
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: {
                             position: 'bottom',
                             labels: {
                                 padding: 10,
@@ -17043,23 +17049,75 @@
                         borderColor: '#2ECC71',
                         backgroundColor: 'rgba(46, 204, 113, 0.1)',
                         borderWidth: 2,
-                        tension: 0.4
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#2ECC71',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     }, {
                         label: 'Donated (JMD)',
                         data: new Array(12).fill(0),
                         borderColor: '#FF6B35',
                         backgroundColor: 'rgba(255, 107, 53, 0.1)',
                         borderWidth: 2,
-                        tension: 0.4
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#FF6B35',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
                     aspectRatio: 1.5,
-                    plugins: { 
-                        legend: { 
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    },
+                    animations: {
+                        x: {
+                            type: 'number',
+                            easing: 'easeOutQuart',
+                            duration: 1500,
+                            from: NaN,
+                            delay(ctx) {
+                                if (ctx.type !== 'data' || ctx.xStarted) return 0;
+                                ctx.xStarted = true;
+                                return ctx.index * 100;
+                            }
+                        },
+                        y: {
+                            type: 'number',
+                            easing: 'easeOutQuart',
+                            duration: 1500,
+                            from: (ctx) => {
+                                if (ctx.index === 0) return ctx.chart.scales.y.getPixelForValue(0);
+                                return ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.index - 1]?.getProps(['y'], true).y;
+                            },
+                            delay(ctx) {
+                                if (ctx.type !== 'data' || ctx.yStarted) return 0;
+                                ctx.yStarted = true;
+                                return ctx.index * 100;
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
                             position: 'bottom'
+                        },
+                        tooltip: {
+                            animation: {
+                                duration: 200
+                            }
                         }
                     }
                 }
