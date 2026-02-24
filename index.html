@@ -13870,10 +13870,10 @@
             const count1998 = getAssetCodes('1998').length;
             const count1997 = getAssetCodes('1997').length;
             const countNew = getAssetCodes('new').length;
-            document.getElementById('assetCode1998Count').textContent = count1998;
-            document.getElementById('assetCode1997Count').textContent = count1997;
-            document.getElementById('assetCodeNewCount').textContent = countNew;
-            document.getElementById('assetCodeTotalCount').textContent = count1998 + count1997 + countNew;
+            animateCountUp(document.getElementById('assetCode1998Count'), count1998);
+            animateCountUp(document.getElementById('assetCode1997Count'), count1997);
+            animateCountUp(document.getElementById('assetCodeNewCount'), countNew);
+            animateCountUp(document.getElementById('assetCodeTotalCount'), count1998 + count1997 + countNew);
         }
 
         // Admin: Open modal to add a new asset code
@@ -16955,40 +16955,52 @@
             kpiSection.innerHTML = `
                 <div class="kpi-card green">
                     <div class="kpi-label">Total Assets</div>
-                    <div class="kpi-value green">${totalItems.toLocaleString()}</div>
+                    <div class="kpi-value green" id="kpiTotalItems">0</div>
                     <div class="kpi-subtitle">All inventory items</div>
                 </div>
-                
+
                 <div class="kpi-card orange">
                     <div class="kpi-label">Total Value</div>
-                    <div class="kpi-value orange">JMD ${formatCurrency(totalValue)}</div>
+                    <div class="kpi-value orange" id="kpiTotalValue">JMD 0.00</div>
                     <div class="kpi-subtitle">Combined asset value</div>
                 </div>
-                
+
                 <div class="kpi-card green">
                     <div class="kpi-label">Medical Equipment</div>
-                    <div class="kpi-value green">${medicalItems.toLocaleString()}</div>
-                    <div class="kpi-subtitle">Value: JMD ${formatCurrency(medicalValue)}</div>
+                    <div class="kpi-value green" id="kpiMedicalItems">0</div>
+                    <div class="kpi-subtitle" id="kpiMedicalValue">Value: JMD 0.00</div>
                 </div>
-                
+
                 <div class="kpi-card orange">
                     <div class="kpi-label">Furniture & Appliances</div>
-                    <div class="kpi-value orange">${furnitureItems.toLocaleString()}</div>
-                    <div class="kpi-subtitle">Value: JMD ${formatCurrency(furnitureValue)}</div>
+                    <div class="kpi-value orange" id="kpiFurnitureItems">0</div>
+                    <div class="kpi-subtitle" id="kpiFurnitureValue">Value: JMD 0.00</div>
                 </div>
-                
+
                 <div class="kpi-card green">
                     <div class="kpi-label">Purchased Assets</div>
-                    <div class="kpi-value green">${(purchasedData.totals?.totalItems || 0).toLocaleString()}</div>
-                    <div class="kpi-subtitle">Value: JMD ${formatCurrency(purchasedData.totals?.totalValue || 0)}</div>
+                    <div class="kpi-value green" id="kpiPurchasedItems">0</div>
+                    <div class="kpi-subtitle" id="kpiPurchasedValue">Value: JMD 0.00</div>
                 </div>
-                
+
                 <div class="kpi-card orange">
                     <div class="kpi-label">Donated Assets</div>
-                    <div class="kpi-value orange">${(donatedData.totals?.totalItems || 0).toLocaleString()}</div>
-                    <div class="kpi-subtitle">Value: JMD ${formatCurrency(donatedData.totals?.totalValue || 0)}</div>
+                    <div class="kpi-value orange" id="kpiDonatedItems">0</div>
+                    <div class="kpi-subtitle" id="kpiDonatedValue">Value: JMD 0.00</div>
                 </div>
             `;
+
+            // Animate KPI numbers counting up
+            animateCountUp(document.getElementById('kpiTotalItems'), totalItems);
+            animateCountUp(document.getElementById('kpiTotalValue'), totalValue, { prefix: 'JMD ', isCurrency: true });
+            animateCountUp(document.getElementById('kpiMedicalItems'), medicalItems);
+            animateCountUp(document.getElementById('kpiMedicalValue'), medicalValue, { prefix: 'Value: JMD ', isCurrency: true });
+            animateCountUp(document.getElementById('kpiFurnitureItems'), furnitureItems);
+            animateCountUp(document.getElementById('kpiFurnitureValue'), furnitureValue, { prefix: 'Value: JMD ', isCurrency: true });
+            animateCountUp(document.getElementById('kpiPurchasedItems'), purchasedData.totals?.totalItems || 0);
+            animateCountUp(document.getElementById('kpiPurchasedValue'), purchasedData.totals?.totalValue || 0, { prefix: 'Value: JMD ', isCurrency: true });
+            animateCountUp(document.getElementById('kpiDonatedItems'), donatedData.totals?.totalItems || 0);
+            animateCountUp(document.getElementById('kpiDonatedValue'), donatedData.totals?.totalValue || 0, { prefix: 'Value: JMD ', isCurrency: true });
         }
 
         function initializeCharts() {
@@ -17666,6 +17678,38 @@
 
         function formatCurrency(value) {
             return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Animate a number counting up from 0 to target
+        function animateCountUp(element, target, options = {}) {
+            const duration = options.duration || 1200;
+            const prefix = options.prefix || '';
+            const suffix = options.suffix || '';
+            const isCurrency = options.isCurrency || false;
+            const useLocale = options.useLocale !== false;
+            const startTime = performance.now();
+            const startVal = 0;
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // easeOutQuart for smooth deceleration
+                const eased = 1 - Math.pow(1 - progress, 4);
+                const current = startVal + (target - startVal) * eased;
+
+                if (isCurrency) {
+                    element.textContent = prefix + formatCurrency(current) + suffix;
+                } else if (useLocale) {
+                    element.textContent = prefix + Math.round(current).toLocaleString() + suffix;
+                } else {
+                    element.textContent = prefix + Math.round(current) + suffix;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            requestAnimationFrame(update);
         }
 
         function escapeHtml(text) {
@@ -19771,10 +19815,10 @@
             const obsoleteCount = disposalRecords.filter(r => r.reason === 'Obsolete').length;
             const totalValue = disposalRecords.reduce((sum, r) => sum + (parseFloat(r.originalValue) || 0), 0);
 
-            document.getElementById('totalDisposedCount').textContent = totalDisposed;
-            document.getElementById('damagedAssetCount').textContent = damagedCount;
-            document.getElementById('obsoleteAssetCount').textContent = obsoleteCount;
-            document.getElementById('totalDisposedValue').textContent = 'JMD ' + formatCurrency(totalValue);
+            animateCountUp(document.getElementById('totalDisposedCount'), totalDisposed);
+            animateCountUp(document.getElementById('damagedAssetCount'), damagedCount);
+            animateCountUp(document.getElementById('obsoleteAssetCount'), obsoleteCount);
+            animateCountUp(document.getElementById('totalDisposedValue'), totalValue, { prefix: 'JMD ', isCurrency: true });
         }
 
         // Display disposal records in table
@@ -20375,10 +20419,10 @@
             const purchasedCount = assetRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
             const donatedCount = assetRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
 
-            document.getElementById('registerTotalAssets').textContent = totalAssets.toLocaleString();
-            document.getElementById('registerTotalValue').textContent = 'JMD ' + formatCurrency(totalValue);
-            document.getElementById('registerPurchasedCount').textContent = purchasedCount.toLocaleString();
-            document.getElementById('registerDonatedCount').textContent = donatedCount.toLocaleString();
+            animateCountUp(document.getElementById('registerTotalAssets'), totalAssets);
+            animateCountUp(document.getElementById('registerTotalValue'), totalValue, { prefix: 'JMD ', isCurrency: true });
+            animateCountUp(document.getElementById('registerPurchasedCount'), purchasedCount);
+            animateCountUp(document.getElementById('registerDonatedCount'), donatedCount);
         }
 
         // Populate department filter dropdown (custom dropdown)
