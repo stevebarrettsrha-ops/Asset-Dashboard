@@ -191,7 +191,6 @@
            ============================================ */
         .dashboard-container {
             max-width: 1600px;
-            margin: 0 auto;
             padding: 20px;
         }
 
@@ -1475,7 +1474,7 @@
 
         @media print {
             body { background: white; }
-            .header, .search-section, .btn, .tab-btn, .no-print, .night-mode-toggle, .export-btn { display: none !important; }
+            .header, .search-section, .btn, .tab-btn, .no-print, .night-mode-toggle, .export-btn, .page-action-bar { display: none !important; }
             .page { display: block !important; }
         }
 
@@ -1545,14 +1544,17 @@
             }
 
             /* Status bar responsive */
-            .status-bar {
+            .status-bar,
+            .page-action-bar {
                 flex-direction: column;
                 padding: 10px;
                 gap: 10px;
             }
 
             .status-bar .btn,
-            .status-bar button {
+            .status-bar button,
+            .page-action-bar .btn,
+            .page-action-bar button {
                 width: 100%;
                 justify-content: center;
                 font-size: 0.85em;
@@ -5130,6 +5132,417 @@
             margin-left: 6px;
             vertical-align: middle;
         }
+
+        /* ============================================
+           LEFT SIDEBAR NAVIGATION
+           ============================================ */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 270px;
+            height: 100vh;
+            background: linear-gradient(180deg, #1a1f36 0%, #252b48 100%);
+            color: #c4c9e2;
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 68px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            padding: 18px 16px;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 68px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #c4c9e2;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            flex-direction: column;
+            white-space: nowrap;
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar.collapsed .sidebar-brand {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar-brand-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.3px;
+        }
+
+        .sidebar-brand-sub {
+            font-size: 0.72rem;
+            color: #8b92b3;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px 8px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .sidebar-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #6b7294;
+            padding: 16px 12px 6px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-section-label {
+            text-align: center;
+            font-size: 0;
+            padding: 10px 0 4px;
+        }
+
+        .sidebar.collapsed .sidebar-section-label::after {
+            content: '...';
+            font-size: 0.7rem;
+            color: #6b7294;
+        }
+
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            margin-bottom: 2px;
+            border: none;
+            background: none;
+            color: #c4c9e2;
+            width: 100%;
+            font-size: 0.9rem;
+            font-family: inherit;
+            text-align: left;
+            position: relative;
+        }
+
+        .sidebar-nav-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
+        .sidebar-nav-item.active {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+
+        .sidebar-nav-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.06);
+            transition: background 0.2s;
+        }
+
+        .sidebar-nav-item.active .sidebar-nav-icon {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-nav-text {
+            opacity: 1;
+            transition: opacity 0.2s;
+            font-size: 0.88rem;
+        }
+
+        .sidebar.collapsed .sidebar-nav-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-nav-item {
+            justify-content: center;
+            padding: 10px 8px;
+        }
+
+        /* Tooltip for collapsed sidebar */
+        .sidebar.collapsed .sidebar-nav-item::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 72px;
+            background: #1a1f36;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 1200;
+        }
+
+        .sidebar.collapsed .sidebar-nav-item:hover::after {
+            opacity: 1;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 12px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .sidebar-user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary-orange), var(--dark-orange));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+            color: #fff;
+        }
+
+        .sidebar-user-info {
+            overflow: hidden;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar.collapsed .sidebar-user-info {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar-user-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .sidebar-user-role {
+            font-size: 0.72rem;
+            color: #8b92b3;
+        }
+
+        .sidebar-logout-btn {
+            background: rgba(231, 76, 60, 0.15);
+            border: none;
+            color: #e74c3c;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .sidebar.collapsed .sidebar-logout-btn {
+            font-size: 0;
+            padding: 8px;
+        }
+
+        .sidebar.collapsed .sidebar-logout-btn::before {
+            content: '\2192';
+            font-size: 1rem;
+        }
+
+        .sidebar-logout-btn:hover {
+            background: rgba(231, 76, 60, 0.3);
+            color: #ff6b6b;
+        }
+
+        /* Sidebar divider */
+        .sidebar-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.06);
+            margin: 8px 12px;
+        }
+
+        /* Main content offset for sidebar */
+        .dashboard-container {
+            margin-left: 270px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.sidebar-collapsed .dashboard-container {
+            margin-left: 68px;
+        }
+
+        /* Move night mode toggle to account for sidebar */
+        body:not(.sidebar-hidden) .night-mode-toggle {
+            right: 20px;
+        }
+
+        /* Sidebar overlay for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1099;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar-overlay.visible {
+            opacity: 1;
+        }
+
+        /* Mobile sidebar toggle button (shown when sidebar is hidden on mobile) */
+        .sidebar-mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 1098;
+            background: linear-gradient(135deg, #1a1f36 0%, #252b48 100%);
+            color: #fff;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Page-specific action bars (replaces old navigation status bars) */
+        .page-action-bar {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Responsive sidebar */
+        @media (max-width: 900px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 270px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .sidebar.collapsed {
+                width: 270px;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.collapsed.mobile-open {
+                transform: translateX(0);
+            }
+
+            .dashboard-container {
+                margin-left: 0 !important;
+            }
+
+            body.sidebar-collapsed .dashboard-container {
+                margin-left: 0 !important;
+            }
+
+            .sidebar-mobile-toggle {
+                display: flex;
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+        }
+
+        @media print {
+            .sidebar, .sidebar-overlay, .sidebar-mobile-toggle {
+                display: none !important;
+            }
+            .dashboard-container {
+                margin-left: 0 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -5686,6 +6099,78 @@
         </div>
     </div>
 
+    <!-- Mobile Sidebar Toggle Button -->
+    <button class="sidebar-mobile-toggle" id="sidebarMobileToggle" onclick="toggleMobileSidebar()" title="Open Menu" style="display: none;">
+        &#9776;
+    </button>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <nav class="sidebar" id="sidebar" style="display: none;">
+        <div class="sidebar-header">
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <span id="sidebarToggleIcon">&#9776;</span>
+            </button>
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Asset Manager</span>
+                <span class="sidebar-brand-sub">May Pen Hospital</span>
+            </div>
+        </div>
+
+        <div class="sidebar-nav">
+            <div class="sidebar-section-label">Main</div>
+            <button class="sidebar-nav-item active" data-page="1" data-tooltip="Dashboard" onclick="sidebarNavigate(1)">
+                <span class="sidebar-nav-icon">&#x1F3E0;</span>
+                <span class="sidebar-nav-text">Dashboard</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="2" data-tooltip="Monthly Breakdown" onclick="sidebarNavigate(2)">
+                <span class="sidebar-nav-icon">&#x1F4CA;</span>
+                <span class="sidebar-nav-text">Monthly Breakdown</span>
+            </button>
+
+            <div class="sidebar-section-label">Tools</div>
+            <button class="sidebar-nav-item" data-page="3" data-tooltip="Tools & Features" onclick="sidebarNavigate(3)">
+                <span class="sidebar-nav-icon">&#x1F6E0;</span>
+                <span class="sidebar-nav-text">Tools & Features</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="4" data-tooltip="Import Assets" onclick="sidebarNavigate(4)">
+                <span class="sidebar-nav-icon">&#x1F4E5;</span>
+                <span class="sidebar-nav-text">Import Assets</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="5" data-tooltip="Google Drive Import" onclick="sidebarNavigate(5)">
+                <span class="sidebar-nav-icon">&#x2601;</span>
+                <span class="sidebar-nav-text">Google Drive Import</span>
+            </button>
+
+            <div class="sidebar-section-label">Records</div>
+            <button class="sidebar-nav-item" data-page="6" data-tooltip="Board of Survey" onclick="sidebarNavigate(6)">
+                <span class="sidebar-nav-icon">&#x1F5D1;</span>
+                <span class="sidebar-nav-text">Board of Survey</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="7" data-tooltip="Asset Register" onclick="sidebarNavigate(7)">
+                <span class="sidebar-nav-icon">&#x1F4CB;</span>
+                <span class="sidebar-nav-text">Asset Register</span>
+            </button>
+            <button class="sidebar-nav-item" data-page="8" data-tooltip="Asset Code Lookup" onclick="sidebarNavigate(8)">
+                <span class="sidebar-nav-icon">&#x1F50D;</span>
+                <span class="sidebar-nav-text">Asset Code Lookup</span>
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar" id="sidebarUserAvatar">&#x1F464;</div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name" id="sidebarUserName">User</div>
+                    <div class="sidebar-user-role" id="sidebarUserRole">Staff</div>
+                </div>
+            </div>
+            <button class="sidebar-logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </nav>
+
     <!-- DASHBOARD (Hidden until login) -->
     <div class="dashboard-container" id="dashboardContainer" style="display: none;">
         <!-- PAGE 1: MAIN DASHBOARD -->
@@ -5748,7 +6233,7 @@
                         </div>
                     </div>
 
-                    <div class="status-bar">
+                    <div class="page-action-bar">
                         <div class="status-item">
                             <span class="status-indicator loading" id="statusIndicator"></span>
                             <span id="statusText">Initializing...</span>
@@ -5760,12 +6245,6 @@
                         <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
                         <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly Breakdown</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(4)" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">📥 Import Assets</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(5)" style="background: linear-gradient(135deg, #4285f4, #1a73e8);">☁️ Google Drive Import</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(6)" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Board of Survey</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(8)" style="background: linear-gradient(135deg, #16a085, #1abc9c);">📋 Asset Code Lookup</button>
                     </div>
                 </div>
             </div>
@@ -5900,8 +6379,7 @@
                         <div class="user-info" id="userInfo2"></div>
                     </div>
 
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
+                    <div class="page-action-bar">
                         <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 8px;">
                             <button class="btn monthly-view-btn" onclick="previousFiscalYear()" title="Previous Year">◀️</button>
                             <span id="fiscalYearDisplay" style="font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center;">FY 2025/2026</span>
@@ -5931,10 +6409,6 @@
                         <div class="user-info" id="userInfo3"></div>
                     </div>
                     
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(2)">📊 Monthly View</button>
-                    </div>
                 </div>
             </div>
 
@@ -6376,9 +6850,7 @@
                         <div class="user-info" id="userInfo4"></div>
                     </div>
 
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                    <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="resetImportDashboard()">🔄 Reset Import</button>
                     </div>
                 </div>
@@ -6603,9 +7075,7 @@
                         <div class="user-info" id="userInfo5"></div>
                     </div>
 
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(4)">📥 Manual Import</button>
+                    <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshGDriveFiles()" style="background: white; color: #4285f4;">🔄 Refresh Files</button>
                     </div>
                 </div>
@@ -6910,9 +7380,7 @@
                         <div class="user-info" id="userInfo6"></div>
                     </div>
 
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(1)">← Back to Dashboard</button>
-                        <button class="btn monthly-view-btn" onclick="showPage(7)" style="background: linear-gradient(135deg, #3498db, #2980b9);">📋 Asset Register</button>
+                    <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="openDisposalModal()" style="background: linear-gradient(135deg, #27ae60, #219a52);">➕ Add Disposal Record</button>
                         <button class="btn monthly-view-btn" onclick="exportDisposalRecords()">📥 Export Records</button>
                         <button class="btn monthly-view-btn" onclick="printDisposalRecords()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Records</button>
@@ -7003,9 +7471,7 @@
                         <div class="user-info" id="userInfo7"></div>
                     </div>
 
-                    <div class="status-bar">
-                        <button class="btn refresh-btn" onclick="showPage(6)">← Back to Board of Survey</button>
-                        <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
+                    <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
@@ -7123,10 +7589,7 @@
                     <div class="user-info" id="userInfo8"></div>
                 </div>
 
-                <div class="status-bar">
-                    <button class="btn refresh-btn" onclick="showPage(1)">🏠 Main Dashboard</button>
-                    <button class="btn monthly-view-btn" onclick="showPage(7)">📒 Asset Register</button>
-                    <button class="btn monthly-view-btn" onclick="showPage(3)">🛠️ Tools & Features</button>
+                <div class="page-action-bar">
                     <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()">➕ Add Asset Code</button>
                 </div>
             </div>
@@ -7753,6 +8216,10 @@
                 document.getElementById('dashboardContainer').style.display = 'block';
                 console.log('Step 2: Showing dashboard container');
 
+                // Show sidebar navigation
+                showSidebar();
+                updateSidebarUser();
+
                 // Show night mode button
                 const nightBtn = document.getElementById('nightModeBtn');
                 if (nightBtn) nightBtn.style.display = 'flex';
@@ -7862,6 +8329,9 @@
                 document.getElementById('loginPage').style.display = 'flex';
                 document.getElementById('loginForm').reset();
                 document.getElementById('loginError').style.display = 'none';
+
+                // Hide sidebar
+                hideSidebar();
 
                 // Hide settings button
                 const settingsBtn = document.getElementById('settingsBtn');
@@ -12192,6 +12662,9 @@
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
 
+            // Update sidebar active state
+            updateSidebarActiveState(pageNum);
+
             // Update copyright year when switching pages
             setDynamicCopyrightYear();
 
@@ -12252,6 +12725,111 @@
                 initAssetCodeLookup();
             }
         }
+
+        // ============================================
+        // SIDEBAR NAVIGATION FUNCTIONS
+        // ============================================
+
+        function updateSidebarActiveState(pageNum) {
+            document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (parseInt(item.getAttribute('data-page')) === pageNum) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        function sidebarNavigate(pageNum) {
+            showPage(pageNum);
+            // Close mobile sidebar after navigation
+            if (window.innerWidth <= 900) {
+                closeMobileSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('sidebarToggleIcon');
+            if (sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
+                icon.innerHTML = '&#9776;';
+                localStorage.setItem('sidebarCollapsed', 'false');
+            } else {
+                sidebar.classList.add('collapsed');
+                document.body.classList.add('sidebar-collapsed');
+                icon.innerHTML = '&#9776;';
+                localStorage.setItem('sidebarCollapsed', 'true');
+            }
+        }
+
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('visible');
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('visible');
+        }
+
+        function showSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileToggle = document.getElementById('sidebarMobileToggle');
+            if (sidebar) {
+                sidebar.style.display = 'flex';
+                // Restore collapsed state from localStorage
+                if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                    sidebar.classList.add('collapsed');
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            }
+            if (mobileToggle && window.innerWidth <= 900) {
+                mobileToggle.style.display = 'flex';
+            }
+        }
+
+        function hideSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileToggle = document.getElementById('sidebarMobileToggle');
+            if (sidebar) sidebar.style.display = 'none';
+            if (mobileToggle) mobileToggle.style.display = 'none';
+        }
+
+        function updateSidebarUser() {
+            const nameEl = document.getElementById('sidebarUserName');
+            const roleEl = document.getElementById('sidebarUserRole');
+            const avatarEl = document.getElementById('sidebarUserAvatar');
+            if (currentUser) {
+                if (nameEl) nameEl.textContent = currentUser.displayName || currentUser.username;
+                if (roleEl) roleEl.textContent = currentUser.role || 'Staff';
+                if (avatarEl) {
+                    const name = currentUser.displayName || currentUser.username || 'U';
+                    avatarEl.textContent = name.charAt(0).toUpperCase();
+                }
+            }
+        }
+
+        // Handle responsive sidebar on window resize
+        window.addEventListener('resize', function() {
+            const mobileToggle = document.getElementById('sidebarMobileToggle');
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar || sidebar.style.display === 'none') return;
+
+            if (window.innerWidth <= 900) {
+                if (mobileToggle) mobileToggle.style.display = 'flex';
+                sidebar.classList.remove('mobile-open');
+                document.getElementById('sidebarOverlay').classList.remove('visible');
+            } else {
+                if (mobileToggle) mobileToggle.style.display = 'none';
+                sidebar.classList.remove('mobile-open');
+                document.getElementById('sidebarOverlay').classList.remove('visible');
+            }
+        });
 
         // ============================================
         // ASSET CODE LOOKUP DATA & FUNCTIONS
