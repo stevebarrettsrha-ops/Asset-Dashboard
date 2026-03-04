@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>May Pen Hospital - Systems Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        .bg-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .bg-particles span {
+            position: absolute;
+            display: block;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            animation: float-up 25s infinite linear;
+        }
+
+        .bg-particles span:nth-child(1) { left: 10%; width: 80px; height: 80px; animation-delay: 0s; animation-duration: 20s; }
+        .bg-particles span:nth-child(2) { left: 20%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 25s; }
+        .bg-particles span:nth-child(3) { left: 35%; width: 60px; height: 60px; animation-delay: 4s; animation-duration: 22s; }
+        .bg-particles span:nth-child(4) { left: 50%; width: 40px; height: 40px; animation-delay: 0s; animation-duration: 18s; }
+        .bg-particles span:nth-child(5) { left: 65%; width: 30px; height: 30px; animation-delay: 3s; animation-duration: 30s; }
+        .bg-particles span:nth-child(6) { left: 75%; width: 70px; height: 70px; animation-delay: 5s; animation-duration: 15s; }
+        .bg-particles span:nth-child(7) { left: 85%; width: 50px; height: 50px; animation-delay: 7s; animation-duration: 28s; }
+        .bg-particles span:nth-child(8) { left: 45%; width: 25px; height: 25px; animation-delay: 1s; animation-duration: 35s; }
+
+        @keyframes float-up {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Portal Header */
+        .portal-header {
+            text-align: center;
+            margin-bottom: 50px;
+            z-index: 1;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .portal-header .logo-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .portal-header h1 {
+            color: #ffffff;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .portal-header .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        .portal-header .org-name {
+            color: #FF6B35;
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            max-width: 1100px;
+            width: 100%;
+            z-index: 1;
+            padding: 0 20px;
+        }
+
+        /* Login Card */
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            animation: slideUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .login-card:nth-child(1) { animation-delay: 0.2s; }
+        .login-card:nth-child(2) { animation-delay: 0.4s; }
+        .login-card:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        }
+
+        .login-card:active {
+            transform: translateY(-5px) scale(1.01);
+        }
+
+        /* Card Header Strip */
+        .card-strip {
+            height: 8px;
+            width: 100%;
+        }
+
+        .card-strip.procurement {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card-strip.stores {
+            background: linear-gradient(135deg, #2ECC71 0%, #27AE60 100%);
+        }
+
+        .card-strip.assets {
+            background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
+        }
+
+        /* Card Body */
+        .card-body {
+            padding: 35px 30px;
+            text-align: center;
+        }
+
+        .card-icon {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-icon::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            opacity: 0.15;
+        }
+
+        .card-icon.procurement {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+            color: #667eea;
+        }
+
+        .card-icon.stores {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.15), rgba(39, 174, 96, 0.15));
+            color: #27AE60;
+        }
+
+        .card-icon.assets {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(229, 89, 52, 0.15));
+            color: #FF6B35;
+        }
+
+        .card-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+
+        .card-dept {
+            font-size: 14px;
+            font-weight: 600;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .card-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+
+        .card-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .feature-tag {
+            background: #f0f2f5;
+            color: #555;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .card-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 35px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .card-btn.procurement {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card-btn.stores {
+            background: linear-gradient(135deg, #2ECC71 0%, #27AE60 100%);
+        }
+
+        .card-btn.assets {
+            background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
+        }
+
+        .card-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-btn .arrow {
+            transition: transform 0.3s ease;
+        }
+
+        .login-card:hover .card-btn .arrow {
+            transform: translateX(5px);
+        }
+
+        /* Card status indicator */
+        .card-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #95a5a6;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ECC71;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Portal Footer */
+        .portal-footer {
+            text-align: center;
+            margin-top: 50px;
+            z-index: 1;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .portal-footer a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .portal-footer a:hover {
+            color: #FF6B35;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .portal-header h1 {
+                font-size: 26px;
+            }
+
+            .portal-header .subtitle {
+                font-size: 15px;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 0 10px;
+            }
+
+            .card-body {
+                padding: 25px 20px;
+            }
+
+            .card-icon {
+                width: 70px;
+                height: 70px;
+                font-size: 32px;
+            }
+
+            .card-title {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .portal-header h1 {
+                font-size: 22px;
+            }
+
+            .portal-header .logo-icon {
+                font-size: 45px;
+            }
+
+            .card-features {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-particles">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- Portal Header -->
+    <div class="portal-header">
+        <span class="logo-icon">🏥</span>
+        <h1>May Pen Hospital</h1>
+        <p class="subtitle">Management Systems Portal</p>
+        <p class="org-name">South East Regional Health Authority</p>
+    </div>
+
+    <!-- Login Cards Grid -->
+    <div class="cards-grid">
+
+        <!-- Procurement Officer Card -->
+        <div class="login-card" onclick="window.location.href='procurement.html'">
+            <div class="card-strip procurement"></div>
+            <div class="card-body">
+                <div class="card-icon procurement">
+                    📋
+                </div>
+                <div class="card-dept">Finance &amp; Procurement</div>
+                <h2 class="card-title">Procurement Officer</h2>
+                <p class="card-description">
+                    Government of Jamaica procurement management system. Guides officers through the full GOJ procurement lifecycle from requisition to payment.
+                </p>
+                <div class="card-features">
+                    <span class="feature-tag">GOJ Process</span>
+                    <span class="feature-tag">Purchase Orders</span>
+                    <span class="feature-tag">Supplier Mgmt</span>
+                    <span class="feature-tag">Auto-Generate POs</span>
+                </div>
+                <a class="card-btn procurement" href="procurement.html">
+                    Launch System <span class="arrow">&rarr;</span>
+                </a>
+                <div class="card-status">
+                    <span class="status-dot"></span>
+                    System Online
+                </div>
+            </div>
+        </div>
+
+        <!-- General Stores Department Card -->
+        <div class="login-card" onclick="window.location.href='stores.html'">
+            <div class="card-strip stores"></div>
+            <div class="card-body">
+                <div class="card-icon stores">
+                    📦
+                </div>
+                <div class="card-dept">General Stores Department</div>
+                <h2 class="card-title">Inventory Management</h2>
+                <p class="card-description">
+                    Comprehensive inventory management system for the General Stores Department. Track stock levels, manage receipts, issues, and reorder points.
+                </p>
+                <div class="card-features">
+                    <span class="feature-tag">Stock Control</span>
+                    <span class="feature-tag">Receive/Issue</span>
+                    <span class="feature-tag">Reorder Alerts</span>
+                    <span class="feature-tag">Reports</span>
+                </div>
+                <a class="card-btn stores" href="stores.html">
+                    Launch System <span class="arrow">&rarr;</span>
+                </a>
+                <div class="card-status">
+                    <span class="status-dot"></span>
+                    System Online
+                </div>
+            </div>
+        </div>
+
+        <!-- Fixed Asset System Card -->
+        <div class="login-card" onclick="window.location.href='index.html'">
+            <div class="card-strip assets"></div>
+            <div class="card-body">
+                <div class="card-icon assets">
+                    🏷️
+                </div>
+                <div class="card-dept">Accounts Department</div>
+                <h2 class="card-title">Fixed Asset System</h2>
+                <p class="card-description">
+                    Fixed asset tracking, depreciation, QR codes, audit trails, and reporting for all hospital capital assets and equipment.
+                </p>
+                <div class="card-features">
+                    <span class="feature-tag">Asset Tracking</span>
+                    <span class="feature-tag">Depreciation</span>
+                    <span class="feature-tag">QR Codes</span>
+                    <span class="feature-tag">Audit Trail</span>
+                </div>
+                <a class="card-btn assets" href="index.html">
+                    Launch System <span class="arrow">&rarr;</span>
+                </a>
+                <div class="card-status">
+                    <span class="status-dot"></span>
+                    System Online
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Portal Footer -->
+    <div class="portal-footer">
+        <p>&copy; 2025 May Pen Hospital &mdash; South East Regional Health Authority</p>
+        <p style="margin-top: 5px;">Government of Jamaica</p>
+    </div>
+
+</body>
+</html>

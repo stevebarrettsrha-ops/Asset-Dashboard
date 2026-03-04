@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement Officer - May Pen Hospital</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --bg-primary: #f5f7fa;
+            --bg-secondary: #e9ecef;
+            --bg-card: #ffffff;
+            --text-primary: #2C3E50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #2d4059;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Login Page */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-title { font-size: 28px; color: #333; margin-bottom: 10px; }
+        .login-subtitle { color: #666; font-size: 16px; margin-bottom: 5px; }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; font-size: 14px; }
+
+        .login-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        /* Dashboard Layout */
+        .app-container { display: none; }
+        .app-container.active { display: block; }
+
+        /* Top Navigation */
+        .top-nav {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 65px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-nav .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .top-nav .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .top-nav .nav-actions button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .top-nav .nav-actions button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Sidebar */
+        .layout {
+            display: flex;
+            min-height: calc(100vh - 65px);
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 20px 0;
+            transition: all 0.3s;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 0 15px;
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            padding: 0 10px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .sidebar-item:hover { background: var(--bg-secondary); }
+
+        .sidebar-item.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .sidebar-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            background: var(--bg-primary);
+        }
+
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Page Headers */
+        .page-header {
+            margin-bottom: 25px;
+        }
+
+        .page-header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow);
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px var(--shadow);
+            border-left: 4px solid;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card.purple { border-color: #667eea; }
+        .stat-card.green { border-color: #27ae60; }
+        .stat-card.orange { border-color: #f39c12; }
+        .stat-card.red { border-color: #e74c3c; }
+
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Procurement Process Timeline */
+        .process-timeline {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            overflow-x: auto;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+
+        .process-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .process-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            left: 60%;
+            width: calc(100% - 20px);
+            height: 3px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+
+        .process-step.completed:not(:last-child)::after {
+            background: #27ae60;
+        }
+
+        .process-step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea, var(--border-color));
+        }
+
+        .step-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: var(--bg-secondary);
+            border: 3px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .process-step.completed .step-circle {
+            background: #27ae60;
+            border-color: #27ae60;
+            color: white;
+        }
+
+        .process-step.active .step-circle {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #667eea;
+            color: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .step-label {
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 100px;
+        }
+
+        .process-step.active .step-label { color: #667eea; }
+        .process-step.completed .step-label { color: #27ae60; }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        select.form-control { cursor: pointer; }
+
+        textarea.form-control { min-height: 80px; resize: vertical; }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover { transform: translateY(-2px); }
+
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-success { background: linear-gradient(135deg, #2ECC71, #27AE60); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+        .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        th {
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        tr:hover { background: var(--bg-secondary); }
+
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-pending { background: #ffeaa7; color: #6c5d00; }
+        .badge-approved { background: #d4efdf; color: #1e8449; }
+        .badge-rejected { background: #fadbd8; color: #922b21; }
+        .badge-draft { background: #e8e8e8; color: #666; }
+        .badge-active { background: #d6eaf8; color: #1a5276; }
+        .badge-completed { background: #d5f5e3; color: #196f3d; }
+
+        /* PO Preview */
+        .po-preview {
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            background: white;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .po-preview .po-header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .po-preview .po-title { font-size: 24px; font-weight: 700; color: #667eea; }
+        .po-preview .po-number { font-size: 14px; color: #666; margin-top: 5px; }
+
+        .po-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .po-info-block h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .po-info-block p {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .po-items-table { width: 100%; margin: 20px 0; }
+        .po-items-table th { background: #667eea; color: white; padding: 10px; font-size: 12px; text-transform: uppercase; }
+        .po-items-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; color: #333; }
+        .po-items-table tfoot td { font-weight: 700; border-top: 2px solid #667eea; }
+
+        /* Night Mode Toggle */
+        .night-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px var(--shadow);
+            z-index: 200;
+            transition: all 0.3s;
+        }
+
+        .night-toggle:hover { transform: scale(1.1); }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 500;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-box {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-box h2 { margin-bottom: 20px; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .empty-icon { font-size: 50px; margin-bottom: 15px; }
+        .empty-state p { font-size: 16px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .top-nav .nav-brand { font-size: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .po-info-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Print styles */
+        @media print {
+            .top-nav, .sidebar, .night-toggle, .btn-group, .no-print { display: none !important; }
+            .main-content { padding: 0; }
+            .card { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <div class="login-header">
+                <h1 class="login-title">📋 Procurement Officer</h1>
+                <p class="login-subtitle">Government of Jamaica</p>
+                <p class="login-subtitle">Procurement Management System</p>
+            </div>
+            <div id="loginError" style="background:#fee;color:#c33;padding:12px;border-radius:6px;margin-bottom:20px;font-size:14px;display:none;border-left:4px solid #c33;"></div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="login-input" placeholder="Enter username" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+            <div class="login-footer">
+                <p>Authorized Procurement Personnel Only</p>
+                <a href="portal.html" class="back-link">Back to Systems Portal</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP CONTAINER -->
+    <div class="app-container" id="appContainer">
+        <!-- Top Nav -->
+        <nav class="top-nav">
+            <div class="nav-brand">
+                <span>📋</span>
+                <span>Procurement System</span>
+            </div>
+            <div class="nav-actions">
+                <button onclick="toggleDarkMode()">🌙</button>
+                <button onclick="logout()">Logout</button>
+            </div>
+        </nav>
+
+        <div class="layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Main</div>
+                    <a class="sidebar-item active" data-page="dashboard" onclick="showPage('dashboard')">
+                        <span class="icon">📊</span> Dashboard
+                    </a>
+                    <a class="sidebar-item" data-page="newRequisition" onclick="showPage('newRequisition')">
+                        <span class="icon">📝</span> New Requisition
+                    </a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Procurement Process</div>
+                    <a class="sidebar-item" data-page="requisitions" onclick="showPage('requisitions')">
+                        <span class="icon">📄</span> Requisitions
+                    </a>
+                    <a class="sidebar-item" data-page="quotations" onclick="showPage('quotations')">
+                        <span class="icon">💰</span> Quotations
+                    </a>
+                    <a class="sidebar-item" data-page="evaluation" onclick="showPage('evaluation')">
+                        <span class="icon">⚖️</span> Evaluation
+                    </a>
+                    <a class="sidebar-item" data-page="approvals" onclick="showPage('approvals')">
+                        <span class="icon">✅</span> Approvals
+                    </a>
+                    <a class="sidebar-item" data-page="purchaseOrders" onclick="showPage('purchaseOrders')">
+                        <span class="icon">🛒</span> Purchase Orders
+                    </a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Management</div>
+                    <a class="sidebar-item" data-page="suppliers" onclick="showPage('suppliers')">
+                        <span class="icon">🏢</span> Suppliers
+                    </a>
+                    <a class="sidebar-item" data-page="reports" onclick="showPage('reports')">
+                        <span class="icon">📈</span> Reports
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+
+                <!-- Dashboard Page -->
+                <div class="page active" id="page-dashboard">
+                    <div class="page-header">
+                        <h1>Procurement Dashboard</h1>
+                        <p>Government of Jamaica Procurement Process Overview</p>
+                    </div>
+
+                    <div class="stats-row">
+                        <div class="stat-card purple">
+                            <div class="stat-value" id="statRequisitions">0</div>
+                            <div class="stat-label">Active Requisitions</div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-value" id="statPOs">0</div>
+                            <div class="stat-label">Purchase Orders</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-value" id="statPending">0</div>
+                            <div class="stat-label">Pending Approvals</div>
+                        </div>
+                        <div class="stat-card red">
+                            <div class="stat-value" id="statSuppliers">0</div>
+                            <div class="stat-label">Registered Suppliers</div>
+                        </div>
+                    </div>
+
+                    <!-- GOJ Procurement Process -->
+                    <div class="card">
+                        <h2>GOJ Procurement Lifecycle</h2>
+                        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:15px;">Follow the Government of Jamaica procurement process step by step</p>
+                        <div class="process-timeline" id="processTimeline">
+                            <div class="process-step active" onclick="showPage('newRequisition')">
+                                <div class="step-circle">1</div>
+                                <div class="step-label">Requisition</div>
+                            </div>
+                            <div class="process-step" onclick="showPage('quotations')">
+                                <div class="step-circle">2</div>
+                                <div class="step-label">Request Quotation</div>
+                            </div>
+                            <div class="process-step" onclick="showPage('evaluation')">
+                                <div class="step-circle">3</div>
+                                <div class="step-label">Bid Evaluation</div>
+                            </div>
+                            <div class="process-step" onclick="showPage('approvals')">
+                                <div class="step-circle">4</div>
+                                <div class="step-label">NCC/Procurement Committee Approval</div>
+                            </div>
+                            <div class="process-step" onclick="showPage('purchaseOrders')">
+                                <div class="step-circle">5</div>
+                                <div class="step-label">Purchase Order</div>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-circle">6</div>
+                                <div class="step-label">Delivery & Receiving</div>
+                            </div>
+                            <div class="process-step">
+                                <div class="step-circle">7</div>
+                                <div class="step-label">Invoice & Payment</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="card">
+                        <h2>Recent Activity</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Reference</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivityTable">
+                                    <tr>
+                                        <td colspan="4" style="text-align:center;padding:30px;color:var(--text-secondary);">No recent activity</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Requisition Page -->
+                <div class="page" id="page-newRequisition">
+                    <div class="page-header">
+                        <h1>New Purchase Requisition</h1>
+                        <p>Step 1 of the GOJ Procurement Process - Create a purchase requisition</p>
+                    </div>
+
+                    <div class="card">
+                        <h2>Requisition Details</h2>
+                        <form id="requisitionForm" onsubmit="submitRequisition(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Requisition Date</label>
+                                    <input type="date" class="form-control" id="reqDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Department</label>
+                                    <select class="form-control" id="reqDept" required>
+                                        <option value="">Select Department</option>
+                                        <option>Administration</option>
+                                        <option>Medical Ward</option>
+                                        <option>Surgical Ward</option>
+                                        <option>Accident & Emergency</option>
+                                        <option>Laboratory</option>
+                                        <option>Pharmacy</option>
+                                        <option>Radiology</option>
+                                        <option>General Stores</option>
+                                        <option>Maintenance</option>
+                                        <option>Kitchen/Dietary</option>
+                                        <option>Housekeeping</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Requested By</label>
+                                    <input type="text" class="form-control" id="reqBy" placeholder="Officer name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Priority</label>
+                                    <select class="form-control" id="reqPriority" required>
+                                        <option value="Normal">Normal</option>
+                                        <option value="Urgent">Urgent</option>
+                                        <option value="Emergency">Emergency</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Procurement Method</label>
+                                    <select class="form-control" id="reqMethod" required>
+                                        <option value="">Select Method</option>
+                                        <option value="Direct">Direct Contracting (Under $500K)</option>
+                                        <option value="Competitive Quotation">Competitive Quotation ($500K - $3M)</option>
+                                        <option value="Local Competitive Bidding">Local Competitive Bidding ($3M - $30M)</option>
+                                        <option value="International Competitive Bidding">International Competitive Bidding (Over $30M)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Budget Line</label>
+                                    <input type="text" class="form-control" id="reqBudgetLine" placeholder="Budget line/code">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Justification / Purpose</label>
+                                <textarea class="form-control" id="reqJustification" placeholder="Explain why this procurement is needed..." required></textarea>
+                            </div>
+
+                            <!-- Line Items -->
+                            <h3 style="margin-top:20px;">Line Items</h3>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Item Description</th>
+                                            <th>Unit</th>
+                                            <th>Qty</th>
+                                            <th>Est. Unit Price (JMD)</th>
+                                            <th>Est. Total</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reqItemsBody">
+                                        <tr>
+                                            <td>1</td>
+                                            <td><input type="text" class="form-control" placeholder="Item description" style="min-width:200px"></td>
+                                            <td><input type="text" class="form-control" placeholder="ea/box/pk" style="width:80px"></td>
+                                            <td><input type="number" class="form-control" placeholder="0" style="width:80px" min="1" onchange="calcLineTotal(this)"></td>
+                                            <td><input type="number" class="form-control" placeholder="0.00" style="width:120px" step="0.01" onchange="calcLineTotal(this)"></td>
+                                            <td class="line-total">$0.00</td>
+                                            <td><button type="button" class="btn btn-danger" onclick="removeReqItem(this)" style="padding:5px 10px;">X</button></td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="5" style="text-align:right;font-weight:700;">Estimated Total:</td>
+                                            <td id="reqGrandTotal" style="font-weight:700;">$0.00</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-secondary" onclick="addReqItem()">+ Add Line Item</button>
+                                <button type="submit" class="btn btn-primary">Submit Requisition</button>
+                                <button type="button" class="btn btn-warning" onclick="saveDraft()">Save as Draft</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Requisitions List Page -->
+                <div class="page" id="page-requisitions">
+                    <div class="page-header">
+                        <h1>Requisitions</h1>
+                        <p>All purchase requisitions</p>
+                    </div>
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                            <h2>Requisition List</h2>
+                            <button class="btn btn-primary" onclick="showPage('newRequisition')">+ New Requisition</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Ref #</th>
+                                        <th>Date</th>
+                                        <th>Department</th>
+                                        <th>Items</th>
+                                        <th>Est. Value</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="requisitionsTable">
+                                    <tr><td colspan="8" class="empty-state"><div class="empty-icon">📄</div><p>No requisitions yet. Create one to start the procurement process.</p></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quotations Page -->
+                <div class="page" id="page-quotations">
+                    <div class="page-header">
+                        <h1>Request for Quotations</h1>
+                        <p>Step 2 - Send requests for quotations to suppliers</p>
+                    </div>
+                    <div class="card">
+                        <h2>Quotation Requests</h2>
+                        <p style="color:var(--text-secondary);margin-bottom:15px;">Select an approved requisition to request quotations from suppliers.</p>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Requisition Ref</th>
+                                        <th>Description</th>
+                                        <th>Suppliers Invited</th>
+                                        <th>Quotes Received</th>
+                                        <th>Deadline</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quotationsTable">
+                                    <tr><td colspan="7" class="empty-state"><div class="empty-icon">💰</div><p>No active quotation requests</p></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evaluation Page -->
+                <div class="page" id="page-evaluation">
+                    <div class="page-header">
+                        <h1>Bid Evaluation</h1>
+                        <p>Step 3 - Evaluate received quotations/bids per GOJ guidelines</p>
+                    </div>
+                    <div class="card">
+                        <h2>Evaluation Matrix</h2>
+                        <p style="color:var(--text-secondary);margin-bottom:15px;">Compare supplier bids based on price, quality, delivery, and compliance criteria as per GOJ Handbook of Public Sector Procurement Procedures.</p>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Requisition Ref</th>
+                                        <th>Supplier</th>
+                                        <th>Quoted Price</th>
+                                        <th>Delivery Time</th>
+                                        <th>Compliance</th>
+                                        <th>Score</th>
+                                        <th>Recommendation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="evaluationTable">
+                                    <tr><td colspan="7" class="empty-state"><div class="empty-icon">⚖️</div><p>No bids to evaluate yet</p></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approvals Page -->
+                <div class="page" id="page-approvals">
+                    <div class="page-header">
+                        <h1>Approvals</h1>
+                        <p>Step 4 - NCC / Procurement Committee review and approval</p>
+                    </div>
+                    <div class="card">
+                        <h2>Pending Approvals</h2>
+                        <p style="color:var(--text-secondary);margin-bottom:15px;">Items awaiting approval from the National Contracts Commission (NCC) or internal Procurement Committee based on value thresholds.</p>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Ref #</th>
+                                        <th>Description</th>
+                                        <th>Value (JMD)</th>
+                                        <th>Recommended Supplier</th>
+                                        <th>Approval Level</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approvalsTable">
+                                    <tr><td colspan="7" class="empty-state"><div class="empty-icon">✅</div><p>No items pending approval</p></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchase Orders Page -->
+                <div class="page" id="page-purchaseOrders">
+                    <div class="page-header">
+                        <h1>Purchase Orders</h1>
+                        <p>Step 5 - Auto-generate and manage purchase orders</p>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                            <h2>Purchase Order List</h2>
+                            <button class="btn btn-primary" onclick="showGeneratePOModal()">Generate PO from Approved Requisition</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>PO Number</th>
+                                        <th>Date</th>
+                                        <th>Supplier</th>
+                                        <th>Items</th>
+                                        <th>Total (JMD)</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poTable">
+                                    <tr><td colspan="7" class="empty-state"><div class="empty-icon">🛒</div><p>No purchase orders generated yet</p></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- PO Preview Section (hidden by default) -->
+                    <div class="card" id="poPreviewCard" style="display:none;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                            <h2>Purchase Order Preview</h2>
+                            <div class="btn-group no-print" style="margin-top:0;">
+                                <button class="btn btn-primary" onclick="window.print()">Print PO</button>
+                                <button class="btn btn-secondary" onclick="document.getElementById('poPreviewCard').style.display='none'">Close</button>
+                            </div>
+                        </div>
+                        <div class="po-preview" id="poPreviewContent">
+                            <!-- PO content generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suppliers Page -->
+                <div class="page" id="page-suppliers">
+                    <div class="page-header">
+                        <h1>Supplier Management</h1>
+                        <p>Manage registered suppliers and vendor database</p>
+                    </div>
+                    <div class="card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                            <h2>Supplier Directory</h2>
+                            <button class="btn btn-primary" onclick="showAddSupplierModal()">+ Add Supplier</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Supplier Name</th>
+                                        <th>TRN</th>
+                                        <th>Contact</th>
+                                        <th>Email</th>
+                                        <th>Category</th>
+                                        <th>NCC Registered</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Page -->
+                <div class="page" id="page-reports">
+                    <div class="page-header">
+                        <h1>Procurement Reports</h1>
+                        <p>Generate procurement activity and compliance reports</p>
+                    </div>
+                    <div class="stats-row">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('summary')">
+                            <div style="font-size:40px;margin-bottom:10px;">📊</div>
+                            <h3>Procurement Summary</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Overview of all procurement activities</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('po')">
+                            <div style="font-size:40px;margin-bottom:10px;">📋</div>
+                            <h3>PO Register</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">All purchase orders issued</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('supplier')">
+                            <div style="font-size:40px;margin-bottom:10px;">🏢</div>
+                            <h3>Supplier Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Supplier performance and history</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('compliance')">
+                            <div style="font-size:40px;margin-bottom:10px;">✅</div>
+                            <h3>Compliance Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">GOJ procurement compliance audit</p>
+                        </div>
+                    </div>
+                    <div class="card" id="reportOutput" style="display:none;">
+                        <h2 id="reportTitle"></h2>
+                        <div id="reportContent"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Supplier Modal -->
+    <div class="modal-overlay" id="supplierModal">
+        <div class="modal-box">
+            <h2>Add New Supplier</h2>
+            <form onsubmit="addSupplier(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Supplier Name</label>
+                        <input type="text" class="form-control" id="supName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>TRN (Tax Registration Number)</label>
+                        <input type="text" class="form-control" id="supTRN" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <input type="text" class="form-control" id="supContact">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" class="form-control" id="supPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" id="supEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select class="form-control" id="supCategory">
+                            <option>Medical Supplies</option>
+                            <option>Office Supplies</option>
+                            <option>IT Equipment</option>
+                            <option>Furniture</option>
+                            <option>Cleaning Supplies</option>
+                            <option>Food & Dietary</option>
+                            <option>Construction</option>
+                            <option>Maintenance</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>NCC Registered</label>
+                        <select class="form-control" id="supNCC">
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" class="form-control" id="supAddress">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Supplier</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('supplierModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Generate PO Modal -->
+    <div class="modal-overlay" id="generatePOModal">
+        <div class="modal-box">
+            <h2>Generate Purchase Order</h2>
+            <p style="color:var(--text-secondary);margin-bottom:20px;">Select an approved requisition to auto-generate a Purchase Order</p>
+            <div class="form-group">
+                <label>Approved Requisition</label>
+                <select class="form-control" id="poReqSelect">
+                    <option value="">-- Select Requisition --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Supplier</label>
+                <select class="form-control" id="poSupplierSelect">
+                    <option value="">-- Select Supplier --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Delivery Address</label>
+                <input type="text" class="form-control" id="poDeliveryAddr" value="May Pen Hospital, May Pen, Clarendon, Jamaica">
+            </div>
+            <div class="form-group">
+                <label>Payment Terms</label>
+                <select class="form-control" id="poPayTerms">
+                    <option>Net 30 Days</option>
+                    <option>Net 60 Days</option>
+                    <option>Upon Delivery</option>
+                    <option>50% Advance, 50% On Delivery</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Special Instructions</label>
+                <textarea class="form-control" id="poInstructions" placeholder="Any special delivery or handling instructions..."></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="generatePurchaseOrder()">Generate PO</button>
+                <button class="btn btn-secondary" onclick="closeModal('generatePOModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <button class="night-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
+
+    <script>
+        // ============================================
+        // DATA STORE (localStorage)
+        // ============================================
+        const STORAGE_KEY = 'procurementData';
+
+        function loadData() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) return JSON.parse(raw);
+            return {
+                requisitions: [],
+                suppliers: [
+                    { id: 'SUP-001', name: 'Jamaica Medical Supplies Ltd', trn: '001-234-567', contact: 'John Brown', phone: '876-555-0101', email: 'sales@jamsupplies.com', category: 'Medical Supplies', ncc: 'Yes', address: 'Kingston, Jamaica' },
+                    { id: 'SUP-002', name: 'Caribbean Office Solutions', trn: '002-345-678', contact: 'Mary Clarke', phone: '876-555-0202', email: 'info@cariboffice.com', category: 'Office Supplies', ncc: 'Yes', address: 'Montego Bay, Jamaica' },
+                    { id: 'SUP-003', name: 'TechIsland Systems', trn: '003-456-789', contact: 'David Lee', phone: '876-555-0303', email: 'orders@techisland.com', category: 'IT Equipment', ncc: 'Yes', address: 'Kingston, Jamaica' }
+                ],
+                purchaseOrders: [],
+                quotations: [],
+                evaluations: [],
+                activity: [],
+                poCounter: 1000,
+                reqCounter: 100
+            };
+        }
+
+        function saveData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        let appData = loadData();
+
+        // ============================================
+        // LOGIN
+        // ============================================
+        function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            // Simple auth - in production would verify against backend
+            if (user && pass) {
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('appContainer').classList.add('active');
+                refreshAll();
+            } else {
+                const err = document.getElementById('loginError');
+                err.textContent = 'Please enter valid credentials';
+                err.style.display = 'block';
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('appContainer').classList.remove('active');
+            document.getElementById('loginForm').reset();
+        }
+
+        // ============================================
+        // NAVIGATION
+        // ============================================
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+
+            const page = document.getElementById('page-' + pageId);
+            if (page) page.classList.add('active');
+
+            const sidebarItem = document.querySelector(`.sidebar-item[data-page="${pageId}"]`);
+            if (sidebarItem) sidebarItem.classList.add('active');
+        }
+
+        // ============================================
+        // DARK MODE
+        // ============================================
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // ============================================
+        // REQUISITION FORM
+        // ============================================
+        function addReqItem() {
+            const tbody = document.getElementById('reqItemsBody');
+            const rowCount = tbody.rows.length + 1;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${rowCount}</td>
+                <td><input type="text" class="form-control" placeholder="Item description" style="min-width:200px"></td>
+                <td><input type="text" class="form-control" placeholder="ea/box/pk" style="width:80px"></td>
+                <td><input type="number" class="form-control" placeholder="0" style="width:80px" min="1" onchange="calcLineTotal(this)"></td>
+                <td><input type="number" class="form-control" placeholder="0.00" style="width:120px" step="0.01" onchange="calcLineTotal(this)"></td>
+                <td class="line-total">$0.00</td>
+                <td><button type="button" class="btn btn-danger" onclick="removeReqItem(this)" style="padding:5px 10px;">X</button></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function removeReqItem(btn) {
+            const tbody = document.getElementById('reqItemsBody');
+            if (tbody.rows.length > 1) {
+                btn.closest('tr').remove();
+                recalcTotals();
+            }
+        }
+
+        function calcLineTotal(input) {
+            const row = input.closest('tr');
+            const inputs = row.querySelectorAll('input[type="number"]');
+            const qty = parseFloat(inputs[0].value) || 0;
+            const price = parseFloat(inputs[1].value) || 0;
+            const total = qty * price;
+            row.querySelector('.line-total').textContent = '$' + total.toLocaleString('en-JM', { minimumFractionDigits: 2 });
+            recalcTotals();
+        }
+
+        function recalcTotals() {
+            let grand = 0;
+            document.querySelectorAll('#reqItemsBody tr').forEach(row => {
+                const inputs = row.querySelectorAll('input[type="number"]');
+                const qty = parseFloat(inputs[0]?.value) || 0;
+                const price = parseFloat(inputs[1]?.value) || 0;
+                grand += qty * price;
+            });
+            document.getElementById('reqGrandTotal').textContent = '$' + grand.toLocaleString('en-JM', { minimumFractionDigits: 2 });
+        }
+
+        function submitRequisition(e) {
+            e.preventDefault();
+            appData.reqCounter++;
+            const refNum = 'REQ-' + appData.reqCounter;
+
+            // Collect items
+            const items = [];
+            document.querySelectorAll('#reqItemsBody tr').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                const desc = inputs[0].value;
+                const unit = inputs[1].value;
+                const qty = parseFloat(inputs[2].value) || 0;
+                const price = parseFloat(inputs[3].value) || 0;
+                if (desc && qty > 0) {
+                    items.push({ description: desc, unit, qty, unitPrice: price, total: qty * price });
+                }
+            });
+
+            const totalValue = items.reduce((sum, i) => sum + i.total, 0);
+
+            const requisition = {
+                id: refNum,
+                date: document.getElementById('reqDate').value,
+                department: document.getElementById('reqDept').value,
+                requestedBy: document.getElementById('reqBy').value,
+                priority: document.getElementById('reqPriority').value,
+                method: document.getElementById('reqMethod').value,
+                budgetLine: document.getElementById('reqBudgetLine').value,
+                justification: document.getElementById('reqJustification').value,
+                items: items,
+                totalValue: totalValue,
+                status: 'Submitted',
+                createdAt: new Date().toISOString()
+            };
+
+            appData.requisitions.push(requisition);
+            addActivity('Requisition ' + refNum + ' submitted - ' + requisition.department, 'Submitted');
+            saveData(appData);
+
+            alert('Requisition ' + refNum + ' submitted successfully!');
+            document.getElementById('requisitionForm').reset();
+            document.getElementById('reqItemsBody').innerHTML = `
+                <tr>
+                    <td>1</td>
+                    <td><input type="text" class="form-control" placeholder="Item description" style="min-width:200px"></td>
+                    <td><input type="text" class="form-control" placeholder="ea/box/pk" style="width:80px"></td>
+                    <td><input type="number" class="form-control" placeholder="0" style="width:80px" min="1" onchange="calcLineTotal(this)"></td>
+                    <td><input type="number" class="form-control" placeholder="0.00" style="width:120px" step="0.01" onchange="calcLineTotal(this)"></td>
+                    <td class="line-total">$0.00</td>
+                    <td><button type="button" class="btn btn-danger" onclick="removeReqItem(this)" style="padding:5px 10px;">X</button></td>
+                </tr>
+            `;
+            document.getElementById('reqGrandTotal').textContent = '$0.00';
+            showPage('requisitions');
+            refreshAll();
+        }
+
+        function saveDraft() {
+            alert('Draft saved locally.');
+        }
+
+        // ============================================
+        // SUPPLIERS
+        // ============================================
+        function showAddSupplierModal() {
+            document.getElementById('supplierModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function addSupplier(e) {
+            e.preventDefault();
+            const sup = {
+                id: 'SUP-' + String(appData.suppliers.length + 1).padStart(3, '0'),
+                name: document.getElementById('supName').value,
+                trn: document.getElementById('supTRN').value,
+                contact: document.getElementById('supContact').value,
+                phone: document.getElementById('supPhone').value,
+                email: document.getElementById('supEmail').value,
+                category: document.getElementById('supCategory').value,
+                ncc: document.getElementById('supNCC').value,
+                address: document.getElementById('supAddress').value
+            };
+            appData.suppliers.push(sup);
+            addActivity('Supplier added: ' + sup.name, 'Active');
+            saveData(appData);
+            closeModal('supplierModal');
+            refreshAll();
+        }
+
+        // ============================================
+        // PURCHASE ORDER GENERATION
+        // ============================================
+        function showGeneratePOModal() {
+            // Populate approved requisitions
+            const select = document.getElementById('poReqSelect');
+            select.innerHTML = '<option value="">-- Select Requisition --</option>';
+            appData.requisitions.filter(r => r.status === 'Approved' || r.status === 'Submitted').forEach(r => {
+                select.innerHTML += `<option value="${r.id}">${r.id} - ${r.department} ($${r.totalValue.toLocaleString()})</option>`;
+            });
+
+            // Populate suppliers
+            const supSelect = document.getElementById('poSupplierSelect');
+            supSelect.innerHTML = '<option value="">-- Select Supplier --</option>';
+            appData.suppliers.forEach(s => {
+                supSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+
+            document.getElementById('generatePOModal').classList.add('active');
+        }
+
+        function generatePurchaseOrder() {
+            const reqId = document.getElementById('poReqSelect').value;
+            const supId = document.getElementById('poSupplierSelect').value;
+
+            if (!reqId || !supId) {
+                alert('Please select both a requisition and supplier.');
+                return;
+            }
+
+            const req = appData.requisitions.find(r => r.id === reqId);
+            const sup = appData.suppliers.find(s => s.id === supId);
+
+            appData.poCounter++;
+            const poNum = 'PO-MPH-' + appData.poCounter;
+
+            const po = {
+                id: poNum,
+                date: new Date().toISOString().split('T')[0],
+                requisitionRef: reqId,
+                supplier: sup,
+                items: req.items,
+                totalValue: req.totalValue,
+                deliveryAddress: document.getElementById('poDeliveryAddr').value,
+                paymentTerms: document.getElementById('poPayTerms').value,
+                instructions: document.getElementById('poInstructions').value,
+                status: 'Issued',
+                createdAt: new Date().toISOString()
+            };
+
+            appData.purchaseOrders.push(po);
+            req.status = 'PO Issued';
+            addActivity('Purchase Order ' + poNum + ' generated for ' + sup.name, 'Issued');
+            saveData(appData);
+
+            closeModal('generatePOModal');
+            refreshAll();
+            showPage('purchaseOrders');
+
+            // Show PO preview
+            showPOPreview(po);
+        }
+
+        function showPOPreview(po) {
+            const card = document.getElementById('poPreviewCard');
+            card.style.display = 'block';
+
+            let itemsHtml = '';
+            po.items.forEach((item, i) => {
+                itemsHtml += `<tr>
+                    <td>${i + 1}</td>
+                    <td>${item.description}</td>
+                    <td>${item.unit}</td>
+                    <td>${item.qty}</td>
+                    <td>$${item.unitPrice.toLocaleString('en-JM', { minimumFractionDigits: 2 })}</td>
+                    <td>$${item.total.toLocaleString('en-JM', { minimumFractionDigits: 2 })}</td>
+                </tr>`;
+            });
+
+            const gct = po.totalValue * 0.15;
+            const grandTotal = po.totalValue + gct;
+
+            document.getElementById('poPreviewContent').innerHTML = `
+                <div class="po-header-section">
+                    <div>
+                        <div class="po-title">PURCHASE ORDER</div>
+                        <div class="po-number">${po.id}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>May Pen Hospital</strong><br>
+                        <span style="font-size:13px;color:#666;">South East Regional Health Authority<br>May Pen, Clarendon, Jamaica</span>
+                    </div>
+                </div>
+                <div class="po-info-grid">
+                    <div class="po-info-block">
+                        <h4>Supplier</h4>
+                        <p><strong>${po.supplier.name}</strong><br>${po.supplier.address}<br>TRN: ${po.supplier.trn}<br>Tel: ${po.supplier.phone}</p>
+                    </div>
+                    <div class="po-info-block">
+                        <h4>Order Details</h4>
+                        <p>Date: ${po.date}<br>Requisition: ${po.requisitionRef}<br>Payment: ${po.paymentTerms}<br>Delivery: ${po.deliveryAddress}</p>
+                    </div>
+                </div>
+                <table class="po-items-table">
+                    <thead><tr><th>#</th><th>Description</th><th>Unit</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                    <tfoot>
+                        <tr><td colspan="5" style="text-align:right;">Subtotal:</td><td>$${po.totalValue.toLocaleString('en-JM', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr><td colspan="5" style="text-align:right;">GCT (15%):</td><td>$${gct.toLocaleString('en-JM', { minimumFractionDigits: 2 })}</td></tr>
+                        <tr><td colspan="5" style="text-align:right;font-size:16px;">Grand Total:</td><td style="font-size:16px;">$${grandTotal.toLocaleString('en-JM', { minimumFractionDigits: 2 })}</td></tr>
+                    </tfoot>
+                </table>
+                ${po.instructions ? `<div style="margin-top:15px;"><h4 style="font-size:12px;color:#999;text-transform:uppercase;">Special Instructions</h4><p style="font-size:14px;">${po.instructions}</p></div>` : ''}
+                <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:30px;">
+                    <div style="border-top:2px solid #333;padding-top:10px;text-align:center;">
+                        <p style="font-size:12px;color:#666;">Authorized Signature / Procurement Officer</p>
+                    </div>
+                    <div style="border-top:2px solid #333;padding-top:10px;text-align:center;">
+                        <p style="font-size:12px;color:#666;">Approved By / Finance Director</p>
+                    </div>
+                </div>
+                <div style="margin-top:20px;text-align:center;font-size:11px;color:#999;">
+                    <p>This purchase order is issued in accordance with the Government of Jamaica Procurement Guidelines.</p>
+                    <p>Handbook of Public Sector Procurement Procedures (2014)</p>
+                </div>
+            `;
+
+            card.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================
+        // ACTIVITY LOG
+        // ============================================
+        function addActivity(description, status) {
+            appData.activity.unshift({
+                date: new Date().toLocaleDateString(),
+                ref: description.split(' ')[1] || '-',
+                description: description,
+                status: status
+            });
+            if (appData.activity.length > 50) appData.activity.pop();
+        }
+
+        // ============================================
+        // REPORTS
+        // ============================================
+        function generateReport(type) {
+            const output = document.getElementById('reportOutput');
+            const title = document.getElementById('reportTitle');
+            const content = document.getElementById('reportContent');
+            output.style.display = 'block';
+
+            if (type === 'summary') {
+                title.textContent = 'Procurement Summary Report';
+                content.innerHTML = `
+                    <p style="margin-bottom:15px;">Generated: ${new Date().toLocaleDateString()}</p>
+                    <div class="stats-row">
+                        <div class="stat-card purple"><div class="stat-value">${appData.requisitions.length}</div><div class="stat-label">Total Requisitions</div></div>
+                        <div class="stat-card green"><div class="stat-value">${appData.purchaseOrders.length}</div><div class="stat-label">Purchase Orders</div></div>
+                        <div class="stat-card orange"><div class="stat-value">$${appData.purchaseOrders.reduce((s, p) => s + p.totalValue, 0).toLocaleString()}</div><div class="stat-label">Total PO Value</div></div>
+                    </div>
+                `;
+            } else if (type === 'po') {
+                title.textContent = 'Purchase Order Register';
+                let rows = appData.purchaseOrders.map(p => `<tr><td>${p.id}</td><td>${p.date}</td><td>${p.supplier.name}</td><td>$${p.totalValue.toLocaleString()}</td><td><span class="badge badge-active">${p.status}</span></td></tr>`).join('');
+                if (!rows) rows = '<tr><td colspan="5" style="text-align:center;padding:20px;">No purchase orders</td></tr>';
+                content.innerHTML = `<div class="table-container"><table><thead><tr><th>PO #</th><th>Date</th><th>Supplier</th><th>Value</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            } else if (type === 'supplier') {
+                title.textContent = 'Supplier Report';
+                let rows = appData.suppliers.map(s => `<tr><td>${s.name}</td><td>${s.trn}</td><td>${s.category}</td><td>${s.ncc}</td><td>${appData.purchaseOrders.filter(p => p.supplier.id === s.id).length}</td></tr>`).join('');
+                content.innerHTML = `<div class="table-container"><table><thead><tr><th>Supplier</th><th>TRN</th><th>Category</th><th>NCC</th><th>POs Issued</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            } else if (type === 'compliance') {
+                title.textContent = 'GOJ Compliance Report';
+                const total = appData.requisitions.length;
+                const withMethod = appData.requisitions.filter(r => r.method).length;
+                content.innerHTML = `
+                    <p style="margin-bottom:15px;">Compliance with GOJ Handbook of Public Sector Procurement Procedures</p>
+                    <div class="stats-row">
+                        <div class="stat-card green"><div class="stat-value">${total > 0 ? Math.round(withMethod / total * 100) : 0}%</div><div class="stat-label">Method Compliance</div></div>
+                        <div class="stat-card purple"><div class="stat-value">${appData.suppliers.filter(s => s.ncc === 'Yes').length}/${appData.suppliers.length}</div><div class="stat-label">NCC Registered Suppliers</div></div>
+                    </div>
+                `;
+            }
+
+            output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================
+        // REQUISITION ACTIONS (Approve/Reject from list)
+        // ============================================
+        function approveReq(reqId) {
+            const req = appData.requisitions.find(r => r.id === reqId);
+            if (req) {
+                req.status = 'Approved';
+                addActivity('Requisition ' + reqId + ' approved', 'Approved');
+                saveData(appData);
+                refreshAll();
+            }
+        }
+
+        function rejectReq(reqId) {
+            const req = appData.requisitions.find(r => r.id === reqId);
+            if (req) {
+                req.status = 'Rejected';
+                addActivity('Requisition ' + reqId + ' rejected', 'Rejected');
+                saveData(appData);
+                refreshAll();
+            }
+        }
+
+        function viewPO(poId) {
+            const po = appData.purchaseOrders.find(p => p.id === poId);
+            if (po) showPOPreview(po);
+        }
+
+        // ============================================
+        // REFRESH ALL DATA VIEWS
+        // ============================================
+        function refreshAll() {
+            // Stats
+            document.getElementById('statRequisitions').textContent = appData.requisitions.filter(r => r.status !== 'Rejected').length;
+            document.getElementById('statPOs').textContent = appData.purchaseOrders.length;
+            document.getElementById('statPending').textContent = appData.requisitions.filter(r => r.status === 'Submitted').length;
+            document.getElementById('statSuppliers').textContent = appData.suppliers.length;
+
+            // Recent Activity
+            const actBody = document.getElementById('recentActivityTable');
+            if (appData.activity.length === 0) {
+                actBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-secondary);">No recent activity</td></tr>';
+            } else {
+                actBody.innerHTML = appData.activity.slice(0, 10).map(a => `
+                    <tr>
+                        <td>${a.date}</td>
+                        <td>${a.ref}</td>
+                        <td>${a.description}</td>
+                        <td><span class="badge badge-${a.status.toLowerCase()}">${a.status}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Requisitions Table
+            const reqBody = document.getElementById('requisitionsTable');
+            if (appData.requisitions.length === 0) {
+                reqBody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📄</div><p>No requisitions yet</p></td></tr>';
+            } else {
+                reqBody.innerHTML = appData.requisitions.map(r => `
+                    <tr>
+                        <td><strong>${r.id}</strong></td>
+                        <td>${r.date}</td>
+                        <td>${r.department}</td>
+                        <td>${r.items.length}</td>
+                        <td>$${r.totalValue.toLocaleString()}</td>
+                        <td>${r.method}</td>
+                        <td><span class="badge badge-${r.status === 'Submitted' ? 'pending' : r.status === 'Approved' ? 'approved' : r.status === 'Rejected' ? 'rejected' : 'active'}">${r.status}</span></td>
+                        <td>
+                            ${r.status === 'Submitted' ? `<button class="btn btn-success" style="padding:4px 10px;font-size:12px;" onclick="approveReq('${r.id}')">Approve</button> <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="rejectReq('${r.id}')">Reject</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Suppliers Table
+            const supBody = document.getElementById('suppliersTable');
+            supBody.innerHTML = appData.suppliers.map(s => `
+                <tr>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.trn}</td>
+                    <td>${s.contact}</td>
+                    <td>${s.email}</td>
+                    <td>${s.category}</td>
+                    <td><span class="badge ${s.ncc === 'Yes' ? 'badge-approved' : s.ncc === 'Pending' ? 'badge-pending' : 'badge-rejected'}">${s.ncc}</span></td>
+                    <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="alert('Edit supplier feature')">Edit</button></td>
+                </tr>
+            `).join('');
+
+            // PO Table
+            const poBody = document.getElementById('poTable');
+            if (appData.purchaseOrders.length === 0) {
+                poBody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="empty-icon">🛒</div><p>No purchase orders generated yet</p></td></tr>';
+            } else {
+                poBody.innerHTML = appData.purchaseOrders.map(p => `
+                    <tr>
+                        <td><strong>${p.id}</strong></td>
+                        <td>${p.date}</td>
+                        <td>${p.supplier.name}</td>
+                        <td>${p.items.length}</td>
+                        <td>$${p.totalValue.toLocaleString()}</td>
+                        <td><span class="badge badge-active">${p.status}</span></td>
+                        <td><button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="viewPO('${p.id}')">View PO</button></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // Set default date
+        document.getElementById('reqDate').valueAsDate = new Date();
+    </script>
+</body>
+</html>
