@@ -64,10 +64,194 @@
            ============================================ */
         .login-container {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        }
+
+        /* Portal Cards View */
+        .portal-view {
+            text-align: center;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .portal-view .portal-header-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+
+        .portal-view h1 {
+            color: #ffffff;
+            font-size: 34px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .portal-view .portal-subtitle {
+            color: rgba(255,255,255,0.6);
+            font-size: 17px;
+            margin-bottom: 5px;
+        }
+
+        .portal-view .portal-org {
+            color: #FF6B35;
+            font-size: 19px;
+            font-weight: 600;
+            margin-bottom: 40px;
+        }
+
+        .portal-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 28px;
+            padding: 0 10px;
+        }
+
+        .portal-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 18px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: slideUp 0.6s ease forwards;
+            opacity: 0;
+            text-decoration: none;
+            display: block;
+        }
+
+        .portal-card:nth-child(1) { animation-delay: 0.15s; }
+        .portal-card:nth-child(2) { animation-delay: 0.3s; }
+        .portal-card:nth-child(3) { animation-delay: 0.45s; }
+
+        .portal-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+        }
+
+        .portal-card-strip {
+            height: 6px;
+            width: 100%;
+        }
+
+        .portal-card-strip.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .portal-card-strip.green { background: linear-gradient(135deg, #2ECC71, #27AE60); }
+        .portal-card-strip.orange { background: linear-gradient(135deg, #FF6B35, #E55934); }
+
+        .portal-card-body {
+            padding: 30px 25px;
+            text-align: center;
+        }
+
+        .portal-card-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 36px;
+        }
+
+        .portal-card-icon.purple { background: rgba(102,126,234,0.12); }
+        .portal-card-icon.green { background: rgba(46,204,113,0.12); }
+        .portal-card-icon.orange { background: rgba(255,107,53,0.12); }
+
+        .portal-card-dept {
+            font-size: 12px;
+            font-weight: 600;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .portal-card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+
+        .portal-card-desc {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .portal-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .portal-card-tags span {
+            background: #f0f2f5;
+            color: #555;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .portal-card-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .portal-card-btn.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .portal-card-btn.green { background: linear-gradient(135deg, #2ECC71, #27AE60); }
+        .portal-card-btn.orange { background: linear-gradient(135deg, #FF6B35, #E55934); }
+
+        .portal-card-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 14px;
+            font-size: 11px;
+            color: #95a5a6;
+        }
+
+        .portal-card-status .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #2ECC71;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .portal-footer-text {
+            text-align: center;
+            margin-top: 40px;
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+        }
+
+        /* Login form (shown when Fixed Asset card is clicked) */
+        .login-form-view {
+            display: none;
         }
 
         .login-box {
@@ -78,6 +262,12 @@
             width: 100%;
             max-width: 450px;
             animation: slideUp 0.5s ease;
+        }
+
+        @media (max-width: 768px) {
+            .portal-cards { grid-template-columns: 1fr; gap: 18px; }
+            .portal-view h1 { font-size: 24px; }
+            .portal-card-tags { display: none; }
         }
 
         @keyframes slideUp {
@@ -5580,77 +5770,150 @@
 
     <!-- LOGIN PAGE -->
     <div class="login-container" id="loginPage">
-        <div class="login-box">
-            <div class="login-header">
-                <h1 class="login-title">🔒 Secure Access</h1>
-                <p class="login-subtitle">Fixed Asset Management System</p>
-                <p class="login-subtitle">May Pen Hospital</p>
-            </div>
 
-            <div class="login-info">
-                ℹ️ Asset data is stored locally. Login credentials are managed in Google Sheets.
-            </div>
+        <!-- PORTAL CARDS VIEW -->
+        <div class="portal-view" id="portalView">
+            <div class="portal-header-icon">🏥</div>
+            <h1>May Pen Hospital</h1>
+            <p class="portal-subtitle">Management Systems Portal</p>
+            <p class="portal-org">South East Regional Health Authority</p>
 
-            <div id="loginError" class="login-error"></div>
-
-            <!-- Step 1: Username & Password -->
-            <div id="loginStep1">
-                <form id="loginForm" onsubmit="handleLogin(event)">
-                    <div class="input-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="username">
+            <div class="portal-cards">
+                <!-- Procurement Officer Card -->
+                <a class="portal-card" href="procurement.html">
+                    <div class="portal-card-strip purple"></div>
+                    <div class="portal-card-body">
+                        <div class="portal-card-icon purple">📋</div>
+                        <div class="portal-card-dept">Finance &amp; Procurement</div>
+                        <div class="portal-card-title">Procurement Officer</div>
+                        <p class="portal-card-desc">Government of Jamaica procurement management. Guides officers through the full GOJ procurement lifecycle with auto-generated purchase orders.</p>
+                        <div class="portal-card-tags">
+                            <span>GOJ Process</span>
+                            <span>Purchase Orders</span>
+                            <span>Supplier Mgmt</span>
+                        </div>
+                        <span class="portal-card-btn purple">Launch System &rarr;</span>
+                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
                     </div>
+                </a>
 
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="current-password">
+                <!-- General Stores Card -->
+                <a class="portal-card" href="stores.html">
+                    <div class="portal-card-strip green"></div>
+                    <div class="portal-card-body">
+                        <div class="portal-card-icon green">📦</div>
+                        <div class="portal-card-dept">General Stores Department</div>
+                        <div class="portal-card-title">Inventory Management</div>
+                        <p class="portal-card-desc">Comprehensive inventory management for the General Stores Department. Track stock levels, manage receipts, issues, and reorder points.</p>
+                        <div class="portal-card-tags">
+                            <span>Stock Control</span>
+                            <span>Receive/Issue</span>
+                            <span>Reorder Alerts</span>
+                        </div>
+                        <span class="portal-card-btn green">Launch System &rarr;</span>
+                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
                     </div>
+                </a>
 
-                    <button type="submit" class="login-btn">Sign In</button>
-                </form>
-            </div>
-
-            <!-- Step 2: Two-Factor Authentication -->
-            <div id="loginStep2FA" style="display: none;">
-                <div class="login-2fa-step">
-                    <h3>🔐 Two-Factor Authentication</h3>
-                    <p style="color: #666; margin-bottom: 20px;">Enter the 6-digit code from your authenticator app</p>
-
-                    <input type="text" id="login2FACode" class="login-input login-2fa-input"
-                           maxlength="6" placeholder="000000"
-                           pattern="[0-9]{6}" inputmode="numeric"
-                           autocomplete="one-time-code">
-
-                    <button type="button" class="login-btn" onclick="verify2FALogin()" style="margin-top: 15px;">
-                        Verify Code
-                    </button>
-
-                    <div id="backupCodeSection" style="display: none; margin-top: 20px;">
-                        <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Or use a backup code:</p>
-                        <input type="text" id="loginBackupCode" class="login-input"
-                               placeholder="Enter backup code" style="text-transform: uppercase;">
-                        <button type="button" class="login-btn" onclick="verifyBackupCodeLogin()"
-                                style="margin-top: 10px; background: linear-gradient(135deg, #95a5a6, #7f8c8d);">
-                            Use Backup Code
-                        </button>
+                <!-- Fixed Asset System Card -->
+                <div class="portal-card" onclick="showAssetLogin()">
+                    <div class="portal-card-strip orange"></div>
+                    <div class="portal-card-body">
+                        <div class="portal-card-icon orange">🏷️</div>
+                        <div class="portal-card-dept">Accounts Department</div>
+                        <div class="portal-card-title">Fixed Asset System</div>
+                        <p class="portal-card-desc">Fixed asset tracking, depreciation, QR codes, audit trails, and reporting for all hospital capital assets and equipment.</p>
+                        <div class="portal-card-tags">
+                            <span>Asset Tracking</span>
+                            <span>Depreciation</span>
+                            <span>QR Codes</span>
+                        </div>
+                        <span class="portal-card-btn orange">Launch System &rarr;</span>
+                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
                     </div>
-
-                    <div style="margin-top: 20px;">
-                        <button type="button" onclick="showBackupCodeInput()"
-                                style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 14px;">
-                            Lost access to authenticator?
-                        </button>
-                    </div>
-
-                    <button type="button" onclick="cancelTwoFALogin()"
-                            style="margin-top: 15px; background: none; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #666;">
-                        ← Back to Login
-                    </button>
                 </div>
             </div>
 
-            <div class="login-footer">
-                <p>⚠️ Authorized Personnel Only</p>
+            <div class="portal-footer-text">
+                <p>&copy; 2025 May Pen Hospital &mdash; South East Regional Health Authority &mdash; Government of Jamaica</p>
+            </div>
+        </div>
+
+        <!-- FIXED ASSET LOGIN FORM (shown when Fixed Asset card is clicked) -->
+        <div class="login-form-view" id="loginFormView">
+            <div class="login-box">
+                <div class="login-header">
+                    <h1 class="login-title">🔒 Secure Access</h1>
+                    <p class="login-subtitle">Fixed Asset Management System</p>
+                    <p class="login-subtitle">May Pen Hospital</p>
+                </div>
+
+                <div class="login-info">
+                    ℹ️ Asset data is stored locally. Login credentials are managed in Google Sheets.
+                </div>
+
+                <div id="loginError" class="login-error"></div>
+
+                <!-- Step 1: Username & Password -->
+                <div id="loginStep1">
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="input-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" class="login-input" placeholder="Enter username" required autocomplete="username">
+                        </div>
+
+                        <div class="input-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" class="login-input" placeholder="Enter password" required autocomplete="current-password">
+                        </div>
+
+                        <button type="submit" class="login-btn">Sign In</button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Two-Factor Authentication -->
+                <div id="loginStep2FA" style="display: none;">
+                    <div class="login-2fa-step">
+                        <h3>🔐 Two-Factor Authentication</h3>
+                        <p style="color: #666; margin-bottom: 20px;">Enter the 6-digit code from your authenticator app</p>
+
+                        <input type="text" id="login2FACode" class="login-input login-2fa-input"
+                               maxlength="6" placeholder="000000"
+                               pattern="[0-9]{6}" inputmode="numeric"
+                               autocomplete="one-time-code">
+
+                        <button type="button" class="login-btn" onclick="verify2FALogin()" style="margin-top: 15px;">
+                            Verify Code
+                        </button>
+
+                        <div id="backupCodeSection" style="display: none; margin-top: 20px;">
+                            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Or use a backup code:</p>
+                            <input type="text" id="loginBackupCode" class="login-input"
+                                   placeholder="Enter backup code" style="text-transform: uppercase;">
+                            <button type="button" class="login-btn" onclick="verifyBackupCodeLogin()"
+                                    style="margin-top: 10px; background: linear-gradient(135deg, #95a5a6, #7f8c8d);">
+                                Use Backup Code
+                            </button>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <button type="button" onclick="showBackupCodeInput()"
+                                    style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 14px;">
+                                Lost access to authenticator?
+                            </button>
+                        </div>
+
+                        <button type="button" onclick="cancelTwoFALogin()"
+                                style="margin-top: 15px; background: none; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #666;">
+                            &larr; Back to Login
+                        </button>
+                    </div>
+                </div>
+
+                <div class="login-footer">
+                    <p>⚠️ Authorized Personnel Only</p>
+                    <button onclick="showPortalView()" style="margin-top:12px;background:none;border:none;color:#667eea;cursor:pointer;font-size:14px;">&larr; Back to Systems Portal</button>
+                </div>
             </div>
         </div>
     </div>
@@ -8110,6 +8373,20 @@
 
                 return false;
             }
+        }
+
+        // Portal view / Asset login toggle
+        function showAssetLogin() {
+            document.getElementById('portalView').style.display = 'none';
+            document.getElementById('loginFormView').style.display = 'flex';
+            document.getElementById('loginFormView').style.justifyContent = 'center';
+            document.getElementById('loginFormView').style.alignItems = 'center';
+            document.getElementById('loginFormView').style.width = '100%';
+        }
+
+        function showPortalView() {
+            document.getElementById('portalView').style.display = 'block';
+            document.getElementById('loginFormView').style.display = 'none';
         }
 
         async function handleLogin(event) {

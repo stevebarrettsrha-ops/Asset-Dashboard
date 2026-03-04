@@ -1292,14 +1292,13 @@
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
 
-            // Simple auth - in production would verify against backend
-            if (user && pass) {
+            if (user === 'procurement' && pass === '123') {
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('appContainer').classList.add('active');
                 refreshAll();
             } else {
                 const err = document.getElementById('loginError');
-                err.textContent = 'Please enter valid credentials';
+                err.textContent = 'Invalid username or password';
                 err.style.display = 'block';
             }
         }
