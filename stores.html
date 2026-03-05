@@ -1241,6 +1241,174 @@
             }
         }
 
+        // ============================================
+        // GOOGLE DRIVE AUTO-SYNC (every 5 seconds)
+        // ============================================
+        const STORES_GDRIVE = {
+            FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
+            FILE_NAME: 'STORES_BACKUP.json'
+        };
+
+        let storesSyncToken = null;
+        let storesSyncFileId = null;
+        let storesSyncInterval = null;
+        let storesSyncInProgress = false;
+
+        function startStoresAutoSync() {
+            if (storesSyncInterval) return;
+
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) return;
+
+            storesSyncToken = token;
+            console.log('[Stores AutoSync] Starting');
+            storesSyncInterval = setInterval(performStoresSync, 5000);
+            performStoresSync();
+        }
+
+        async function performStoresSync() {
+            if (storesSyncInProgress) return;
+
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) {
+                clearInterval(storesSyncInterval);
+                storesSyncInterval = null;
+                return;
+            }
+            storesSyncToken = token;
+
+            storesSyncInProgress = true;
+
+            try {
+                // Find file if not known
+                if (!storesSyncFileId) {
+                    const query = "'" + STORES_GDRIVE.FOLDER_ID + "' in parents and name='" + STORES_GDRIVE.FILE_NAME + "' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + storesSyncToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            storesSyncFileId = searchData.files[0].id;
+                        }
+                    } else if (searchResp.status === 401) {
+                        storesSyncInProgress = false;
+                        clearInterval(storesSyncInterval);
+                        storesSyncInterval = null;
+                        return;
+                    }
+                }
+
+                // Download and merge cloud data
+                if (storesSyncFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            'https://www.googleapis.com/drive/v3/files/' + storesSyncFileId + '?alt=media',
+                            { headers: { 'Authorization': 'Bearer ' + storesSyncToken } }
+                        );
+                        if (dlResp.ok) {
+                            const cloudBackup = await dlResp.json();
+                            if (cloudBackup.data) {
+                                mergeStoresData(cloudBackup.data);
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Upload merged local data
+                const backupData = {
+                    version: '1.0',
+                    type: 'stores',
+                    timestamp: new Date().toISOString(),
+                    data: appData
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                let uploadResp;
+                if (storesSyncFileId) {
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + storesSyncFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + storesSyncToken, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: STORES_GDRIVE.FILE_NAME, parents: [STORES_GDRIVE.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + storesSyncToken }, body: form }
+                    );
+                    if (uploadResp.ok) {
+                        const result = await uploadResp.json();
+                        storesSyncFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.log('[Stores AutoSync] Error:', e.message);
+            } finally {
+                storesSyncInProgress = false;
+            }
+        }
+
+        function mergeStoresData(cloudData) {
+            let changed = false;
+
+            // Merge items by code
+            if (cloudData.items) {
+                const localCodes = new Set(appData.items.map(i => i.code));
+                cloudData.items.forEach(item => {
+                    if (item.code && !localCodes.has(item.code)) {
+                        appData.items.push(item);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge transactions by timestamp+type+item
+            if (cloudData.transactions) {
+                const localKeys = new Set((appData.transactions || []).map(t => t.timestamp + '|' + t.type + '|' + t.itemCode));
+                cloudData.transactions.forEach(t => {
+                    const key = t.timestamp + '|' + t.type + '|' + t.itemCode;
+                    if (!localKeys.has(key)) {
+                        if (!appData.transactions) appData.transactions = [];
+                        appData.transactions.push(t);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Take higher counter
+            if (cloudData.itemCounter && cloudData.itemCounter > appData.itemCounter) {
+                appData.itemCounter = cloudData.itemCounter;
+                changed = true;
+            }
+
+            if (changed) {
+                saveData(appData);
+                refreshAll();
+            }
+        }
+
+        // Start auto-sync after successful login
+        const origStoresLogin = handleLogin;
+        handleLogin = function(e) {
+            origStoresLogin(e);
+            setTimeout(function() {
+                if (document.getElementById('appContainer').classList.contains('active')) {
+                    startStoresAutoSync();
+                }
+            }, 500);
+        };
+
         // Apply portal heading settings
         (function applyPortalHeadings() {
             try {
@@ -1248,12 +1416,10 @@
                 if (stored) {
                     const settings = JSON.parse(stored);
                     if (settings.hospitalName) {
-                        // Update login page hospital name
                         const loginSubtitles = document.querySelectorAll('.login-subtitle');
                         if (loginSubtitles.length >= 2) {
                             loginSubtitles[1].textContent = settings.hospitalName;
                         }
-                        // Update page title
                         document.title = 'General Stores - Inventory Management | ' + settings.hospitalName;
                     }
                 }

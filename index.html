@@ -9684,6 +9684,11 @@
         let cloudFileTimestamp = null;
         let googleTokenClient = null;
 
+        // Auto-sync state
+        let autoSyncInterval = null;
+        let autoSyncInProgress = false;
+        const AUTO_SYNC_INTERVAL_MS = 5000;
+
         // Initialize cloud sync from localStorage
         function initializeCloudSync() {
             const savedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
@@ -9707,6 +9712,7 @@
                     googleAccessToken = savedToken;
                     isCloudConnected = true;
                     updateCloudUI(true);
+                    startAutoSync();
                     return;
                 }
             }
@@ -9924,6 +9930,7 @@
 
                 googleAccessToken = token;
                 isCloudConnected = true;
+                startAutoSync();
 
                 const expiry = new Date();
                 expiry.setHours(expiry.getHours() + 1);
@@ -9946,6 +9953,7 @@
         async function handleGoogleAuthCallback(tokenResponse) {
             googleAccessToken = tokenResponse.access_token;
             isCloudConnected = true;
+            startAutoSync();
 
             const expiry = new Date();
             expiry.setSeconds(expiry.getSeconds() + (tokenResponse.expires_in || 3600));
@@ -9964,9 +9972,254 @@
             showGoogleAuthModal();
         }
 
+        // ============================================
+        // AUTO-SYNC: Merge & sync every 5 seconds
+        // ============================================
+        function startAutoSync() {
+            if (autoSyncInterval) return; // Already running
+            console.log('[AutoSync] Starting auto-sync every ' + (AUTO_SYNC_INTERVAL_MS / 1000) + 's');
+            autoSyncInterval = setInterval(performAutoSync, AUTO_SYNC_INTERVAL_MS);
+        }
+
+        function stopAutoSync() {
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+                autoSyncInterval = null;
+                console.log('[AutoSync] Stopped');
+            }
+        }
+
+        async function performAutoSync() {
+            if (autoSyncInProgress) return;
+            if (!isCloudConnected || !googleAccessToken) return;
+
+            autoSyncInProgress = true;
+
+            try {
+                // Ensure we have a file ID
+                if (!cloudFileId) {
+                    const savedFileId = localStorage.getItem('assetDashboardCloudFileId');
+                    if (savedFileId) {
+                        cloudFileId = savedFileId;
+                    } else {
+                        await findExistingBackupFile();
+                    }
+                }
+
+                // Step 1: Download cloud data
+                let cloudData = null;
+                if (cloudFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                        );
+                        if (dlResp.status === 401) {
+                            console.log('[AutoSync] Token expired');
+                            stopAutoSync();
+                            return;
+                        }
+                        if (dlResp.ok) {
+                            cloudData = await dlResp.json();
+                        }
+                    } catch (e) {
+                        console.log('[AutoSync] Download error:', e.message);
+                        autoSyncInProgress = false;
+                        return;
+                    }
+                }
+
+                // Step 2: Merge cloud data into local
+                if (cloudData && cloudData.data) {
+                    mergeCloudIntoLocal(cloudData.data);
+                }
+
+                // Step 3: Upload merged local data to cloud
+                const backupData = {
+                    version: '1.1',
+                    timestamp: new Date().toISOString(),
+                    savedBy: currentUser ? currentUser.username : 'Unknown',
+                    data: {
+                        assets: loadAssetsFromStorage(),
+                        qrCodeRegistry: loadQRRegistry(),
+                        auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
+                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
+                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        localUserSettings: localUserSettings
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                let uploadResp;
+                if (cloudFileId) {
+                    uploadResp = await fetch(
+                        `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': `Bearer ${googleAccessToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = {
+                        name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME,
+                        parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID],
+                        mimeType: 'application/json'
+                    };
+                    const formData = new FormData();
+                    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    formData.append('file', blob);
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${googleAccessToken}` },
+                            body: formData
+                        }
+                    );
+                    if (uploadResp.ok) {
+                        const result = await uploadResp.json();
+                        cloudFileId = result.id;
+                        localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
+                    }
+                }
+
+                if (uploadResp && uploadResp.ok) {
+                    lastSyncTime = new Date();
+                    localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+                    if (typeof updateLastSyncDisplay === 'function') updateLastSyncDisplay();
+                } else if (uploadResp && uploadResp.status === 401) {
+                    console.log('[AutoSync] Token expired on upload');
+                    stopAutoSync();
+                }
+
+            } catch (e) {
+                console.log('[AutoSync] Error:', e.message);
+            } finally {
+                autoSyncInProgress = false;
+            }
+        }
+
+        function mergeCloudIntoLocal(cloudDataObj) {
+            let dataChanged = false;
+
+            // Merge assets by ID and asset code
+            if (cloudDataObj.assets && cloudDataObj.assets.length > 0) {
+                const localAssets = loadAssetsFromStorage();
+                const localIdSet = new Set(localAssets.map(a => a.id).filter(Boolean));
+                const localCodeSet = new Set(localAssets.map(a => (a.assetCode || '').toLowerCase()).filter(Boolean));
+
+                let added = 0;
+                cloudDataObj.assets.forEach(ca => {
+                    const hasId = ca.id && localIdSet.has(ca.id);
+                    const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
+                    if (!hasId && !hasCode) {
+                        localAssets.push(ca);
+                        if (ca.id) localIdSet.add(ca.id);
+                        if (ca.assetCode) localCodeSet.add(ca.assetCode.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    saveAssetsToStorage(localAssets);
+                    allAssetsData = localAssets;
+                    sortByDateDescending(allAssetsData);
+                    filteredData = allAssetsData;
+                    if (typeof displayCurrentPage === 'function') displayCurrentPage();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge audit trail by ID
+            if (cloudDataObj.auditTrail && cloudDataObj.auditTrail.length > 0) {
+                const localAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
+                const localAuditIds = new Set(localAudit.map(a => a.id).filter(Boolean));
+                let added = 0;
+                cloudDataObj.auditTrail.forEach(entry => {
+                    if (entry.id && !localAuditIds.has(entry.id)) {
+                        localAudit.push(entry);
+                        localAuditIds.add(entry.id);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localAudit.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(localAudit));
+                    dataChanged = true;
+                }
+            }
+
+            // Merge departments (union)
+            if (cloudDataObj.departments && cloudDataObj.departments.length > 0) {
+                const localDepts = JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]');
+                const localDeptSet = new Set(localDepts.map(d => d.toLowerCase()));
+                let added = 0;
+                cloudDataObj.departments.forEach(d => {
+                    if (!localDeptSet.has(d.toLowerCase())) {
+                        localDepts.push(d);
+                        localDeptSet.add(d.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localDepts.sort();
+                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(localDepts));
+                    if (typeof updateAllDepartmentDropdowns === 'function') updateAllDepartmentDropdowns();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge categories (union)
+            if (cloudDataObj.categories && cloudDataObj.categories.length > 0) {
+                const localCats = JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]');
+                const localCatSet = new Set(localCats.map(c => c.toLowerCase()));
+                let added = 0;
+                cloudDataObj.categories.forEach(c => {
+                    if (!localCatSet.has(c.toLowerCase())) {
+                        localCats.push(c);
+                        localCatSet.add(c.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localCats.sort();
+                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(localCats));
+                    if (typeof updateAllCategoryDropdowns === 'function') updateAllCategoryDropdowns();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge portal user accounts
+            if (cloudDataObj.portalUserAccounts && cloudDataObj.portalUserAccounts.length > 0) {
+                const localAccounts = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]');
+                const localAcctSet = new Set(localAccounts.map(a => a.username + '|' + a.dashboard));
+                let added = 0;
+                cloudDataObj.portalUserAccounts.forEach(a => {
+                    if (!localAcctSet.has(a.username + '|' + a.dashboard)) {
+                        localAccounts.push(a);
+                        localAcctSet.add(a.username + '|' + a.dashboard);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(localAccounts));
+                    dataChanged = true;
+                }
+            }
+
+            return dataChanged;
+        }
+
         // Disconnect from Google Drive
         function disconnectFromGoogleDrive() {
             if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+                stopAutoSync();
                 googleAccessToken = null;
                 isCloudConnected = false;
                 cloudFileId = null;
@@ -10615,6 +10868,7 @@
             if (savedToken) {
                 googleAccessToken = savedToken;
                 isCloudConnected = true;
+                startAutoSync();
             }
 
             if (!isCloudConnected || !googleAccessToken) {
