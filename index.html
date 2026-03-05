@@ -10091,6 +10091,9 @@
                         qrCodeRegistry: loadQRRegistry(),
                         auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
+                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
                     }
                 };
@@ -10234,6 +10237,16 @@
                 // Restore categories
                 if (backupData.data.categories && backupData.data.categories.length > 0) {
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -10411,6 +10424,16 @@
                 // Restore categories
                 if (backupData.data.categories && backupData.data.categories.length > 0) {
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -10660,6 +10683,16 @@
                 // Restore categories
                 if (backupData.data.categories && backupData.data.categories.length > 0) {
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
