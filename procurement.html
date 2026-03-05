@@ -1287,12 +1287,27 @@
         // ============================================
         // LOGIN
         // ============================================
+        function getPortalUsers(dashboard) {
+            try {
+                const stored = localStorage.getItem('portalUserAccounts');
+                if (stored) {
+                    const users = JSON.parse(stored);
+                    if (Array.isArray(users)) return users.filter(u => u.dashboard === dashboard);
+                }
+            } catch (e) {}
+            return [];
+        }
+
         function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value;
+            const user = document.getElementById('username').value.trim().toLowerCase();
             const pass = document.getElementById('password').value;
 
-            if (user === 'procurement' && pass === '123') {
+            // Check portal-configured users first, then fallback to default
+            const portalUsers = getPortalUsers('procurement');
+            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+
+            if (portalMatch || (user === 'procurement' && pass === '123')) {
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('appContainer').classList.add('active');
                 refreshAll();
@@ -1560,7 +1575,7 @@
                     </div>
                     <div style="text-align:right;">
                         <strong>May Pen Hospital</strong><br>
-                        <span style="font-size:13px;color:#666;">South East Regional Health Authority<br>May Pen, Clarendon, Jamaica</span>
+                        <span style="font-size:13px;color:#666;">Southern Regional Health Authority<br>May Pen, Clarendon, Jamaica</span>
                     </div>
                 </div>
                 <div class="po-info-grid">
@@ -1766,6 +1781,25 @@
 
         // Set default date
         document.getElementById('reqDate').valueAsDate = new Date();
+
+        // Apply portal heading settings
+        (function applyPortalHeadings() {
+            try {
+                const stored = localStorage.getItem('portalHeadingSettings');
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    if (settings.hospitalName) {
+                        // Update login page subtitle
+                        const loginSubtitles = document.querySelectorAll('.login-subtitle');
+                        if (loginSubtitles.length >= 2) {
+                            loginSubtitles[1].textContent = 'Procurement Management System - ' + settings.hospitalName;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error applying portal headings:', e);
+            }
+        })();
     </script>
 </body>
 </html>

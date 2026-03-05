@@ -5783,7 +5783,7 @@
             <div class="portal-header-icon">🏥</div>
             <h1>May Pen Hospital</h1>
             <p class="portal-subtitle">Management Systems Portal</p>
-            <p class="portal-org">South East Regional Health Authority</p>
+            <p class="portal-org">Southern Regional Health Authority</p>
 
             <div class="portal-cards">
                 <!-- Procurement Officer Card -->
@@ -5842,7 +5842,7 @@
             </div>
 
             <div class="portal-footer-text">
-                <p>&copy; 2025 May Pen Hospital &mdash; South East Regional Health Authority &mdash; Government of Jamaica</p>
+                <p>&copy; 2025 May Pen Hospital &mdash; Southern Regional Health Authority &mdash; Government of Jamaica</p>
             </div>
         </div>
 
@@ -12392,6 +12392,45 @@
             // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
             updateAllCategoryDropdowns();
+
+            // Apply portal heading settings across the dashboard
+            (function applyPortalHeadings() {
+                try {
+                    const stored = localStorage.getItem('portalHeadingSettings');
+                    if (stored) {
+                        const settings = JSON.parse(stored);
+                        const hospitalName = settings.hospitalName;
+                        const orgName = settings.orgName;
+
+                        if (hospitalName) {
+                            // Portal view header
+                            const portalH1 = document.querySelector('#portalView h1');
+                            if (portalH1) portalH1.textContent = hospitalName;
+
+                            // Sidebar brand
+                            const sidebarSub = document.querySelector('.sidebar-brand-sub');
+                            if (sidebarSub) sidebarSub.textContent = hospitalName;
+
+                            // Dashboard subtitle
+                            const dashSubtitle = document.querySelector('.dashboard-subtitle');
+                            if (dashSubtitle) dashSubtitle.textContent = hospitalName + ' \u2022 Currency: JMD (Jamaican Dollar)';
+
+                            // Portal footer
+                            const portalFooter = document.querySelector('.portal-footer-text p');
+                            if (portalFooter) {
+                                portalFooter.innerHTML = '&copy; 2025 ' + hospitalName + ' &mdash; ' + (orgName || 'Southern Regional Health Authority') + ' &mdash; Government of Jamaica';
+                            }
+                        }
+
+                        if (orgName) {
+                            const portalOrg = document.querySelector('.portal-org');
+                            if (portalOrg) portalOrg.textContent = orgName;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error applying portal headings:', e);
+                }
+            })();
 
             // Add Enter key support for inventory search fields
             const inventorySearchFields = [
