@@ -816,11 +816,27 @@
         // ============================================
         // LOGIN
         // ============================================
+        function getPortalUsers(dashboard) {
+            try {
+                const stored = localStorage.getItem('portalUserAccounts');
+                if (stored) {
+                    const users = JSON.parse(stored);
+                    if (Array.isArray(users)) return users.filter(u => u.dashboard === dashboard);
+                }
+            } catch (e) {}
+            return [];
+        }
+
         function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value;
+            const user = document.getElementById('username').value.trim().toLowerCase();
             const pass = document.getElementById('password').value;
-            if (user === 'stores' && pass === '123') {
+
+            // Check portal-configured users first, then fallback to default
+            const portalUsers = getPortalUsers('stores');
+            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+
+            if (portalMatch || (user === 'stores' && pass === '123')) {
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('appContainer').classList.add('active');
                 refreshAll();
@@ -1224,6 +1240,27 @@
                 </tr>`).join('');
             }
         }
+
+        // Apply portal heading settings
+        (function applyPortalHeadings() {
+            try {
+                const stored = localStorage.getItem('portalHeadingSettings');
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    if (settings.hospitalName) {
+                        // Update login page hospital name
+                        const loginSubtitles = document.querySelectorAll('.login-subtitle');
+                        if (loginSubtitles.length >= 2) {
+                            loginSubtitles[1].textContent = settings.hospitalName;
+                        }
+                        // Update page title
+                        document.title = 'General Stores - Inventory Management | ' + settings.hospitalName;
+                    }
+                }
+            } catch (e) {
+                console.error('Error applying portal headings:', e);
+            }
+        })();
     </script>
 </body>
 </html>
