@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>May Pen Hospital - Systems Portal</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -675,6 +676,112 @@
             margin-top: 4px;
         }
 
+        .cloud-sync-panel {
+            background: linear-gradient(135deg, #e8f4fd, #dbeafe);
+            border: 2px solid #93c5fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+
+        .cloud-sync-panel h4 {
+            margin: 0 0 10px 0;
+            color: #1e40af;
+            font-size: 15px;
+        }
+
+        .cloud-sync-panel p {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .cloud-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .cloud-status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .cloud-status.disconnected {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .cloud-status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .cloud-status.connected .dot {
+            background: #2ECC71;
+        }
+
+        .cloud-status.disconnected .dot {
+            background: #ccc;
+        }
+
+        .cloud-btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-cloud {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cloud:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-cloud:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-cloud-outline {
+            background: white;
+            color: #2563eb;
+            border: 2px solid #93c5fd;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cloud-outline:hover {
+            background: #eff6ff;
+        }
+
+        .btn-cloud-outline:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .portal-header h1 {
@@ -890,6 +997,22 @@
 
                     <h4 style="color: #2C3E50; margin-bottom: 10px;">Current User Accounts</h4>
                     <div id="userAccountsList"></div>
+
+                    <!-- Google Drive Cloud Sync -->
+                    <div class="cloud-sync-panel">
+                        <h4>&#9729; Google Drive Sync</h4>
+                        <p>Save and load user accounts to/from your designated Google Drive folder so they persist across devices and browsers.</p>
+                        <div class="cloud-status disconnected" id="cloudStatus">
+                            <span class="dot"></span>
+                            <span id="cloudStatusText">Not Connected</span>
+                        </div>
+                        <div class="cloud-btn-group">
+                            <button class="btn-cloud" id="btnCloudConnect" onclick="connectGoogleDrive()">Connect to Google Drive</button>
+                            <button class="btn-cloud" id="btnCloudSave" onclick="saveAccountsToCloud()" disabled>Save to Drive</button>
+                            <button class="btn-cloud-outline" id="btnCloudLoad" onclick="loadAccountsFromCloud()" disabled>Load from Drive</button>
+                        </div>
+                        <div class="status-msg" id="cloudSyncStatus"></div>
+                    </div>
                 </div>
 
                 <!-- Headings Section -->
@@ -1030,6 +1153,11 @@
             setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 3000);
 
             loadUserAccountsList();
+
+            // Auto-save to Google Drive if connected
+            if (gdriveAccessToken) {
+                saveAccountsToCloud();
+            }
         }
 
         function syncAssetDashboardUser(username, password, role) {
@@ -1063,6 +1191,11 @@
             const filtered = users.filter(u => !(u.username === username && u.dashboard === dashboard));
             savePortalUsers(filtered);
             loadUserAccountsList();
+
+            // Auto-save to Google Drive if connected
+            if (gdriveAccessToken) {
+                saveAccountsToCloud();
+            }
         }
 
         function loadUserAccountsList() {
@@ -1173,12 +1306,311 @@
         }
 
         // ============================================
+        // GOOGLE DRIVE INTEGRATION
+        // ============================================
+        const GDRIVE_CONFIG = {
+            CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
+            SCOPES: 'https://www.googleapis.com/auth/drive',
+            FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
+            ACCOUNTS_FILE_NAME: 'PORTAL_USER_ACCOUNTS.json'
+        };
+
+        let gdriveAccessToken = null;
+        let gdriveTokenClient = null;
+        let accountsFileId = null;
+
+        function connectGoogleDrive() {
+            const btn = document.getElementById('btnCloudConnect');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+
+            // Check for existing valid token from the main dashboard
+            const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+
+            if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+                // Reuse existing token
+                gdriveAccessToken = storedToken;
+                onDriveConnected();
+                return;
+            }
+
+            // Initialize OAuth
+            try {
+                if (typeof google === 'undefined' || !google.accounts) {
+                    showCloudStatus('error', 'Google Sign-In library not loaded. Please refresh the page.');
+                    btn.disabled = false;
+                    btn.textContent = 'Connect to Google Drive';
+                    return;
+                }
+
+                gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GDRIVE_CONFIG.CLIENT_ID,
+                    scope: GDRIVE_CONFIG.SCOPES,
+                    callback: function(tokenResponse) {
+                        if (tokenResponse.error) {
+                            showCloudStatus('error', 'Authentication failed: ' + tokenResponse.error);
+                            btn.disabled = false;
+                            btn.textContent = 'Connect to Google Drive';
+                            return;
+                        }
+                        gdriveAccessToken = tokenResponse.access_token;
+                        // Store token for reuse
+                        localStorage.setItem('assetDashboardGoogleAccessToken', gdriveAccessToken);
+                        localStorage.setItem('assetDashboardGoogleTokenExpiry', String(Date.now() + 3500000));
+                        onDriveConnected();
+                    },
+                    error_callback: function(error) {
+                        showCloudStatus('error', 'Connection failed. Please try again.');
+                        btn.disabled = false;
+                        btn.textContent = 'Connect to Google Drive';
+                    }
+                });
+
+                gdriveTokenClient.requestAccessToken();
+            } catch (e) {
+                showCloudStatus('error', 'Failed to initialize Google Sign-In.');
+                btn.disabled = false;
+                btn.textContent = 'Connect to Google Drive';
+            }
+        }
+
+        async function onDriveConnected() {
+            // Update UI
+            const statusEl = document.getElementById('cloudStatus');
+            statusEl.className = 'cloud-status connected';
+            document.getElementById('cloudStatusText').textContent = 'Connected to Google Drive';
+
+            document.getElementById('btnCloudConnect').textContent = 'Connected';
+            document.getElementById('btnCloudConnect').disabled = true;
+            document.getElementById('btnCloudSave').disabled = false;
+            document.getElementById('btnCloudLoad').disabled = false;
+
+            // Look for existing accounts file
+            try {
+                const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and mimeType='application/json' and trashed=false";
+                const response = await fetch(
+                    'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+                    { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.files && data.files.length > 0) {
+                        accountsFileId = data.files[0].id;
+                        const lastMod = new Date(data.files[0].modifiedTime).toLocaleString();
+                        showCloudStatus('success', 'Connected! Accounts file found (last saved: ' + lastMod + ')');
+                    } else {
+                        showCloudStatus('success', 'Connected! No accounts file found yet — save to create one.');
+                    }
+                }
+            } catch (e) {
+                showCloudStatus('success', 'Connected to Google Drive.');
+            }
+        }
+
+        async function saveAccountsToCloud() {
+            if (!gdriveAccessToken) {
+                showCloudStatus('error', 'Please connect to Google Drive first.');
+                return;
+            }
+
+            const btn = document.getElementById('btnCloudSave');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const users = loadPortalUsers();
+                const headings = loadHeadingSettingsData();
+
+                const backupData = {
+                    version: '1.0',
+                    type: 'portal_settings',
+                    timestamp: new Date().toISOString(),
+                    data: {
+                        userAccounts: users,
+                        headingSettings: headings
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+
+                let response;
+
+                if (accountsFileId) {
+                    // Update existing file
+                    response = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + accountsFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': 'Bearer ' + gdriveAccessToken,
+                                'Content-Type': 'application/json'
+                            },
+                            body: blob
+                        }
+                    );
+                } else {
+                    // Create new file with multipart upload
+                    const metadata = {
+                        name: GDRIVE_CONFIG.ACCOUNTS_FILE_NAME,
+                        parents: [GDRIVE_CONFIG.FOLDER_ID],
+                        mimeType: 'application/json'
+                    };
+
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+
+                    response = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + gdriveAccessToken },
+                            body: form
+                        }
+                    );
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        accountsFileId = result.id;
+                    }
+                }
+
+                if (response.ok) {
+                    showCloudStatus('success', 'Accounts saved to Google Drive successfully! (' + users.length + ' accounts)');
+                } else if (response.status === 401) {
+                    gdriveAccessToken = null;
+                    resetCloudUI();
+                    showCloudStatus('error', 'Token expired. Please reconnect to Google Drive.');
+                } else {
+                    const err = await response.text();
+                    showCloudStatus('error', 'Save failed: ' + (err || response.statusText));
+                }
+            } catch (e) {
+                showCloudStatus('error', 'Save failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save to Drive';
+            }
+        }
+
+        async function loadAccountsFromCloud() {
+            if (!gdriveAccessToken) {
+                showCloudStatus('error', 'Please connect to Google Drive first.');
+                return;
+            }
+
+            if (!accountsFileId) {
+                // Try to find it
+                try {
+                    const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and mimeType='application/json' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            accountsFileId = searchData.files[0].id;
+                        }
+                    }
+                } catch (e) {}
+
+                if (!accountsFileId) {
+                    showCloudStatus('error', 'No accounts file found in Google Drive. Save first to create one.');
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btnCloudLoad');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(
+                    'https://www.googleapis.com/drive/v3/files/' + accountsFileId + '?alt=media',
+                    { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                );
+
+                if (response.status === 401) {
+                    gdriveAccessToken = null;
+                    resetCloudUI();
+                    showCloudStatus('error', 'Token expired. Please reconnect to Google Drive.');
+                    return;
+                }
+
+                if (!response.ok) {
+                    showCloudStatus('error', 'Failed to load from Drive: ' + response.statusText);
+                    return;
+                }
+
+                const backupData = await response.json();
+
+                if (!backupData.data || !backupData.data.userAccounts) {
+                    showCloudStatus('error', 'Invalid accounts file format.');
+                    return;
+                }
+
+                // Restore user accounts
+                const cloudUsers = backupData.data.userAccounts;
+                savePortalUsers(cloudUsers);
+                loadUserAccountsList();
+
+                // Restore heading settings if present
+                if (backupData.data.headingSettings) {
+                    localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(backupData.data.headingSettings));
+                    applyHeadings(backupData.data.headingSettings);
+                }
+
+                // Sync asset dashboard users
+                cloudUsers.filter(u => u.dashboard === 'assets').forEach(u => {
+                    syncAssetDashboardUser(u.username, u.password, u.role);
+                });
+
+                showCloudStatus('success', 'Loaded ' + cloudUsers.length + ' accounts from Google Drive!');
+            } catch (e) {
+                showCloudStatus('error', 'Load failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Load from Drive';
+            }
+        }
+
+        function showCloudStatus(type, message) {
+            const statusDiv = document.getElementById('cloudSyncStatus');
+            statusDiv.className = 'status-msg ' + (type === 'error' ? 'error' : 'success');
+            statusDiv.textContent = message;
+            if (type !== 'error') {
+                setTimeout(function() { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 5000);
+            }
+        }
+
+        function resetCloudUI() {
+            const statusEl = document.getElementById('cloudStatus');
+            statusEl.className = 'cloud-status disconnected';
+            document.getElementById('cloudStatusText').textContent = 'Not Connected';
+            document.getElementById('btnCloudConnect').textContent = 'Connect to Google Drive';
+            document.getElementById('btnCloudConnect').disabled = false;
+            document.getElementById('btnCloudSave').disabled = true;
+            document.getElementById('btnCloudLoad').disabled = true;
+        }
+
+        // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
             // Apply saved headings
             const headings = loadHeadingSettingsData();
             applyHeadings(headings);
+
+            // Check for existing Google Drive token
+            const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+                gdriveAccessToken = storedToken;
+                onDriveConnected();
+            }
         });
     </script>
 
