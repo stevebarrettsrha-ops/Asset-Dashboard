@@ -1594,6 +1594,126 @@
             document.getElementById('btnCloudConnect').disabled = false;
             document.getElementById('btnCloudSave').disabled = true;
             document.getElementById('btnCloudLoad').disabled = true;
+            if (portalAutoSyncInterval) {
+                clearInterval(portalAutoSyncInterval);
+                portalAutoSyncInterval = null;
+            }
+        }
+
+        // ============================================
+        // AUTO-SYNC: Merge & sync every 5 seconds
+        // ============================================
+        let portalAutoSyncInterval = null;
+        let portalAutoSyncInProgress = false;
+
+        function startPortalAutoSync() {
+            if (portalAutoSyncInterval) return;
+            console.log('[Portal AutoSync] Starting');
+            portalAutoSyncInterval = setInterval(performPortalAutoSync, 5000);
+        }
+
+        async function performPortalAutoSync() {
+            if (portalAutoSyncInProgress || !gdriveAccessToken) return;
+            portalAutoSyncInProgress = true;
+
+            try {
+                // Ensure we have a file ID
+                if (!accountsFileId) {
+                    const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            accountsFileId = searchData.files[0].id;
+                        }
+                    } else if (searchResp.status === 401) {
+                        resetCloudUI();
+                        portalAutoSyncInProgress = false;
+                        return;
+                    }
+                }
+
+                // Download and merge cloud data
+                if (accountsFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            'https://www.googleapis.com/drive/v3/files/' + accountsFileId + '?alt=media',
+                            { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                        );
+                        if (dlResp.ok) {
+                            const cloudBackup = await dlResp.json();
+                            if (cloudBackup.data && cloudBackup.data.userAccounts) {
+                                // Merge user accounts
+                                const localUsers = loadPortalUsers();
+                                const localKeys = new Set(localUsers.map(u => u.username + '|' + u.dashboard));
+                                let added = 0;
+                                cloudBackup.data.userAccounts.forEach(u => {
+                                    if (!localKeys.has(u.username + '|' + u.dashboard)) {
+                                        localUsers.push(u);
+                                        added++;
+                                    }
+                                });
+                                if (added > 0) {
+                                    savePortalUsers(localUsers);
+                                    loadUserAccountsList();
+                                }
+
+                                // Merge heading settings (cloud wins if present)
+                                if (cloudBackup.data.headingSettings) {
+                                    const localHeadings = loadHeadingSettingsData();
+                                    if (JSON.stringify(localHeadings) !== JSON.stringify(cloudBackup.data.headingSettings)) {
+                                        localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(cloudBackup.data.headingSettings));
+                                        applyHeadings(cloudBackup.data.headingSettings);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Upload merged local data
+                const users = loadPortalUsers();
+                const headings = loadHeadingSettingsData();
+                const backupData = {
+                    version: '1.0',
+                    type: 'portal_settings',
+                    timestamp: new Date().toISOString(),
+                    data: { userAccounts: users, headingSettings: headings }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                if (accountsFileId) {
+                    await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + accountsFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + gdriveAccessToken, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: GDRIVE_CONFIG.ACCOUNTS_FILE_NAME, parents: [GDRIVE_CONFIG.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    const resp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }, body: form }
+                    );
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        accountsFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.log('[Portal AutoSync] Error:', e.message);
+            } finally {
+                portalAutoSyncInProgress = false;
+            }
         }
 
         // ============================================
@@ -1604,12 +1724,13 @@
             const headings = loadHeadingSettingsData();
             applyHeadings(headings);
 
-            // Check for existing Google Drive token
+            // Check for existing Google Drive token and auto-connect + start auto-sync
             const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
             const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
             if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
                 gdriveAccessToken = storedToken;
                 onDriveConnected();
+                startPortalAutoSync();
             }
         });
     </script>
