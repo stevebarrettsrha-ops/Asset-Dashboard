@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procurement Officer - May Pen Hospital</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -120,6 +121,7 @@
         }
 
         .back-link:hover { text-decoration: underline; }
+        .login-status { text-align: center; margin-top: 10px; font-size: 13px; color: #666; min-height: 20px; }
 
         /* Dashboard Layout */
         .app-container { display: none; }
@@ -169,6 +171,26 @@
         .top-nav .nav-actions button:hover {
             background: rgba(255,255,255,0.3);
         }
+        .nav-user { font-size: 14px; opacity: 0.9; }
+
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .sidebar-overlay.active { display: block; }
 
         /* Sidebar */
         .layout {
@@ -614,9 +636,37 @@
         .empty-state .empty-icon { font-size: 50px; margin-bottom: 15px; }
         .empty-state p { font-size: 16px; }
 
+        .badge-pending { background: #fef9e7; color: #7d6608; }
+        .badge-approved { background: #d5f5e3; color: #196f3d; }
+        .badge-rejected { background: #fadbd8; color: #922b21; }
+        .badge-active { background: #d6eaf8; color: #1b4f72; }
+        .badge-submitted { background: #fef9e7; color: #7d6608; }
+        .badge-issued { background: #d6eaf8; color: #1b4f72; }
+        .badge-delivered { background: #d5f5e3; color: #196f3d; }
+        .badge-paid { background: #d5f5e3; color: #196f3d; }
+        .badge-closed { background: #e8e8e8; color: #666; }
+
+        .date-range { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+        .date-range label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .date-range input { padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; background: var(--bg-card); color: var(--text-primary); }
+
+        .alert-banner { padding: 12px 18px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+        .alert-banner.warning { background: #fef9e7; border: 1px solid #f9e79f; color: #7d6608; }
+        .alert-banner.danger { background: #fdedec; border: 1px solid #f5b7b1; color: #922b21; }
+        .alert-banner.info { background: #ebf5fb; border: 1px solid #aed6f1; color: #1b4f72; }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .sidebar { display: none; }
+            .hamburger-btn { display: block; }
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 65px;
+                bottom: 0;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            .sidebar.open { left: 0; }
             .top-nav .nav-brand { font-size: 16px; }
             .stats-row { grid-template-columns: 1fr 1fr; }
             .form-grid { grid-template-columns: 1fr; }
@@ -652,6 +702,7 @@
                 </div>
                 <button type="submit" class="login-btn">Sign In</button>
             </form>
+            <div class="login-status" id="loginStatus"></div>
             <div class="login-footer">
                 <p>Authorized Procurement Personnel Only</p>
                 <a href="portal.html" class="back-link">Back to Systems Portal</a>
@@ -663,19 +714,22 @@
     <div class="app-container" id="appContainer">
         <!-- Top Nav -->
         <nav class="top-nav">
+            <button class="hamburger-btn" onclick="toggleSidebar()">&#x2630;</button>
             <div class="nav-brand">
                 <span>📋</span>
                 <span>Procurement System</span>
             </div>
             <div class="nav-actions">
+                <span class="nav-user" id="navUserDisplay"></span>
                 <button onclick="toggleDarkMode()">🌙</button>
                 <button onclick="logout()">Logout</button>
             </div>
         </nav>
 
         <div class="layout">
+            <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
             <!-- Sidebar -->
-            <aside class="sidebar">
+            <aside class="sidebar" id="mainSidebar">
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Main</div>
                     <a class="sidebar-item active" data-page="dashboard" onclick="showPage('dashboard')">
@@ -702,6 +756,12 @@
                     <a class="sidebar-item" data-page="purchaseOrders" onclick="showPage('purchaseOrders')">
                         <span class="icon">🛒</span> Purchase Orders
                     </a>
+                    <a class="sidebar-item" data-page="delivery" onclick="showPage('delivery')">
+                        <span class="icon">📦</span> Delivery & Receiving
+                    </a>
+                    <a class="sidebar-item" data-page="invoices" onclick="showPage('invoices')">
+                        <span class="icon">💳</span> Invoice & Payment
+                    </a>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Management</div>
@@ -710,6 +770,9 @@
                     </a>
                     <a class="sidebar-item" data-page="reports" onclick="showPage('reports')">
                         <span class="icon">📈</span> Reports
+                    </a>
+                    <a class="sidebar-item" data-page="auditLog" onclick="showPage('auditLog')">
+                        <span class="icon">📜</span> Audit Log
                     </a>
                 </div>
             </aside>
@@ -768,11 +831,11 @@
                                 <div class="step-circle">5</div>
                                 <div class="step-label">Purchase Order</div>
                             </div>
-                            <div class="process-step">
+                            <div class="process-step" onclick="showPage('delivery')">
                                 <div class="step-circle">6</div>
                                 <div class="step-label">Delivery & Receiving</div>
                             </div>
-                            <div class="process-step">
+                            <div class="process-step" onclick="showPage('invoices')">
                                 <div class="step-circle">7</div>
                                 <div class="step-label">Invoice & Payment</div>
                             </div>
@@ -1140,9 +1203,170 @@
                             <p style="color:var(--text-secondary);font-size:13px;">GOJ procurement compliance audit</p>
                         </div>
                     </div>
+                    <div class="card no-print" style="margin-bottom:20px;">
+                        <h2>Data Export / Import</h2>
+                        <div class="btn-group">
+                            <button class="btn btn-info" onclick="exportAllJSON()">Export All Data (JSON)</button>
+                            <button class="btn btn-success" onclick="exportRequisitionsCSV()">Export Requisitions (CSV)</button>
+                            <button class="btn btn-warning" onclick="exportPOsCSV()">Export POs (CSV)</button>
+                            <label class="btn btn-secondary" style="margin:0;">
+                                Import Data (JSON) <input type="file" accept=".json" onchange="importDataJSON(event)" style="display:none;">
+                            </label>
+                        </div>
+                    </div>
                     <div class="card" id="reportOutput" style="display:none;">
+                        <div class="btn-group no-print" style="float:right;margin-top:-5px;">
+                            <button class="btn btn-info" onclick="exportCurrentReportCSV()" style="padding:6px 12px;font-size:12px;">Export CSV</button>
+                            <button class="btn btn-secondary" onclick="window.print()" style="padding:6px 12px;font-size:12px;">Print</button>
+                        </div>
                         <h2 id="reportTitle"></h2>
                         <div id="reportContent"></div>
+                    </div>
+                </div>
+
+                <!-- Delivery & Receiving Page (Step 6) -->
+                <div class="page" id="page-delivery">
+                    <div class="page-header">
+                        <h1>Delivery & Receiving</h1>
+                        <p>Step 6 - Record deliveries against purchase orders</p>
+                    </div>
+                    <div class="card">
+                        <h2>Record Delivery</h2>
+                        <form onsubmit="recordDelivery(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Purchase Order</label>
+                                    <select class="form-control" id="delPO" required onchange="loadPOForDelivery()">
+                                        <option value="">Select PO</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Delivery Date</label>
+                                    <input type="date" class="form-control" id="delDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Delivery Note / GRN #</label>
+                                    <input type="text" class="form-control" id="delGRN" placeholder="Goods Received Note number" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Received By</label>
+                                    <input type="text" class="form-control" id="delReceivedBy" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Delivery Condition</label>
+                                    <select class="form-control" id="delCondition">
+                                        <option>Good - All items in acceptable condition</option>
+                                        <option>Partial - Some items missing or damaged</option>
+                                        <option>Damaged - Significant damage noted</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="delItemsPreview" style="margin:15px 0;"></div>
+                            <div class="form-group">
+                                <label>Notes / Discrepancies</label>
+                                <textarea class="form-control" id="delNotes" placeholder="Note any discrepancies, damages, shortages..."></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-success">Confirm Delivery Receipt</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h2>Delivery History</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Date</th><th>PO #</th><th>GRN #</th><th>Supplier</th><th>Condition</th><th>Received By</th><th>Status</th></tr>
+                                </thead>
+                                <tbody id="deliveryTable">
+                                    <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No deliveries recorded</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice & Payment Page (Step 7) -->
+                <div class="page" id="page-invoices">
+                    <div class="page-header">
+                        <h1>Invoice & Payment</h1>
+                        <p>Step 7 - Process supplier invoices and track payments</p>
+                    </div>
+                    <div class="card">
+                        <h2>Record Invoice</h2>
+                        <form onsubmit="recordInvoice(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Purchase Order</label>
+                                    <select class="form-control" id="invPO" required>
+                                        <option value="">Select PO (Delivered)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Invoice Number</label>
+                                    <input type="text" class="form-control" id="invNumber" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Invoice Date</label>
+                                    <input type="date" class="form-control" id="invDate" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Invoice Amount (JMD)</label>
+                                    <input type="number" class="form-control" id="invAmount" step="0.01" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>GCT Amount (JMD)</label>
+                                    <input type="number" class="form-control" id="invGCT" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Payment Due Date</label>
+                                    <input type="date" class="form-control" id="invDueDate" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Notes</label>
+                                <textarea class="form-control" id="invNotes" placeholder="Payment notes..."></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary">Record Invoice</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h2>Invoice & Payment Tracker</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Invoice #</th><th>PO #</th><th>Supplier</th><th>Amount</th><th>GCT</th><th>Total</th><th>Due Date</th><th>Status</th><th>Actions</th></tr>
+                                </thead>
+                                <tbody id="invoiceTable">
+                                    <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-secondary);">No invoices recorded</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Log Page -->
+                <div class="page" id="page-auditLog">
+                    <div class="page-header">
+                        <h1>Audit Log</h1>
+                        <p>System activity trail - all actions recorded with timestamps</p>
+                    </div>
+                    <div class="card">
+                        <div style="display:flex;gap:10px;margin-bottom:15px;">
+                            <input type="text" class="form-control" id="auditSearch" placeholder="Search audit log..." oninput="renderAuditLog()" style="flex:1;">
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr>
+                                </thead>
+                                <tbody id="auditLogTable">
+                                    <tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-secondary);">No audit log entries</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -1251,6 +1475,35 @@
         </div>
     </div>
 
+    <!-- Edit Supplier Modal -->
+    <div class="modal-overlay" id="editSupplierModal">
+        <div class="modal-box">
+            <h2>Edit Supplier</h2>
+            <form onsubmit="saveEditSupplier(event)">
+                <input type="hidden" id="editSupId">
+                <div class="form-grid">
+                    <div class="form-group"><label>Supplier Name</label><input type="text" class="form-control" id="editSupName" required></div>
+                    <div class="form-group"><label>TRN</label><input type="text" class="form-control" id="editSupTRN" required></div>
+                    <div class="form-group"><label>Contact Person</label><input type="text" class="form-control" id="editSupContact"></div>
+                    <div class="form-group"><label>Phone</label><input type="tel" class="form-control" id="editSupPhone"></div>
+                    <div class="form-group"><label>Email</label><input type="email" class="form-control" id="editSupEmail"></div>
+                    <div class="form-group"><label>Category</label>
+                        <select class="form-control" id="editSupCategory"><option>Medical Supplies</option><option>Office Supplies</option><option>IT Equipment</option><option>Furniture</option><option>Cleaning Supplies</option><option>Food & Dietary</option><option>Construction</option><option>Maintenance</option><option>Other</option></select>
+                    </div>
+                    <div class="form-group"><label>NCC Registered</label>
+                        <select class="form-control" id="editSupNCC"><option value="Yes">Yes</option><option value="No">No</option><option value="Pending">Pending</option></select>
+                    </div>
+                    <div class="form-group"><label>Address</label><input type="text" class="form-control" id="editSupAddress"></div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteSupplier()">Delete Supplier</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editSupplierModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <button class="night-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
 
     <script>
@@ -1258,10 +1511,21 @@
         // DATA STORE (localStorage)
         // ============================================
         const STORAGE_KEY = 'procurementData';
+        const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
+        let currentUser = null;
+        let credentialsData = null;
 
         function loadData() {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (!data.auditLog) data.auditLog = [];
+                if (!data.quotations) data.quotations = [];
+                if (!data.evaluations) data.evaluations = [];
+                if (!data.deliveries) data.deliveries = [];
+                if (!data.invoices) data.invoices = [];
+                return data;
+            }
             return {
                 requisitions: [],
                 suppliers: [
@@ -1272,7 +1536,10 @@
                 purchaseOrders: [],
                 quotations: [],
                 evaluations: [],
+                deliveries: [],
+                invoices: [],
                 activity: [],
+                auditLog: [],
                 poCounter: 1000,
                 reqCounter: 100
             };
@@ -1285,7 +1552,33 @@
         let appData = loadData();
 
         // ============================================
-        // LOGIN
+        // XSS PROTECTION
+        // ============================================
+        function sanitize(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ============================================
+        // AUDIT TRAIL
+        // ============================================
+        function logActivity(action, details) {
+            const entry = {
+                timestamp: new Date().toISOString(),
+                user: currentUser ? currentUser.displayName : 'Unknown',
+                action: action,
+                details: details
+            };
+            if (!appData.auditLog) appData.auditLog = [];
+            appData.auditLog.unshift(entry);
+            if (appData.auditLog.length > 500) appData.auditLog = appData.auditLog.slice(0, 500);
+            saveData(appData);
+        }
+
+        // ============================================
+        // PORTAL USERS
         // ============================================
         function getPortalUsers(dashboard) {
             try {
@@ -1298,30 +1591,117 @@
             return [];
         }
 
-        function handleLogin(e) {
+        // ============================================
+        // GOOGLE SHEETS AUTHENTICATION
+        // ============================================
+        async function loadCredentials() {
+            const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + CREDENTIALS_SHEET_ID + '/gviz/tq?tqx=out:csv';
+            const proxies = [
+                function(url) { return url; },
+                function(url) { return 'https://corsproxy.io/?' + encodeURIComponent(url); },
+                function(url) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); },
+                function(url) { return 'https://cors-anywhere.herokuapp.com/' + url; }
+            ];
+
+            for (const proxy of proxies) {
+                try {
+                    const resp = await fetch(proxy(sheetUrl));
+                    if (!resp.ok) continue;
+                    const csvText = await resp.text();
+                    const wb = XLSX.read(csvText, { type: 'string' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(ws, { header: ['username', 'password', 'displayName', 'role', 'email', 'canExport', 'canRefresh'] });
+                    if (rows.length > 0 && rows[0].username && rows[0].username.toLowerCase() === 'username') rows.shift();
+                    credentialsData = rows;
+                    localStorage.setItem('procCachedCredentials', JSON.stringify(rows));
+                    return rows;
+                } catch (e) { continue; }
+            }
+
+            // Fall back to cached
+            const cached = localStorage.getItem('procCachedCredentials');
+            if (cached) {
+                credentialsData = JSON.parse(cached);
+                return credentialsData;
+            }
+            return null;
+        }
+
+        async function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value.trim().toLowerCase();
+            const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
+            const statusEl = document.getElementById('loginStatus');
+            const errEl = document.getElementById('loginError');
+            errEl.style.display = 'none';
 
-            // Check portal-configured users first, then fallback to default
+            statusEl.textContent = 'Authenticating...';
+
+            if (!credentialsData) {
+                statusEl.textContent = 'Loading credentials from server...';
+                await loadCredentials();
+            }
+
+            // Try Google Sheets credentials
+            if (credentialsData && credentialsData.length > 0) {
+                const match = credentialsData.find(function(c) {
+                    return c.username && c.username.toString().trim() === user &&
+                           c.password && c.password.toString().trim() === pass;
+                });
+                if (match) {
+                    currentUser = {
+                        username: match.username,
+                        displayName: match.displayName || match.username,
+                        role: match.role || 'user',
+                        email: match.email || '',
+                        canExport: match.canExport === 'true' || match.canExport === true,
+                        canRefresh: match.canRefresh === 'true' || match.canRefresh === true
+                    };
+                    statusEl.textContent = '';
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('appContainer').classList.add('active');
+                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                    logActivity('Login', 'User logged in: ' + currentUser.displayName);
+                    refreshAll();
+                    return;
+                }
+            }
+
+            // Fallback: portal users then default credentials
             const portalUsers = getPortalUsers('procurement');
-            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+            const portalMatch = portalUsers.find(function(u) { return u.username === user.toLowerCase() && u.password === pass; });
 
-            if (portalMatch || (user === 'procurement' && pass === '123')) {
+            if (portalMatch || (user.toLowerCase() === 'procurement' && pass === '123')) {
+                currentUser = {
+                    username: user.toLowerCase(),
+                    displayName: portalMatch ? (portalMatch.displayName || portalMatch.username) : 'Procurement Officer',
+                    role: 'procurement_officer',
+                    email: '',
+                    canExport: true,
+                    canRefresh: true
+                };
+                statusEl.textContent = '';
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('appContainer').classList.add('active');
+                document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                logActivity('Login', 'User logged in: ' + currentUser.displayName);
                 refreshAll();
-            } else {
-                const err = document.getElementById('loginError');
-                err.textContent = 'Invalid username or password';
-                err.style.display = 'block';
+                return;
             }
+
+            statusEl.textContent = '';
+            errEl.textContent = 'Invalid username or password';
+            errEl.style.display = 'block';
         }
 
         function logout() {
+            logActivity('Logout', 'User logged out: ' + (currentUser ? currentUser.displayName : 'Unknown'));
+            currentUser = null;
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('appContainer').classList.remove('active');
             document.getElementById('loginForm').reset();
+            document.getElementById('loginStatus').textContent = '';
+            document.getElementById('navUserDisplay').textContent = '';
         }
 
         // ============================================
@@ -1334,8 +1714,31 @@
             const page = document.getElementById('page-' + pageId);
             if (page) page.classList.add('active');
 
-            const sidebarItem = document.querySelector(`.sidebar-item[data-page="${pageId}"]`);
+            const sidebarItem = document.querySelector('.sidebar-item[data-page="' + pageId + '"]');
             if (sidebarItem) sidebarItem.classList.add('active');
+
+            // Refresh page-specific data
+            if (pageId === 'quotations') renderQuotations();
+            if (pageId === 'evaluation') renderEvaluations();
+            if (pageId === 'approvals') renderApprovals();
+            if (pageId === 'delivery') populateDeliveryPOs();
+            if (pageId === 'invoices') populateInvoicePOs();
+            if (pageId === 'auditLog') renderAuditLog();
+
+            closeSidebarMobile();
+        }
+
+        // ============================================
+        // MOBILE SIDEBAR
+        // ============================================
+        function toggleSidebar() {
+            document.getElementById('mainSidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function closeSidebarMobile() {
+            document.getElementById('mainSidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
         }
 
         // ============================================
@@ -1393,6 +1796,26 @@
             document.getElementById('reqGrandTotal').textContent = '$' + grand.toLocaleString('en-JM', { minimumFractionDigits: 2 });
         }
 
+        // ============================================
+        // GOJ THRESHOLD ENFORCEMENT
+        // ============================================
+        function getRequiredMethod(totalValue) {
+            if (totalValue < 500000) return 'Direct';
+            if (totalValue < 3000000) return 'Competitive Quotation';
+            if (totalValue < 30000000) return 'Local Competitive Bidding';
+            return 'International Competitive Bidding';
+        }
+
+        function getMethodLabel(method) {
+            const labels = {
+                'Direct': 'Direct Contracting (Under $500K)',
+                'Competitive Quotation': 'Competitive Quotation ($500K - $3M)',
+                'Local Competitive Bidding': 'Local Competitive Bidding ($3M - $30M)',
+                'International Competitive Bidding': 'International Competitive Bidding (Over $30M)'
+            };
+            return labels[method] || method;
+        }
+
         function submitRequisition(e) {
             e.preventDefault();
             appData.reqCounter++;
@@ -1407,21 +1830,34 @@
                 const qty = parseFloat(inputs[2].value) || 0;
                 const price = parseFloat(inputs[3].value) || 0;
                 if (desc && qty > 0) {
-                    items.push({ description: desc, unit, qty, unitPrice: price, total: qty * price });
+                    items.push({ description: sanitize(desc), unit: sanitize(unit), qty, unitPrice: price, total: qty * price });
                 }
             });
 
             const totalValue = items.reduce((sum, i) => sum + i.total, 0);
+            const selectedMethod = document.getElementById('reqMethod').value;
+
+            // GOJ Threshold Enforcement
+            const requiredMethod = getRequiredMethod(totalValue);
+            const methodOrder = ['Direct', 'Competitive Quotation', 'Local Competitive Bidding', 'International Competitive Bidding'];
+            const selectedIdx = methodOrder.indexOf(selectedMethod);
+            const requiredIdx = methodOrder.indexOf(requiredMethod);
+
+            if (selectedIdx < requiredIdx) {
+                alert('GOJ Compliance Warning!\n\nThe estimated value of $' + totalValue.toLocaleString() + ' requires: ' + getMethodLabel(requiredMethod) + '\n\nYou selected: ' + getMethodLabel(selectedMethod) + '\n\nPlease select the correct procurement method per GOJ Handbook guidelines.');
+                appData.reqCounter--;
+                return;
+            }
 
             const requisition = {
                 id: refNum,
                 date: document.getElementById('reqDate').value,
-                department: document.getElementById('reqDept').value,
-                requestedBy: document.getElementById('reqBy').value,
+                department: sanitize(document.getElementById('reqDept').value),
+                requestedBy: sanitize(document.getElementById('reqBy').value),
                 priority: document.getElementById('reqPriority').value,
-                method: document.getElementById('reqMethod').value,
-                budgetLine: document.getElementById('reqBudgetLine').value,
-                justification: document.getElementById('reqJustification').value,
+                method: selectedMethod,
+                budgetLine: sanitize(document.getElementById('reqBudgetLine').value),
+                justification: sanitize(document.getElementById('reqJustification').value),
                 items: items,
                 totalValue: totalValue,
                 status: 'Submitted',
@@ -1430,6 +1866,7 @@
 
             appData.requisitions.push(requisition);
             addActivity('Requisition ' + refNum + ' submitted - ' + requisition.department, 'Submitted');
+            logActivity('Submit Requisition', refNum + ': $' + totalValue.toLocaleString() + ' (' + selectedMethod + ') for ' + requisition.department);
             saveData(appData);
 
             alert('Requisition ' + refNum + ' submitted successfully!');
@@ -1467,21 +1904,79 @@
 
         function addSupplier(e) {
             e.preventDefault();
+            const trn = document.getElementById('supTRN').value.trim();
+            // TRN format validation
+            if (!/^\d{3}-\d{3}-\d{3}$/.test(trn)) {
+                alert('Invalid TRN format. Please use format: 000-000-000');
+                return;
+            }
             const sup = {
                 id: 'SUP-' + String(appData.suppliers.length + 1).padStart(3, '0'),
-                name: document.getElementById('supName').value,
-                trn: document.getElementById('supTRN').value,
-                contact: document.getElementById('supContact').value,
-                phone: document.getElementById('supPhone').value,
-                email: document.getElementById('supEmail').value,
+                name: sanitize(document.getElementById('supName').value),
+                trn: sanitize(trn),
+                contact: sanitize(document.getElementById('supContact').value),
+                phone: sanitize(document.getElementById('supPhone').value),
+                email: sanitize(document.getElementById('supEmail').value),
                 category: document.getElementById('supCategory').value,
                 ncc: document.getElementById('supNCC').value,
-                address: document.getElementById('supAddress').value
+                address: sanitize(document.getElementById('supAddress').value),
+                rating: 0,
+                poCount: 0,
+                totalSpend: 0,
+                status: 'Active'
             };
             appData.suppliers.push(sup);
             addActivity('Supplier added: ' + sup.name, 'Active');
+            logActivity('Add Supplier', 'Added supplier: ' + sup.name + ' (TRN: ' + sup.trn + ')');
             saveData(appData);
             closeModal('supplierModal');
+            e.target.reset();
+            refreshAll();
+        }
+
+        function editSupplier(supId) {
+            const sup = appData.suppliers.find(s => s.id === supId);
+            if (!sup) return;
+            document.getElementById('editSupId').value = sup.id;
+            document.getElementById('editSupName').value = sup.name;
+            document.getElementById('editSupTRN').value = sup.trn;
+            document.getElementById('editSupContact').value = sup.contact;
+            document.getElementById('editSupPhone').value = sup.phone;
+            document.getElementById('editSupEmail').value = sup.email;
+            document.getElementById('editSupCategory').value = sup.category;
+            document.getElementById('editSupNCC').value = sup.ncc;
+            document.getElementById('editSupAddress').value = sup.address;
+            document.getElementById('editSupplierModal').classList.add('active');
+        }
+
+        function saveEditSupplier(e) {
+            e.preventDefault();
+            const id = document.getElementById('editSupId').value;
+            const sup = appData.suppliers.find(s => s.id === id);
+            if (!sup) return;
+            sup.name = sanitize(document.getElementById('editSupName').value);
+            sup.trn = sanitize(document.getElementById('editSupTRN').value);
+            sup.contact = sanitize(document.getElementById('editSupContact').value);
+            sup.phone = sanitize(document.getElementById('editSupPhone').value);
+            sup.email = sanitize(document.getElementById('editSupEmail').value);
+            sup.category = document.getElementById('editSupCategory').value;
+            sup.ncc = document.getElementById('editSupNCC').value;
+            sup.address = sanitize(document.getElementById('editSupAddress').value);
+            logActivity('Edit Supplier', 'Updated supplier: ' + sup.name);
+            saveData(appData);
+            closeModal('editSupplierModal');
+            refreshAll();
+        }
+
+        function deleteSupplier() {
+            const id = document.getElementById('editSupId').value;
+            const sup = appData.suppliers.find(s => s.id === id);
+            if (!sup) return;
+            if (!confirm('Delete supplier ' + sup.name + '? This cannot be undone.')) return;
+            appData.suppliers = appData.suppliers.filter(s => s.id !== id);
+            logActivity('Delete Supplier', 'Deleted supplier: ' + sup.name);
+            saveData(appData);
+            closeModal('editSupplierModal');
             refreshAll();
         }
 
@@ -1518,9 +2013,17 @@
             const req = appData.requisitions.find(r => r.id === reqId);
             const sup = appData.suppliers.find(s => s.id === supId);
 
+            // NCC Registration Check
+            if (sup.ncc !== 'Yes' && req.totalValue >= 500000) {
+                if (!confirm('WARNING: Supplier ' + sup.name + ' is NOT NCC registered.\n\nGOJ procurement above $500K typically requires NCC-registered suppliers.\n\nDo you want to proceed anyway?')) {
+                    return;
+                }
+            }
+
             appData.poCounter++;
             const poNum = 'PO-MPH-' + appData.poCounter;
 
+            const gct = req.totalValue * 0.15;
             const po = {
                 id: poNum,
                 date: new Date().toISOString().split('T')[0],
@@ -1528,9 +2031,11 @@
                 supplier: sup,
                 items: req.items,
                 totalValue: req.totalValue,
-                deliveryAddress: document.getElementById('poDeliveryAddr').value,
+                gctAmount: gct,
+                grandTotal: req.totalValue + gct,
+                deliveryAddress: sanitize(document.getElementById('poDeliveryAddr').value),
                 paymentTerms: document.getElementById('poPayTerms').value,
-                instructions: document.getElementById('poInstructions').value,
+                instructions: sanitize(document.getElementById('poInstructions').value),
                 status: 'Issued',
                 createdAt: new Date().toISOString()
             };
@@ -1538,6 +2043,7 @@
             appData.purchaseOrders.push(po);
             req.status = 'PO Issued';
             addActivity('Purchase Order ' + poNum + ' generated for ' + sup.name, 'Issued');
+            logActivity('Generate PO', poNum + ' for ' + sup.name + ' - $' + req.totalValue.toLocaleString() + ' (Req: ' + reqId + ')');
             saveData(appData);
 
             closeModal('generatePOModal');
@@ -1679,17 +2185,25 @@
             const req = appData.requisitions.find(r => r.id === reqId);
             if (req) {
                 req.status = 'Approved';
+                req.approvedBy = currentUser ? currentUser.displayName : 'Manager';
+                req.approvedDate = new Date().toISOString().split('T')[0];
                 addActivity('Requisition ' + reqId + ' approved', 'Approved');
+                logActivity('Approve Requisition', reqId + ' approved - $' + req.totalValue.toLocaleString());
                 saveData(appData);
                 refreshAll();
             }
         }
 
         function rejectReq(reqId) {
+            const reason = prompt('Reason for rejection:');
+            if (reason === null) return;
             const req = appData.requisitions.find(r => r.id === reqId);
             if (req) {
                 req.status = 'Rejected';
+                req.rejectionReason = sanitize(reason);
+                req.rejectedBy = currentUser ? currentUser.displayName : 'Manager';
                 addActivity('Requisition ' + reqId + ' rejected', 'Rejected');
+                logActivity('Reject Requisition', reqId + ' rejected: ' + reason);
                 saveData(appData);
                 refreshAll();
             }
@@ -1756,7 +2270,7 @@
                     <td>${s.email}</td>
                     <td>${s.category}</td>
                     <td><span class="badge ${s.ncc === 'Yes' ? 'badge-approved' : s.ncc === 'Pending' ? 'badge-pending' : 'badge-rejected'}">${s.ncc}</span></td>
-                    <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="alert('Edit supplier feature')">Edit</button></td>
+                    <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="editSupplier('${s.id}')">Edit</button></td>
                 </tr>
             `).join('');
 
@@ -1777,6 +2291,431 @@
                     </tr>
                 `).join('');
             }
+        }
+
+        // ============================================
+        // QUOTATIONS WORKFLOW (Step 2)
+        // ============================================
+        function renderQuotations() {
+            const tbody = document.getElementById('quotationsTable');
+            // Get approved requisitions that need quotations
+            const approvedReqs = appData.requisitions.filter(r => r.status === 'Approved' || r.status === 'Quotation Requested');
+            const existingQuotes = appData.quotations || [];
+
+            if (approvedReqs.length === 0 && existingQuotes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No approved requisitions awaiting quotations</td></tr>';
+                return;
+            }
+
+            let rows = '';
+            approvedReqs.forEach(r => {
+                const quotes = existingQuotes.filter(q => q.requisitionRef === r.id);
+                const invited = quotes.length > 0 ? quotes[0].suppliersInvited || 0 : 0;
+                const received = quotes.filter(q => q.status === 'Received').length;
+                rows += '<tr><td><strong>' + r.id + '</strong></td><td>' + sanitize(r.items.map(i => i.description).join(', ').substring(0, 50)) + '</td><td>' + invited + '</td><td>' + received + '</td><td>' + (r.quotationDeadline || 'Not set') + '</td><td><span class="badge badge-' + (r.status === 'Quotation Requested' ? 'active' : 'pending') + '">' + r.status + '</span></td><td>' +
+                    '<button class="btn btn-primary" style="padding:4px 8px;font-size:11px;" onclick="requestQuotation(\'' + r.id + '\')">Request Quotes</button> ' +
+                    '<button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="addQuoteResponse(\'' + r.id + '\')">Add Quote</button>' +
+                    '</td></tr>';
+            });
+            tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:30px;">No active quotations</td></tr>';
+        }
+
+        function requestQuotation(reqId) {
+            const req = appData.requisitions.find(r => r.id === reqId);
+            if (!req) return;
+            const deadline = prompt('Set quotation deadline (YYYY-MM-DD):');
+            if (!deadline) return;
+            const numSuppliers = prompt('How many suppliers to invite?', '3');
+            req.status = 'Quotation Requested';
+            req.quotationDeadline = deadline;
+            if (!appData.quotations) appData.quotations = [];
+            appData.quotations.push({
+                id: 'QR-' + Date.now(),
+                requisitionRef: reqId,
+                suppliersInvited: parseInt(numSuppliers) || 3,
+                deadline: deadline,
+                status: 'Open',
+                createdAt: new Date().toISOString()
+            });
+            logActivity('Request Quotation', 'Quotation requested for ' + reqId + ', deadline: ' + deadline);
+            saveData(appData);
+            renderQuotations();
+        }
+
+        function addQuoteResponse(reqId) {
+            const supplierName = prompt('Supplier name:');
+            if (!supplierName) return;
+            const quotedPrice = prompt('Total quoted price (JMD):');
+            if (!quotedPrice) return;
+            const deliveryDays = prompt('Delivery time (days):');
+
+            if (!appData.quotations) appData.quotations = [];
+            appData.quotations.push({
+                id: 'QT-' + Date.now(),
+                requisitionRef: reqId,
+                supplierName: sanitize(supplierName),
+                quotedPrice: parseFloat(quotedPrice) || 0,
+                deliveryDays: parseInt(deliveryDays) || 0,
+                compliance: 'Yes',
+                status: 'Received',
+                receivedDate: new Date().toISOString().split('T')[0]
+            });
+            logActivity('Receive Quotation', 'Quote received from ' + supplierName + ' for ' + reqId + ': $' + parseFloat(quotedPrice).toLocaleString());
+            saveData(appData);
+            renderQuotations();
+        }
+
+        // ============================================
+        // EVALUATION WORKFLOW (Step 3)
+        // ============================================
+        function renderEvaluations() {
+            const tbody = document.getElementById('evaluationTable');
+            const quotedReqs = appData.requisitions.filter(r => r.status === 'Quotation Requested');
+            const receivedQuotes = (appData.quotations || []).filter(q => q.status === 'Received');
+
+            if (receivedQuotes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No bids to evaluate - request quotations first</td></tr>';
+                return;
+            }
+
+            // Group quotes by requisition
+            const byReq = {};
+            receivedQuotes.forEach(q => {
+                if (!byReq[q.requisitionRef]) byReq[q.requisitionRef] = [];
+                byReq[q.requisitionRef].push(q);
+            });
+
+            let rows = '';
+            Object.entries(byReq).forEach(([reqId, quotes]) => {
+                quotes.forEach((q, idx) => {
+                    // Calculate score: lower price = higher score, faster delivery = bonus
+                    const priceScore = Math.max(0, 100 - (q.quotedPrice / 100000));
+                    const deliveryScore = Math.max(0, 20 - q.deliveryDays);
+                    const complianceScore = q.compliance === 'Yes' ? 30 : 0;
+                    const totalScore = Math.round(priceScore + deliveryScore + complianceScore);
+                    q.score = totalScore;
+
+                    const isLowest = quotes.every(other => q.quotedPrice <= other.quotedPrice);
+                    rows += '<tr><td>' + (idx === 0 ? '<strong>' + reqId + '</strong>' : '') + '</td>' +
+                        '<td>' + sanitize(q.supplierName) + '</td>' +
+                        '<td>$' + q.quotedPrice.toLocaleString() + '</td>' +
+                        '<td>' + q.deliveryDays + ' days</td>' +
+                        '<td><span class="badge badge-approved">' + q.compliance + '</span></td>' +
+                        '<td style="font-weight:700;">' + totalScore + '/150</td>' +
+                        '<td>' + (isLowest ? '<span class="badge badge-approved">Recommended</span> <button class="btn btn-success" style="padding:3px 8px;font-size:11px;" onclick="selectBid(\'' + reqId + '\',\'' + q.id + '\')">Select</button>' : '') + '</td></tr>';
+                });
+            });
+            tbody.innerHTML = rows;
+        }
+
+        function selectBid(reqId, quoteId) {
+            const req = appData.requisitions.find(r => r.id === reqId);
+            const quote = appData.quotations.find(q => q.id === quoteId);
+            if (!req || !quote) return;
+            req.status = 'Evaluated';
+            req.selectedSupplier = quote.supplierName;
+            req.evaluatedPrice = quote.quotedPrice;
+            if (!appData.evaluations) appData.evaluations = [];
+            appData.evaluations.push({
+                id: 'EVAL-' + Date.now(),
+                requisitionRef: reqId,
+                selectedQuoteId: quoteId,
+                selectedSupplier: quote.supplierName,
+                selectedPrice: quote.quotedPrice,
+                evaluatedBy: currentUser ? currentUser.displayName : 'Procurement Officer',
+                evaluatedDate: new Date().toISOString().split('T')[0]
+            });
+            logActivity('Evaluate Bid', 'Selected ' + quote.supplierName + ' for ' + reqId + ' at $' + quote.quotedPrice.toLocaleString());
+            addActivity('Bid selected for ' + reqId + ': ' + quote.supplierName, 'Evaluated');
+            saveData(appData);
+            renderEvaluations();
+            alert('Bid from ' + quote.supplierName + ' selected for ' + reqId + '. Proceeding to approval stage.');
+        }
+
+        // ============================================
+        // APPROVALS WORKFLOW (Step 4)
+        // ============================================
+        function renderApprovals() {
+            const tbody = document.getElementById('approvalsTable');
+            const evaluatedReqs = appData.requisitions.filter(r => r.status === 'Evaluated' || r.status === 'Submitted');
+
+            if (evaluatedReqs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No items pending approval</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = evaluatedReqs.map(r => {
+                const approvalLevel = r.totalValue < 500000 ? 'Procurement Officer' :
+                    r.totalValue < 3000000 ? 'Procurement Committee' :
+                    r.totalValue < 15000000 ? 'Regional Director' : 'NCC / Cabinet';
+                return '<tr><td><strong>' + r.id + '</strong></td>' +
+                    '<td>' + sanitize(r.items.map(i => i.description).join(', ').substring(0, 40)) + '</td>' +
+                    '<td>$' + r.totalValue.toLocaleString() + '</td>' +
+                    '<td>' + (r.selectedSupplier || 'Pending') + '</td>' +
+                    '<td><span class="badge badge-active">' + approvalLevel + '</span></td>' +
+                    '<td><span class="badge badge-pending">' + r.status + '</span></td>' +
+                    '<td><button class="btn btn-success" style="padding:3px 8px;font-size:11px;" onclick="approveReq(\'' + r.id + '\')">Approve</button> ' +
+                    '<button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="rejectReq(\'' + r.id + '\')">Reject</button></td></tr>';
+            }).join('');
+        }
+
+        // ============================================
+        // DELIVERY & RECEIVING (Step 6)
+        // ============================================
+        function populateDeliveryPOs() {
+            const select = document.getElementById('delPO');
+            const issuedPOs = appData.purchaseOrders.filter(p => p.status === 'Issued');
+            select.innerHTML = '<option value="">Select PO</option>' + issuedPOs.map(p =>
+                '<option value="' + p.id + '">' + p.id + ' - ' + p.supplier.name + ' ($' + p.totalValue.toLocaleString() + ')</option>'
+            ).join('');
+            document.getElementById('delDate').valueAsDate = new Date();
+            renderDeliveryHistory();
+        }
+
+        function loadPOForDelivery() {
+            const poId = document.getElementById('delPO').value;
+            const po = appData.purchaseOrders.find(p => p.id === poId);
+            const preview = document.getElementById('delItemsPreview');
+            if (!po) { preview.innerHTML = ''; return; }
+            preview.innerHTML = '<div class="table-container"><table><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th></tr></thead><tbody>' +
+                po.items.map((item, i) => '<tr><td>' + (i + 1) + '</td><td>' + sanitize(item.description) + '</td><td>' + item.qty + '</td><td>$' + item.unitPrice.toLocaleString() + '</td></tr>').join('') +
+                '</tbody></table></div>';
+        }
+
+        function recordDelivery(e) {
+            e.preventDefault();
+            const poId = document.getElementById('delPO').value;
+            const po = appData.purchaseOrders.find(p => p.id === poId);
+            if (!po) { alert('Please select a PO.'); return; }
+
+            const delivery = {
+                id: 'DEL-' + Date.now(),
+                poId: poId,
+                date: document.getElementById('delDate').value,
+                grn: sanitize(document.getElementById('delGRN').value),
+                receivedBy: sanitize(document.getElementById('delReceivedBy').value),
+                condition: document.getElementById('delCondition').value,
+                notes: sanitize(document.getElementById('delNotes').value),
+                supplierName: po.supplier.name,
+                totalValue: po.totalValue,
+                timestamp: new Date().toISOString()
+            };
+
+            if (!appData.deliveries) appData.deliveries = [];
+            appData.deliveries.push(delivery);
+            po.status = 'Delivered';
+            addActivity('Delivery received for ' + poId + ' (GRN: ' + delivery.grn + ')', 'Delivered');
+            logActivity('Record Delivery', poId + ' delivered - GRN: ' + delivery.grn + ', Condition: ' + delivery.condition);
+
+            // Cross-system: notify stores
+            try {
+                const storesNotifications = JSON.parse(localStorage.getItem('storesDeliveryNotifications') || '[]');
+                storesNotifications.push({
+                    poId: poId,
+                    supplierName: po.supplier.name,
+                    items: po.items,
+                    deliveryDate: delivery.date,
+                    grn: delivery.grn,
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem('storesDeliveryNotifications', JSON.stringify(storesNotifications));
+            } catch (err) {}
+
+            saveData(appData);
+            e.target.reset();
+            document.getElementById('delItemsPreview').innerHTML = '';
+            alert('Delivery recorded! GRN: ' + delivery.grn);
+            populateDeliveryPOs();
+            refreshAll();
+        }
+
+        function renderDeliveryHistory() {
+            const tbody = document.getElementById('deliveryTable');
+            const deliveries = appData.deliveries || [];
+            if (deliveries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No deliveries recorded</td></tr>';
+                return;
+            }
+            tbody.innerHTML = deliveries.slice().reverse().map(d =>
+                '<tr><td>' + d.date + '</td><td><strong>' + d.poId + '</strong></td><td>' + sanitize(d.grn) + '</td><td>' + sanitize(d.supplierName) + '</td><td>' + sanitize(d.condition) + '</td><td>' + sanitize(d.receivedBy) + '</td><td><span class="badge badge-delivered">Received</span></td></tr>'
+            ).join('');
+        }
+
+        // ============================================
+        // INVOICE & PAYMENT (Step 7)
+        // ============================================
+        function populateInvoicePOs() {
+            const select = document.getElementById('invPO');
+            const deliveredPOs = appData.purchaseOrders.filter(p => p.status === 'Delivered');
+            select.innerHTML = '<option value="">Select PO (Delivered)</option>' + deliveredPOs.map(p =>
+                '<option value="' + p.id + '">' + p.id + ' - ' + p.supplier.name + ' ($' + p.totalValue.toLocaleString() + ')</option>'
+            ).join('');
+            document.getElementById('invDate').valueAsDate = new Date();
+            renderInvoiceTable();
+        }
+
+        function recordInvoice(e) {
+            e.preventDefault();
+            const poId = document.getElementById('invPO').value;
+            const po = appData.purchaseOrders.find(p => p.id === poId);
+            if (!po) { alert('Please select a delivered PO.'); return; }
+
+            const invoice = {
+                id: 'INV-' + Date.now(),
+                poId: poId,
+                invoiceNumber: sanitize(document.getElementById('invNumber').value),
+                date: document.getElementById('invDate').value,
+                amount: parseFloat(document.getElementById('invAmount').value) || 0,
+                gctAmount: parseFloat(document.getElementById('invGCT').value) || 0,
+                totalAmount: (parseFloat(document.getElementById('invAmount').value) || 0) + (parseFloat(document.getElementById('invGCT').value) || 0),
+                dueDate: document.getElementById('invDueDate').value,
+                notes: sanitize(document.getElementById('invNotes').value),
+                supplierName: po.supplier.name,
+                status: 'Pending Payment',
+                timestamp: new Date().toISOString()
+            };
+
+            if (!appData.invoices) appData.invoices = [];
+            appData.invoices.push(invoice);
+            addActivity('Invoice ' + invoice.invoiceNumber + ' recorded for ' + poId, 'Pending');
+            logActivity('Record Invoice', 'Invoice ' + invoice.invoiceNumber + ' for ' + poId + ': $' + invoice.totalAmount.toLocaleString());
+            saveData(appData);
+            e.target.reset();
+            alert('Invoice recorded: ' + invoice.invoiceNumber);
+            populateInvoicePOs();
+            refreshAll();
+        }
+
+        function markInvoicePaid(invId) {
+            const inv = appData.invoices.find(i => i.id === invId);
+            if (!inv) return;
+            inv.status = 'Paid';
+            inv.paidDate = new Date().toISOString().split('T')[0];
+            const po = appData.purchaseOrders.find(p => p.id === inv.poId);
+            if (po) po.status = 'Closed';
+            addActivity('Payment processed for invoice ' + inv.invoiceNumber, 'Paid');
+            logActivity('Process Payment', 'Paid invoice ' + inv.invoiceNumber + ': $' + inv.totalAmount.toLocaleString());
+            saveData(appData);
+            renderInvoiceTable();
+            refreshAll();
+        }
+
+        function renderInvoiceTable() {
+            const tbody = document.getElementById('invoiceTable');
+            const invoices = appData.invoices || [];
+            if (invoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-secondary);">No invoices recorded</td></tr>';
+                return;
+            }
+            tbody.innerHTML = invoices.slice().reverse().map(inv =>
+                '<tr><td>' + sanitize(inv.invoiceNumber) + '</td><td><strong>' + inv.poId + '</strong></td><td>' + sanitize(inv.supplierName) + '</td><td>$' + inv.amount.toLocaleString() + '</td><td>$' + inv.gctAmount.toLocaleString() + '</td><td style="font-weight:700;">$' + inv.totalAmount.toLocaleString() + '</td><td>' + inv.dueDate + '</td><td><span class="badge badge-' + (inv.status === 'Paid' ? 'paid' : 'pending') + '">' + inv.status + '</span></td><td>' +
+                (inv.status !== 'Paid' ? '<button class="btn btn-success" style="padding:3px 8px;font-size:11px;" onclick="markInvoicePaid(\'' + inv.id + '\')">Mark Paid</button>' : '<span style="color:var(--success);font-size:12px;">Paid ' + (inv.paidDate || '') + '</span>') + '</td></tr>'
+            ).join('');
+        }
+
+        // ============================================
+        // AUDIT LOG
+        // ============================================
+        function renderAuditLog() {
+            const tbody = document.getElementById('auditLogTable');
+            const search = (document.getElementById('auditSearch').value || '').toLowerCase();
+            let logs = appData.auditLog || [];
+            if (search) {
+                logs = logs.filter(l =>
+                    (l.action || '').toLowerCase().includes(search) ||
+                    (l.details || '').toLowerCase().includes(search) ||
+                    (l.user || '').toLowerCase().includes(search)
+                );
+            }
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-secondary);">No audit log entries</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.map(l =>
+                '<tr><td style="font-size:12px;">' + new Date(l.timestamp).toLocaleString() + '</td><td>' + sanitize(l.user) + '</td><td><strong>' + sanitize(l.action) + '</strong></td><td>' + sanitize(l.details) + '</td></tr>'
+            ).join('');
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportAllJSON() {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'procurement_data_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            logActivity('Export', 'Exported all data as JSON');
+        }
+
+        function exportRequisitionsCSV() {
+            const headers = ['Ref #', 'Date', 'Department', 'Requested By', 'Method', 'Items', 'Total Value', 'Status'];
+            const rows = appData.requisitions.map(r => [r.id, r.date, r.department, r.requestedBy, r.method, r.items.length, r.totalValue, r.status]);
+            downloadCSV(headers, rows, 'requisitions_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported requisitions as CSV');
+        }
+
+        function exportPOsCSV() {
+            const headers = ['PO #', 'Date', 'Supplier', 'Requisition', 'Value', 'GCT', 'Grand Total', 'Status'];
+            const rows = appData.purchaseOrders.map(p => [p.id, p.date, p.supplier.name, p.requisitionRef, p.totalValue, p.gctAmount || p.totalValue * 0.15, p.grandTotal || p.totalValue * 1.15, p.status]);
+            downloadCSV(headers, rows, 'purchase_orders_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported purchase orders as CSV');
+        }
+
+        function exportCurrentReportCSV() {
+            const reportContent = document.getElementById('reportContent');
+            const table = reportContent.querySelector('table');
+            if (!table) { alert('No table data to export.'); return; }
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent);
+            const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+                Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
+            );
+            downloadCSV(headers, rows, 'report_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported report as CSV');
+        }
+
+        function downloadCSV(headers, rows, filename) {
+            const csvContent = [headers.join(','), ...rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!confirm('This will merge imported data with existing data. Continue?')) { event.target.value = ''; return; }
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const imported = JSON.parse(ev.target.result);
+                    ['requisitions', 'suppliers', 'purchaseOrders', 'quotations', 'evaluations', 'deliveries', 'invoices'].forEach(key => {
+                        if (imported[key] && Array.isArray(imported[key])) {
+                            const existing = new Set((appData[key] || []).map(item => item.id));
+                            imported[key].forEach(item => {
+                                if (item.id && !existing.has(item.id)) {
+                                    if (!appData[key]) appData[key] = [];
+                                    appData[key].push(item);
+                                }
+                            });
+                        }
+                    });
+                    saveData(appData);
+                    logActivity('Import', 'Imported data from: ' + file.name);
+                    alert('Data imported successfully!');
+                    refreshAll();
+                } catch (err) {
+                    alert('Error reading file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
         }
 
         // Set default date
