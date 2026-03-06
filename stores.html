@@ -1286,12 +1286,44 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value.trim();
+            const user = document.getElementById('username').value.trim().toLowerCase();
             const pass = document.getElementById('password').value;
             const statusEl = document.getElementById('loginStatus');
             const errEl = document.getElementById('loginError');
             errEl.style.display = 'none';
 
+            function loginSuccess(displayName, source) {
+                currentUser = {
+                    username: user,
+                    displayName: displayName || user,
+                    role: 'user',
+                    email: '',
+                    canExport: true,
+                    canRefresh: true
+                };
+                statusEl.textContent = '';
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('appContainer').classList.add('active');
+                document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                logActivity('Login', 'User logged in (' + source + '): ' + currentUser.displayName);
+                refreshAll();
+            }
+
+            // Check portal-configured users first
+            const portalUsers = getPortalUsers('stores');
+            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+            if (portalMatch) {
+                loginSuccess(portalMatch.displayName || portalMatch.username, 'portal');
+                return;
+            }
+
+            // Default hardcoded credentials
+            if (user === 'stores' && pass === '123') {
+                loginSuccess('Stores Officer', 'default');
+                return;
+            }
+
+            // Try Google Sheets credentials
             statusEl.textContent = 'Authenticating...';
 
             if (!credentialsData) {
@@ -1301,7 +1333,7 @@
 
             if (credentialsData && credentialsData.length > 0) {
                 const match = credentialsData.find(c =>
-                    c.username && c.username.toString().trim() === user &&
+                    c.username && c.username.toString().trim().toLowerCase() === user &&
                     c.password && c.password.toString().trim() === pass
                 );
                 if (match) {
@@ -1328,7 +1360,7 @@
             if (cached && !credentialsData) {
                 credentialsData = JSON.parse(cached);
                 const match = credentialsData.find(c =>
-                    c.username && c.username.toString().trim() === user &&
+                    c.username && c.username.toString().trim().toLowerCase() === user &&
                     c.password && c.password.toString().trim() === pass
                 );
                 if (match) {
