@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>General Stores - Inventory Management | May Pen Hospital</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -34,7 +35,7 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             transition: background 0.3s ease, color 0.3s ease;
@@ -113,6 +114,8 @@
         .back-link { display: inline-block; margin-top: 15px; color: #2ECC71; text-decoration: none; font-size: 14px; }
         .back-link:hover { text-decoration: underline; }
 
+        .login-status { text-align: center; margin-top: 10px; font-size: 13px; color: #666; min-height: 20px; }
+
         /* APP */
         .app-container { display: none; }
         .app-container.active { display: block; }
@@ -139,6 +142,18 @@
             padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s;
         }
         .top-nav .nav-actions button:hover { background: rgba(255,255,255,0.3); }
+        .nav-user { font-size: 14px; opacity: 0.9; }
+
+        /* HAMBURGER */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
 
         /* LAYOUT */
         .layout { display: flex; min-height: calc(100vh - 65px); }
@@ -251,6 +266,12 @@
         .badge-low { background: #fdebd0; color: #935116; }
         .badge-critical { background: #fadbd8; color: #922b21; }
         .badge-out { background: #e8e8e8; color: #666; }
+        .badge-pending { background: #fef9e7; color: #7d6608; }
+        .badge-approved { background: #d5f5e3; color: #196f3d; }
+        .badge-rejected { background: #fadbd8; color: #922b21; }
+        .badge-expired { background: #fadbd8; color: #922b21; }
+        .badge-expiring-soon { background: #fdebd0; color: #935116; }
+        .badge-expiring-warning { background: #fef9e7; color: #7d6608; }
 
         /* SEARCH BAR */
         .search-bar {
@@ -298,23 +319,57 @@
         }
         .alert-banner.warning { background: #fef9e7; border: 1px solid #f9e79f; color: #7d6608; }
         .alert-banner.danger { background: #fdedec; border: 1px solid #f5b7b1; color: #922b21; }
+        .alert-banner.info { background: #ebf5fb; border: 1px solid #aed6f1; color: #1b4f72; }
 
         /* Transaction type indicators */
         .tx-receive { color: #27ae60; font-weight: 600; }
         .tx-issue { color: #e74c3c; font-weight: 600; }
 
+        /* SIDEBAR OVERLAY for mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Date range picker */
+        .date-range { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+        .date-range label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .date-range input { padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 13px; background: var(--bg-card); color: var(--text-primary); }
+
+        /* Expiry color coding */
+        .expiry-red { background: #fadbd8 !important; }
+        .expiry-orange { background: #fdebd0 !important; }
+        .expiry-yellow { background: #fef9e7 !important; }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .sidebar { display: none; }
+            .hamburger-btn { display: block; }
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 65px;
+                bottom: 0;
+                z-index: 1000;
+                transition: left 0.3s ease;
+                display: block !important;
+            }
+            .sidebar.open { left: 0; }
             .stats-row { grid-template-columns: 1fr 1fr; }
             .form-grid { grid-template-columns: 1fr; }
         }
 
         @media print {
-            .top-nav, .sidebar, .night-toggle, .btn-group, .no-print { display: none !important; }
+            .top-nav, .sidebar, .night-toggle, .btn-group, .no-print, .hamburger-btn, .sidebar-overlay { display: none !important; }
             .main-content { padding: 0; }
             .card { box-shadow: none; border: 1px solid #ddd; }
         }
+
+        .validation-error { border-color: #e74c3c !important; }
+        .error-text { color: #e74c3c; font-size: 12px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -322,7 +377,7 @@
     <div class="login-container" id="loginPage">
         <div class="login-box">
             <div class="login-header">
-                <h1 class="login-title">📦 General Stores</h1>
+                <h1 class="login-title">&#x1f4e6; General Stores</h1>
                 <p class="login-subtitle">Inventory Management System</p>
                 <p class="login-subtitle">May Pen Hospital</p>
             </div>
@@ -337,6 +392,7 @@
                     <input type="password" id="password" class="login-input" placeholder="Enter password" required>
                 </div>
                 <button type="submit" class="login-btn">Sign In</button>
+                <div class="login-status" id="loginStatus"></div>
             </form>
             <div class="login-footer">
                 <p>Authorized Stores Personnel Only</p>
@@ -349,60 +405,78 @@
     <div class="app-container" id="appContainer">
         <nav class="top-nav">
             <div class="nav-brand">
-                <span>📦</span>
+                <button class="hamburger-btn" onclick="toggleSidebar()">&#x2630;</button>
+                <span>&#x1f4e6;</span>
                 <span>General Stores - Inventory Management</span>
             </div>
             <div class="nav-actions">
-                <button onclick="toggleDarkMode()">🌙</button>
+                <span class="nav-user" id="navUserDisplay"></span>
+                <button onclick="toggleDarkMode()">&#x1f319;</button>
                 <button onclick="logout()">Logout</button>
             </div>
         </nav>
 
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
         <div class="layout">
-            <aside class="sidebar">
+            <aside class="sidebar" id="mainSidebar">
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Main</div>
                     <a class="sidebar-item active" data-page="dashboard" onclick="showPage('dashboard')">
-                        <span class="icon">📊</span> Dashboard
+                        <span class="icon">&#x1f4ca;</span> Dashboard
                     </a>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Inventory</div>
                     <a class="sidebar-item" data-page="stockItems" onclick="showPage('stockItems')">
-                        <span class="icon">📋</span> Stock Items
+                        <span class="icon">&#x1f4cb;</span> Stock Items
                     </a>
                     <a class="sidebar-item" data-page="addItem" onclick="showPage('addItem')">
-                        <span class="icon">➕</span> Add New Item
+                        <span class="icon">&#x2795;</span> Add New Item
                     </a>
                     <a class="sidebar-item" data-page="categories" onclick="showPage('categories')">
-                        <span class="icon">🏷️</span> Categories
+                        <span class="icon">&#x1f3f7;&#xfe0f;</span> Categories
                     </a>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Transactions</div>
                     <a class="sidebar-item" data-page="receive" onclick="showPage('receive')">
-                        <span class="icon">📥</span> Receive Stock
+                        <span class="icon">&#x1f4e5;</span> Receive Stock
                     </a>
                     <a class="sidebar-item" data-page="issue" onclick="showPage('issue')">
-                        <span class="icon">📤</span> Issue Stock
+                        <span class="icon">&#x1f4e4;</span> Issue Stock
+                    </a>
+                    <a class="sidebar-item" data-page="requisitions" onclick="showPage('requisitions')">
+                        <span class="icon">&#x1f4dd;</span> Requisitions
                     </a>
                     <a class="sidebar-item" data-page="transactions" onclick="showPage('transactions')">
-                        <span class="icon">🔄</span> Transaction History
+                        <span class="icon">&#x1f504;</span> Transaction History
                     </a>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Management</div>
                     <a class="sidebar-item" data-page="reorder" onclick="showPage('reorder')">
-                        <span class="icon">⚠️</span> Reorder Alerts
+                        <span class="icon">&#x26a0;&#xfe0f;</span> Reorder Alerts
+                    </a>
+                    <a class="sidebar-item" data-page="expiryAlerts" onclick="showPage('expiryAlerts')">
+                        <span class="icon">&#x23f0;</span> Expiry Alerts
+                    </a>
+                    <a class="sidebar-item" data-page="stockCount" onclick="showPage('stockCount')">
+                        <span class="icon">&#x1f522;</span> Stock Count
+                    </a>
+                    <a class="sidebar-item" data-page="stockAdjustment" onclick="showPage('stockAdjustment')">
+                        <span class="icon">&#x1f504;</span> Stock Adjustment
+                    </a>
+                    <a class="sidebar-item" data-page="auditLog" onclick="showPage('auditLog')">
+                        <span class="icon">&#x1f4dc;</span> Audit Log
                     </a>
                     <a class="sidebar-item" data-page="reports" onclick="showPage('reports')">
-                        <span class="icon">📈</span> Reports
+                        <span class="icon">&#x1f4c8;</span> Reports
                     </a>
                 </div>
             </aside>
 
             <main class="main-content">
-
                 <!-- Dashboard -->
                 <div class="page active" id="page-dashboard">
                     <div class="page-header">
@@ -506,7 +580,8 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label>Item Code</label>
-                                    <input type="text" class="form-control" id="newItemCode" placeholder="e.g. MED-001" required>
+                                    <input type="text" class="form-control" id="newItemCode" placeholder="e.g. MED-001" required pattern="[A-Za-z0-9\-]+" title="Only letters, numbers and hyphens allowed">
+                                    <div class="error-text" id="itemCodeError" style="display:none;"></div>
                                 </div>
                                 <div class="form-group">
                                     <label>Description</label>
@@ -557,7 +632,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Unit Cost (JMD)</label>
-                                    <input type="number" class="form-control" id="newItemCost" placeholder="0.00" step="0.01" min="0" required>
+                                    <input type="number" class="form-control" id="newItemCost" placeholder="0.00" step="0.01" min="0.01" required>
                                 </div>
                                 <div class="form-group">
                                     <label>Supplier</label>
@@ -566,6 +641,13 @@
                                 <div class="form-group">
                                     <label>Location / Bin</label>
                                     <input type="text" class="form-control" id="newItemLocation" placeholder="e.g. Shelf A-3, Bin 12">
+                                </div>
+                                <div class="form-group">
+                                    <label><input type="checkbox" id="newItemTrackExpiry" onchange="toggleExpiryField()"> Track Expiry</label>
+                                </div>
+                                <div class="form-group" id="shelfLifeGroup" style="display:none;">
+                                    <label>Default Shelf Life (days)</label>
+                                    <input type="number" class="form-control" id="newItemShelfLife" placeholder="e.g. 365" min="1">
                                 </div>
                             </div>
                             <div class="form-group">
@@ -623,6 +705,18 @@
                                 <div class="form-group">
                                     <label>Received By</label>
                                     <input type="text" class="form-control" id="rcvBy" placeholder="Officer name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Batch/Lot Number</label>
+                                    <input type="text" class="form-control" id="rcvBatchNo" placeholder="e.g. B001, LOT-2025-01">
+                                </div>
+                                <div class="form-group">
+                                    <label>Expiry Date</label>
+                                    <input type="date" class="form-control" id="rcvExpiryDate">
+                                </div>
+                                <div class="form-group">
+                                    <label>Manufacturing Date (optional)</label>
+                                    <input type="date" class="form-control" id="rcvMfgDate">
                                 </div>
                             </div>
                             <div class="form-group">
@@ -697,6 +791,79 @@
                     </div>
                 </div>
 
+                <!-- Requisitions -->
+                <div class="page" id="page-requisitions">
+                    <div class="page-header">
+                        <h1>Stock Requisitions</h1>
+                        <p>Department stock requests and approvals</p>
+                    </div>
+                    <div class="card">
+                        <h2>Submit New Requisition</h2>
+                        <form onsubmit="submitRequisition(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Department</label>
+                                    <select class="form-control" id="reqDept" required>
+                                        <option value="">Select Department</option>
+                                        <option>Medical Ward</option>
+                                        <option>Surgical Ward</option>
+                                        <option>Accident & Emergency</option>
+                                        <option>Laboratory</option>
+                                        <option>Pharmacy</option>
+                                        <option>Radiology</option>
+                                        <option>Administration</option>
+                                        <option>Kitchen/Dietary</option>
+                                        <option>Housekeeping</option>
+                                        <option>Maintenance</option>
+                                        <option>Outpatient</option>
+                                        <option>Maternity</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Item</label>
+                                    <select class="form-control" id="reqItem" required>
+                                        <option value="">Select Item</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantity Requested</label>
+                                    <input type="number" class="form-control" id="reqQty" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Justification</label>
+                                    <input type="text" class="form-control" id="reqJustification" placeholder="Reason for request" required>
+                                </div>
+                                <div class="form-group">
+                                    <label><input type="checkbox" id="reqUrgent"> Urgent / Quick Issue</label>
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary">Submit Requisition</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h2>Requisition Queue</h2>
+                        <div class="search-bar">
+                            <select class="form-control" id="reqStatusFilter" style="width:auto;" onchange="renderRequisitions()">
+                                <option value="">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                                <option value="Issued">Issued</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Date</th><th>Department</th><th>Item</th><th>Qty</th><th>Justification</th><th>Status</th><th>Actions</th></tr>
+                                </thead>
+                                <tbody id="requisitionsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Transaction History -->
                 <div class="page" id="page-transactions">
                     <div class="page-header">
@@ -710,6 +877,7 @@
                                 <option value="">All Types</option>
                                 <option value="Received">Received</option>
                                 <option value="Issued">Issued</option>
+                                <option value="Adjustment">Adjustment</option>
                             </select>
                         </div>
                         <div class="table-container">
@@ -741,35 +909,192 @@
                     </div>
                 </div>
 
+                <!-- Expiry Alerts -->
+                <div class="page" id="page-expiryAlerts">
+                    <div class="page-header">
+                        <h1>Expiry Alerts</h1>
+                        <p>Items expiring within the next 90 days</p>
+                    </div>
+                    <div class="card">
+                        <div class="search-bar">
+                            <select class="form-control" id="expiryFilter" style="width:auto;" onchange="renderExpiryAlerts()">
+                                <option value="90">Within 90 Days</option>
+                                <option value="60">Within 60 Days</option>
+                                <option value="30">Within 30 Days</option>
+                                <option value="0">Already Expired</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Item Code</th><th>Item Name</th><th>Batch No</th><th>Qty</th><th>Expiry Date</th><th>Days Remaining</th><th>Status</th></tr>
+                                </thead>
+                                <tbody id="expiryTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Count -->
+                <div class="page" id="page-stockCount">
+                    <div class="page-header">
+                        <h1>Physical Stock Count</h1>
+                        <p>Perform physical inventory counts and reconciliation</p>
+                    </div>
+                    <div class="card" id="stockCountForm">
+                        <h2>Start New Physical Count</h2>
+                        <p style="color:var(--text-secondary);margin-bottom:15px;">Enter the actual counted quantity for each item. Leave blank to skip.</p>
+                        <button class="btn btn-primary" onclick="startStockCount()" id="startCountBtn">Start Physical Count</button>
+                        <div id="stockCountItems" style="display:none;margin-top:20px;">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr><th>Item Code</th><th>Description</th><th>System Qty</th><th>Counted Qty</th><th>Variance</th><th>Reason</th></tr>
+                                    </thead>
+                                    <tbody id="stockCountTable"></tbody>
+                                </table>
+                            </div>
+                            <div class="btn-group" style="margin-top:15px;">
+                                <button class="btn btn-success" onclick="submitStockCount()">Submit Count</button>
+                                <button class="btn btn-secondary" onclick="cancelStockCount()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h2>Count History</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Date</th><th>Performed By</th><th>Items Counted</th><th>Adjustments</th><th>Net Variance</th></tr>
+                                </thead>
+                                <tbody id="countHistoryTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Adjustment -->
+                <div class="page" id="page-stockAdjustment">
+                    <div class="page-header">
+                        <h1>Stock Adjustment</h1>
+                        <p>Quick stock level adjustments with reason tracking</p>
+                    </div>
+                    <div class="card">
+                        <form onsubmit="submitStockAdjustment(event)">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Item</label>
+                                    <select class="form-control" id="adjItem" required>
+                                        <option value="">Select Item</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Adjustment Quantity (+/-)</label>
+                                    <input type="number" class="form-control" id="adjQty" placeholder="e.g. -5 or +10" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Reason</label>
+                                    <select class="form-control" id="adjReason" required>
+                                        <option value="">Select Reason</option>
+                                        <option>Damage</option>
+                                        <option>Theft</option>
+                                        <option>Expiry</option>
+                                        <option>Spillage</option>
+                                        <option>Counting Error</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <input type="text" class="form-control" id="adjNotes" placeholder="Additional details">
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-warning">Submit Adjustment</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Audit Log -->
+                <div class="page" id="page-auditLog">
+                    <div class="page-header">
+                        <h1>Audit Log</h1>
+                        <p>System activity trail</p>
+                    </div>
+                    <div class="card">
+                        <div class="search-bar">
+                            <input type="text" id="auditSearch" placeholder="Search audit log..." oninput="renderAuditLog()">
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr>
+                                </thead>
+                                <tbody id="auditLogTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Reports -->
                 <div class="page" id="page-reports">
                     <div class="page-header">
                         <h1>Inventory Reports</h1>
                         <p>Generate stock and transaction reports</p>
                     </div>
-                    <div class="stats-row">
+                    <div class="card no-print">
+                        <h2>Date Range Filter</h2>
+                        <div class="date-range">
+                            <label>From:</label>
+                            <input type="date" id="reportDateFrom">
+                            <label>To:</label>
+                            <input type="date" id="reportDateTo">
+                        </div>
+                    </div>
+                    <div class="stats-row no-print">
                         <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('valuation')">
-                            <div style="font-size:40px;margin-bottom:10px;">💰</div>
+                            <div style="font-size:40px;margin-bottom:10px;">&#x1f4b0;</div>
                             <h3 style="font-size:16px;">Stock Valuation</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Current inventory value by category</p>
                         </div>
                         <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('movement')">
-                            <div style="font-size:40px;margin-bottom:10px;">🔄</div>
+                            <div style="font-size:40px;margin-bottom:10px;">&#x1f504;</div>
                             <h3 style="font-size:16px;">Stock Movement</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Receipts and issues summary</p>
                         </div>
                         <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('department')">
-                            <div style="font-size:40px;margin-bottom:10px;">🏥</div>
+                            <div style="font-size:40px;margin-bottom:10px;">&#x1f3e5;</div>
                             <h3 style="font-size:16px;">Department Usage</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Stock consumption by department</p>
                         </div>
                         <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('reorder')">
-                            <div style="font-size:40px;margin-bottom:10px;">⚠️</div>
+                            <div style="font-size:40px;margin-bottom:10px;">&#x26a0;&#xfe0f;</div>
                             <h3 style="font-size:16px;">Reorder Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Items below reorder point</p>
                         </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('expiry')">
+                            <div style="font-size:40px;margin-bottom:10px;">&#x23f0;</div>
+                            <h3 style="font-size:16px;">Expiry Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Items expiring within timeframe</p>
+                        </div>
+                    </div>
+                    <div class="card no-print" style="margin-bottom:20px;">
+                        <h2>Data Export / Import</h2>
+                        <div class="btn-group">
+                            <button class="btn btn-info" onclick="exportAllJSON()">Export All Data (JSON)</button>
+                            <button class="btn btn-success" onclick="exportStockCSV()">Export Stock Items (CSV)</button>
+                            <button class="btn btn-warning" onclick="exportTransactionsCSV()">Export Transactions (CSV)</button>
+                            <label class="btn btn-secondary" style="margin:0;">
+                                Import Data (JSON) <input type="file" accept=".json" onchange="importDataJSON(event)" style="display:none;">
+                            </label>
+                        </div>
                     </div>
                     <div class="card" id="reportOutput" style="display:none;">
+                        <div class="btn-group no-print" style="float:right;margin-top:-5px;">
+                            <button class="btn btn-info" onclick="exportCurrentReportCSV()" style="padding:6px 12px;font-size:12px;">Export CSV</button>
+                            <button class="btn btn-secondary" onclick="window.print()" style="padding:6px 12px;font-size:12px;">Print Report</button>
+                        </div>
                         <h2 id="reportTitle"></h2>
                         <div id="reportContent"></div>
                     </div>
@@ -779,32 +1104,97 @@
         </div>
     </div>
 
-    <button class="night-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
+    <!-- Edit Item Modal -->
+    <div class="modal-overlay" id="editItemModal">
+        <div class="modal-box">
+            <h2>Edit Stock Item</h2>
+            <form onsubmit="saveEditItem(event)">
+                <input type="hidden" id="editItemOrigCode">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Item Code</label>
+                        <input type="text" class="form-control" id="editItemCode" required pattern="[A-Za-z0-9\-]+" title="Only letters, numbers and hyphens allowed">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" class="form-control" id="editItemDesc" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" class="form-control" id="editItemCategory">
+                    </div>
+                    <div class="form-group">
+                        <label>Reorder Level</label>
+                        <input type="number" class="form-control" id="editItemReorder" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Stock Level</label>
+                        <input type="number" class="form-control" id="editItemMax" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Unit Cost (JMD)</label>
+                        <input type="number" class="form-control" id="editItemCost" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Supplier</label>
+                        <input type="text" class="form-control" id="editItemSupplier">
+                    </div>
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" class="form-control" id="editItemLocation">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    <button class="night-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">&#x1f319;</button>
     <script>
         // ============================================
         // DATA STORE
         // ============================================
         const STORAGE_KEY = 'storesInventoryData';
+        const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
+        let currentUser = null;
+        let credentialsData = null;
 
         function loadData() {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const data = JSON.parse(raw);
+                // Backwards compatibility
+                if (!data.auditLog) data.auditLog = [];
+                if (!data.requisitions) data.requisitions = [];
+                if (!data.countHistory) data.countHistory = [];
+                data.items.forEach(item => {
+                    if (!item.batches) item.batches = [];
+                    if (item.trackExpiry === undefined) item.trackExpiry = false;
+                    if (item.shelfLife === undefined) item.shelfLife = 0;
+                });
+                return data;
+            }
             return {
                 items: [
-                    { code: 'MED-001', description: 'Disposable Gloves (Latex)', category: 'Medical Supplies', unit: 'Box', qty: 250, reorderLevel: 100, maxLevel: 500, unitCost: 850, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-1', notes: '' },
-                    { code: 'MED-002', description: 'Face Masks (Surgical)', category: 'Medical Supplies', unit: 'Box', qty: 180, reorderLevel: 80, maxLevel: 400, unitCost: 1200, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-2', notes: '' },
-                    { code: 'MED-003', description: 'Hand Sanitizer 500ml', category: 'Medical Supplies', unit: 'Each', qty: 45, reorderLevel: 50, maxLevel: 200, unitCost: 650, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-3', notes: '' },
-                    { code: 'CLN-001', description: 'Bleach (Sodium Hypochlorite) 1 Gal', category: 'Cleaning Supplies', unit: 'Gallon', qty: 30, reorderLevel: 20, maxLevel: 100, unitCost: 1500, supplier: 'CleanPro Jamaica', location: 'Shelf B-1', notes: '' },
-                    { code: 'CLN-002', description: 'Floor Cleaner Concentrate', category: 'Cleaning Supplies', unit: 'Gallon', qty: 15, reorderLevel: 10, maxLevel: 50, unitCost: 2200, supplier: 'CleanPro Jamaica', location: 'Shelf B-2', notes: '' },
-                    { code: 'OFF-001', description: 'A4 Copy Paper (White)', category: 'Office Supplies', unit: 'Ream', qty: 120, reorderLevel: 50, maxLevel: 300, unitCost: 1800, supplier: 'Caribbean Office Solutions', location: 'Shelf C-1', notes: '' },
-                    { code: 'OFF-002', description: 'Ballpoint Pens (Blue)', category: 'Office Supplies', unit: 'Box', qty: 35, reorderLevel: 15, maxLevel: 80, unitCost: 450, supplier: 'Caribbean Office Solutions', location: 'Shelf C-2', notes: '' },
-                    { code: 'KIT-001', description: 'Cooking Oil 5L', category: 'Kitchen/Dietary', unit: 'Each', qty: 8, reorderLevel: 10, maxLevel: 40, unitCost: 3500, supplier: 'Grace Foods', location: 'Store Room D', notes: '' },
-                    { code: 'LIN-001', description: 'Bed Sheets (Single)', category: 'Linen & Bedding', unit: 'Each', qty: 60, reorderLevel: 30, maxLevel: 150, unitCost: 2800, supplier: 'Linen World Jamaica', location: 'Shelf E-1', notes: '' },
-                    { code: 'PPE-001', description: 'Safety Goggles', category: 'Personal Protective Equipment', unit: 'Each', qty: 0, reorderLevel: 20, maxLevel: 100, unitCost: 1500, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-4', notes: '' },
-                    { code: 'MNT-001', description: 'Light Bulbs (LED 12W)', category: 'Maintenance Supplies', unit: 'Each', qty: 42, reorderLevel: 25, maxLevel: 100, unitCost: 450, supplier: 'Hardware & Lumber', location: 'Store Room F', notes: '' }
+                    { code: 'MED-001', description: 'Disposable Gloves (Latex)', category: 'Medical Supplies', unit: 'Box', qty: 250, reorderLevel: 100, maxLevel: 500, unitCost: 850, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-1', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'MED-002', description: 'Face Masks (Surgical)', category: 'Medical Supplies', unit: 'Box', qty: 180, reorderLevel: 80, maxLevel: 400, unitCost: 1200, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-2', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'MED-003', description: 'Hand Sanitizer 500ml', category: 'Medical Supplies', unit: 'Each', qty: 45, reorderLevel: 50, maxLevel: 200, unitCost: 650, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-3', notes: '', trackExpiry: true, shelfLife: 365, batches: [] },
+                    { code: 'CLN-001', description: 'Bleach (Sodium Hypochlorite) 1 Gal', category: 'Cleaning Supplies', unit: 'Gallon', qty: 30, reorderLevel: 20, maxLevel: 100, unitCost: 1500, supplier: 'CleanPro Jamaica', location: 'Shelf B-1', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'CLN-002', description: 'Floor Cleaner Concentrate', category: 'Cleaning Supplies', unit: 'Gallon', qty: 15, reorderLevel: 10, maxLevel: 50, unitCost: 2200, supplier: 'CleanPro Jamaica', location: 'Shelf B-2', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'OFF-001', description: 'A4 Copy Paper (White)', category: 'Office Supplies', unit: 'Ream', qty: 120, reorderLevel: 50, maxLevel: 300, unitCost: 1800, supplier: 'Caribbean Office Solutions', location: 'Shelf C-1', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'OFF-002', description: 'Ballpoint Pens (Blue)', category: 'Office Supplies', unit: 'Box', qty: 35, reorderLevel: 15, maxLevel: 80, unitCost: 450, supplier: 'Caribbean Office Solutions', location: 'Shelf C-2', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'KIT-001', description: 'Cooking Oil 5L', category: 'Kitchen/Dietary', unit: 'Each', qty: 8, reorderLevel: 10, maxLevel: 40, unitCost: 3500, supplier: 'Grace Foods', location: 'Store Room D', notes: '', trackExpiry: true, shelfLife: 730, batches: [] },
+                    { code: 'LIN-001', description: 'Bed Sheets (Single)', category: 'Linen & Bedding', unit: 'Each', qty: 60, reorderLevel: 30, maxLevel: 150, unitCost: 2800, supplier: 'Linen World Jamaica', location: 'Shelf E-1', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'PPE-001', description: 'Safety Goggles', category: 'Personal Protective Equipment', unit: 'Each', qty: 0, reorderLevel: 20, maxLevel: 100, unitCost: 1500, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-4', notes: '', trackExpiry: false, shelfLife: 0, batches: [] },
+                    { code: 'MNT-001', description: 'Light Bulbs (LED 12W)', category: 'Maintenance Supplies', unit: 'Each', qty: 42, reorderLevel: 25, maxLevel: 100, unitCost: 450, supplier: 'Hardware & Lumber', location: 'Store Room F', notes: '', trackExpiry: false, shelfLife: 0, batches: [] }
                 ],
                 transactions: [],
+                auditLog: [],
+                requisitions: [],
+                countHistory: [],
                 itemCounter: 11
             };
         }
@@ -814,7 +1204,33 @@
         let appData = loadData();
 
         // ============================================
-        // LOGIN
+        // XSS PROTECTION
+        // ============================================
+        function sanitize(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ============================================
+        // AUDIT TRAIL
+        // ============================================
+        function logActivity(action, details) {
+            const entry = {
+                timestamp: new Date().toISOString(),
+                user: currentUser ? currentUser.displayName : 'Unknown',
+                action: action,
+                details: details
+            };
+            if (!appData.auditLog) appData.auditLog = [];
+            appData.auditLog.unshift(entry);
+            if (appData.auditLog.length > 500) appData.auditLog = appData.auditLog.slice(0, 500);
+            saveData(appData);
+        }
+
+        // ============================================
+        // PORTAL USERS
         // ============================================
         function getPortalUsers(dashboard) {
             try {
@@ -827,30 +1243,126 @@
             return [];
         }
 
-        function handleLogin(e) {
-            e.preventDefault();
-            const user = document.getElementById('username').value.trim().toLowerCase();
-            const pass = document.getElementById('password').value;
+        // ============================================
+        // GOOGLE SHEETS AUTHENTICATION
+        // ============================================
+        async function loadCredentials() {
+            const sheetUrl = `https://docs.google.com/spreadsheets/d/${CREDENTIALS_SHEET_ID}/gviz/tq?tqx=out:csv`;
+            const proxies = [
+                (url) => url,
+                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                (url) => `https://cors-anywhere.herokuapp.com/${url}`
+            ];
 
-            // Check portal-configured users first, then fallback to default
-            const portalUsers = getPortalUsers('stores');
-            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
-
-            if (portalMatch || (user === 'stores' && pass === '123')) {
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('appContainer').classList.add('active');
-                refreshAll();
-            } else {
-                const err = document.getElementById('loginError');
-                err.textContent = 'Invalid username or password';
-                err.style.display = 'block';
+            for (const proxy of proxies) {
+                try {
+                    const resp = await fetch(proxy(sheetUrl));
+                    if (!resp.ok) continue;
+                    const csvText = await resp.text();
+                    const wb = XLSX.read(csvText, { type: 'string' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(ws, { header: ['username', 'password', 'displayName', 'role', 'email', 'canExport', 'canRefresh'] });
+                    // Remove header row if present
+                    if (rows.length > 0 && rows[0].username && rows[0].username.toLowerCase() === 'username') {
+                        rows.shift();
+                    }
+                    credentialsData = rows;
+                    localStorage.setItem('storesCachedCredentials', JSON.stringify(rows));
+                    return rows;
+                } catch (e) {
+                    continue;
+                }
             }
+
+            // Fall back to cached
+            const cached = localStorage.getItem('storesCachedCredentials');
+            if (cached) {
+                credentialsData = JSON.parse(cached);
+                return credentialsData;
+            }
+            return null;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+            const statusEl = document.getElementById('loginStatus');
+            const errEl = document.getElementById('loginError');
+            errEl.style.display = 'none';
+
+            statusEl.textContent = 'Authenticating...';
+
+            if (!credentialsData) {
+                statusEl.textContent = 'Loading credentials from server...';
+                await loadCredentials();
+            }
+
+            if (credentialsData && credentialsData.length > 0) {
+                const match = credentialsData.find(c =>
+                    c.username && c.username.toString().trim() === user &&
+                    c.password && c.password.toString().trim() === pass
+                );
+                if (match) {
+                    currentUser = {
+                        username: match.username,
+                        displayName: match.displayName || match.username,
+                        role: match.role || 'user',
+                        email: match.email || '',
+                        canExport: match.canExport === 'true' || match.canExport === true,
+                        canRefresh: match.canRefresh === 'true' || match.canRefresh === true
+                    };
+                    statusEl.textContent = '';
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('appContainer').classList.add('active');
+                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                    logActivity('Login', 'User logged in: ' + currentUser.displayName);
+                    refreshAll();
+                    return;
+                }
+            }
+
+            // Fallback: try cached credentials
+            const cached = localStorage.getItem('storesCachedCredentials');
+            if (cached && !credentialsData) {
+                credentialsData = JSON.parse(cached);
+                const match = credentialsData.find(c =>
+                    c.username && c.username.toString().trim() === user &&
+                    c.password && c.password.toString().trim() === pass
+                );
+                if (match) {
+                    currentUser = {
+                        username: match.username,
+                        displayName: match.displayName || match.username,
+                        role: match.role || 'user',
+                        email: match.email || '',
+                        canExport: match.canExport === 'true' || match.canExport === true,
+                        canRefresh: match.canRefresh === 'true' || match.canRefresh === true
+                    };
+                    statusEl.textContent = '';
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('appContainer').classList.add('active');
+                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                    logActivity('Login', 'User logged in (cached): ' + currentUser.displayName);
+                    refreshAll();
+                    return;
+                }
+            }
+
+            statusEl.textContent = '';
+            errEl.textContent = 'Invalid username or password';
+            errEl.style.display = 'block';
         }
 
         function logout() {
+            logActivity('Logout', 'User logged out: ' + (currentUser ? currentUser.displayName : 'Unknown'));
+            currentUser = null;
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('appContainer').classList.remove('active');
             document.getElementById('loginForm').reset();
+            document.getElementById('loginStatus').textContent = '';
+            document.getElementById('navUserDisplay').textContent = '';
         }
 
         // ============================================
@@ -864,177 +1376,58 @@
             const item = document.querySelector(`.sidebar-item[data-page="${pageId}"]`);
             if (item) item.classList.add('active');
 
-            // Refresh dropdowns when navigating to receive/issue
+            // Refresh dropdowns when navigating to receive/issue/requisitions
             if (pageId === 'receive' || pageId === 'issue') populateItemDropdowns();
+            if (pageId === 'requisitions') { populateReqDropdown(); renderRequisitions(); }
+            if (pageId === 'expiryAlerts') renderExpiryAlerts();
+            if (pageId === 'stockCount') renderCountHistory();
+            if (pageId === 'stockAdjustment') populateAdjDropdown();
+            if (pageId === 'auditLog') renderAuditLog();
+
+            // Close mobile sidebar
+            closeSidebarMobile();
         }
 
         function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
 
         // ============================================
-        // ADD STOCK ITEM
+        // MOBILE SIDEBAR
         // ============================================
-        function addStockItem(e) {
-            e.preventDefault();
-            const item = {
-                code: document.getElementById('newItemCode').value,
-                description: document.getElementById('newItemDesc').value,
-                category: document.getElementById('newItemCategory').value,
-                unit: document.getElementById('newItemUnit').value,
-                qty: parseInt(document.getElementById('newItemQty').value) || 0,
-                reorderLevel: parseInt(document.getElementById('newItemReorder').value) || 0,
-                maxLevel: parseInt(document.getElementById('newItemMax').value) || 0,
-                unitCost: parseFloat(document.getElementById('newItemCost').value) || 0,
-                supplier: document.getElementById('newItemSupplier').value,
-                location: document.getElementById('newItemLocation').value,
-                notes: document.getElementById('newItemNotes').value
-            };
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
 
-            // Check for duplicate code
-            if (appData.items.find(i => i.code === item.code)) {
-                alert('Item code already exists. Please use a unique code.');
-                return;
-            }
-
-            appData.items.push(item);
-            appData.itemCounter++;
-
-            if (item.qty > 0) {
-                appData.transactions.push({
-                    date: new Date().toISOString().split('T')[0],
-                    type: 'Received',
-                    itemCode: item.code,
-                    description: item.description,
-                    qty: item.qty,
-                    department: 'Opening Balance',
-                    reference: 'OPEN',
-                    by: 'System'
-                });
-            }
-
-            saveData(appData);
-            alert('Item ' + item.code + ' added successfully!');
-            e.target.reset();
-            showPage('stockItems');
-            refreshAll();
+        function closeSidebarMobile() {
+            const sidebar = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
         }
 
         // ============================================
-        // RECEIVE STOCK
+        // EXPIRY FIELD TOGGLE
         // ============================================
-        function populateItemDropdowns() {
-            ['rcvItem', 'issItem'].forEach(id => {
-                const sel = document.getElementById(id);
-                if (sel) {
-                    const current = sel.value;
-                    sel.innerHTML = '<option value="">Select Item</option>';
-                    appData.items.forEach(item => {
-                        sel.innerHTML += `<option value="${item.code}">${item.code} - ${item.description} (Stock: ${item.qty})</option>`;
-                    });
-                    sel.value = current;
-                }
-            });
-
-            // Set date defaults
-            const today = new Date().toISOString().split('T')[0];
-            const rcvDate = document.getElementById('rcvDate');
-            const issDate = document.getElementById('issDate');
-            if (rcvDate && !rcvDate.value) rcvDate.value = today;
-            if (issDate && !issDate.value) issDate.value = today;
-        }
-
-        function receiveStock(e) {
-            e.preventDefault();
-            const code = document.getElementById('rcvItem').value;
-            const qty = parseInt(document.getElementById('rcvQty').value);
-
-            if (!code) { alert('Please select an item.'); return; }
-
-            const item = appData.items.find(i => i.code === code);
-            if (!item) { alert('Item not found.'); return; }
-
-            item.qty += qty;
-
-            appData.transactions.push({
-                date: document.getElementById('rcvDate').value,
-                type: 'Received',
-                itemCode: code,
-                description: item.description,
-                qty: qty,
-                department: document.getElementById('rcvSupplier').value || '-',
-                reference: document.getElementById('rcvInvoice').value || '-',
-                by: document.getElementById('rcvBy').value,
-                notes: document.getElementById('rcvNotes').value
-            });
-
-            saveData(appData);
-            alert(`Received ${qty} ${item.unit}(s) of ${item.description}. New stock: ${item.qty}`);
-            e.target.reset();
-            populateItemDropdowns();
-            refreshAll();
+        function toggleExpiryField() {
+            const checked = document.getElementById('newItemTrackExpiry').checked;
+            document.getElementById('shelfLifeGroup').style.display = checked ? 'block' : 'none';
         }
 
         // ============================================
-        // ISSUE STOCK
+        // INPUT VALIDATION
         // ============================================
-        function issueStock(e) {
-            e.preventDefault();
-            const code = document.getElementById('issItem').value;
-            const qty = parseInt(document.getElementById('issQty').value);
-
-            if (!code) { alert('Please select an item.'); return; }
-
-            const item = appData.items.find(i => i.code === code);
-            if (!item) { alert('Item not found.'); return; }
-
-            if (qty > item.qty) {
-                alert(`Insufficient stock! Current stock: ${item.qty} ${item.unit}(s). Cannot issue ${qty}.`);
-                return;
-            }
-
-            item.qty -= qty;
-
-            appData.transactions.push({
-                date: document.getElementById('issDate').value,
-                type: 'Issued',
-                itemCode: code,
-                description: item.description,
-                qty: qty,
-                department: document.getElementById('issDept').value,
-                reference: document.getElementById('issReqNum').value || '-',
-                by: document.getElementById('issBy').value,
-                notes: document.getElementById('issNotes').value
-            });
-
-            saveData(appData);
-            alert(`Issued ${qty} ${item.unit}(s) of ${item.description} to ${document.getElementById('issDept').value}. Remaining: ${item.qty}`);
-            e.target.reset();
-            populateItemDropdowns();
-            refreshAll();
+        function validateItemCode(code) {
+            return /^[A-Za-z0-9\-]+$/.test(code);
         }
 
-        // ============================================
-        // SEARCH & FILTER
-        // ============================================
-        function filterStockItems() {
-            const search = document.getElementById('stockSearch').value.toLowerCase();
-            const catFilter = document.getElementById('stockCategoryFilter').value;
-            const filtered = appData.items.filter(item => {
-                const matchSearch = !search || item.code.toLowerCase().includes(search) || item.description.toLowerCase().includes(search) || item.category.toLowerCase().includes(search);
-                const matchCat = !catFilter || item.category === catFilter;
-                return matchSearch && matchCat;
-            });
-            renderStockTable(filtered);
+        function validatePositiveInteger(val) {
+            return Number.isInteger(Number(val)) && Number(val) > 0;
         }
 
-        function filterTransactions() {
-            const search = document.getElementById('txSearch').value.toLowerCase();
-            const typeFilter = document.getElementById('txTypeFilter').value;
-            const filtered = appData.transactions.filter(tx => {
-                const matchSearch = !search || tx.itemCode.toLowerCase().includes(search) || tx.description.toLowerCase().includes(search) || tx.department.toLowerCase().includes(search);
-                const matchType = !typeFilter || tx.type === typeFilter;
-                return matchSearch && matchType;
-            });
-            renderTxTable(filtered, 'txHistoryTable');
+        function validatePositiveNumber(val) {
+            return !isNaN(val) && Number(val) > 0;
         }
 
         // ============================================
