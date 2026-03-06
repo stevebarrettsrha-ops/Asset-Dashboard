@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>May Pen Hospital - Systems Portal</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -353,6 +354,434 @@
             color: #FF6B35;
         }
 
+        /* Settings Button */
+        .settings-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 107, 53, 0.8);
+            border-color: #FF6B35;
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        /* Settings Modal */
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .settings-overlay.active {
+            display: flex;
+        }
+
+        .settings-panel {
+            background: #ffffff;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 750px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        .settings-header {
+            background: linear-gradient(135deg, #2C3E50, #34495E);
+            padding: 25px 30px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-header h2 {
+            color: white;
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .settings-close {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .settings-close:hover {
+            color: white;
+        }
+
+        .settings-tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
+            background: #f8f9fa;
+        }
+
+        .settings-tab {
+            flex: 1;
+            padding: 14px 10px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .settings-tab.active {
+            color: #FF6B35;
+            border-bottom-color: #FF6B35;
+            background: white;
+        }
+
+        .settings-tab:hover:not(.active) {
+            color: #2C3E50;
+            background: #eee;
+        }
+
+        .settings-body {
+            padding: 30px;
+        }
+
+        .settings-section {
+            display: none;
+        }
+
+        .settings-section.active {
+            display: block;
+        }
+
+        .settings-section h3 {
+            font-size: 18px;
+            color: #2C3E50;
+            margin: 0 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #FF6B35;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #2C3E50;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #ddd;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .user-table th {
+            background: #f8f9fa;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .user-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .user-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .role-badge.admin { background: #fde8e0; color: #E55934; }
+        .role-badge.user { background: #e8f5e9; color: #27AE60; }
+        .role-badge.viewer { background: #e3f2fd; color: #2196F3; }
+
+        .status-msg {
+            margin-top: 10px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status-msg.success {
+            display: block;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-msg.error {
+            display: block;
+            background: #fde8e0;
+            color: #c62828;
+        }
+
+        .dashboard-label {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .dashboard-label.procurement { background: rgba(102, 126, 234, 0.15); color: #667eea; }
+        .dashboard-label.stores { background: rgba(46, 204, 113, 0.15); color: #27AE60; }
+        .dashboard-label.assets { background: rgba(255, 107, 53, 0.15); color: #FF6B35; }
+
+        .heading-preview {
+            background: linear-gradient(135deg, #2C3E50, #34495E);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .heading-preview .preview-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        .heading-preview .preview-name {
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .heading-preview .preview-org {
+            color: #FF6B35;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .cloud-sync-panel {
+            background: linear-gradient(135deg, #e8f4fd, #dbeafe);
+            border: 2px solid #93c5fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+
+        .cloud-sync-panel h4 {
+            margin: 0 0 10px 0;
+            color: #1e40af;
+            font-size: 15px;
+        }
+
+        .cloud-sync-panel p {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .cloud-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .cloud-status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .cloud-status.disconnected {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .cloud-status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .cloud-status.connected .dot {
+            background: #2ECC71;
+        }
+
+        .cloud-status.disconnected .dot {
+            background: #ccc;
+        }
+
+        .cloud-btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-cloud {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cloud:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-cloud:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-cloud-outline {
+            background: white;
+            color: #2563eb;
+            border: 2px solid #93c5fd;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cloud-outline:hover {
+            background: #eff6ff;
+        }
+
+        .btn-cloud-outline:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .portal-header h1 {
@@ -411,7 +840,7 @@
         <span class="logo-icon">🏥</span>
         <h1>May Pen Hospital</h1>
         <p class="subtitle">Management Systems Portal</p>
-        <p class="org-name">South East Regional Health Authority</p>
+        <p class="org-name">Southern Regional Health Authority</p>
     </div>
 
     <!-- Login Cards Grid -->
@@ -504,10 +933,807 @@
     </div>
 
     <!-- Portal Footer -->
-    <div class="portal-footer">
-        <p>&copy; 2025 May Pen Hospital &mdash; South East Regional Health Authority</p>
+    <div class="portal-footer" id="portalFooter">
+        <p>&copy; 2025 <span id="footerHospitalName">May Pen Hospital</span> &mdash; <span id="footerOrgName">Southern Regional Health Authority</span></p>
         <p style="margin-top: 5px;">Government of Jamaica</p>
     </div>
+
+    <!-- Settings Button -->
+    <button class="settings-btn" onclick="openSettings()" title="Portal Settings">&#9881;</button>
+
+    <!-- Settings Modal -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2>&#9881; Portal Settings</h2>
+                <button class="settings-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="settings-tabs">
+                <button class="settings-tab active" onclick="switchSettingsTab('users', this)">User Accounts</button>
+                <button class="settings-tab" onclick="switchSettingsTab('headings', this)">Headings</button>
+            </div>
+            <div class="settings-body">
+
+                <!-- User Accounts Section -->
+                <div class="settings-section active" id="settingsUsers">
+                    <h3>User Account Management</h3>
+                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">Manage login credentials for all three dashboard systems. Changes are saved to the browser and shared across dashboards.</p>
+
+                    <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 2px solid #eee;">
+                        <h4 style="margin: 0 0 15px 0; color: #2C3E50;">Add New User Account</h4>
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Username</label>
+                                <input type="text" id="newUsername" placeholder="Enter username">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Password</label>
+                                <input type="password" id="newPassword" placeholder="Enter password">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top: 15px;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Dashboard</label>
+                                <select id="newDashboard">
+                                    <option value="procurement">Procurement Officer</option>
+                                    <option value="stores">General Stores</option>
+                                    <option value="assets">Fixed Asset System</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>Role</label>
+                                <select id="newRole">
+                                    <option value="Admin">Admin</option>
+                                    <option value="User">User</option>
+                                    <option value="Viewer">Viewer</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button class="btn-primary" onclick="addUserAccount()">Add User</button>
+                        </div>
+                        <div class="status-msg" id="addUserStatus"></div>
+                    </div>
+
+                    <h4 style="color: #2C3E50; margin-bottom: 10px;">Current User Accounts</h4>
+                    <div id="userAccountsList"></div>
+
+                    <!-- Google Drive Cloud Sync -->
+                    <div class="cloud-sync-panel">
+                        <h4>&#9729; Google Drive Sync</h4>
+                        <p>Save and load user accounts to/from your designated Google Drive folder so they persist across devices and browsers.</p>
+                        <div class="cloud-status disconnected" id="cloudStatus">
+                            <span class="dot"></span>
+                            <span id="cloudStatusText">Not Connected</span>
+                        </div>
+                        <div class="cloud-btn-group">
+                            <button class="btn-cloud" id="btnCloudConnect" onclick="connectGoogleDrive()">Connect to Google Drive</button>
+                            <button class="btn-cloud" id="btnCloudSave" onclick="saveAccountsToCloud()" disabled>Save to Drive</button>
+                            <button class="btn-cloud-outline" id="btnCloudLoad" onclick="loadAccountsFromCloud()" disabled>Load from Drive</button>
+                        </div>
+                        <div class="status-msg" id="cloudSyncStatus"></div>
+                    </div>
+                </div>
+
+                <!-- Headings Section -->
+                <div class="settings-section" id="settingsHeadings">
+                    <h3>Dashboard Headings</h3>
+                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">Customize the hospital name and organization that appears across all dashboards, reports, and exports.</p>
+
+                    <div class="form-group">
+                        <label>Hospital / Facility Name</label>
+                        <input type="text" id="settingHospitalName" placeholder="e.g., May Pen Hospital" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Health Authority / Organization</label>
+                        <input type="text" id="settingOrgName" placeholder="e.g., Southern Regional Health Authority" value="">
+                    </div>
+
+                    <div class="heading-preview">
+                        <div class="preview-icon">&#127973;</div>
+                        <div class="preview-name" id="previewHospitalName">May Pen Hospital</div>
+                        <div class="preview-org" id="previewOrgName">Southern Regional Health Authority</div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn-primary" onclick="saveHeadingSettings()">Save Changes</button>
+                        <button class="btn-secondary" onclick="resetHeadingSettings()">Reset to Defaults</button>
+                    </div>
+                    <div class="status-msg" id="headingStatus"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // PORTAL SETTINGS - STORAGE KEYS
+        // ============================================
+        const PORTAL_USERS_KEY = 'portalUserAccounts';
+        const PORTAL_HEADINGS_KEY = 'portalHeadingSettings';
+
+        const DEFAULT_HEADINGS = {
+            hospitalName: 'May Pen Hospital',
+            orgName: 'Southern Regional Health Authority'
+        };
+
+        const DEFAULT_USERS = [
+            { username: 'procurement', password: '123', dashboard: 'procurement', role: 'Admin' },
+            { username: 'stores', password: '123', dashboard: 'stores', role: 'Admin' }
+        ];
+
+        // ============================================
+        // SETTINGS MODAL
+        // ============================================
+        function openSettings() {
+            document.getElementById('settingsOverlay').classList.add('active');
+            loadUserAccountsList();
+            loadHeadingSettings();
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsOverlay').classList.remove('active');
+        }
+
+        function switchSettingsTab(tabId, btn) {
+            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(tabId === 'users' ? 'settingsUsers' : 'settingsHeadings').classList.add('active');
+        }
+
+        // ============================================
+        // USER ACCOUNTS MANAGEMENT
+        // ============================================
+        function loadPortalUsers() {
+            try {
+                const stored = localStorage.getItem(PORTAL_USERS_KEY);
+                if (stored) {
+                    const users = JSON.parse(stored);
+                    return Array.isArray(users) ? users : DEFAULT_USERS;
+                }
+                return DEFAULT_USERS;
+            } catch (e) {
+                return DEFAULT_USERS;
+            }
+        }
+
+        function savePortalUsers(users) {
+            localStorage.setItem(PORTAL_USERS_KEY, JSON.stringify(users));
+        }
+
+        function addUserAccount() {
+            const username = document.getElementById('newUsername').value.trim().toLowerCase();
+            const password = document.getElementById('newPassword').value;
+            const dashboard = document.getElementById('newDashboard').value;
+            const role = document.getElementById('newRole').value;
+            const statusDiv = document.getElementById('addUserStatus');
+
+            if (!username || !password) {
+                statusDiv.className = 'status-msg error';
+                statusDiv.textContent = 'Please enter both username and password.';
+                return;
+            }
+
+            if (username.length < 3) {
+                statusDiv.className = 'status-msg error';
+                statusDiv.textContent = 'Username must be at least 3 characters.';
+                return;
+            }
+
+            if (password.length < 3) {
+                statusDiv.className = 'status-msg error';
+                statusDiv.textContent = 'Password must be at least 3 characters.';
+                return;
+            }
+
+            const users = loadPortalUsers();
+            const exists = users.find(u => u.username === username && u.dashboard === dashboard);
+
+            if (exists) {
+                statusDiv.className = 'status-msg error';
+                statusDiv.textContent = 'A user with this username already exists for this dashboard.';
+                return;
+            }
+
+            users.push({ username, password, dashboard, role });
+            savePortalUsers(users);
+
+            // Also sync to the respective dashboard's localStorage for Fixed Assets
+            if (dashboard === 'assets') {
+                syncAssetDashboardUser(username, password, role);
+            }
+
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+
+            statusDiv.className = 'status-msg success';
+            statusDiv.textContent = 'User account added successfully!';
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 3000);
+
+            loadUserAccountsList();
+
+            // Auto-save to Google Drive if connected
+            if (gdriveAccessToken) {
+                saveAccountsToCloud();
+            }
+        }
+
+        function syncAssetDashboardUser(username, password, role) {
+            try {
+                const key = 'assetDashboardLocalUsers';
+                const existing = JSON.parse(localStorage.getItem(key) || '[]');
+                const found = existing.find(u => u.username === username);
+                if (!found) {
+                    existing.push({
+                        username: username,
+                        password: password,
+                        displayName: username.charAt(0).toUpperCase() + username.slice(1),
+                        role: role === 'Admin' ? 'Administrator' : role,
+                        email: '',
+                        permissions: {
+                            canExport: role !== 'Viewer',
+                            canRefresh: role !== 'Viewer'
+                        }
+                    });
+                    localStorage.setItem(key, JSON.stringify(existing));
+                }
+            } catch (e) {
+                console.error('Error syncing asset dashboard user:', e);
+            }
+        }
+
+        function removeUserAccount(username, dashboard) {
+            if (!confirm('Remove user "' + username + '" from ' + dashboard + '?')) return;
+
+            const users = loadPortalUsers();
+            const filtered = users.filter(u => !(u.username === username && u.dashboard === dashboard));
+            savePortalUsers(filtered);
+            loadUserAccountsList();
+
+            // Auto-save to Google Drive if connected
+            if (gdriveAccessToken) {
+                saveAccountsToCloud();
+            }
+        }
+
+        function loadUserAccountsList() {
+            const users = loadPortalUsers();
+            const container = document.getElementById('userAccountsList');
+
+            if (users.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No user accounts configured. Add one above.</p>';
+                return;
+            }
+
+            const dashboardLabels = {
+                procurement: '<span class="dashboard-label procurement">Procurement</span>',
+                stores: '<span class="dashboard-label stores">Stores</span>',
+                assets: '<span class="dashboard-label assets">Fixed Assets</span>'
+            };
+
+            const roleBadge = (role) => {
+                const cls = role === 'Admin' ? 'admin' : role === 'User' ? 'user' : 'viewer';
+                return '<span class="role-badge ' + cls + '">' + role + '</span>';
+            };
+
+            let html = '<table class="user-table"><thead><tr><th>Username</th><th>Dashboard</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
+            users.forEach(u => {
+                html += '<tr>';
+                html += '<td><strong>' + u.username + '</strong></td>';
+                html += '<td>' + (dashboardLabels[u.dashboard] || u.dashboard) + '</td>';
+                html += '<td>' + roleBadge(u.role) + '</td>';
+                html += '<td><button class="btn-danger" onclick="removeUserAccount(\'' + u.username + '\', \'' + u.dashboard + '\')">Remove</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // ============================================
+        // HEADING SETTINGS
+        // ============================================
+        function loadHeadingSettingsData() {
+            try {
+                const stored = localStorage.getItem(PORTAL_HEADINGS_KEY);
+                if (stored) {
+                    return JSON.parse(stored);
+                }
+                return DEFAULT_HEADINGS;
+            } catch (e) {
+                return DEFAULT_HEADINGS;
+            }
+        }
+
+        function loadHeadingSettings() {
+            const settings = loadHeadingSettingsData();
+            document.getElementById('settingHospitalName').value = settings.hospitalName;
+            document.getElementById('settingOrgName').value = settings.orgName;
+            document.getElementById('previewHospitalName').textContent = settings.hospitalName;
+            document.getElementById('previewOrgName').textContent = settings.orgName;
+
+            // Live preview updates
+            document.getElementById('settingHospitalName').oninput = function() {
+                document.getElementById('previewHospitalName').textContent = this.value || DEFAULT_HEADINGS.hospitalName;
+            };
+            document.getElementById('settingOrgName').oninput = function() {
+                document.getElementById('previewOrgName').textContent = this.value || DEFAULT_HEADINGS.orgName;
+            };
+        }
+
+        function saveHeadingSettings() {
+            const hospitalName = document.getElementById('settingHospitalName').value.trim() || DEFAULT_HEADINGS.hospitalName;
+            const orgName = document.getElementById('settingOrgName').value.trim() || DEFAULT_HEADINGS.orgName;
+
+            localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify({ hospitalName, orgName }));
+
+            // Update portal page immediately
+            applyHeadings({ hospitalName, orgName });
+
+            const statusDiv = document.getElementById('headingStatus');
+            statusDiv.className = 'status-msg success';
+            statusDiv.textContent = 'Heading settings saved! Changes will apply across all dashboards on next load.';
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 4000);
+        }
+
+        function resetHeadingSettings() {
+            if (!confirm('Reset headings to defaults?')) return;
+            localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(DEFAULT_HEADINGS));
+            loadHeadingSettings();
+            applyHeadings(DEFAULT_HEADINGS);
+
+            const statusDiv = document.getElementById('headingStatus');
+            statusDiv.className = 'status-msg success';
+            statusDiv.textContent = 'Headings reset to defaults.';
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 3000);
+        }
+
+        function applyHeadings(settings) {
+            // Update portal header
+            const h1 = document.querySelector('.portal-header h1');
+            if (h1) h1.textContent = settings.hospitalName;
+
+            const org = document.querySelector('.portal-header .org-name');
+            if (org) org.textContent = settings.orgName;
+
+            // Update footer
+            const footerHospital = document.getElementById('footerHospitalName');
+            if (footerHospital) footerHospital.textContent = settings.hospitalName;
+
+            const footerOrg = document.getElementById('footerOrgName');
+            if (footerOrg) footerOrg.textContent = settings.orgName;
+        }
+
+        // ============================================
+        // GOOGLE DRIVE INTEGRATION
+        // ============================================
+        const GDRIVE_CONFIG = {
+            CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
+            SCOPES: 'https://www.googleapis.com/auth/drive',
+            FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
+            ACCOUNTS_FILE_NAME: 'PORTAL_USER_ACCOUNTS.json'
+        };
+
+        let gdriveAccessToken = null;
+        let gdriveTokenClient = null;
+        let accountsFileId = null;
+
+        function connectGoogleDrive() {
+            const btn = document.getElementById('btnCloudConnect');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+
+            // Check for existing valid token from the main dashboard
+            const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+
+            if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+                // Reuse existing token
+                gdriveAccessToken = storedToken;
+                onDriveConnected();
+                return;
+            }
+
+            // Initialize OAuth
+            try {
+                if (typeof google === 'undefined' || !google.accounts) {
+                    showCloudStatus('error', 'Google Sign-In library not loaded. Please refresh the page.');
+                    btn.disabled = false;
+                    btn.textContent = 'Connect to Google Drive';
+                    return;
+                }
+
+                gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GDRIVE_CONFIG.CLIENT_ID,
+                    scope: GDRIVE_CONFIG.SCOPES,
+                    callback: function(tokenResponse) {
+                        if (tokenResponse.error) {
+                            showCloudStatus('error', 'Authentication failed: ' + tokenResponse.error);
+                            btn.disabled = false;
+                            btn.textContent = 'Connect to Google Drive';
+                            return;
+                        }
+                        gdriveAccessToken = tokenResponse.access_token;
+                        // Store token for reuse
+                        localStorage.setItem('assetDashboardGoogleAccessToken', gdriveAccessToken);
+                        localStorage.setItem('assetDashboardGoogleTokenExpiry', String(Date.now() + 3500000));
+                        onDriveConnected();
+                    },
+                    error_callback: function(error) {
+                        showCloudStatus('error', 'Connection failed. Please try again.');
+                        btn.disabled = false;
+                        btn.textContent = 'Connect to Google Drive';
+                    }
+                });
+
+                gdriveTokenClient.requestAccessToken();
+            } catch (e) {
+                showCloudStatus('error', 'Failed to initialize Google Sign-In.');
+                btn.disabled = false;
+                btn.textContent = 'Connect to Google Drive';
+            }
+        }
+
+        async function onDriveConnected() {
+            // Update UI
+            const statusEl = document.getElementById('cloudStatus');
+            statusEl.className = 'cloud-status connected';
+            document.getElementById('cloudStatusText').textContent = 'Connected to Google Drive';
+
+            document.getElementById('btnCloudConnect').textContent = 'Connected';
+            document.getElementById('btnCloudConnect').disabled = true;
+            document.getElementById('btnCloudSave').disabled = false;
+            document.getElementById('btnCloudLoad').disabled = false;
+
+            // Look for existing accounts file
+            try {
+                const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and mimeType='application/json' and trashed=false";
+                const response = await fetch(
+                    'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+                    { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.files && data.files.length > 0) {
+                        accountsFileId = data.files[0].id;
+                        const lastMod = new Date(data.files[0].modifiedTime).toLocaleString();
+                        showCloudStatus('success', 'Connected! Accounts file found (last saved: ' + lastMod + ')');
+                    } else {
+                        showCloudStatus('success', 'Connected! No accounts file found yet — save to create one.');
+                    }
+                }
+            } catch (e) {
+                showCloudStatus('success', 'Connected to Google Drive.');
+            }
+        }
+
+        async function saveAccountsToCloud() {
+            if (!gdriveAccessToken) {
+                showCloudStatus('error', 'Please connect to Google Drive first.');
+                return;
+            }
+
+            const btn = document.getElementById('btnCloudSave');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const users = loadPortalUsers();
+                const headings = loadHeadingSettingsData();
+
+                const backupData = {
+                    version: '1.0',
+                    type: 'portal_settings',
+                    timestamp: new Date().toISOString(),
+                    data: {
+                        userAccounts: users,
+                        headingSettings: headings
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+
+                let response;
+
+                if (accountsFileId) {
+                    // Update existing file
+                    response = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + accountsFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': 'Bearer ' + gdriveAccessToken,
+                                'Content-Type': 'application/json'
+                            },
+                            body: blob
+                        }
+                    );
+                } else {
+                    // Create new file with multipart upload
+                    const metadata = {
+                        name: GDRIVE_CONFIG.ACCOUNTS_FILE_NAME,
+                        parents: [GDRIVE_CONFIG.FOLDER_ID],
+                        mimeType: 'application/json'
+                    };
+
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+
+                    response = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + gdriveAccessToken },
+                            body: form
+                        }
+                    );
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        accountsFileId = result.id;
+                    }
+                }
+
+                if (response.ok) {
+                    showCloudStatus('success', 'Accounts saved to Google Drive successfully! (' + users.length + ' accounts)');
+                } else if (response.status === 401) {
+                    gdriveAccessToken = null;
+                    resetCloudUI();
+                    showCloudStatus('error', 'Token expired. Please reconnect to Google Drive.');
+                } else {
+                    const err = await response.text();
+                    showCloudStatus('error', 'Save failed: ' + (err || response.statusText));
+                }
+            } catch (e) {
+                showCloudStatus('error', 'Save failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save to Drive';
+            }
+        }
+
+        async function loadAccountsFromCloud() {
+            if (!gdriveAccessToken) {
+                showCloudStatus('error', 'Please connect to Google Drive first.');
+                return;
+            }
+
+            if (!accountsFileId) {
+                // Try to find it
+                try {
+                    const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and mimeType='application/json' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            accountsFileId = searchData.files[0].id;
+                        }
+                    }
+                } catch (e) {}
+
+                if (!accountsFileId) {
+                    showCloudStatus('error', 'No accounts file found in Google Drive. Save first to create one.');
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btnCloudLoad');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(
+                    'https://www.googleapis.com/drive/v3/files/' + accountsFileId + '?alt=media',
+                    { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                );
+
+                if (response.status === 401) {
+                    gdriveAccessToken = null;
+                    resetCloudUI();
+                    showCloudStatus('error', 'Token expired. Please reconnect to Google Drive.');
+                    return;
+                }
+
+                if (!response.ok) {
+                    showCloudStatus('error', 'Failed to load from Drive: ' + response.statusText);
+                    return;
+                }
+
+                const backupData = await response.json();
+
+                if (!backupData.data || !backupData.data.userAccounts) {
+                    showCloudStatus('error', 'Invalid accounts file format.');
+                    return;
+                }
+
+                // Restore user accounts
+                const cloudUsers = backupData.data.userAccounts;
+                savePortalUsers(cloudUsers);
+                loadUserAccountsList();
+
+                // Restore heading settings if present
+                if (backupData.data.headingSettings) {
+                    localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(backupData.data.headingSettings));
+                    applyHeadings(backupData.data.headingSettings);
+                }
+
+                // Sync asset dashboard users
+                cloudUsers.filter(u => u.dashboard === 'assets').forEach(u => {
+                    syncAssetDashboardUser(u.username, u.password, u.role);
+                });
+
+                showCloudStatus('success', 'Loaded ' + cloudUsers.length + ' accounts from Google Drive!');
+            } catch (e) {
+                showCloudStatus('error', 'Load failed: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Load from Drive';
+            }
+        }
+
+        function showCloudStatus(type, message) {
+            const statusDiv = document.getElementById('cloudSyncStatus');
+            statusDiv.className = 'status-msg ' + (type === 'error' ? 'error' : 'success');
+            statusDiv.textContent = message;
+            if (type !== 'error') {
+                setTimeout(function() { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 5000);
+            }
+        }
+
+        function resetCloudUI() {
+            const statusEl = document.getElementById('cloudStatus');
+            statusEl.className = 'cloud-status disconnected';
+            document.getElementById('cloudStatusText').textContent = 'Not Connected';
+            document.getElementById('btnCloudConnect').textContent = 'Connect to Google Drive';
+            document.getElementById('btnCloudConnect').disabled = false;
+            document.getElementById('btnCloudSave').disabled = true;
+            document.getElementById('btnCloudLoad').disabled = true;
+            if (portalAutoSyncInterval) {
+                clearInterval(portalAutoSyncInterval);
+                portalAutoSyncInterval = null;
+            }
+        }
+
+        // ============================================
+        // AUTO-SYNC: Merge & sync every 5 seconds
+        // ============================================
+        let portalAutoSyncInterval = null;
+        let portalAutoSyncInProgress = false;
+
+        function startPortalAutoSync() {
+            if (portalAutoSyncInterval) return;
+            console.log('[Portal AutoSync] Starting');
+            portalAutoSyncInterval = setInterval(performPortalAutoSync, 5000);
+        }
+
+        async function performPortalAutoSync() {
+            if (portalAutoSyncInProgress || !gdriveAccessToken) return;
+            portalAutoSyncInProgress = true;
+
+            try {
+                // Ensure we have a file ID
+                if (!accountsFileId) {
+                    const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            accountsFileId = searchData.files[0].id;
+                        }
+                    } else if (searchResp.status === 401) {
+                        resetCloudUI();
+                        portalAutoSyncInProgress = false;
+                        return;
+                    }
+                }
+
+                // Download and merge cloud data
+                if (accountsFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            'https://www.googleapis.com/drive/v3/files/' + accountsFileId + '?alt=media',
+                            { headers: { 'Authorization': 'Bearer ' + gdriveAccessToken } }
+                        );
+                        if (dlResp.ok) {
+                            const cloudBackup = await dlResp.json();
+                            if (cloudBackup.data && cloudBackup.data.userAccounts) {
+                                // Merge user accounts
+                                const localUsers = loadPortalUsers();
+                                const localKeys = new Set(localUsers.map(u => u.username + '|' + u.dashboard));
+                                let added = 0;
+                                cloudBackup.data.userAccounts.forEach(u => {
+                                    if (!localKeys.has(u.username + '|' + u.dashboard)) {
+                                        localUsers.push(u);
+                                        added++;
+                                    }
+                                });
+                                if (added > 0) {
+                                    savePortalUsers(localUsers);
+                                    loadUserAccountsList();
+                                }
+
+                                // Merge heading settings (cloud wins if present)
+                                if (cloudBackup.data.headingSettings) {
+                                    const localHeadings = loadHeadingSettingsData();
+                                    if (JSON.stringify(localHeadings) !== JSON.stringify(cloudBackup.data.headingSettings)) {
+                                        localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(cloudBackup.data.headingSettings));
+                                        applyHeadings(cloudBackup.data.headingSettings);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Upload merged local data
+                const users = loadPortalUsers();
+                const headings = loadHeadingSettingsData();
+                const backupData = {
+                    version: '1.0',
+                    type: 'portal_settings',
+                    timestamp: new Date().toISOString(),
+                    data: { userAccounts: users, headingSettings: headings }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                if (accountsFileId) {
+                    await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + accountsFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + gdriveAccessToken, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: GDRIVE_CONFIG.ACCOUNTS_FILE_NAME, parents: [GDRIVE_CONFIG.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    const resp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }, body: form }
+                    );
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        accountsFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.log('[Portal AutoSync] Error:', e.message);
+            } finally {
+                portalAutoSyncInProgress = false;
+            }
+        }
+
+        // ============================================
+        // INITIALIZE ON PAGE LOAD
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply saved headings
+            const headings = loadHeadingSettingsData();
+            applyHeadings(headings);
+
+            // Check for existing Google Drive token and auto-connect + start auto-sync
+            const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+                gdriveAccessToken = storedToken;
+                onDriveConnected();
+                startPortalAutoSync();
+            }
+        });
+    </script>
 
 </body>
 </html>

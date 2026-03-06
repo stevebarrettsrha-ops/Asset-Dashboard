@@ -1230,6 +1230,20 @@
         }
 
         // ============================================
+        // PORTAL USERS
+        // ============================================
+        function getPortalUsers(dashboard) {
+            try {
+                const stored = localStorage.getItem('portalUserAccounts');
+                if (stored) {
+                    const users = JSON.parse(stored);
+                    if (Array.isArray(users)) return users.filter(u => u.dashboard === dashboard);
+                }
+            } catch (e) {}
+            return [];
+        }
+
+        // ============================================
         // GOOGLE SHEETS AUTHENTICATION
         // ============================================
         async function loadCredentials() {
@@ -1415,3 +1429,397 @@
         function validatePositiveNumber(val) {
             return !isNaN(val) && Number(val) > 0;
         }
+
+        // ============================================
+        // REPORTS
+        // ============================================
+        function genReport(type) {
+            const output = document.getElementById('reportOutput');
+            const title = document.getElementById('reportTitle');
+            const content = document.getElementById('reportContent');
+            output.style.display = 'block';
+
+            if (type === 'valuation') {
+                title.textContent = 'Stock Valuation Report';
+                const categories = {};
+                appData.items.forEach(item => {
+                    if (!categories[item.category]) categories[item.category] = { count: 0, value: 0 };
+                    categories[item.category].count += item.qty;
+                    categories[item.category].value += item.qty * item.unitCost;
+                });
+                let rows = Object.entries(categories).map(([cat, data]) =>
+                    `<tr><td>${cat}</td><td>${data.count}</td><td>$${data.value.toLocaleString()}</td></tr>`
+                ).join('');
+                const totalVal = appData.items.reduce((s, i) => s + i.qty * i.unitCost, 0);
+                content.innerHTML = `<p style="margin-bottom:15px;color:var(--text-secondary);">Generated: ${new Date().toLocaleDateString()}</p>
+                    <div class="table-container"><table><thead><tr><th>Category</th><th>Total Qty</th><th>Value (JMD)</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot><tr><td colspan="2" style="text-align:right;font-weight:700;padding:12px 15px;">Grand Total:</td><td style="font-weight:700;padding:12px 15px;">$${totalVal.toLocaleString()}</td></tr></tfoot>
+                    </table></div>`;
+            } else if (type === 'movement') {
+                title.textContent = 'Stock Movement Report';
+                const received = appData.transactions.filter(t => t.type === 'Received').reduce((s, t) => s + t.qty, 0);
+                const issued = appData.transactions.filter(t => t.type === 'Issued').reduce((s, t) => s + t.qty, 0);
+                content.innerHTML = `<div class="stats-row">
+                    <div class="stat-card green"><div class="stat-value">${received}</div><div class="stat-label">Total Received</div></div>
+                    <div class="stat-card orange"><div class="stat-value">${issued}</div><div class="stat-label">Total Issued</div></div>
+                    <div class="stat-card blue"><div class="stat-value">${appData.transactions.length}</div><div class="stat-label">Total Transactions</div></div>
+                </div>`;
+            } else if (type === 'department') {
+                title.textContent = 'Department Usage Report';
+                const depts = {};
+                appData.transactions.filter(t => t.type === 'Issued').forEach(t => {
+                    if (!depts[t.department]) depts[t.department] = { count: 0, items: 0 };
+                    depts[t.department].count++;
+                    depts[t.department].items += t.qty;
+                });
+                let rows = Object.entries(depts).map(([dept, data]) =>
+                    `<tr><td>${dept}</td><td>${data.count}</td><td>${data.items}</td></tr>`
+                ).join('');
+                if (!rows) rows = '<tr><td colspan="3" style="text-align:center;padding:20px;">No issues recorded yet</td></tr>';
+                content.innerHTML = `<div class="table-container"><table><thead><tr><th>Department</th><th>Transactions</th><th>Items Issued</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            } else if (type === 'reorder') {
+                title.textContent = 'Reorder Report';
+                const reorderItems = appData.items.filter(i => i.qty <= i.reorderLevel);
+                let rows = reorderItems.map(i => `<tr><td>${i.code}</td><td>${i.description}</td><td>${i.qty}</td><td>${i.reorderLevel}</td><td>${i.maxLevel - i.qty}</td><td>${i.supplier}</td></tr>`).join('');
+                if (!rows) rows = '<tr><td colspan="6" style="text-align:center;padding:20px;">No items need reordering</td></tr>';
+                content.innerHTML = `<div class="table-container"><table><thead><tr><th>Code</th><th>Description</th><th>Current</th><th>Reorder Lvl</th><th>Suggested Qty</th><th>Supplier</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            }
+            output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================
+        // RENDER HELPERS
+        // ============================================
+        function getStockStatus(item) {
+            if (item.qty === 0) return { label: 'Out of Stock', class: 'out', barClass: 'critical', pct: 0 };
+            if (item.qty <= item.reorderLevel * 0.5) return { label: 'Critical', class: 'critical', barClass: 'critical', pct: Math.min((item.qty / item.maxLevel) * 100, 100) };
+            if (item.qty <= item.reorderLevel) return { label: 'Low Stock', class: 'low', barClass: 'low', pct: Math.min((item.qty / item.maxLevel) * 100, 100) };
+            return { label: 'In Stock', class: 'ok', barClass: 'ok', pct: Math.min((item.qty / (item.maxLevel || item.qty)) * 100, 100) };
+        }
+
+        function renderStockTable(items) {
+            const tbody = document.getElementById('stockItemsTable');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-secondary);">No items found</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(item => {
+                const status = getStockStatus(item);
+                return `<tr>
+                    <td><strong>${item.code}</strong></td>
+                    <td>${item.description}</td>
+                    <td>${item.category}</td>
+                    <td>${item.unit}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.reorderLevel}</td>
+                    <td>$${item.unitCost.toLocaleString()}</td>
+                    <td>$${(item.qty * item.unitCost).toLocaleString()}</td>
+                    <td><span class="badge badge-${status.class}">${status.label}</span></td>
+                    <td>
+                        <button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="showPage('receive')">Receive</button>
+                        <button class="btn btn-warning" style="padding:4px 8px;font-size:11px;" onclick="showPage('issue')">Issue</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderTxTable(txs, tableId) {
+            const tbody = document.getElementById(tableId);
+            if (txs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">No transactions</td></tr>';
+                return;
+            }
+            tbody.innerHTML = txs.slice().reverse().map(tx => `<tr>
+                <td>${tx.date}</td>
+                <td><span class="${tx.type === 'Received' ? 'tx-receive' : 'tx-issue'}">${tx.type === 'Received' ? '📥' : '📤'} ${tx.type}</span></td>
+                <td>${tx.itemCode}</td>
+                <td>${tx.description}</td>
+                <td>${tx.qty}</td>
+                <td>${tx.department}</td>
+                <td>${tx.reference}</td>
+                <td>${tx.by}</td>
+            </tr>`).join('');
+        }
+
+        // ============================================
+        // REFRESH ALL
+        // ============================================
+        function refreshAll() {
+            // Stats
+            const totalValue = appData.items.reduce((s, i) => s + i.qty * i.unitCost, 0);
+            const lowStock = appData.items.filter(i => i.qty > 0 && i.qty <= i.reorderLevel);
+            const outOfStock = appData.items.filter(i => i.qty === 0);
+            const today = new Date().toISOString().split('T')[0];
+            const todayTx = appData.transactions.filter(t => t.date === today);
+
+            document.getElementById('statTotalItems').textContent = appData.items.length;
+            document.getElementById('statTotalValue').textContent = '$' + totalValue.toLocaleString();
+            document.getElementById('statLowStock').textContent = lowStock.length;
+            document.getElementById('statOutOfStock').textContent = outOfStock.length;
+            document.getElementById('statTransactions').textContent = todayTx.length;
+
+            // Dashboard alerts
+            const alertDiv = document.getElementById('dashboardAlerts');
+            let alertHtml = '';
+            if (outOfStock.length > 0) {
+                alertHtml += `<div class="alert-banner danger">⛔ <strong>${outOfStock.length} item(s) out of stock:</strong> ${outOfStock.map(i => i.description).join(', ')}</div>`;
+            }
+            if (lowStock.length > 0) {
+                alertHtml += `<div class="alert-banner warning">⚠️ <strong>${lowStock.length} item(s) below reorder level:</strong> ${lowStock.map(i => i.description).join(', ')}</div>`;
+            }
+            alertDiv.innerHTML = alertHtml;
+
+            // Recent transactions on dashboard
+            renderTxTable(appData.transactions.slice(-5), 'recentTxTable');
+
+            // Low stock table on dashboard
+            const lowStockBody = document.getElementById('lowStockTable');
+            const allLow = [...outOfStock, ...lowStock];
+            if (allLow.length === 0) {
+                lowStockBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-secondary);">All items adequately stocked</td></tr>';
+            } else {
+                lowStockBody.innerHTML = allLow.map(item => {
+                    const status = getStockStatus(item);
+                    return `<tr>
+                        <td>${item.code}</td><td>${item.description}</td><td>${item.qty}</td>
+                        <td>${item.reorderLevel}</td>
+                        <td><span class="badge badge-${status.class}">${status.label}</span></td>
+                        <td><div class="stock-bar-container"><div class="stock-bar ${status.barClass}" style="width:${status.pct}%"></div></div></td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // Stock items table
+            renderStockTable(appData.items);
+
+            // Category filter dropdown
+            const catFilter = document.getElementById('stockCategoryFilter');
+            const cats = [...new Set(appData.items.map(i => i.category))].sort();
+            catFilter.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option>${c}</option>`).join('');
+
+            // Category cards
+            const catCards = document.getElementById('categoryCards');
+            const catData = {};
+            appData.items.forEach(i => {
+                if (!catData[i.category]) catData[i.category] = { count: 0, value: 0 };
+                catData[i.category].count++;
+                catData[i.category].value += i.qty * i.unitCost;
+            });
+            const colors = ['green', 'blue', 'orange', 'red', 'purple'];
+            catCards.innerHTML = Object.entries(catData).map(([cat, data], idx) => `
+                <div class="stat-card ${colors[idx % colors.length]}">
+                    <div class="stat-value">${data.count}</div>
+                    <div class="stat-label">${cat}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">Value: $${data.value.toLocaleString()}</div>
+                </div>
+            `).join('');
+
+            // Transaction history
+            renderTxTable(appData.transactions, 'txHistoryTable');
+
+            // Reorder table
+            const reorderBody = document.getElementById('reorderTable');
+            const reorderItems = appData.items.filter(i => i.qty <= i.reorderLevel);
+            if (reorderItems.length === 0) {
+                reorderBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">No items need reordering - all stock levels adequate</td></tr>';
+            } else {
+                reorderBody.innerHTML = reorderItems.map(i => `<tr>
+                    <td><strong>${i.code}</strong></td><td>${i.description}</td><td>${i.category}</td>
+                    <td>${i.qty}</td><td>${i.reorderLevel}</td>
+                    <td><strong>${Math.max(i.maxLevel - i.qty, i.reorderLevel * 2)}</strong></td>
+                    <td>${i.supplier}</td>
+                    <td><button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="showPage('receive')">Receive</button></td>
+                </tr>`).join('');
+            }
+        }
+
+        // ============================================
+        // GOOGLE DRIVE AUTO-SYNC (every 5 seconds)
+        // ============================================
+        const STORES_GDRIVE = {
+            FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
+            FILE_NAME: 'STORES_BACKUP.json'
+        };
+
+        let storesSyncToken = null;
+        let storesSyncFileId = null;
+        let storesSyncInterval = null;
+        let storesSyncInProgress = false;
+
+        function startStoresAutoSync() {
+            if (storesSyncInterval) return;
+
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) return;
+
+            storesSyncToken = token;
+            console.log('[Stores AutoSync] Starting');
+            storesSyncInterval = setInterval(performStoresSync, 5000);
+            performStoresSync();
+        }
+
+        async function performStoresSync() {
+            if (storesSyncInProgress) return;
+
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) {
+                clearInterval(storesSyncInterval);
+                storesSyncInterval = null;
+                return;
+            }
+            storesSyncToken = token;
+
+            storesSyncInProgress = true;
+
+            try {
+                // Find file if not known
+                if (!storesSyncFileId) {
+                    const query = "'" + STORES_GDRIVE.FOLDER_ID + "' in parents and name='" + STORES_GDRIVE.FILE_NAME + "' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + storesSyncToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            storesSyncFileId = searchData.files[0].id;
+                        }
+                    } else if (searchResp.status === 401) {
+                        storesSyncInProgress = false;
+                        clearInterval(storesSyncInterval);
+                        storesSyncInterval = null;
+                        return;
+                    }
+                }
+
+                // Download and merge cloud data
+                if (storesSyncFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            'https://www.googleapis.com/drive/v3/files/' + storesSyncFileId + '?alt=media',
+                            { headers: { 'Authorization': 'Bearer ' + storesSyncToken } }
+                        );
+                        if (dlResp.ok) {
+                            const cloudBackup = await dlResp.json();
+                            if (cloudBackup.data) {
+                                mergeStoresData(cloudBackup.data);
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Upload merged local data
+                const backupData = {
+                    version: '1.0',
+                    type: 'stores',
+                    timestamp: new Date().toISOString(),
+                    data: appData
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                let uploadResp;
+                if (storesSyncFileId) {
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + storesSyncFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + storesSyncToken, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: STORES_GDRIVE.FILE_NAME, parents: [STORES_GDRIVE.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + storesSyncToken }, body: form }
+                    );
+                    if (uploadResp.ok) {
+                        const result = await uploadResp.json();
+                        storesSyncFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.log('[Stores AutoSync] Error:', e.message);
+            } finally {
+                storesSyncInProgress = false;
+            }
+        }
+
+        function mergeStoresData(cloudData) {
+            let changed = false;
+
+            // Merge items by code
+            if (cloudData.items) {
+                const localCodes = new Set(appData.items.map(i => i.code));
+                cloudData.items.forEach(item => {
+                    if (item.code && !localCodes.has(item.code)) {
+                        appData.items.push(item);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge transactions by timestamp+type+item
+            if (cloudData.transactions) {
+                const localKeys = new Set((appData.transactions || []).map(t => t.timestamp + '|' + t.type + '|' + t.itemCode));
+                cloudData.transactions.forEach(t => {
+                    const key = t.timestamp + '|' + t.type + '|' + t.itemCode;
+                    if (!localKeys.has(key)) {
+                        if (!appData.transactions) appData.transactions = [];
+                        appData.transactions.push(t);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Take higher counter
+            if (cloudData.itemCounter && cloudData.itemCounter > appData.itemCounter) {
+                appData.itemCounter = cloudData.itemCounter;
+                changed = true;
+            }
+
+            if (changed) {
+                saveData(appData);
+                refreshAll();
+            }
+        }
+
+        // Start auto-sync after successful login
+        const origStoresLogin = handleLogin;
+        handleLogin = function(e) {
+            origStoresLogin(e);
+            setTimeout(function() {
+                if (document.getElementById('appContainer').classList.contains('active')) {
+                    startStoresAutoSync();
+                }
+            }, 500);
+        };
+
+        // Apply portal heading settings
+        (function applyPortalHeadings() {
+            try {
+                const stored = localStorage.getItem('portalHeadingSettings');
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    if (settings.hospitalName) {
+                        const loginSubtitles = document.querySelectorAll('.login-subtitle');
+                        if (loginSubtitles.length >= 2) {
+                            loginSubtitles[1].textContent = settings.hospitalName;
+                        }
+                        document.title = 'General Stores - Inventory Management | ' + settings.hospitalName;
+                    }
+                }
+            } catch (e) {
+                console.error('Error applying portal headings:', e);
+            }
+        })();
+    </script>
+</body>
+</html>

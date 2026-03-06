@@ -1287,12 +1287,27 @@
         // ============================================
         // LOGIN
         // ============================================
+        function getPortalUsers(dashboard) {
+            try {
+                const stored = localStorage.getItem('portalUserAccounts');
+                if (stored) {
+                    const users = JSON.parse(stored);
+                    if (Array.isArray(users)) return users.filter(u => u.dashboard === dashboard);
+                }
+            } catch (e) {}
+            return [];
+        }
+
         function handleLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value;
+            const user = document.getElementById('username').value.trim().toLowerCase();
             const pass = document.getElementById('password').value;
 
-            if (user === 'procurement' && pass === '123') {
+            // Check portal-configured users first, then fallback to default
+            const portalUsers = getPortalUsers('procurement');
+            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+
+            if (portalMatch || (user === 'procurement' && pass === '123')) {
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('appContainer').classList.add('active');
                 refreshAll();
@@ -1560,7 +1575,7 @@
                     </div>
                     <div style="text-align:right;">
                         <strong>May Pen Hospital</strong><br>
-                        <span style="font-size:13px;color:#666;">South East Regional Health Authority<br>May Pen, Clarendon, Jamaica</span>
+                        <span style="font-size:13px;color:#666;">Southern Regional Health Authority<br>May Pen, Clarendon, Jamaica</span>
                     </div>
                 </div>
                 <div class="po-info-grid">
@@ -1766,6 +1781,246 @@
 
         // Set default date
         document.getElementById('reqDate').valueAsDate = new Date();
+
+        // ============================================
+        // GOOGLE DRIVE AUTO-SYNC (every 5 seconds)
+        // ============================================
+        const PROCUREMENT_GDRIVE = {
+            FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
+            FILE_NAME: 'PROCUREMENT_BACKUP.json'
+        };
+
+        let procSyncToken = null;
+        let procSyncFileId = null;
+        let procSyncInterval = null;
+        let procSyncInProgress = false;
+
+        function startProcurementAutoSync() {
+            if (procSyncInterval) return;
+
+            // Get token from shared localStorage
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) return;
+
+            procSyncToken = token;
+            console.log('[Procurement AutoSync] Starting');
+            procSyncInterval = setInterval(performProcurementSync, 5000);
+            // Run immediately on start
+            performProcurementSync();
+        }
+
+        async function performProcurementSync() {
+            if (procSyncInProgress) return;
+
+            // Refresh token check
+            const token = localStorage.getItem('assetDashboardGoogleAccessToken');
+            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            if (!token || !expiry || Date.now() >= parseInt(expiry)) {
+                clearInterval(procSyncInterval);
+                procSyncInterval = null;
+                return;
+            }
+            procSyncToken = token;
+
+            procSyncInProgress = true;
+
+            try {
+                // Find file if not known
+                if (!procSyncFileId) {
+                    const query = "'" + PROCUREMENT_GDRIVE.FOLDER_ID + "' in parents and name='" + PROCUREMENT_GDRIVE.FILE_NAME + "' and trashed=false";
+                    const searchResp = await fetch(
+                        'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id)',
+                        { headers: { 'Authorization': 'Bearer ' + procSyncToken } }
+                    );
+                    if (searchResp.ok) {
+                        const searchData = await searchResp.json();
+                        if (searchData.files && searchData.files.length > 0) {
+                            procSyncFileId = searchData.files[0].id;
+                        }
+                    } else if (searchResp.status === 401) {
+                        procSyncInProgress = false;
+                        clearInterval(procSyncInterval);
+                        procSyncInterval = null;
+                        return;
+                    }
+                }
+
+                // Download and merge cloud data
+                if (procSyncFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            'https://www.googleapis.com/drive/v3/files/' + procSyncFileId + '?alt=media',
+                            { headers: { 'Authorization': 'Bearer ' + procSyncToken } }
+                        );
+                        if (dlResp.ok) {
+                            const cloudBackup = await dlResp.json();
+                            if (cloudBackup.data) {
+                                mergeProcurementData(cloudBackup.data);
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Upload merged local data
+                const backupData = {
+                    version: '1.0',
+                    type: 'procurement',
+                    timestamp: new Date().toISOString(),
+                    data: appData
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                let uploadResp;
+                if (procSyncFileId) {
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + procSyncFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + procSyncToken, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: PROCUREMENT_GDRIVE.FILE_NAME, parents: [PROCUREMENT_GDRIVE.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + procSyncToken }, body: form }
+                    );
+                    if (uploadResp.ok) {
+                        const result = await uploadResp.json();
+                        procSyncFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.log('[Procurement AutoSync] Error:', e.message);
+            } finally {
+                procSyncInProgress = false;
+            }
+        }
+
+        function mergeProcurementData(cloudData) {
+            let changed = false;
+
+            // Merge requisitions by ID
+            if (cloudData.requisitions) {
+                const localIds = new Set(appData.requisitions.map(r => r.id));
+                cloudData.requisitions.forEach(r => {
+                    if (r.id && !localIds.has(r.id)) {
+                        appData.requisitions.push(r);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge suppliers by ID
+            if (cloudData.suppliers) {
+                const localIds = new Set(appData.suppliers.map(s => s.id));
+                cloudData.suppliers.forEach(s => {
+                    if (s.id && !localIds.has(s.id)) {
+                        appData.suppliers.push(s);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge purchase orders by ID
+            if (cloudData.purchaseOrders) {
+                const localIds = new Set(appData.purchaseOrders.map(p => p.id));
+                cloudData.purchaseOrders.forEach(p => {
+                    if (p.id && !localIds.has(p.id)) {
+                        appData.purchaseOrders.push(p);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge quotations by ID
+            if (cloudData.quotations) {
+                const localIds = new Set((appData.quotations || []).map(q => q.id));
+                cloudData.quotations.forEach(q => {
+                    if (q.id && !localIds.has(q.id)) {
+                        if (!appData.quotations) appData.quotations = [];
+                        appData.quotations.push(q);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge evaluations by ID
+            if (cloudData.evaluations) {
+                const localIds = new Set((appData.evaluations || []).map(e => e.id));
+                cloudData.evaluations.forEach(ev => {
+                    if (ev.id && !localIds.has(ev.id)) {
+                        if (!appData.evaluations) appData.evaluations = [];
+                        appData.evaluations.push(ev);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Merge activity log by timestamp+action
+            if (cloudData.activity) {
+                const localKeys = new Set((appData.activity || []).map(a => a.timestamp + '|' + a.action));
+                cloudData.activity.forEach(a => {
+                    if (!localKeys.has(a.timestamp + '|' + a.action)) {
+                        if (!appData.activity) appData.activity = [];
+                        appData.activity.push(a);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Take higher counters
+            if (cloudData.poCounter && cloudData.poCounter > appData.poCounter) {
+                appData.poCounter = cloudData.poCounter;
+                changed = true;
+            }
+            if (cloudData.reqCounter && cloudData.reqCounter > appData.reqCounter) {
+                appData.reqCounter = cloudData.reqCounter;
+                changed = true;
+            }
+
+            if (changed) {
+                saveData(appData);
+                refreshAll();
+            }
+        }
+
+        // Start auto-sync after successful login
+        const origHandleLogin = handleLogin;
+        handleLogin = function(e) {
+            origHandleLogin(e);
+            // If login succeeded (app container is active), start sync
+            setTimeout(function() {
+                if (document.getElementById('appContainer').classList.contains('active')) {
+                    startProcurementAutoSync();
+                }
+            }, 500);
+        };
+
+        // Apply portal heading settings
+        (function applyPortalHeadings() {
+            try {
+                const stored = localStorage.getItem('portalHeadingSettings');
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    if (settings.hospitalName) {
+                        // Update login page subtitle
+                        const loginSubtitles = document.querySelectorAll('.login-subtitle');
+                        if (loginSubtitles.length >= 2) {
+                            loginSubtitles[1].textContent = 'Procurement Management System - ' + settings.hospitalName;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error applying portal headings:', e);
+            }
+        })();
     </script>
 </body>
 </html>

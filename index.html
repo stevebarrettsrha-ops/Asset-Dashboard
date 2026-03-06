@@ -1312,6 +1312,7 @@
 
         #auditEntries thead th {
             background: var(--bg-secondary);
+            color: #2c3e50;
         }
 
         /* Enable text wrapping for all Audit Trail columns */
@@ -1467,6 +1468,12 @@
         /* Ensure audit trail section allows dropdown overflow */
         .audit-trail#auditTab {
             overflow: visible !important;
+        }
+
+        /* Ensure audit entries table stays below dropdown */
+        #auditEntries {
+            position: relative;
+            z-index: 1;
         }
 
         /* Ensure page3 allows dropdown overflow */
@@ -5776,7 +5783,7 @@
             <div class="portal-header-icon">🏥</div>
             <h1>May Pen Hospital</h1>
             <p class="portal-subtitle">Management Systems Portal</p>
-            <p class="portal-org">South East Regional Health Authority</p>
+            <p class="portal-org">Southern Regional Health Authority</p>
 
             <div class="portal-cards">
                 <!-- Procurement Officer Card -->
@@ -5835,7 +5842,7 @@
             </div>
 
             <div class="portal-footer-text">
-                <p>&copy; 2025 May Pen Hospital &mdash; South East Regional Health Authority &mdash; Government of Jamaica</p>
+                <p>&copy; 2025 May Pen Hospital &mdash; Southern Regional Health Authority &mdash; Government of Jamaica</p>
             </div>
         </div>
 
@@ -6160,11 +6167,12 @@
                     </div>
                     <div class="form-group">
                         <label for="category">Category *</label>
-                        <select id="category" required>
-                            <option value="">Select Category</option>
-                            <option value="Medical Equipment">Medical Equipment</option>
-                            <option value="Furniture & Appliances">Furniture & Appliances</option>
-                        </select>
+                        <div style="display: flex; gap: 5px; align-items: flex-start;">
+                            <select id="category" required style="flex: 1;">
+                                <option value="">Select Category</option>
+                            </select>
+                            <button type="button" class="btn-secondary" onclick="openCategoryManager()" title="Manage Categories" style="padding: 8px 12px; flex-shrink: 0;">⚙️</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="serialModel">Serial/Model</label>
@@ -6235,6 +6243,32 @@
                 <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-color);">
                     <button class="btn-danger" onclick="handleResetDepartments()">Reset to Defaults</button>
                     <button class="btn-secondary" onclick="closeDepartmentManager()" style="margin-left: 10px;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CATEGORY MANAGEMENT MODAL -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Manage Categories</h2>
+                <span class="close-modal" onclick="closeCategoryManager()">&times;</span>
+            </div>
+            <div style="padding: 30px;">
+                <h3 style="margin-top: 0; color: var(--text-primary);">Add New Category</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+                    <input type="text" id="newCategoryName" class="calc-input" placeholder="Enter category name" style="flex: 1;">
+                    <button class="btn-primary" onclick="handleAddCategory()">Add</button>
+                </div>
+                <div id="categoryAddStatus" style="margin-bottom: 20px; font-weight: 600;"></div>
+
+                <h3 style="color: var(--text-primary);">Current Categories</h3>
+                <div id="categoryList" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;"></div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-color);">
+                    <button class="btn-danger" onclick="handleResetCategories()">Reset to Defaults</button>
+                    <button class="btn-secondary" onclick="closeCategoryManager()" style="margin-left: 10px;">Close</button>
                 </div>
             </div>
         </div>
@@ -6590,8 +6624,6 @@
                             <select id="inventorySearchCategory"
                                     style="width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.95em;">
                                 <option value="">All Categories</option>
-                                <option value="Medical Equipment">Medical Equipment</option>
-                                <option value="Furniture & Appliances">Furniture & Appliances</option>
                             </select>
                         </div>
                     </div>
@@ -6880,7 +6912,7 @@
                 </div>
                 
                 <!-- Enhanced Filter Section -->
-                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange);">
+                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 100;">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">🔍 Filter Audit Trail</h3>
                     <div class="calc-grid" style="margin-bottom: 15px;">
                         <div style="position: relative;">
@@ -7778,8 +7810,6 @@
                         <label>Category:</label>
                         <select id="registerCategoryFilter" onchange="filterAssetRegister()">
                             <option value="">All Categories</option>
-                            <option value="Medical Equipment">Medical Equipment</option>
-                            <option value="Furniture & Appliances">Furniture & Appliances</option>
                         </select>
                     </div>
                     <div class="register-filter-group">
@@ -9654,6 +9684,11 @@
         let cloudFileTimestamp = null;
         let googleTokenClient = null;
 
+        // Auto-sync state
+        let autoSyncInterval = null;
+        let autoSyncInProgress = false;
+        const AUTO_SYNC_INTERVAL_MS = 5000;
+
         // Initialize cloud sync from localStorage
         function initializeCloudSync() {
             const savedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
@@ -9677,6 +9712,7 @@
                     googleAccessToken = savedToken;
                     isCloudConnected = true;
                     updateCloudUI(true);
+                    startAutoSync();
                     return;
                 }
             }
@@ -9894,6 +9930,7 @@
 
                 googleAccessToken = token;
                 isCloudConnected = true;
+                startAutoSync();
 
                 const expiry = new Date();
                 expiry.setHours(expiry.getHours() + 1);
@@ -9916,6 +9953,7 @@
         async function handleGoogleAuthCallback(tokenResponse) {
             googleAccessToken = tokenResponse.access_token;
             isCloudConnected = true;
+            startAutoSync();
 
             const expiry = new Date();
             expiry.setSeconds(expiry.getSeconds() + (tokenResponse.expires_in || 3600));
@@ -9934,9 +9972,254 @@
             showGoogleAuthModal();
         }
 
+        // ============================================
+        // AUTO-SYNC: Merge & sync every 5 seconds
+        // ============================================
+        function startAutoSync() {
+            if (autoSyncInterval) return; // Already running
+            console.log('[AutoSync] Starting auto-sync every ' + (AUTO_SYNC_INTERVAL_MS / 1000) + 's');
+            autoSyncInterval = setInterval(performAutoSync, AUTO_SYNC_INTERVAL_MS);
+        }
+
+        function stopAutoSync() {
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+                autoSyncInterval = null;
+                console.log('[AutoSync] Stopped');
+            }
+        }
+
+        async function performAutoSync() {
+            if (autoSyncInProgress) return;
+            if (!isCloudConnected || !googleAccessToken) return;
+
+            autoSyncInProgress = true;
+
+            try {
+                // Ensure we have a file ID
+                if (!cloudFileId) {
+                    const savedFileId = localStorage.getItem('assetDashboardCloudFileId');
+                    if (savedFileId) {
+                        cloudFileId = savedFileId;
+                    } else {
+                        await findExistingBackupFile();
+                    }
+                }
+
+                // Step 1: Download cloud data
+                let cloudData = null;
+                if (cloudFileId) {
+                    try {
+                        const dlResp = await fetch(
+                            `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                        );
+                        if (dlResp.status === 401) {
+                            console.log('[AutoSync] Token expired');
+                            stopAutoSync();
+                            return;
+                        }
+                        if (dlResp.ok) {
+                            cloudData = await dlResp.json();
+                        }
+                    } catch (e) {
+                        console.log('[AutoSync] Download error:', e.message);
+                        autoSyncInProgress = false;
+                        return;
+                    }
+                }
+
+                // Step 2: Merge cloud data into local
+                if (cloudData && cloudData.data) {
+                    mergeCloudIntoLocal(cloudData.data);
+                }
+
+                // Step 3: Upload merged local data to cloud
+                const backupData = {
+                    version: '1.1',
+                    timestamp: new Date().toISOString(),
+                    savedBy: currentUser ? currentUser.username : 'Unknown',
+                    data: {
+                        assets: loadAssetsFromStorage(),
+                        qrCodeRegistry: loadQRRegistry(),
+                        auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
+                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
+                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        localUserSettings: localUserSettings
+                    }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+
+                let uploadResp;
+                if (cloudFileId) {
+                    uploadResp = await fetch(
+                        `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'Authorization': `Bearer ${googleAccessToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = {
+                        name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME,
+                        parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID],
+                        mimeType: 'application/json'
+                    };
+                    const formData = new FormData();
+                    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    formData.append('file', blob);
+                    uploadResp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${googleAccessToken}` },
+                            body: formData
+                        }
+                    );
+                    if (uploadResp.ok) {
+                        const result = await uploadResp.json();
+                        cloudFileId = result.id;
+                        localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
+                    }
+                }
+
+                if (uploadResp && uploadResp.ok) {
+                    lastSyncTime = new Date();
+                    localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+                    if (typeof updateLastSyncDisplay === 'function') updateLastSyncDisplay();
+                } else if (uploadResp && uploadResp.status === 401) {
+                    console.log('[AutoSync] Token expired on upload');
+                    stopAutoSync();
+                }
+
+            } catch (e) {
+                console.log('[AutoSync] Error:', e.message);
+            } finally {
+                autoSyncInProgress = false;
+            }
+        }
+
+        function mergeCloudIntoLocal(cloudDataObj) {
+            let dataChanged = false;
+
+            // Merge assets by ID and asset code
+            if (cloudDataObj.assets && cloudDataObj.assets.length > 0) {
+                const localAssets = loadAssetsFromStorage();
+                const localIdSet = new Set(localAssets.map(a => a.id).filter(Boolean));
+                const localCodeSet = new Set(localAssets.map(a => (a.assetCode || '').toLowerCase()).filter(Boolean));
+
+                let added = 0;
+                cloudDataObj.assets.forEach(ca => {
+                    const hasId = ca.id && localIdSet.has(ca.id);
+                    const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
+                    if (!hasId && !hasCode) {
+                        localAssets.push(ca);
+                        if (ca.id) localIdSet.add(ca.id);
+                        if (ca.assetCode) localCodeSet.add(ca.assetCode.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    saveAssetsToStorage(localAssets);
+                    allAssetsData = localAssets;
+                    sortByDateDescending(allAssetsData);
+                    filteredData = allAssetsData;
+                    if (typeof displayCurrentPage === 'function') displayCurrentPage();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge audit trail by ID
+            if (cloudDataObj.auditTrail && cloudDataObj.auditTrail.length > 0) {
+                const localAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
+                const localAuditIds = new Set(localAudit.map(a => a.id).filter(Boolean));
+                let added = 0;
+                cloudDataObj.auditTrail.forEach(entry => {
+                    if (entry.id && !localAuditIds.has(entry.id)) {
+                        localAudit.push(entry);
+                        localAuditIds.add(entry.id);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localAudit.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(localAudit));
+                    dataChanged = true;
+                }
+            }
+
+            // Merge departments (union)
+            if (cloudDataObj.departments && cloudDataObj.departments.length > 0) {
+                const localDepts = JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]');
+                const localDeptSet = new Set(localDepts.map(d => d.toLowerCase()));
+                let added = 0;
+                cloudDataObj.departments.forEach(d => {
+                    if (!localDeptSet.has(d.toLowerCase())) {
+                        localDepts.push(d);
+                        localDeptSet.add(d.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localDepts.sort();
+                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(localDepts));
+                    if (typeof updateAllDepartmentDropdowns === 'function') updateAllDepartmentDropdowns();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge categories (union)
+            if (cloudDataObj.categories && cloudDataObj.categories.length > 0) {
+                const localCats = JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]');
+                const localCatSet = new Set(localCats.map(c => c.toLowerCase()));
+                let added = 0;
+                cloudDataObj.categories.forEach(c => {
+                    if (!localCatSet.has(c.toLowerCase())) {
+                        localCats.push(c);
+                        localCatSet.add(c.toLowerCase());
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localCats.sort();
+                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(localCats));
+                    if (typeof updateAllCategoryDropdowns === 'function') updateAllCategoryDropdowns();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge portal user accounts
+            if (cloudDataObj.portalUserAccounts && cloudDataObj.portalUserAccounts.length > 0) {
+                const localAccounts = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]');
+                const localAcctSet = new Set(localAccounts.map(a => a.username + '|' + a.dashboard));
+                let added = 0;
+                cloudDataObj.portalUserAccounts.forEach(a => {
+                    if (!localAcctSet.has(a.username + '|' + a.dashboard)) {
+                        localAccounts.push(a);
+                        localAcctSet.add(a.username + '|' + a.dashboard);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(localAccounts));
+                    dataChanged = true;
+                }
+            }
+
+            return dataChanged;
+        }
+
         // Disconnect from Google Drive
         function disconnectFromGoogleDrive() {
             if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+                stopAutoSync();
                 googleAccessToken = null;
                 isCloudConnected = false;
                 cloudFileId = null;
@@ -10061,6 +10344,9 @@
                         qrCodeRegistry: loadQRRegistry(),
                         auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
+                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
                     }
                 };
@@ -10199,6 +10485,21 @@
                 // Restore departments
                 if (backupData.data.departments && backupData.data.departments.length > 0) {
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+                }
+
+                // Restore categories
+                if (backupData.data.categories && backupData.data.categories.length > 0) {
+                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -10371,6 +10672,21 @@
                 // Restore departments
                 if (backupData.data.departments && backupData.data.departments.length > 0) {
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+                }
+
+                // Restore categories
+                if (backupData.data.categories && backupData.data.categories.length > 0) {
+                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -10552,6 +10868,7 @@
             if (savedToken) {
                 googleAccessToken = savedToken;
                 isCloudConnected = true;
+                startAutoSync();
             }
 
             if (!isCloudConnected || !googleAccessToken) {
@@ -10615,6 +10932,21 @@
                 // Restore departments
                 if (backupData.data.departments && backupData.data.departments.length > 0) {
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+                }
+
+                // Restore categories
+                if (backupData.data.categories && backupData.data.categories.length > 0) {
+                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+                }
+
+                // Restore portal user accounts
+                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
+                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
+                }
+
+                // Restore portal heading settings
+                if (backupData.data.portalHeadingSettings) {
+                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -11178,6 +11510,13 @@
         const STORAGE_KEY = 'assetInventoryData';
         const AUDIT_STORAGE_KEY = 'assetAuditTrail';
         const DEPARTMENTS_STORAGE_KEY = 'customDepartments';
+        const CATEGORIES_STORAGE_KEY = 'customCategories';
+
+        // Default categories
+        const DEFAULT_CATEGORIES = [
+            'Medical Equipment',
+            'Furniture & Appliances'
+        ];
 
         // Default departments
         const DEFAULT_DEPARTMENTS = [
@@ -11263,6 +11602,123 @@
             saveDepartments(DEFAULT_DEPARTMENTS);
             updateAllDepartmentDropdowns();
             return { success: true, message: 'Departments reset to default' };
+        }
+
+        // Load categories from localStorage or use defaults
+        function loadCategories() {
+            try {
+                const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+                if (stored) {
+                    const categories = JSON.parse(stored);
+                    return Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+                }
+                return DEFAULT_CATEGORIES;
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                return DEFAULT_CATEGORIES;
+            }
+        }
+
+        // Save categories to localStorage
+        function saveCategories(categories) {
+            try {
+                localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+                return true;
+            } catch (error) {
+                console.error('Error saving categories:', error);
+                return false;
+            }
+        }
+
+        // Add a new category
+        function addCategory(categoryName) {
+            if (!categoryName || categoryName.trim() === '') {
+                return { success: false, message: 'Category name cannot be empty' };
+            }
+
+            const categories = loadCategories();
+            const trimmedName = categoryName.trim();
+
+            if (categories.includes(trimmedName)) {
+                return { success: false, message: 'Category already exists' };
+            }
+
+            categories.push(trimmedName);
+            categories.sort();
+            saveCategories(categories);
+            updateAllCategoryDropdowns();
+            return { success: true, message: 'Category added successfully' };
+        }
+
+        // Remove a category
+        function removeCategory(categoryName) {
+            const categories = loadCategories();
+            const filtered = categories.filter(c => c !== categoryName);
+
+            if (filtered.length === categories.length) {
+                return { success: false, message: 'Category not found' };
+            }
+
+            saveCategories(filtered);
+            updateAllCategoryDropdowns();
+            return { success: true, message: 'Category removed successfully' };
+        }
+
+        // Reset categories to default
+        function resetCategoriesToDefault() {
+            saveCategories(DEFAULT_CATEGORIES);
+            updateAllCategoryDropdowns();
+            return { success: true, message: 'Categories reset to default' };
+        }
+
+        // Update all category dropdowns in the application
+        function updateAllCategoryDropdowns() {
+            const categories = loadCategories();
+
+            // Update asset form category select
+            const assetCategorySelect = document.getElementById('category');
+            if (assetCategorySelect) {
+                const currentValue = assetCategorySelect.value;
+                assetCategorySelect.innerHTML = '<option value="">Select Category</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    assetCategorySelect.appendChild(option);
+                });
+            }
+
+            // Update inventory search category filter
+            const inventorySearchCategory = document.getElementById('inventorySearchCategory');
+            if (inventorySearchCategory) {
+                const currentValue = inventorySearchCategory.value;
+                inventorySearchCategory.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    inventorySearchCategory.appendChild(option);
+                });
+            }
+
+            // Update asset register category filter
+            const registerCategoryFilter = document.getElementById('registerCategoryFilter');
+            if (registerCategoryFilter) {
+                const currentValue = registerCategoryFilter.value;
+                registerCategoryFilter.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    registerCategoryFilter.appendChild(option);
+                });
+            }
+
+            // Update category management list if open
+            updateCategoryManagementUI();
         }
 
         // Update all department dropdowns in the application
@@ -11876,9 +12332,13 @@
                     }
 
                     // Ensure category is valid
-                    if (!['Medical Equipment', 'Furniture & Appliances'].includes(asset.category)) {
-                        asset.category = 'Medical Equipment';
-                        fixed = true;
+                    const validCategories = loadCategories();
+                    if (!validCategories.includes(asset.category)) {
+                        // Keep the category as-is if it has a value (may be a custom category from another device)
+                        if (!asset.category || asset.category.trim() === '') {
+                            asset.category = validCategories[0] || 'Medical Equipment';
+                            fixed = true;
+                        }
                     }
 
                     // Ensure month is valid
@@ -12216,8 +12676,48 @@
             if (quantityInput) quantityInput.addEventListener('input', updateTotalPrice);
             if (unitPriceInput) unitPriceInput.addEventListener('input', updateTotalPrice);
 
-            // Initialize departments on page load
+            // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
+            updateAllCategoryDropdowns();
+
+            // Apply portal heading settings across the dashboard
+            (function applyPortalHeadings() {
+                try {
+                    const stored = localStorage.getItem('portalHeadingSettings');
+                    if (stored) {
+                        const settings = JSON.parse(stored);
+                        const hospitalName = settings.hospitalName;
+                        const orgName = settings.orgName;
+
+                        if (hospitalName) {
+                            // Portal view header
+                            const portalH1 = document.querySelector('#portalView h1');
+                            if (portalH1) portalH1.textContent = hospitalName;
+
+                            // Sidebar brand
+                            const sidebarSub = document.querySelector('.sidebar-brand-sub');
+                            if (sidebarSub) sidebarSub.textContent = hospitalName;
+
+                            // Dashboard subtitle
+                            const dashSubtitle = document.querySelector('.dashboard-subtitle');
+                            if (dashSubtitle) dashSubtitle.textContent = hospitalName + ' \u2022 Currency: JMD (Jamaican Dollar)';
+
+                            // Portal footer
+                            const portalFooter = document.querySelector('.portal-footer-text p');
+                            if (portalFooter) {
+                                portalFooter.innerHTML = '&copy; 2025 ' + hospitalName + ' &mdash; ' + (orgName || 'Southern Regional Health Authority') + ' &mdash; Government of Jamaica';
+                            }
+                        }
+
+                        if (orgName) {
+                            const portalOrg = document.querySelector('.portal-org');
+                            if (portalOrg) portalOrg.textContent = orgName;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error applying portal headings:', e);
+                }
+            })();
 
             // Add Enter key support for inventory search fields
             const inventorySearchFields = [
@@ -12334,6 +12834,108 @@
 
             const result = resetDepartmentsToDefault();
             const statusDiv = document.getElementById('departmentAddStatus');
+
+            statusDiv.textContent = '✅ ' + result.message;
+            statusDiv.style.color = '#2ECC71';
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
+
+        // ============================================
+        // CATEGORY MANAGEMENT FUNCTIONS
+        // ============================================
+
+        function openCategoryManager() {
+            const modal = document.getElementById('categoryModal');
+            modal.style.display = 'block';
+            updateCategoryManagementUI();
+        }
+
+        function closeCategoryManager() {
+            const modal = document.getElementById('categoryModal');
+            modal.style.display = 'none';
+            document.getElementById('newCategoryName').value = '';
+            document.getElementById('categoryAddStatus').textContent = '';
+        }
+
+        function updateCategoryManagementUI() {
+            const categories = loadCategories();
+            const listDiv = document.getElementById('categoryList');
+
+            if (!listDiv) return;
+
+            if (categories.length === 0) {
+                listDiv.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No categories available</p>';
+                return;
+            }
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            categories.forEach(cat => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--text-primary); font-weight: 500;">${escapeHtml(cat)}</span>
+                        <button class="btn-danger" onclick="handleRemoveCategory('${escapeHtml(cat)}')" style="padding: 5px 12px; font-size: 0.85em;">Remove</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+
+        function handleAddCategory() {
+            const input = document.getElementById('newCategoryName');
+            const statusDiv = document.getElementById('categoryAddStatus');
+            const categoryName = input.value.trim();
+
+            if (!categoryName) {
+                statusDiv.textContent = '⚠️ Please enter a category name';
+                statusDiv.style.color = '#e74c3c';
+                return;
+            }
+
+            const result = addCategory(categoryName);
+
+            if (result.success) {
+                statusDiv.textContent = '✅ ' + result.message;
+                statusDiv.style.color = '#2ECC71';
+                input.value = '';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            } else {
+                statusDiv.textContent = '⚠️ ' + result.message;
+                statusDiv.style.color = '#e74c3c';
+            }
+        }
+
+        function handleRemoveCategory(categoryName) {
+            if (!confirm(`Remove category "${categoryName}"?\n\nThis will not affect existing assets with this category.`)) {
+                return;
+            }
+
+            const result = removeCategory(categoryName);
+            const statusDiv = document.getElementById('categoryAddStatus');
+
+            if (result.success) {
+                statusDiv.textContent = '✅ ' + result.message;
+                statusDiv.style.color = '#2ECC71';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            } else {
+                statusDiv.textContent = '⚠️ ' + result.message;
+                statusDiv.style.color = '#e74c3c';
+            }
+        }
+
+        function handleResetCategories() {
+            if (!confirm('Reset all categories to defaults?\n\nThis will remove all custom categories you added.')) {
+                return;
+            }
+
+            const result = resetCategoriesToDefault();
+            const statusDiv = document.getElementById('categoryAddStatus');
 
             statusDiv.textContent = '✅ ' + result.message;
             statusDiv.style.color = '#2ECC71';
@@ -12480,6 +13082,7 @@
                 const assets = loadAssetsFromStorage();
                 const auditTrail = loadAuditFromStorage();
                 const departments = loadDepartments();
+                const categories = loadCategories();
                 const warrantyOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
 
                 const completeBackup = {
@@ -12491,12 +13094,14 @@
                         assets: assets,
                         auditTrail: auditTrail,
                         departments: departments,
+                        categories: categories,
                         warrantyOverrides: warrantyOverrides
                     },
                     summary: {
                         totalAssets: assets.length,
                         totalAuditEntries: auditTrail.length,
                         totalDepartments: departments.length,
+                        totalCategories: categories.length,
                         totalWarrantyOverrides: Object.keys(warrantyOverrides).length
                     }
                 };
@@ -12510,7 +13115,7 @@
                 link.click();
                 URL.revokeObjectURL(url);
 
-                alert(`✅ Complete backup exported successfully!\n\nIncluded:\n• ${assets.length} assets\n• ${auditTrail.length} audit entries\n• ${departments.length} departments\n• ${Object.keys(warrantyOverrides).length} warranty overrides\n\nUpload this file to Google Drive, Dropbox, or email it to access from another device.`);
+                alert(`✅ Complete backup exported successfully!\n\nIncluded:\n• ${assets.length} assets\n• ${auditTrail.length} audit entries\n• ${departments.length} departments\n• ${categories.length} categories\n• ${Object.keys(warrantyOverrides).length} warranty overrides\n\nUpload this file to Google Drive, Dropbox, or email it to access from another device.`);
             } catch (error) {
                 console.error('Export error:', error);
                 alert('⚠️ Error exporting data. Please try again.');
@@ -12653,7 +13258,7 @@
         function processImportData(importedData) {
             const importMode = document.querySelector('input[name="importMode"]:checked')?.value || 'replace';
 
-            let assets, auditTrail, departments, warrantyOverrides;
+            let assets, auditTrail, departments, categories, warrantyOverrides;
             let isCompleteBackup = false;
 
             // Check if this is the new complete backup format
@@ -12662,6 +13267,7 @@
                 assets = importedData.data.assets || [];
                 auditTrail = importedData.data.auditTrail || [];
                 departments = importedData.data.departments || [];
+                categories = importedData.data.categories || [];
                 warrantyOverrides = importedData.data.warrantyOverrides || {};
 
                 // Show backup info
@@ -12739,6 +13345,10 @@
                         saveDepartments(departments);
                         updateAllDepartmentDropdowns();
                     }
+                    if (categories && categories.length > 0) {
+                        saveCategories(categories);
+                        updateAllCategoryDropdowns();
+                    }
                     if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
                         localStorage.setItem('warrantyOverrides', JSON.stringify(warrantyOverrides));
                     }
@@ -12790,12 +13400,45 @@
                         updateAllDepartmentDropdowns();
                     }
 
+                    // Merge categories
+                    if (categories && categories.length > 0) {
+                        const existingCats = loadCategories();
+                        const existingCatSet = new Set(existingCats.map(c => c.toLowerCase()));
+                        categories.forEach(cat => {
+                            if (!existingCatSet.has(cat.toLowerCase())) {
+                                existingCats.push(cat);
+                            }
+                        });
+                        existingCats.sort();
+                        saveCategories(existingCats);
+                        updateAllCategoryDropdowns();
+                    }
+
                     // Merge warranty overrides (new ones take precedence)
                     if (warrantyOverrides && Object.keys(warrantyOverrides).length > 0) {
                         const existingOverrides = JSON.parse(localStorage.getItem('warrantyOverrides') || '{}');
                         const mergedOverrides = { ...existingOverrides, ...warrantyOverrides };
                         localStorage.setItem('warrantyOverrides', JSON.stringify(mergedOverrides));
                     }
+                }
+            }
+
+            // Extract unique categories from imported assets and add to category list
+            const importedCats = [...new Set(validAssets.map(a => a.category).filter(c => c && c.trim()))];
+            if (importedCats.length > 0) {
+                const existingCats = loadCategories();
+                const existingCatSet = new Set(existingCats.map(c => c.toLowerCase()));
+                let newCatsAdded = false;
+                importedCats.forEach(cat => {
+                    if (!existingCatSet.has(cat.toLowerCase())) {
+                        existingCats.push(cat);
+                        newCatsAdded = true;
+                    }
+                });
+                if (newCatsAdded) {
+                    existingCats.sort();
+                    saveCategories(existingCats);
+                    updateAllCategoryDropdowns();
                 }
             }
 
@@ -19828,6 +20471,25 @@
                         existingDepts.sort();
                         saveDepartments(existingDepts);
                         updateAllDepartmentDropdowns();
+                    }
+                }
+
+                // Extract unique categories from imported assets and add to category list
+                const importedCatsGD = [...new Set(dataToImport.map(r => r.parsed.category).filter(c => c && c.trim()))];
+                if (importedCatsGD.length > 0) {
+                    const existingCats = loadCategories();
+                    const existingCatSet = new Set(existingCats.map(c => c.toLowerCase()));
+                    let newCatsAdded = false;
+                    importedCatsGD.forEach(cat => {
+                        if (!existingCatSet.has(cat.toLowerCase())) {
+                            existingCats.push(cat);
+                            newCatsAdded = true;
+                        }
+                    });
+                    if (newCatsAdded) {
+                        existingCats.sort();
+                        saveCategories(existingCats);
+                        updateAllCategoryDropdowns();
                     }
                 }
 
