@@ -1181,26 +1181,51 @@
                         <h1>Procurement Reports</h1>
                         <p>Generate procurement activity and compliance reports</p>
                     </div>
-                    <div class="stats-row">
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('summary')">
+                    <div class="card no-print">
+                        <h2>Date Range Filter</h2>
+                        <div class="date-range">
+                            <label>From:</label> <input type="date" class="form-control" id="reportDateFrom" style="padding:8px 12px;border:2px solid var(--border-color);border-radius:8px;">
+                            <label>To:</label> <input type="date" class="form-control" id="reportDateTo" style="padding:8px 12px;border:2px solid var(--border-color);border-radius:8px;">
+                        </div>
+                    </div>
+                    <div class="card no-print" style="margin-bottom:20px;">
+                        <h2>Print Options</h2>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            <label><input type="checkbox" id="printIncludeLogo" checked> Include Hospital Logo</label>
+                            <label><input type="checkbox" id="printIncludeTimestamp" checked> Include Timestamp</label>
+                            <label><input type="checkbox" id="printIncludeSignatures" checked> Include Signature Lines</label>
+                        </div>
+                    </div>
+                    <div class="stats-row no-print">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('summary')">
                             <div style="font-size:40px;margin-bottom:10px;">📊</div>
                             <h3>Procurement Summary</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Overview of all procurement activities</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('po')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('po')">
                             <div style="font-size:40px;margin-bottom:10px;">📋</div>
                             <h3>PO Register</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">All purchase orders issued</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('supplier')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('supplier')">
                             <div style="font-size:40px;margin-bottom:10px;">🏢</div>
                             <h3>Supplier Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Supplier performance and history</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="generateReport('compliance')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('compliance')">
                             <div style="font-size:40px;margin-bottom:10px;">✅</div>
                             <h3>Compliance Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">GOJ procurement compliance audit</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('delivery')">
+                            <div style="font-size:40px;margin-bottom:10px;">📦</div>
+                            <h3>Delivery Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Deliveries and GRN tracking</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printReport('payment')">
+                            <div style="font-size:40px;margin-bottom:10px;">💳</div>
+                            <h3>Payment Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Invoices and payment status</p>
                         </div>
                     </div>
                     <div class="card no-print" style="margin-bottom:20px;">
@@ -1217,7 +1242,7 @@
                     <div class="card" id="reportOutput" style="display:none;">
                         <div class="btn-group no-print" style="float:right;margin-top:-5px;">
                             <button class="btn btn-info" onclick="exportCurrentReportCSV()" style="padding:6px 12px;font-size:12px;">Export CSV</button>
-                            <button class="btn btn-secondary" onclick="window.print()" style="padding:6px 12px;font-size:12px;">Print</button>
+                            <button class="btn btn-primary" onclick="printReport(lastReportType)" style="padding:6px 12px;font-size:12px;">Print Report</button>
                         </div>
                         <h2 id="reportTitle"></h2>
                         <div id="reportContent"></div>
@@ -2135,44 +2160,226 @@
         }
 
         // ============================================
-        // REPORTS
+        // REPORTS - Dynamic Print (matching index.html)
         // ============================================
-        function generateReport(type) {
+        let lastReportType = 'summary';
+
+        function getDateFilteredData(collection, dateField) {
+            const from = document.getElementById('reportDateFrom') ? document.getElementById('reportDateFrom').value : '';
+            const to = document.getElementById('reportDateTo') ? document.getElementById('reportDateTo').value : '';
+            let filtered = collection || [];
+            if (from) filtered = filtered.filter(item => (item[dateField] || item.date || '') >= from);
+            if (to) filtered = filtered.filter(item => (item[dateField] || item.date || '') <= to);
+            return filtered;
+        }
+
+        function getPrintStyles() {
+            return '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+                'body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; color: #333; padding: 15px; }' +
+                '.header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #667eea; }' +
+                '.header h1 { font-size: 20px; color: #667eea; margin-bottom: 5px; }' +
+                '.header h2 { font-size: 14px; color: #7f8c8d; font-weight: normal; }' +
+                '.header p { font-size: 10px; color: #95a5a6; margin-top: 5px; }' +
+                '.summary { display: flex; justify-content: space-around; margin-bottom: 15px; padding: 12px; background: #f0f2ff; border-radius: 5px; border: 1px solid #c8d0f0; }' +
+                '.summary-item { text-align: center; }' +
+                '.summary-item .label { font-size: 9px; color: #7f8c8d; }' +
+                '.summary-item .value { font-size: 14px; font-weight: bold; color: #667eea; }' +
+                'table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 10px; }' +
+                'th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; }' +
+                'th { background: #667eea; color: white; font-weight: bold; font-size: 8px; }' +
+                'tr:nth-child(even) { background: #f9f9f9; }' +
+                '.totals-row { background: #f0f2ff !important; font-weight: bold; }' +
+                '.status-badge { padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: bold; }' +
+                '.status-approved { background: #d5f5e3; color: #196f3d; }' +
+                '.status-pending { background: #fef9e7; color: #7d6608; }' +
+                '.status-rejected { background: #fadbd8; color: #922b21; }' +
+                '.status-issued { background: #d6eaf8; color: #1b4f72; }' +
+                '.status-paid { background: #d5f5e3; color: #196f3d; }' +
+                '.footer { margin-top: 25px; padding-top: 15px; border-top: 2px solid #667eea; }' +
+                '.signature-section { display: flex; justify-content: space-between; margin-top: 40px; }' +
+                '.signature-box { width: 200px; text-align: center; }' +
+                '.signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 10px; }' +
+                '.footer-note { text-align: center; font-size: 8px; color: #7f8c8d; margin-top: 20px; }' +
+                '@media print { body { padding: 10px; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } thead { display: table-header-group; } }' +
+                '@page { size: landscape; margin: 10mm; }';
+        }
+
+        function getPrintHeader(reportTitle) {
+            const includeLogo = document.getElementById('printIncludeLogo') ? document.getElementById('printIncludeLogo').checked : true;
+            const includeTimestamp = document.getElementById('printIncludeTimestamp') ? document.getElementById('printIncludeTimestamp').checked : true;
+            const hospitalName = (function() { try { const s = JSON.parse(localStorage.getItem('portalHeadingSettings') || '{}'); return s.hospitalName || 'May Pen Hospital'; } catch(e) { return 'May Pen Hospital'; } })();
+            return '<div class="header">' +
+                (includeLogo ? '<div style="font-size:1.5em;color:#667eea;font-weight:bold;">&#x1F3E5; ' + hospitalName + '</div>' : '') +
+                '<h1>' + reportTitle + '</h1>' +
+                '<h2>Procurement Management System</h2>' +
+                (includeTimestamp ? '<p>Generated: ' + new Date().toLocaleString() + '</p>' : '') +
+                '</div>';
+        }
+
+        function getPrintFooter() {
+            const includeSignatures = document.getElementById('printIncludeSignatures') ? document.getElementById('printIncludeSignatures').checked : true;
+            if (!includeSignatures) return '<div class="footer-note"><p>Procurement Management System - Government of Jamaica</p><p>This is a computer-generated document.</p></div>';
+            return '<div class="footer">' +
+                '<div class="signature-section">' +
+                '<div class="signature-box"><div class="signature-line">Prepared By / Procurement Officer</div></div>' +
+                '<div class="signature-box"><div class="signature-line">Reviewed By / Procurement Committee</div></div>' +
+                '<div class="signature-box"><div class="signature-line">Approved By / Finance Director</div></div>' +
+                '</div>' +
+                '<div class="footer-note"><p>Procurement Management System - Government of Jamaica</p>' +
+                '<p>Prepared in accordance with the Handbook of Public Sector Procurement Procedures (2014)</p></div>' +
+                '</div>';
+        }
+
+        function openPrintWindow(title, bodyContent) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<!DOCTYPE html><html><head><title>' + title + '</title><style>' + getPrintStyles() + '</style></head><body>' +
+                getPrintHeader(title) + bodyContent + getPrintFooter() +
+                '<script>window.onload = function() { window.print(); };<\/script></body></html>');
+            printWindow.document.close();
+        }
+
+        function printReport(type) {
+            lastReportType = type;
+
+            // Also show in-page preview
             const output = document.getElementById('reportOutput');
-            const title = document.getElementById('reportTitle');
-            const content = document.getElementById('reportContent');
-            output.style.display = 'block';
+            const titleEl = document.getElementById('reportTitle');
+            const contentEl = document.getElementById('reportContent');
 
             if (type === 'summary') {
-                title.textContent = 'Procurement Summary Report';
-                content.innerHTML = `
-                    <p style="margin-bottom:15px;">Generated: ${new Date().toLocaleDateString()}</p>
-                    <div class="stats-row">
-                        <div class="stat-card purple"><div class="stat-value">${appData.requisitions.length}</div><div class="stat-label">Total Requisitions</div></div>
-                        <div class="stat-card green"><div class="stat-value">${appData.purchaseOrders.length}</div><div class="stat-label">Purchase Orders</div></div>
-                        <div class="stat-card orange"><div class="stat-value">$${appData.purchaseOrders.reduce((s, p) => s + p.totalValue, 0).toLocaleString()}</div><div class="stat-label">Total PO Value</div></div>
-                    </div>
-                `;
+                const reqs = getDateFilteredData(appData.requisitions, 'date');
+                const pos = getDateFilteredData(appData.purchaseOrders, 'date');
+                const totalPOValue = pos.reduce(function(s, p) { return s + p.totalValue; }, 0);
+                const totalGCT = totalPOValue * 0.15;
+                const pending = reqs.filter(function(r) { return r.status === 'Submitted'; }).length;
+                const approved = reqs.filter(function(r) { return r.status === 'Approved' || r.status === 'PO Issued'; }).length;
+
+                const summaryHtml = '<div class="summary">' +
+                    '<div class="summary-item"><div class="label">Total Requisitions</div><div class="value">' + reqs.length + '</div></div>' +
+                    '<div class="summary-item"><div class="label">Purchase Orders</div><div class="value">' + pos.length + '</div></div>' +
+                    '<div class="summary-item"><div class="label">Total PO Value</div><div class="value">$' + totalPOValue.toLocaleString() + '</div></div>' +
+                    '<div class="summary-item"><div class="label">GCT (15%)</div><div class="value">$' + totalGCT.toLocaleString() + '</div></div>' +
+                    '<div class="summary-item"><div class="label">Pending Approval</div><div class="value">' + pending + '</div></div>' +
+                    '<div class="summary-item"><div class="label">Suppliers</div><div class="value">' + appData.suppliers.length + '</div></div>' +
+                    '</div>';
+
+                const methodBreakdown = {};
+                reqs.forEach(function(r) { if (!methodBreakdown[r.method]) methodBreakdown[r.method] = { count: 0, value: 0 }; methodBreakdown[r.method].count++; methodBreakdown[r.method].value += r.totalValue; });
+                let methodRows = Object.entries(methodBreakdown).map(function(e) { return '<tr><td>' + e[0] + '</td><td>' + e[1].count + '</td><td>$' + e[1].value.toLocaleString() + '</td></tr>'; }).join('');
+                if (!methodRows) methodRows = '<tr><td colspan="3" style="text-align:center;padding:15px;">No data</td></tr>';
+
+                const tableHtml = '<h3 style="margin:15px 0 5px;">Procurement by Method</h3>' +
+                    '<table><thead><tr><th>Procurement Method</th><th>Requisitions</th><th>Value (JMD)</th></tr></thead><tbody>' + methodRows + '</tbody></table>';
+
+                titleEl.textContent = 'Procurement Summary Report';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('Procurement Summary Report', summaryHtml + tableHtml);
+
             } else if (type === 'po') {
-                title.textContent = 'Purchase Order Register';
-                let rows = appData.purchaseOrders.map(p => `<tr><td>${p.id}</td><td>${p.date}</td><td>${p.supplier.name}</td><td>$${p.totalValue.toLocaleString()}</td><td><span class="badge badge-active">${p.status}</span></td></tr>`).join('');
-                if (!rows) rows = '<tr><td colspan="5" style="text-align:center;padding:20px;">No purchase orders</td></tr>';
-                content.innerHTML = `<div class="table-container"><table><thead><tr><th>PO #</th><th>Date</th><th>Supplier</th><th>Value</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+                const pos = getDateFilteredData(appData.purchaseOrders, 'date');
+                const totalValue = pos.reduce(function(s, p) { return s + p.totalValue; }, 0);
+                const totalGCT = totalValue * 0.15;
+
+                let rows = pos.map(function(p, i) {
+                    const gct = p.totalValue * 0.15;
+                    return '<tr><td>' + (i+1) + '</td><td><strong>' + p.id + '</strong></td><td>' + p.date + '</td><td>' + p.supplier.name + '</td><td>' + p.requisitionRef + '</td><td style="text-align:right;">$' + p.totalValue.toLocaleString() + '</td><td style="text-align:right;">$' + gct.toLocaleString() + '</td><td style="text-align:right;font-weight:bold;">$' + (p.totalValue + gct).toLocaleString() + '</td><td><span class="status-badge status-' + p.status.toLowerCase() + '">' + p.status + '</span></td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="9" style="text-align:center;padding:20px;">No purchase orders</td></tr>';
+                rows += '<tr class="totals-row"><td colspan="5" style="text-align:right;"><strong>TOTALS:</strong></td><td style="text-align:right;"><strong>$' + totalValue.toLocaleString() + '</strong></td><td style="text-align:right;"><strong>$' + totalGCT.toLocaleString() + '</strong></td><td style="text-align:right;"><strong>$' + (totalValue + totalGCT).toLocaleString() + '</strong></td><td></td></tr>';
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total POs</div><div class="value">' + pos.length + '</div></div><div class="summary-item"><div class="label">Subtotal</div><div class="value">$' + totalValue.toLocaleString() + '</div></div><div class="summary-item"><div class="label">GCT (15%)</div><div class="value">$' + totalGCT.toLocaleString() + '</div></div><div class="summary-item"><div class="label">Grand Total</div><div class="value">$' + (totalValue + totalGCT).toLocaleString() + '</div></div></div>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>PO Number</th><th>Date</th><th>Supplier</th><th>Requisition</th><th>Subtotal</th><th>GCT</th><th>Grand Total</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+                titleEl.textContent = 'Purchase Order Register';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('Purchase Order Register', summaryHtml + tableHtml);
+
             } else if (type === 'supplier') {
-                title.textContent = 'Supplier Report';
-                let rows = appData.suppliers.map(s => `<tr><td>${s.name}</td><td>${s.trn}</td><td>${s.category}</td><td>${s.ncc}</td><td>${appData.purchaseOrders.filter(p => p.supplier.id === s.id).length}</td></tr>`).join('');
-                content.innerHTML = `<div class="table-container"><table><thead><tr><th>Supplier</th><th>TRN</th><th>Category</th><th>NCC</th><th>POs Issued</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+                let rows = appData.suppliers.map(function(s, i) {
+                    const poCount = appData.purchaseOrders.filter(function(p) { return p.supplier.id === s.id; }).length;
+                    const totalSpend = appData.purchaseOrders.filter(function(p) { return p.supplier.id === s.id; }).reduce(function(sum, p) { return sum + p.totalValue; }, 0);
+                    return '<tr><td>' + (i+1) + '</td><td><strong>' + s.name + '</strong></td><td>' + s.trn + '</td><td>' + s.contact + '</td><td>' + s.phone + '</td><td>' + s.email + '</td><td>' + s.category + '</td><td><span class="status-badge ' + (s.ncc === 'Yes' ? 'status-approved' : 'status-pending') + '">' + s.ncc + '</span></td><td>' + poCount + '</td><td style="text-align:right;">$' + totalSpend.toLocaleString() + '</td></tr>';
+                }).join('');
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Suppliers</div><div class="value">' + appData.suppliers.length + '</div></div><div class="summary-item"><div class="label">NCC Registered</div><div class="value">' + appData.suppliers.filter(function(s) { return s.ncc === 'Yes'; }).length + '</div></div><div class="summary-item"><div class="label">Pending NCC</div><div class="value">' + appData.suppliers.filter(function(s) { return s.ncc !== 'Yes'; }).length + '</div></div></div>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Supplier Name</th><th>TRN</th><th>Contact</th><th>Phone</th><th>Email</th><th>Category</th><th>NCC</th><th>POs</th><th>Total Spend</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+                titleEl.textContent = 'Supplier Report';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('Supplier Directory Report', summaryHtml + tableHtml);
+
             } else if (type === 'compliance') {
-                title.textContent = 'GOJ Compliance Report';
-                const total = appData.requisitions.length;
-                const withMethod = appData.requisitions.filter(r => r.method).length;
-                content.innerHTML = `
-                    <p style="margin-bottom:15px;">Compliance with GOJ Handbook of Public Sector Procurement Procedures</p>
-                    <div class="stats-row">
-                        <div class="stat-card green"><div class="stat-value">${total > 0 ? Math.round(withMethod / total * 100) : 0}%</div><div class="stat-label">Method Compliance</div></div>
-                        <div class="stat-card purple"><div class="stat-value">${appData.suppliers.filter(s => s.ncc === 'Yes').length}/${appData.suppliers.length}</div><div class="stat-label">NCC Registered Suppliers</div></div>
-                    </div>
-                `;
+                const reqs = appData.requisitions;
+                const total = reqs.length;
+                const withMethod = reqs.filter(function(r) { return r.method; }).length;
+                const nccSuppliers = appData.suppliers.filter(function(s) { return s.ncc === 'Yes'; }).length;
+
+                // Check threshold compliance
+                let thresholdCompliant = 0;
+                reqs.forEach(function(r) {
+                    const required = getRequiredMethod(r.totalValue);
+                    if (r.method === required || ['Competitive Quotation','Local Competitive Bidding','International Competitive Bidding'].indexOf(r.method) >= ['Competitive Quotation','Local Competitive Bidding','International Competitive Bidding'].indexOf(required)) thresholdCompliant++;
+                });
+
+                const summaryHtml = '<div class="summary">' +
+                    '<div class="summary-item"><div class="label">Method Compliance</div><div class="value">' + (total > 0 ? Math.round(withMethod / total * 100) : 0) + '%</div></div>' +
+                    '<div class="summary-item"><div class="label">Threshold Compliance</div><div class="value">' + (total > 0 ? Math.round(thresholdCompliant / total * 100) : 0) + '%</div></div>' +
+                    '<div class="summary-item"><div class="label">NCC Registered</div><div class="value">' + nccSuppliers + '/' + appData.suppliers.length + '</div></div>' +
+                    '</div>';
+
+                let complianceRows = reqs.map(function(r) {
+                    const required = getRequiredMethod(r.totalValue);
+                    const compliant = r.method === required;
+                    return '<tr><td>' + r.id + '</td><td>$' + r.totalValue.toLocaleString() + '</td><td>' + (r.method || 'Not set') + '</td><td>' + required + '</td><td><span class="status-badge ' + (compliant ? 'status-approved' : 'status-rejected') + '">' + (compliant ? 'Compliant' : 'Review') + '</span></td></tr>';
+                }).join('');
+                if (!complianceRows) complianceRows = '<tr><td colspan="5" style="text-align:center;padding:15px;">No requisitions</td></tr>';
+
+                const tableHtml = '<h3 style="margin:15px 0 5px;">GOJ Threshold Compliance Check</h3>' +
+                    '<table><thead><tr><th>Requisition</th><th>Value</th><th>Selected Method</th><th>Required Method</th><th>Status</th></tr></thead><tbody>' + complianceRows + '</tbody></table>';
+
+                titleEl.textContent = 'GOJ Compliance Report';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('GOJ Procurement Compliance Report', summaryHtml + tableHtml);
+
+            } else if (type === 'delivery') {
+                const deliveries = getDateFilteredData(appData.deliveries || [], 'date');
+                const totalValue = deliveries.reduce(function(s, d) { return s + (d.totalValue || 0); }, 0);
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Deliveries</div><div class="value">' + deliveries.length + '</div></div><div class="summary-item"><div class="label">Total Value</div><div class="value">$' + totalValue.toLocaleString() + '</div></div></div>';
+                let rows = deliveries.map(function(d, i) {
+                    return '<tr><td>' + (i+1) + '</td><td>' + d.date + '</td><td><strong>' + d.poId + '</strong></td><td>' + d.grn + '</td><td>' + d.supplierName + '</td><td>' + d.condition + '</td><td>' + d.receivedBy + '</td><td>' + (d.notes || '-') + '</td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="8" style="text-align:center;padding:15px;">No deliveries recorded</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Date</th><th>PO #</th><th>GRN #</th><th>Supplier</th><th>Condition</th><th>Received By</th><th>Notes</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+                titleEl.textContent = 'Delivery & Receiving Report';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('Delivery & Receiving Report', summaryHtml + tableHtml);
+
+            } else if (type === 'payment') {
+                const invoices = getDateFilteredData(appData.invoices || [], 'date');
+                const totalAmount = invoices.reduce(function(s, inv) { return s + (inv.amount || 0); }, 0);
+                const totalGCT = invoices.reduce(function(s, inv) { return s + (inv.gctAmount || 0); }, 0);
+                const paid = invoices.filter(function(inv) { return inv.status === 'Paid'; });
+                const pending = invoices.filter(function(inv) { return inv.status !== 'Paid'; });
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Invoices</div><div class="value">' + invoices.length + '</div></div><div class="summary-item"><div class="label">Subtotal</div><div class="value">$' + totalAmount.toLocaleString() + '</div></div><div class="summary-item"><div class="label">GCT</div><div class="value">$' + totalGCT.toLocaleString() + '</div></div><div class="summary-item"><div class="label">Grand Total</div><div class="value">$' + (totalAmount + totalGCT).toLocaleString() + '</div></div><div class="summary-item"><div class="label">Paid</div><div class="value" style="color:#27ae60;">' + paid.length + '</div></div><div class="summary-item"><div class="label">Pending</div><div class="value" style="color:#e74c3c;">' + pending.length + '</div></div></div>';
+                let rows = invoices.map(function(inv, i) {
+                    return '<tr><td>' + (i+1) + '</td><td>' + inv.invoiceNumber + '</td><td>' + inv.poId + '</td><td>' + inv.supplierName + '</td><td>' + inv.date + '</td><td style="text-align:right;">$' + inv.amount.toLocaleString() + '</td><td style="text-align:right;">$' + inv.gctAmount.toLocaleString() + '</td><td style="text-align:right;font-weight:bold;">$' + inv.totalAmount.toLocaleString() + '</td><td>' + inv.dueDate + '</td><td><span class="status-badge status-' + (inv.status === 'Paid' ? 'paid' : 'pending') + '">' + inv.status + '</span></td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="10" style="text-align:center;padding:15px;">No invoices recorded</td></tr>';
+                rows += '<tr class="totals-row"><td colspan="5" style="text-align:right;"><strong>TOTALS:</strong></td><td style="text-align:right;"><strong>$' + totalAmount.toLocaleString() + '</strong></td><td style="text-align:right;"><strong>$' + totalGCT.toLocaleString() + '</strong></td><td style="text-align:right;"><strong>$' + (totalAmount + totalGCT).toLocaleString() + '</strong></td><td colspan="2"></td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Invoice #</th><th>PO #</th><th>Supplier</th><th>Date</th><th>Amount</th><th>GCT</th><th>Total</th><th>Due Date</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+                titleEl.textContent = 'Invoice & Payment Report';
+                contentEl.innerHTML = summaryHtml + tableHtml;
+                output.style.display = 'block';
+                openPrintWindow('Invoice & Payment Report', summaryHtml + tableHtml);
             }
 
             output.scrollIntoView({ behavior: 'smooth' });

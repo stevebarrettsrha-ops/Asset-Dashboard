@@ -1052,31 +1052,44 @@
                             <input type="date" id="reportDateTo">
                         </div>
                     </div>
+                    <div class="card no-print" style="margin-bottom:20px;">
+                        <h2>Print Options</h2>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            <label><input type="checkbox" id="storesPrintLogo" checked> Include Hospital Logo</label>
+                            <label><input type="checkbox" id="storesPrintTimestamp" checked> Include Timestamp</label>
+                            <label><input type="checkbox" id="storesPrintSignatures" checked> Include Signature Lines</label>
+                        </div>
+                    </div>
                     <div class="stats-row no-print">
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('valuation')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('valuation')">
                             <div style="font-size:40px;margin-bottom:10px;">&#x1f4b0;</div>
                             <h3 style="font-size:16px;">Stock Valuation</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Current inventory value by category</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('movement')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('movement')">
                             <div style="font-size:40px;margin-bottom:10px;">&#x1f504;</div>
                             <h3 style="font-size:16px;">Stock Movement</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Receipts and issues summary</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('department')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('department')">
                             <div style="font-size:40px;margin-bottom:10px;">&#x1f3e5;</div>
                             <h3 style="font-size:16px;">Department Usage</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Stock consumption by department</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('reorder')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('reorder')">
                             <div style="font-size:40px;margin-bottom:10px;">&#x26a0;&#xfe0f;</div>
                             <h3 style="font-size:16px;">Reorder Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Items below reorder point</p>
                         </div>
-                        <div class="card" style="cursor:pointer;text-align:center;" onclick="genReport('expiry')">
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('expiry')">
                             <div style="font-size:40px;margin-bottom:10px;">&#x23f0;</div>
                             <h3 style="font-size:16px;">Expiry Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Items expiring within timeframe</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('stockcount')">
+                            <div style="font-size:40px;margin-bottom:10px;">&#x1f4cb;</div>
+                            <h3 style="font-size:16px;">Stock Count Report</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Physical count history & variances</p>
                         </div>
                     </div>
                     <div class="card no-print" style="margin-bottom:20px;">
@@ -1093,7 +1106,7 @@
                     <div class="card" id="reportOutput" style="display:none;">
                         <div class="btn-group no-print" style="float:right;margin-top:-5px;">
                             <button class="btn btn-info" onclick="exportCurrentReportCSV()" style="padding:6px 12px;font-size:12px;">Export CSV</button>
-                            <button class="btn btn-secondary" onclick="window.print()" style="padding:6px 12px;font-size:12px;">Print Report</button>
+                            <button class="btn btn-primary" onclick="printStoresReport(lastStoresReportType)" style="padding:6px 12px;font-size:12px;">Print Report</button>
                         </div>
                         <h2 id="reportTitle"></h2>
                         <div id="reportContent"></div>
@@ -2189,6 +2202,190 @@
                     <div class="table-container"><table><thead><tr><th>Code</th><th>Description</th><th>Batch</th><th>Qty</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
             }
             output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ============================================
+        // DYNAMIC PRINT REPORTS (matching index.html)
+        // ============================================
+        let lastStoresReportType = 'valuation';
+
+        function getStoresPrintStyles() {
+            return '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+                'body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; color: #333; padding: 15px; }' +
+                '.header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #27ae60; }' +
+                '.header h1 { font-size: 20px; color: #27ae60; margin-bottom: 5px; }' +
+                '.header h2 { font-size: 14px; color: #7f8c8d; font-weight: normal; }' +
+                '.header p { font-size: 10px; color: #95a5a6; margin-top: 5px; }' +
+                '.summary { display: flex; justify-content: space-around; margin-bottom: 15px; padding: 12px; background: #eafaf1; border-radius: 5px; border: 1px solid #abebc6; }' +
+                '.summary-item { text-align: center; }' +
+                '.summary-item .label { font-size: 9px; color: #7f8c8d; }' +
+                '.summary-item .value { font-size: 14px; font-weight: bold; color: #27ae60; }' +
+                'table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 10px; }' +
+                'th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; }' +
+                'th { background: #27ae60; color: white; font-weight: bold; font-size: 8px; }' +
+                'tr:nth-child(even) { background: #f9f9f9; }' +
+                '.totals-row { background: #eafaf1 !important; font-weight: bold; }' +
+                '.status-ok { color: #27ae60; font-weight: bold; }' +
+                '.status-low { color: #f39c12; font-weight: bold; }' +
+                '.status-critical { color: #e74c3c; font-weight: bold; }' +
+                '.footer { margin-top: 25px; padding-top: 15px; border-top: 2px solid #27ae60; }' +
+                '.signature-section { display: flex; justify-content: space-between; margin-top: 40px; }' +
+                '.signature-box { width: 200px; text-align: center; }' +
+                '.signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 10px; }' +
+                '.footer-note { text-align: center; font-size: 8px; color: #7f8c8d; margin-top: 20px; }' +
+                '@media print { body { padding: 10px; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } thead { display: table-header-group; } }' +
+                '@page { size: landscape; margin: 10mm; }';
+        }
+
+        function getStoresPrintHeader(reportTitle) {
+            const includeLogo = document.getElementById('storesPrintLogo') ? document.getElementById('storesPrintLogo').checked : true;
+            const includeTimestamp = document.getElementById('storesPrintTimestamp') ? document.getElementById('storesPrintTimestamp').checked : true;
+            const hospitalName = (function() { try { const s = JSON.parse(localStorage.getItem('portalHeadingSettings') || '{}'); return s.hospitalName || 'May Pen Hospital'; } catch(e) { return 'May Pen Hospital'; } })();
+            return '<div class="header">' +
+                (includeLogo ? '<div style="font-size:1.5em;color:#27ae60;font-weight:bold;">&#x1F3E5; ' + hospitalName + '</div>' : '') +
+                '<h1>' + reportTitle + '</h1>' +
+                '<h2>General Stores - Inventory Management</h2>' +
+                (includeTimestamp ? '<p>Generated: ' + new Date().toLocaleString() + '</p>' : '') +
+                '</div>';
+        }
+
+        function getStoresPrintFooter() {
+            const includeSignatures = document.getElementById('storesPrintSignatures') ? document.getElementById('storesPrintSignatures').checked : true;
+            if (!includeSignatures) return '<div class="footer-note"><p>General Stores - Inventory Management System</p><p>This is a computer-generated document.</p></div>';
+            return '<div class="footer">' +
+                '<div class="signature-section">' +
+                '<div class="signature-box"><div class="signature-line">Prepared By / Stores Clerk</div></div>' +
+                '<div class="signature-box"><div class="signature-line">Reviewed By / Stores Manager</div></div>' +
+                '<div class="signature-box"><div class="signature-line">Approved By / Finance Officer</div></div>' +
+                '</div>' +
+                '<div class="footer-note"><p>General Stores - Inventory Management System</p><p>This is a computer-generated document.</p></div>' +
+                '</div>';
+        }
+
+        function openStoresPrintWindow(title, bodyContent) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<!DOCTYPE html><html><head><title>' + title + '</title><style>' + getStoresPrintStyles() + '</style></head><body>' +
+                getStoresPrintHeader(title) + bodyContent + getStoresPrintFooter() +
+                '<script>window.onload = function() { window.print(); };<\/script></body></html>');
+            printWindow.document.close();
+        }
+
+        function getDateFilteredTx(dateField) {
+            const from = document.getElementById('reportDateFrom') ? document.getElementById('reportDateFrom').value : '';
+            const to = document.getElementById('reportDateTo') ? document.getElementById('reportDateTo').value : '';
+            let txs = appData.transactions || [];
+            if (from) txs = txs.filter(function(t) { return (t[dateField] || t.date || '') >= from; });
+            if (to) txs = txs.filter(function(t) { return (t[dateField] || t.date || '') <= to; });
+            return txs;
+        }
+
+        function printStoresReport(type) {
+            lastStoresReportType = type;
+            // Also show in-page
+            genReport(type);
+
+            if (type === 'valuation') {
+                const categories = {};
+                appData.items.forEach(function(item) {
+                    if (!categories[item.category]) categories[item.category] = { count: 0, value: 0, items: 0 };
+                    categories[item.category].count += item.qty;
+                    categories[item.category].value += item.qty * item.unitCost;
+                    categories[item.category].items++;
+                });
+                const totalVal = appData.items.reduce(function(s, i) { return s + i.qty * i.unitCost; }, 0);
+                const totalQty = appData.items.reduce(function(s, i) { return s + i.qty; }, 0);
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total SKUs</div><div class="value">' + appData.items.length + '</div></div><div class="summary-item"><div class="label">Total Qty</div><div class="value">' + totalQty.toLocaleString() + '</div></div><div class="summary-item"><div class="label">Total Value</div><div class="value">$' + totalVal.toLocaleString() + '</div></div></div>';
+
+                let rows = Object.entries(categories).map(function(e) {
+                    return '<tr><td>' + e[0] + '</td><td>' + e[1].items + '</td><td>' + e[1].count.toLocaleString() + '</td><td style="text-align:right;">$' + e[1].value.toLocaleString() + '</td><td>' + (totalVal > 0 ? ((e[1].value / totalVal) * 100).toFixed(1) : 0) + '%</td></tr>';
+                }).join('');
+                rows += '<tr class="totals-row"><td><strong>TOTAL</strong></td><td><strong>' + appData.items.length + '</strong></td><td><strong>' + totalQty.toLocaleString() + '</strong></td><td style="text-align:right;"><strong>$' + totalVal.toLocaleString() + '</strong></td><td><strong>100%</strong></td></tr>';
+
+                const tableHtml = '<table><thead><tr><th>Category</th><th>SKUs</th><th>Total Qty</th><th>Value (JMD)</th><th>% of Total</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Stock Valuation Report', summaryHtml + tableHtml);
+
+            } else if (type === 'movement') {
+                const txs = getDateFilteredTx('date');
+                const received = txs.filter(function(t) { return t.type === 'Received'; });
+                const issued = txs.filter(function(t) { return t.type === 'Issued'; });
+                const adjustments = txs.filter(function(t) { return t.type === 'Adjustment'; });
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Transactions</div><div class="value">' + txs.length + '</div></div><div class="summary-item"><div class="label">Received</div><div class="value" style="color:#27ae60;">' + received.reduce(function(s,t){return s+t.qty;},0) + '</div></div><div class="summary-item"><div class="label">Issued</div><div class="value" style="color:#e67e22;">' + issued.reduce(function(s,t){return s+t.qty;},0) + '</div></div><div class="summary-item"><div class="label">Adjustments</div><div class="value" style="color:#3498db;">' + adjustments.length + '</div></div></div>';
+
+                let rows = txs.slice().reverse().map(function(t, i) {
+                    return '<tr><td>' + (i+1) + '</td><td>' + t.date + '</td><td>' + t.type + '</td><td>' + t.itemCode + '</td><td>' + t.description + '</td><td>' + t.qty + '</td><td>' + (t.department || '-') + '</td><td>' + (t.reference || '-') + '</td><td>' + (t.by || '-') + '</td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="9" style="text-align:center;padding:15px;">No transactions</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Date</th><th>Type</th><th>Item Code</th><th>Description</th><th>Qty</th><th>Department</th><th>Reference</th><th>By</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Stock Movement Report', summaryHtml + tableHtml);
+
+            } else if (type === 'department') {
+                const txs = getDateFilteredTx('date');
+                const depts = {};
+                txs.filter(function(t) { return t.type === 'Issued'; }).forEach(function(t) {
+                    if (!depts[t.department]) depts[t.department] = { count: 0, items: 0 };
+                    depts[t.department].count++;
+                    depts[t.department].items += t.qty;
+                });
+                let rows = Object.entries(depts).sort(function(a,b) { return b[1].items - a[1].items; }).map(function(e, i) {
+                    return '<tr><td>' + (i+1) + '</td><td>' + e[0] + '</td><td>' + e[1].count + '</td><td>' + e[1].items + '</td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="4" style="text-align:center;padding:15px;">No issues recorded</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Department</th><th>Transactions</th><th>Items Issued</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Department Usage Report', '<div class="summary"><div class="summary-item"><div class="label">Departments Served</div><div class="value">' + Object.keys(depts).length + '</div></div></div>' + tableHtml);
+
+            } else if (type === 'reorder') {
+                const reorderItems = appData.items.filter(function(i) { return i.qty <= i.reorderLevel; });
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Items Below Reorder</div><div class="value" style="color:#e74c3c;">' + reorderItems.length + '</div></div><div class="summary-item"><div class="label">Out of Stock</div><div class="value" style="color:#e74c3c;">' + reorderItems.filter(function(i){return i.qty===0;}).length + '</div></div><div class="summary-item"><div class="label">Total Items</div><div class="value">' + appData.items.length + '</div></div></div>';
+
+                let rows = reorderItems.map(function(i, idx) {
+                    const urgency = i.qty === 0 ? '<span class="status-critical">OUT OF STOCK</span>' : i.qty <= i.reorderLevel * 0.5 ? '<span class="status-critical">Critical</span>' : '<span class="status-low">Low</span>';
+                    return '<tr><td>' + (idx+1) + '</td><td><strong>' + i.code + '</strong></td><td>' + i.description + '</td><td>' + i.category + '</td><td>' + i.qty + '</td><td>' + i.reorderLevel + '</td><td>' + Math.max(i.maxLevel - i.qty, i.reorderLevel * 2) + '</td><td>' + i.supplier + '</td><td>' + urgency + '</td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="9" style="text-align:center;padding:15px;">All stock levels adequate</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Code</th><th>Description</th><th>Category</th><th>Current</th><th>Reorder Lvl</th><th>Suggested Qty</th><th>Supplier</th><th>Urgency</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Reorder Alert Report', summaryHtml + tableHtml);
+
+            } else if (type === 'expiry') {
+                const today = new Date();
+                var allBatches = [];
+                appData.items.forEach(function(item) {
+                    if (item.trackExpiry && item.batches) {
+                        item.batches.forEach(function(batch) {
+                            if (batch.remainingQty > 0 && batch.expiryDate) {
+                                var daysRemaining = Math.ceil((new Date(batch.expiryDate) - today) / (1000 * 60 * 60 * 24));
+                                allBatches.push({ code: item.code, description: item.description, batchNo: batch.batchNo, qty: batch.remainingQty, expiryDate: batch.expiryDate, daysRemaining: daysRemaining });
+                            }
+                        });
+                    }
+                });
+                allBatches.sort(function(a, b) { return a.daysRemaining - b.daysRemaining; });
+                var expired = allBatches.filter(function(b) { return b.daysRemaining <= 0; });
+                var expiringSoon = allBatches.filter(function(b) { return b.daysRemaining > 0 && b.daysRemaining <= 30; });
+
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Batches</div><div class="value">' + allBatches.length + '</div></div><div class="summary-item"><div class="label">Expired</div><div class="value" style="color:#e74c3c;">' + expired.length + '</div></div><div class="summary-item"><div class="label">Expiring in 30 Days</div><div class="value" style="color:#f39c12;">' + expiringSoon.length + '</div></div></div>';
+
+                let rows = allBatches.map(function(b, i) {
+                    var statusClass = b.daysRemaining <= 0 ? 'status-critical' : b.daysRemaining <= 30 ? 'status-low' : 'status-ok';
+                    var statusLabel = b.daysRemaining <= 0 ? 'EXPIRED' : b.daysRemaining <= 30 ? 'Expiring Soon' : b.daysRemaining <= 90 ? 'Warning' : 'OK';
+                    return '<tr><td>' + (i+1) + '</td><td>' + b.code + '</td><td>' + b.description + '</td><td>' + b.batchNo + '</td><td>' + b.qty + '</td><td>' + b.expiryDate + '</td><td>' + b.daysRemaining + '</td><td><span class="' + statusClass + '">' + statusLabel + '</span></td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="8" style="text-align:center;padding:15px;">No expiry tracking data</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Code</th><th>Description</th><th>Batch</th><th>Qty</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Expiry Alert Report', summaryHtml + tableHtml);
+
+            } else if (type === 'stockcount') {
+                const counts = appData.countHistory || [];
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Total Counts</div><div class="value">' + counts.length + '</div></div><div class="summary-item"><div class="label">Total Adjustments</div><div class="value">' + counts.reduce(function(s,c){return s+c.adjustments;},0) + '</div></div></div>';
+
+                let rows = counts.slice().reverse().map(function(c, i) {
+                    return '<tr><td>' + (i+1) + '</td><td>' + c.date + '</td><td>' + c.performedBy + '</td><td>' + c.itemsCounted + '</td><td>' + c.adjustments + '</td><td style="font-weight:bold;color:' + (c.netVariance === 0 ? '#27ae60' : '#e74c3c') + ';">' + (c.netVariance > 0 ? '+' : '') + c.netVariance + '</td></tr>';
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="6" style="text-align:center;padding:15px;">No stock counts performed</td></tr>';
+                const tableHtml = '<table><thead><tr><th>#</th><th>Date</th><th>Performed By</th><th>Items Counted</th><th>Adjustments</th><th>Net Variance</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                openStoresPrintWindow('Physical Stock Count Report', summaryHtml + tableHtml);
+            }
         }
 
         // ============================================
