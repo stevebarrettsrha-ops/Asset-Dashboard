@@ -1431,6 +1431,687 @@
         }
 
         // ============================================
+        // ADD NEW ITEM
+        // ============================================
+        function addStockItem(e) {
+            e.preventDefault();
+            const code = document.getElementById('newItemCode').value.trim();
+            if (!validateItemCode(code)) { alert('Invalid item code. Use only letters, numbers and hyphens.'); return; }
+            if (appData.items.find(i => i.code === code)) { alert('Item code already exists!'); return; }
+
+            const item = {
+                code: sanitize(code),
+                description: sanitize(document.getElementById('newItemDesc').value.trim()),
+                category: document.getElementById('newItemCategory').value,
+                unit: document.getElementById('newItemUnit').value,
+                qty: parseInt(document.getElementById('newItemQty').value) || 0,
+                reorderLevel: parseInt(document.getElementById('newItemReorder').value) || 0,
+                maxLevel: parseInt(document.getElementById('newItemMax').value) || 0,
+                unitCost: parseFloat(document.getElementById('newItemCost').value) || 0,
+                supplier: sanitize(document.getElementById('newItemSupplier').value.trim()),
+                location: sanitize(document.getElementById('newItemLocation').value.trim()),
+                notes: sanitize(document.getElementById('newItemNotes').value.trim()),
+                trackExpiry: document.getElementById('newItemTrackExpiry').checked,
+                shelfLife: parseInt(document.getElementById('newItemShelfLife').value) || 0,
+                batches: []
+            };
+            appData.items.push(item);
+            appData.itemCounter++;
+            saveData(appData);
+            logActivity('Add Item', 'Added item: ' + item.code + ' - ' + item.description);
+            e.target.reset();
+            document.getElementById('shelfLifeGroup').style.display = 'none';
+            alert('Item added successfully!');
+            showPage('stockItems');
+            refreshAll();
+        }
+
+        // ============================================
+        // EDIT ITEM MODAL
+        // ============================================
+        function editItem(code) {
+            const item = appData.items.find(i => i.code === code);
+            if (!item) return;
+            document.getElementById('editItemOrigCode').value = item.code;
+            document.getElementById('editItemCode').value = item.code;
+            document.getElementById('editItemDesc').value = item.description;
+            document.getElementById('editItemCategory').value = item.category;
+            document.getElementById('editItemReorder').value = item.reorderLevel;
+            document.getElementById('editItemMax').value = item.maxLevel;
+            document.getElementById('editItemCost').value = item.unitCost;
+            document.getElementById('editItemSupplier').value = item.supplier;
+            document.getElementById('editItemLocation').value = item.location;
+            document.getElementById('editItemModal').classList.add('active');
+        }
+
+        function saveEditItem(e) {
+            e.preventDefault();
+            const origCode = document.getElementById('editItemOrigCode').value;
+            const item = appData.items.find(i => i.code === origCode);
+            if (!item) return;
+            const newCode = document.getElementById('editItemCode').value.trim();
+            if (newCode !== origCode && appData.items.find(i => i.code === newCode)) { alert('Item code already exists!'); return; }
+            item.code = sanitize(newCode);
+            item.description = sanitize(document.getElementById('editItemDesc').value.trim());
+            item.category = document.getElementById('editItemCategory').value;
+            item.reorderLevel = parseInt(document.getElementById('editItemReorder').value) || 0;
+            item.maxLevel = parseInt(document.getElementById('editItemMax').value) || 0;
+            item.unitCost = parseFloat(document.getElementById('editItemCost').value) || 0;
+            item.supplier = sanitize(document.getElementById('editItemSupplier').value.trim());
+            item.location = sanitize(document.getElementById('editItemLocation').value.trim());
+            saveData(appData);
+            logActivity('Edit Item', 'Edited item: ' + item.code);
+            closeEditModal();
+            refreshAll();
+        }
+
+        function closeEditModal() {
+            document.getElementById('editItemModal').classList.remove('active');
+        }
+
+        function deleteItem(code) {
+            if (!confirm('Are you sure you want to delete item ' + code + '? This cannot be undone.')) return;
+            appData.items = appData.items.filter(i => i.code !== code);
+            saveData(appData);
+            logActivity('Delete Item', 'Deleted item: ' + code);
+            refreshAll();
+        }
+
+        // ============================================
+        // POPULATE DROPDOWNS
+        // ============================================
+        function populateItemDropdowns() {
+            const rcvSelect = document.getElementById('rcvItem');
+            const issSelect = document.getElementById('issItem');
+            const options = '<option value="">Select Item</option>' + appData.items.map(i =>
+                '<option value="' + sanitize(i.code) + '">' + sanitize(i.code) + ' - ' + sanitize(i.description) + ' (Qty: ' + i.qty + ')</option>'
+            ).join('');
+            if (rcvSelect) rcvSelect.innerHTML = options;
+            if (issSelect) issSelect.innerHTML = options;
+        }
+
+        function populateReqDropdown() {
+            const reqSelect = document.getElementById('reqItem');
+            if (reqSelect) {
+                reqSelect.innerHTML = '<option value="">Select Item</option>' + appData.items.map(i =>
+                    '<option value="' + sanitize(i.code) + '">' + sanitize(i.code) + ' - ' + sanitize(i.description) + '</option>'
+                ).join('');
+            }
+        }
+
+        function populateAdjDropdown() {
+            const adjSelect = document.getElementById('adjItem');
+            if (adjSelect) {
+                adjSelect.innerHTML = '<option value="">Select Item</option>' + appData.items.map(i =>
+                    '<option value="' + sanitize(i.code) + '">' + sanitize(i.code) + ' - ' + sanitize(i.description) + ' (Qty: ' + i.qty + ')</option>'
+                ).join('');
+            }
+        }
+
+        // ============================================
+        // RECEIVE STOCK
+        // ============================================
+        function receiveStock(e) {
+            e.preventDefault();
+            const code = document.getElementById('rcvItem').value;
+            const item = appData.items.find(i => i.code === code);
+            if (!item) { alert('Please select an item.'); return; }
+            const qty = parseInt(document.getElementById('rcvQty').value);
+            if (!validatePositiveInteger(qty)) { alert('Quantity must be a positive whole number.'); return; }
+
+            const batchNo = document.getElementById('rcvBatchNo').value.trim();
+            const expiryDate = document.getElementById('rcvExpiryDate').value;
+            const mfgDate = document.getElementById('rcvMfgDate').value;
+
+            // Add batch record if tracking expiry
+            if (item.trackExpiry && expiryDate) {
+                item.batches.push({
+                    batchNo: sanitize(batchNo) || 'BATCH-' + Date.now(),
+                    qty: qty,
+                    expiryDate: expiryDate,
+                    mfgDate: mfgDate || '',
+                    receivedDate: document.getElementById('rcvDate').value,
+                    remainingQty: qty
+                });
+            }
+
+            item.qty += qty;
+            const tx = {
+                date: document.getElementById('rcvDate').value,
+                type: 'Received',
+                itemCode: code,
+                description: item.description,
+                qty: qty,
+                department: sanitize(document.getElementById('rcvSupplier').value.trim()) || 'N/A',
+                reference: sanitize(document.getElementById('rcvInvoice').value.trim()) || 'N/A',
+                by: sanitize(document.getElementById('rcvBy').value.trim()),
+                batchNo: sanitize(batchNo),
+                expiryDate: expiryDate,
+                notes: sanitize(document.getElementById('rcvNotes').value.trim()),
+                timestamp: new Date().toISOString()
+            };
+            appData.transactions.push(tx);
+            saveData(appData);
+            logActivity('Receive Stock', 'Received ' + qty + ' x ' + item.description + (batchNo ? ' (Batch: ' + batchNo + ')' : ''));
+            e.target.reset();
+            alert('Stock received successfully! ' + qty + ' units of ' + item.description + ' added.');
+            refreshAll();
+        }
+
+        // ============================================
+        // ISSUE STOCK
+        // ============================================
+        function issueStock(e) {
+            e.preventDefault();
+            const code = document.getElementById('issItem').value;
+            const item = appData.items.find(i => i.code === code);
+            if (!item) { alert('Please select an item.'); return; }
+            const qty = parseInt(document.getElementById('issQty').value);
+            if (!validatePositiveInteger(qty)) { alert('Quantity must be a positive whole number.'); return; }
+            if (qty > item.qty) { alert('Insufficient stock! Available: ' + item.qty + ', Requested: ' + qty); return; }
+
+            // FIFO: deduct from oldest batches first
+            if (item.trackExpiry && item.batches.length > 0) {
+                let remaining = qty;
+                const sortedBatches = item.batches.filter(b => b.remainingQty > 0).sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+                for (const batch of sortedBatches) {
+                    if (remaining <= 0) break;
+                    const deduct = Math.min(remaining, batch.remainingQty);
+                    batch.remainingQty -= deduct;
+                    remaining -= deduct;
+                }
+            }
+
+            item.qty -= qty;
+            const tx = {
+                date: document.getElementById('issDate').value,
+                type: 'Issued',
+                itemCode: code,
+                description: item.description,
+                qty: qty,
+                department: document.getElementById('issDept').value,
+                reference: sanitize(document.getElementById('issReqNum').value.trim()) || 'N/A',
+                by: sanitize(document.getElementById('issBy').value.trim()),
+                notes: sanitize(document.getElementById('issNotes').value.trim()),
+                timestamp: new Date().toISOString()
+            };
+            appData.transactions.push(tx);
+            saveData(appData);
+            logActivity('Issue Stock', 'Issued ' + qty + ' x ' + item.description + ' to ' + tx.department);
+            e.target.reset();
+            alert('Stock issued successfully! ' + qty + ' units of ' + item.description + ' issued to ' + tx.department + '.');
+            refreshAll();
+        }
+
+        // ============================================
+        // TRANSACTION FILTER
+        // ============================================
+        function filterTransactions() {
+            const search = (document.getElementById('txSearch').value || '').toLowerCase();
+            const typeFilter = document.getElementById('txTypeFilter').value;
+            let txs = appData.transactions;
+            if (typeFilter) txs = txs.filter(t => t.type === typeFilter);
+            if (search) txs = txs.filter(t =>
+                (t.itemCode || '').toLowerCase().includes(search) ||
+                (t.description || '').toLowerCase().includes(search) ||
+                (t.department || '').toLowerCase().includes(search) ||
+                (t.reference || '').toLowerCase().includes(search) ||
+                (t.by || '').toLowerCase().includes(search)
+            );
+            renderTxTable(txs, 'txHistoryTable');
+        }
+
+        // ============================================
+        // STOCK SEARCH & FILTER
+        // ============================================
+        function filterStockItems() {
+            const search = (document.getElementById('stockSearch') ? document.getElementById('stockSearch').value : '').toLowerCase();
+            const cat = document.getElementById('stockCategoryFilter') ? document.getElementById('stockCategoryFilter').value : '';
+            let items = appData.items;
+            if (cat) items = items.filter(i => i.category === cat);
+            if (search) items = items.filter(i =>
+                i.code.toLowerCase().includes(search) ||
+                i.description.toLowerCase().includes(search) ||
+                i.supplier.toLowerCase().includes(search)
+            );
+            renderStockTable(items);
+        }
+
+        // ============================================
+        // REQUISITIONS
+        // ============================================
+        function submitRequisition(e) {
+            e.preventDefault();
+            const code = document.getElementById('reqItem').value;
+            const item = appData.items.find(i => i.code === code);
+            if (!item) { alert('Please select an item.'); return; }
+            const qty = parseInt(document.getElementById('reqQty').value);
+            if (!validatePositiveInteger(qty)) { alert('Quantity must be a positive whole number.'); return; }
+
+            const req = {
+                id: 'REQ-' + String(appData.requisitions.length + 1).padStart(4, '0'),
+                date: new Date().toISOString().split('T')[0],
+                department: document.getElementById('reqDept').value,
+                itemCode: code,
+                itemDescription: item.description,
+                qty: qty,
+                justification: sanitize(document.getElementById('reqJustification').value.trim()),
+                urgent: document.getElementById('reqUrgent').checked,
+                status: 'Pending',
+                requestedBy: currentUser ? currentUser.displayName : 'Unknown',
+                approvedBy: null,
+                approvedDate: null,
+                timestamp: new Date().toISOString()
+            };
+            appData.requisitions.push(req);
+            saveData(appData);
+            logActivity('Submit Requisition', req.id + ': ' + qty + ' x ' + item.description + ' for ' + req.department);
+            e.target.reset();
+            alert('Requisition ' + req.id + ' submitted successfully!');
+            renderRequisitions();
+        }
+
+        function renderRequisitions() {
+            const tbody = document.getElementById('requisitionsTable');
+            const statusFilter = document.getElementById('reqStatusFilter').value;
+            let reqs = appData.requisitions || [];
+            if (statusFilter) reqs = reqs.filter(r => r.status === statusFilter);
+
+            if (reqs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No requisitions found</td></tr>';
+                return;
+            }
+            tbody.innerHTML = reqs.slice().reverse().map(r => {
+                const statusClass = r.status === 'Approved' ? 'approved' : r.status === 'Rejected' ? 'rejected' : r.status === 'Issued' ? 'ok' : 'pending';
+                let actions = '';
+                if (r.status === 'Pending') {
+                    actions = '<button class="btn btn-success" style="padding:3px 8px;font-size:11px;" onclick="approveRequisition(\'' + r.id + '\')">Approve</button> ' +
+                              '<button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="rejectRequisition(\'' + r.id + '\')">Reject</button>';
+                } else if (r.status === 'Approved') {
+                    actions = '<button class="btn btn-warning" style="padding:3px 8px;font-size:11px;" onclick="issueFromRequisition(\'' + r.id + '\')">Issue</button>';
+                }
+                return '<tr><td>' + sanitize(r.date) + '</td><td>' + sanitize(r.department) + '</td><td>' + sanitize(r.itemCode) + ' - ' + sanitize(r.itemDescription) + '</td><td>' + r.qty + '</td><td>' + sanitize(r.justification) + (r.urgent ? ' <span class="badge badge-critical">URGENT</span>' : '') + '</td><td><span class="badge badge-' + statusClass + '">' + r.status + '</span></td><td>' + actions + '</td></tr>';
+            }).join('');
+        }
+
+        function approveRequisition(id) {
+            const req = appData.requisitions.find(r => r.id === id);
+            if (!req) return;
+            req.status = 'Approved';
+            req.approvedBy = currentUser ? currentUser.displayName : 'Manager';
+            req.approvedDate = new Date().toISOString().split('T')[0];
+            saveData(appData);
+            logActivity('Approve Requisition', 'Approved ' + id + ': ' + req.qty + ' x ' + req.itemDescription);
+            renderRequisitions();
+        }
+
+        function rejectRequisition(id) {
+            const reason = prompt('Reason for rejection:');
+            if (reason === null) return;
+            const req = appData.requisitions.find(r => r.id === id);
+            if (!req) return;
+            req.status = 'Rejected';
+            req.rejectionReason = sanitize(reason);
+            req.approvedBy = currentUser ? currentUser.displayName : 'Manager';
+            req.approvedDate = new Date().toISOString().split('T')[0];
+            saveData(appData);
+            logActivity('Reject Requisition', 'Rejected ' + id + ': ' + reason);
+            renderRequisitions();
+        }
+
+        function issueFromRequisition(id) {
+            const req = appData.requisitions.find(r => r.id === id);
+            if (!req) return;
+            const item = appData.items.find(i => i.code === req.itemCode);
+            if (!item) { alert('Item not found in inventory.'); return; }
+            if (req.qty > item.qty) { alert('Insufficient stock! Available: ' + item.qty + ', Requested: ' + req.qty); return; }
+
+            // FIFO for batches
+            if (item.trackExpiry && item.batches.length > 0) {
+                let remaining = req.qty;
+                const sortedBatches = item.batches.filter(b => b.remainingQty > 0).sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+                for (const batch of sortedBatches) {
+                    if (remaining <= 0) break;
+                    const deduct = Math.min(remaining, batch.remainingQty);
+                    batch.remainingQty -= deduct;
+                    remaining -= deduct;
+                }
+            }
+
+            item.qty -= req.qty;
+            const tx = {
+                date: new Date().toISOString().split('T')[0],
+                type: 'Issued',
+                itemCode: req.itemCode,
+                description: item.description,
+                qty: req.qty,
+                department: req.department,
+                reference: req.id,
+                by: currentUser ? currentUser.displayName : 'Stores Clerk',
+                timestamp: new Date().toISOString()
+            };
+            appData.transactions.push(tx);
+            req.status = 'Issued';
+            saveData(appData);
+            logActivity('Issue from Requisition', 'Issued ' + req.qty + ' x ' + item.description + ' to ' + req.department + ' (Req: ' + req.id + ')');
+            alert('Stock issued for requisition ' + req.id + '!');
+            renderRequisitions();
+            refreshAll();
+        }
+
+        // ============================================
+        // EXPIRY ALERTS
+        // ============================================
+        function renderExpiryAlerts() {
+            const tbody = document.getElementById('expiryTable');
+            const filterDays = parseInt(document.getElementById('expiryFilter').value);
+            const today = new Date();
+            let allBatches = [];
+
+            appData.items.forEach(item => {
+                if (item.trackExpiry && item.batches) {
+                    item.batches.forEach(batch => {
+                        if (batch.remainingQty > 0 && batch.expiryDate) {
+                            const expiry = new Date(batch.expiryDate);
+                            const daysRemaining = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                            allBatches.push({
+                                code: item.code,
+                                description: item.description,
+                                batchNo: batch.batchNo,
+                                qty: batch.remainingQty,
+                                expiryDate: batch.expiryDate,
+                                daysRemaining: daysRemaining
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Filter based on selection
+            if (filterDays === 0) {
+                allBatches = allBatches.filter(b => b.daysRemaining <= 0);
+            } else {
+                allBatches = allBatches.filter(b => b.daysRemaining <= filterDays);
+            }
+
+            allBatches.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+            if (allBatches.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">No expiry alerts for this timeframe</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = allBatches.map(b => {
+                let statusClass, statusLabel, rowClass;
+                if (b.daysRemaining <= 0) { statusClass = 'critical'; statusLabel = 'EXPIRED'; rowClass = 'expiry-red'; }
+                else if (b.daysRemaining <= 30) { statusClass = 'low'; statusLabel = 'Expiring Soon'; rowClass = 'expiry-orange'; }
+                else if (b.daysRemaining <= 60) { statusClass = 'expiring-warning'; statusLabel = 'Warning'; rowClass = 'expiry-yellow'; }
+                else { statusClass = 'expiring-soon'; statusLabel = 'Monitor'; rowClass = ''; }
+                return '<tr class="' + rowClass + '"><td>' + sanitize(b.code) + '</td><td>' + sanitize(b.description) + '</td><td>' + sanitize(b.batchNo) + '</td><td>' + b.qty + '</td><td>' + b.expiryDate + '</td><td>' + b.daysRemaining + '</td><td><span class="badge badge-' + statusClass + '">' + statusLabel + '</span></td></tr>';
+            }).join('');
+        }
+
+        // ============================================
+        // STOCK COUNT & RECONCILIATION
+        // ============================================
+        let stockCountData = [];
+
+        function startStockCount() {
+            const itemsDiv = document.getElementById('stockCountItems');
+            const tbody = document.getElementById('stockCountTable');
+            stockCountData = appData.items.map(item => ({
+                code: item.code,
+                description: item.description,
+                systemQty: item.qty,
+                countedQty: null,
+                variance: 0,
+                reason: ''
+            }));
+
+            tbody.innerHTML = stockCountData.map((row, idx) =>
+                '<tr><td>' + sanitize(row.code) + '</td><td>' + sanitize(row.description) + '</td><td>' + row.systemQty + '</td>' +
+                '<td><input type="number" class="form-control" style="width:80px;" min="0" oninput="updateCountVariance(' + idx + ', this.value)" placeholder="-"></td>' +
+                '<td id="variance-' + idx + '">-</td>' +
+                '<td><select class="form-control" style="width:120px;" id="countReason-' + idx + '"><option value="">-</option><option>OK</option><option>Damage</option><option>Theft</option><option>Miscount</option><option>Expiry</option><option>Other</option></select></td></tr>'
+            ).join('');
+
+            itemsDiv.style.display = 'block';
+            document.getElementById('startCountBtn').style.display = 'none';
+        }
+
+        function updateCountVariance(idx, val) {
+            const counted = parseInt(val);
+            if (isNaN(counted)) {
+                stockCountData[idx].countedQty = null;
+                document.getElementById('variance-' + idx).textContent = '-';
+                return;
+            }
+            stockCountData[idx].countedQty = counted;
+            const variance = counted - stockCountData[idx].systemQty;
+            stockCountData[idx].variance = variance;
+            const el = document.getElementById('variance-' + idx);
+            el.textContent = (variance > 0 ? '+' : '') + variance;
+            el.style.color = variance === 0 ? 'var(--success)' : 'var(--danger)';
+            el.style.fontWeight = '700';
+        }
+
+        function submitStockCount() {
+            const counted = stockCountData.filter(r => r.countedQty !== null);
+            if (counted.length === 0) { alert('Please count at least one item.'); return; }
+            if (!confirm('Submit stock count for ' + counted.length + ' items? Variances will be applied.')) return;
+
+            let adjustments = 0;
+            let netVariance = 0;
+            counted.forEach((row, idx) => {
+                row.reason = document.getElementById('countReason-' + idx) ? document.getElementById('countReason-' + idx).value : '';
+                if (row.variance !== 0) {
+                    const item = appData.items.find(i => i.code === row.code);
+                    if (item) {
+                        item.qty = row.countedQty;
+                        adjustments++;
+                        netVariance += row.variance;
+                        // Record as transaction
+                        appData.transactions.push({
+                            date: new Date().toISOString().split('T')[0],
+                            type: row.variance > 0 ? 'Received' : 'Issued',
+                            itemCode: row.code,
+                            description: item.description + ' (Stock Count Adjustment)',
+                            qty: Math.abs(row.variance),
+                            department: 'Stock Count',
+                            reference: 'Physical Count',
+                            by: currentUser ? currentUser.displayName : 'Stores Officer',
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                }
+            });
+
+            // Save count history
+            appData.countHistory.push({
+                date: new Date().toISOString().split('T')[0],
+                performedBy: currentUser ? currentUser.displayName : 'Stores Officer',
+                itemsCounted: counted.length,
+                adjustments: adjustments,
+                netVariance: netVariance,
+                details: counted.filter(r => r.variance !== 0).map(r => ({
+                    code: r.code, systemQty: r.systemQty, countedQty: r.countedQty, variance: r.variance, reason: r.reason
+                }))
+            });
+
+            saveData(appData);
+            logActivity('Stock Count', 'Physical count: ' + counted.length + ' items counted, ' + adjustments + ' adjustments, net variance: ' + netVariance);
+            alert('Stock count submitted! ' + adjustments + ' adjustments applied.');
+            cancelStockCount();
+            renderCountHistory();
+            refreshAll();
+        }
+
+        function cancelStockCount() {
+            document.getElementById('stockCountItems').style.display = 'none';
+            document.getElementById('startCountBtn').style.display = '';
+            stockCountData = [];
+        }
+
+        function renderCountHistory() {
+            const tbody = document.getElementById('countHistoryTable');
+            if (!appData.countHistory || appData.countHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-secondary);">No stock counts performed yet</td></tr>';
+                return;
+            }
+            tbody.innerHTML = appData.countHistory.slice().reverse().map(c =>
+                '<tr><td>' + c.date + '</td><td>' + sanitize(c.performedBy) + '</td><td>' + c.itemsCounted + '</td><td>' + c.adjustments + '</td><td style="color:' + (c.netVariance === 0 ? 'var(--success)' : 'var(--danger)') + ';font-weight:700;">' + (c.netVariance > 0 ? '+' : '') + c.netVariance + '</td></tr>'
+            ).join('');
+        }
+
+        // ============================================
+        // STOCK ADJUSTMENT
+        // ============================================
+        function submitStockAdjustment(e) {
+            e.preventDefault();
+            const code = document.getElementById('adjItem').value;
+            const item = appData.items.find(i => i.code === code);
+            if (!item) { alert('Please select an item.'); return; }
+            const adjQty = parseInt(document.getElementById('adjQty').value);
+            if (isNaN(adjQty) || adjQty === 0) { alert('Adjustment quantity must be a non-zero number.'); return; }
+            if (item.qty + adjQty < 0) { alert('Cannot adjust below zero. Current stock: ' + item.qty); return; }
+
+            const reason = document.getElementById('adjReason').value;
+            const notes = document.getElementById('adjNotes').value.trim();
+
+            item.qty += adjQty;
+            appData.transactions.push({
+                date: new Date().toISOString().split('T')[0],
+                type: 'Adjustment',
+                itemCode: code,
+                description: item.description + ' (Adj: ' + reason + ')',
+                qty: adjQty,
+                department: reason,
+                reference: 'ADJ-' + Date.now(),
+                by: currentUser ? currentUser.displayName : 'Stores Officer',
+                notes: sanitize(notes),
+                timestamp: new Date().toISOString()
+            });
+
+            saveData(appData);
+            logActivity('Stock Adjustment', (adjQty > 0 ? '+' : '') + adjQty + ' x ' + item.description + ' - Reason: ' + reason);
+            e.target.reset();
+            alert('Stock adjusted! ' + item.description + ': ' + (adjQty > 0 ? '+' : '') + adjQty + ' units (' + reason + ')');
+            refreshAll();
+        }
+
+        // ============================================
+        // AUDIT LOG RENDER
+        // ============================================
+        function renderAuditLog() {
+            const tbody = document.getElementById('auditLogTable');
+            const search = (document.getElementById('auditSearch').value || '').toLowerCase();
+            let logs = appData.auditLog || [];
+            if (search) {
+                logs = logs.filter(l =>
+                    (l.action || '').toLowerCase().includes(search) ||
+                    (l.details || '').toLowerCase().includes(search) ||
+                    (l.user || '').toLowerCase().includes(search)
+                );
+            }
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-secondary);">No audit log entries</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.map(l =>
+                '<tr><td style="font-size:12px;">' + new Date(l.timestamp).toLocaleString() + '</td><td>' + sanitize(l.user) + '</td><td><strong>' + sanitize(l.action) + '</strong></td><td>' + sanitize(l.details) + '</td></tr>'
+            ).join('');
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportAllJSON() {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'stores_data_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            logActivity('Export', 'Exported all data as JSON');
+        }
+
+        function exportStockCSV() {
+            const headers = ['Item Code', 'Description', 'Category', 'Unit', 'Qty', 'Reorder Level', 'Max Level', 'Unit Cost', 'Total Value', 'Supplier', 'Location'];
+            const rows = appData.items.map(i => [i.code, i.description, i.category, i.unit, i.qty, i.reorderLevel, i.maxLevel, i.unitCost, i.qty * i.unitCost, i.supplier, i.location]);
+            downloadCSV(headers, rows, 'stock_items_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported stock items as CSV');
+        }
+
+        function exportTransactionsCSV() {
+            const headers = ['Date', 'Type', 'Item Code', 'Description', 'Qty', 'Department', 'Reference', 'By'];
+            const rows = appData.transactions.map(t => [t.date, t.type, t.itemCode, t.description, t.qty, t.department, t.reference, t.by]);
+            downloadCSV(headers, rows, 'transactions_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported transactions as CSV');
+        }
+
+        function exportCurrentReportCSV() {
+            const reportContent = document.getElementById('reportContent');
+            const table = reportContent.querySelector('table');
+            if (!table) { alert('No table data to export.'); return; }
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent);
+            const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+                Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
+            );
+            downloadCSV(headers, rows, 'report_' + new Date().toISOString().split('T')[0] + '.csv');
+            logActivity('Export', 'Exported report as CSV');
+        }
+
+        function downloadCSV(headers, rows, filename) {
+            const csvContent = [headers.join(','), ...rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!confirm('This will merge imported data with existing data. Continue?')) { event.target.value = ''; return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.items) {
+                        const existingCodes = new Set(appData.items.map(i => i.code));
+                        imported.items.forEach(item => {
+                            if (!existingCodes.has(item.code)) {
+                                if (!item.batches) item.batches = [];
+                                if (item.trackExpiry === undefined) item.trackExpiry = false;
+                                appData.items.push(item);
+                            }
+                        });
+                    }
+                    if (imported.transactions) {
+                        const existingKeys = new Set(appData.transactions.map(t => t.timestamp + '|' + t.type + '|' + t.itemCode));
+                        imported.transactions.forEach(t => {
+                            if (!existingKeys.has(t.timestamp + '|' + t.type + '|' + t.itemCode)) {
+                                appData.transactions.push(t);
+                            }
+                        });
+                    }
+                    saveData(appData);
+                    logActivity('Import', 'Imported data from JSON file: ' + file.name);
+                    alert('Data imported successfully!');
+                    refreshAll();
+                } catch (err) {
+                    alert('Error reading file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ============================================
         // REPORTS
         // ============================================
         function genReport(type) {
@@ -1484,6 +2165,28 @@
                 let rows = reorderItems.map(i => `<tr><td>${i.code}</td><td>${i.description}</td><td>${i.qty}</td><td>${i.reorderLevel}</td><td>${i.maxLevel - i.qty}</td><td>${i.supplier}</td></tr>`).join('');
                 if (!rows) rows = '<tr><td colspan="6" style="text-align:center;padding:20px;">No items need reordering</td></tr>';
                 content.innerHTML = `<div class="table-container"><table><thead><tr><th>Code</th><th>Description</th><th>Current</th><th>Reorder Lvl</th><th>Suggested Qty</th><th>Supplier</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+            } else if (type === 'expiry') {
+                title.textContent = 'Expiry Report';
+                const today = new Date();
+                let allBatches = [];
+                appData.items.forEach(item => {
+                    if (item.trackExpiry && item.batches) {
+                        item.batches.forEach(batch => {
+                            if (batch.remainingQty > 0 && batch.expiryDate) {
+                                const daysRemaining = Math.ceil((new Date(batch.expiryDate) - today) / (1000 * 60 * 60 * 24));
+                                allBatches.push({ code: item.code, description: item.description, batchNo: batch.batchNo, qty: batch.remainingQty, expiryDate: batch.expiryDate, daysRemaining: daysRemaining });
+                            }
+                        });
+                    }
+                });
+                allBatches.sort((a, b) => a.daysRemaining - b.daysRemaining);
+                let rows = allBatches.map(b => {
+                    const status = b.daysRemaining <= 0 ? 'EXPIRED' : b.daysRemaining <= 30 ? 'Expiring Soon' : b.daysRemaining <= 90 ? 'Warning' : 'OK';
+                    return `<tr><td>${b.code}</td><td>${b.description}</td><td>${b.batchNo}</td><td>${b.qty}</td><td>${b.expiryDate}</td><td>${b.daysRemaining}</td><td>${status}</td></tr>`;
+                }).join('');
+                if (!rows) rows = '<tr><td colspan="7" style="text-align:center;padding:20px;">No items with expiry tracking</td></tr>';
+                content.innerHTML = `<p style="margin-bottom:15px;color:var(--text-secondary);">Generated: ${new Date().toLocaleDateString()}</p>
+                    <div class="table-container"><table><thead><tr><th>Code</th><th>Description</th><th>Batch</th><th>Qty</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
             }
             output.scrollIntoView({ behavior: 'smooth' });
         }
@@ -1517,8 +2220,8 @@
                     <td>$${(item.qty * item.unitCost).toLocaleString()}</td>
                     <td><span class="badge badge-${status.class}">${status.label}</span></td>
                     <td>
-                        <button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="showPage('receive')">Receive</button>
-                        <button class="btn btn-warning" style="padding:4px 8px;font-size:11px;" onclick="showPage('issue')">Issue</button>
+                        <button class="btn btn-info" style="padding:4px 8px;font-size:11px;" onclick="editItem('${item.code}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="deleteItem('${item.code}')">Del</button>
                     </td>
                 </tr>`;
             }).join('');
