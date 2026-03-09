@@ -4725,7 +4725,7 @@
         .register-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1400px;
+            min-width: 2000px;
         }
 
         .register-table th,
@@ -4764,6 +4764,94 @@
         .register-table th:nth-child(8), .register-table td:nth-child(8) { min-width: 120px; }  /* Serial/Model */
         .register-table th:nth-child(9), .register-table td:nth-child(9) { min-width: 50px; }   /* Qty */
         .register-table th:nth-child(10), .register-table td:nth-child(10) { min-width: 130px; } /* Total Price */
+        .register-table th:nth-child(11), .register-table td:nth-child(11) { min-width: 140px; } /* Depreciation */
+        .register-table th:nth-child(12), .register-table td:nth-child(12) { min-width: 130px; } /* Monthly Depr */
+        .register-table th:nth-child(13), .register-table td:nth-child(13) { min-width: 130px; } /* Book Value */
+        .register-table th:nth-child(14), .register-table td:nth-child(14) { min-width: 180px; } /* Comment */
+
+        /* Depreciation method toggle button */
+        .depr-method-toggle {
+            margin-top: 4px;
+        }
+
+        .depr-toggle-btn {
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            border: 1px solid var(--primary-orange);
+            border-radius: 4px;
+            background: var(--primary-orange);
+            color: #fff;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+
+        .depr-toggle-btn:hover {
+            background: transparent;
+            color: var(--primary-orange);
+        }
+
+        /* Depreciation value styling */
+        .depr-value {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .depr-value.negative {
+            color: #e74c3c;
+        }
+
+        .depr-na {
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: 0.85em;
+        }
+
+        /* Comment cell */
+        .register-comment-cell {
+            position: relative;
+        }
+
+        .register-comment-text {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .register-comment-text:hover {
+            background: var(--bg-secondary);
+        }
+
+        .register-comment-input {
+            width: 100%;
+            min-width: 160px;
+            padding: 4px 8px;
+            border: 1px solid var(--primary-orange);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.85em;
+            resize: none;
+        }
+
+        .depr-method-badge {
+            display: inline-block;
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            margin-left: 4px;
+            vertical-align: middle;
+        }
 
         .register-table .asset-code-link {
             color: var(--primary-orange);
@@ -6211,6 +6299,25 @@
                             <option value="FEB">February (FEB)</option>
                             <option value="MAR">March (MAR)</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetUsefulLife">Useful Life (Years)</label>
+                        <input type="number" id="assetUsefulLife" min="1" max="100" step="1" placeholder="e.g., 5">
+                    </div>
+                    <div class="form-group">
+                        <label for="assetSalvageValue">Salvage Value (JMD)</label>
+                        <input type="number" id="assetSalvageValue" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="assetDepreciationMethod">Depreciation Method</label>
+                        <select id="assetDepreciationMethod">
+                            <option value="straight">Straight Line</option>
+                            <option value="declining">Declining Balance</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="assetComment">Comment</label>
+                        <textarea id="assetComment" rows="2" placeholder="Add any notes or comments about this asset..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical;"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -7853,11 +7960,20 @@
                                 <th>Serial/Model</th>
                                 <th>Qty</th>
                                 <th>Total Price (JMD)</th>
+                                <th>
+                                    Depreciation
+                                    <div class="depr-method-toggle" title="Click to switch depreciation method">
+                                        <button type="button" onclick="toggleRegisterDepreciationMethod()" id="registerDeprMethodBtn" class="depr-toggle-btn">SL</button>
+                                    </div>
+                                </th>
+                                <th>Monthly Depr.</th>
+                                <th>Book Value</th>
+                                <th>Comment</th>
                             </tr>
                         </thead>
                         <tbody id="registerTableBody">
                             <tr>
-                                <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                     Loading all assets...
                                 </td>
                             </tr>
@@ -12478,6 +12594,10 @@
                 document.getElementById('totalPrice').value = asset.totalPrice || 0;
                 document.getElementById('source').value = asset.source;
                 document.getElementById('month').value = asset.month;
+                document.getElementById('assetUsefulLife').value = asset.usefulLife || '';
+                document.getElementById('assetSalvageValue').value = asset.salvageValue || '';
+                document.getElementById('assetDepreciationMethod').value = asset.depreciationMethod || 'straight';
+                document.getElementById('assetComment').value = asset.comment || '';
 
                 // Populate custom department dropdown with current value
                 populateAssetDeptDropdown(asset.department || '');
@@ -12606,7 +12726,11 @@
                 unitPrice: parseFloat(document.getElementById('unitPrice').value) || 0,
                 totalPrice: parseFloat(document.getElementById('totalPrice').value) || 0,
                 source: document.getElementById('source').value,
-                month: document.getElementById('month').value
+                month: document.getElementById('month').value,
+                usefulLife: parseFloat(document.getElementById('assetUsefulLife').value) || 0,
+                salvageValue: parseFloat(document.getElementById('assetSalvageValue').value) || 0,
+                depreciationMethod: document.getElementById('assetDepreciationMethod').value || 'straight',
+                comment: document.getElementById('assetComment').value.trim()
             };
 
             let assets = loadAssetsFromStorage();
@@ -12978,21 +13102,31 @@
                 return;
             }
 
-            const exportData = assets.map(asset => ({
-                'Asset Code': asset.assetCode,
-                'Date In': normalizeDateToDisplay(asset.dateIn),
-                'Quantity': asset.quantity,
-                'Description': asset.description,
-                'Supplier/Donor': asset.supplier,
-                'Department': asset.department || '',
-                'Item Type': asset.itemType,
-                'Category': asset.category,
-                'Serial/Model': asset.serialModel || '',
-                'Unit Price (JMD)': asset.unitPrice,
-                'Total Price (JMD)': asset.totalPrice,
-                'Source': asset.source,
-                'Month': asset.month
-            }));
+            const exportData = assets.map(asset => {
+                const depr = calcAssetDepreciation(asset, null);
+                return {
+                    'Asset Code': asset.assetCode,
+                    'Date In': normalizeDateToDisplay(asset.dateIn),
+                    'Quantity': asset.quantity,
+                    'Description': asset.description,
+                    'Supplier/Donor': asset.supplier,
+                    'Department': asset.department || '',
+                    'Item Type': asset.itemType,
+                    'Category': asset.category,
+                    'Serial/Model': asset.serialModel || '',
+                    'Unit Price (JMD)': asset.unitPrice,
+                    'Total Price (JMD)': asset.totalPrice,
+                    'Source': asset.source,
+                    'Month': asset.month,
+                    'Useful Life (Years)': asset.usefulLife || '',
+                    'Salvage Value (JMD)': asset.salvageValue || '',
+                    'Depreciation Method': asset.depreciationMethod === 'declining' ? 'Declining Balance' : 'Straight Line',
+                    'Annual Depreciation (JMD)': depr.hasData ? depr.annual.toFixed(2) : '',
+                    'Monthly Depreciation (JMD)': depr.hasData ? depr.monthly.toFixed(2) : '',
+                    'Current Book Value (JMD)': depr.hasData ? depr.bookValue.toFixed(2) : '',
+                    'Comment': asset.comment || ''
+                };
+            });
 
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
@@ -21470,6 +21604,113 @@
             return disposedRecords.find(record => record.assetCode === assetCode);
         }
 
+        // Global depreciation method override for register table
+        var registerDeprMethodOverride = null; // null = use per-asset setting, 'straight' or 'declining' = override all
+
+        function toggleRegisterDepreciationMethod() {
+            const btn = document.getElementById('registerDeprMethodBtn');
+            if (registerDeprMethodOverride === null || registerDeprMethodOverride === 'straight') {
+                registerDeprMethodOverride = 'declining';
+                btn.textContent = 'DB';
+                btn.title = 'Declining Balance (click to switch to Straight Line)';
+            } else {
+                registerDeprMethodOverride = 'straight';
+                btn.textContent = 'SL';
+                btn.title = 'Straight Line (click to switch to Declining Balance)';
+            }
+            displayAssetRegister();
+        }
+
+        // Calculate depreciation for an asset
+        function calcAssetDepreciation(asset, methodOverride) {
+            const cost = parseFloat(asset.totalPrice) || 0;
+            const life = parseFloat(asset.usefulLife) || 0;
+            const salvage = parseFloat(asset.salvageValue) || 0;
+            const method = methodOverride || asset.depreciationMethod || 'straight';
+
+            if (!cost || !life || life <= 0) {
+                return { annual: 0, monthly: 0, bookValue: cost, method: method, hasData: false };
+            }
+
+            // Calculate years elapsed since dateIn
+            let yearsElapsed = 0;
+            if (asset.dateIn) {
+                const dateIn = new Date(asset.dateIn.split('-').reverse().join('-')); // DD-MM-YYYY to YYYY-MM-DD
+                if (!isNaN(dateIn.getTime())) {
+                    const now = new Date();
+                    yearsElapsed = (now - dateIn) / (1000 * 60 * 60 * 24 * 365.25);
+                    yearsElapsed = Math.max(0, yearsElapsed);
+                }
+            }
+
+            if (method === 'straight') {
+                const annualDepr = (cost - salvage) / life;
+                const monthlyDepr = annualDepr / 12;
+                const totalDepr = Math.min(annualDepr * yearsElapsed, cost - salvage);
+                const bookValue = Math.max(cost - totalDepr, salvage);
+                return { annual: annualDepr, monthly: monthlyDepr, bookValue: bookValue, method: 'SL', hasData: true };
+            } else {
+                // Declining balance
+                const rate = 2 / life;
+                let bookValue = cost;
+                const fullYears = Math.floor(yearsElapsed);
+                const partialYear = yearsElapsed - fullYears;
+
+                for (let y = 0; y < Math.min(fullYears, life); y++) {
+                    const depr = Math.min(bookValue * rate, bookValue - salvage);
+                    bookValue -= depr;
+                }
+                // Partial year
+                if (partialYear > 0 && fullYears < life) {
+                    const depr = Math.min(bookValue * rate * partialYear, bookValue - salvage);
+                    bookValue -= depr;
+                }
+
+                const currentAnnualDepr = Math.min(bookValue * rate, bookValue - salvage);
+                const monthlyDepr = currentAnnualDepr / 12;
+                return { annual: currentAnnualDepr, monthly: monthlyDepr, bookValue: Math.max(bookValue, salvage), method: 'DB', hasData: true };
+            }
+        }
+
+        // Save comment for an asset inline from the register table
+        function saveRegisterComment(assetId, textarea) {
+            const comment = textarea.value.trim();
+            let assets = loadAssetsFromStorage();
+            const index = assets.findIndex(a => a.id === assetId);
+            if (index !== -1) {
+                assets[index].comment = comment;
+                saveAssetsToStorage(assets);
+                // Update in-memory data too
+                const regAsset = assetRegisterData.find(a => a.id === assetId);
+                if (regAsset) regAsset.comment = comment;
+                const filtAsset = filteredRegisterData.find(a => a.id === assetId);
+                if (filtAsset) filtAsset.comment = comment;
+            }
+        }
+
+        // Toggle comment edit mode
+        function editRegisterComment(assetId) {
+            const display = document.getElementById('comment-display-' + assetId);
+            const editor = document.getElementById('comment-editor-' + assetId);
+            if (display && editor) {
+                display.style.display = 'none';
+                editor.style.display = 'block';
+                editor.querySelector('textarea').focus();
+            }
+        }
+
+        function closeRegisterComment(assetId) {
+            const display = document.getElementById('comment-display-' + assetId);
+            const editor = document.getElementById('comment-editor-' + assetId);
+            if (display && editor) {
+                const textarea = editor.querySelector('textarea');
+                saveRegisterComment(assetId, textarea);
+                display.textContent = textarea.value.trim() || 'Click to add...';
+                display.style.display = 'block';
+                editor.style.display = 'none';
+            }
+        }
+
         // Display asset register table
         function displayAssetRegister() {
             const tbody = document.getElementById('registerTableBody');
@@ -21481,7 +21722,7 @@
             if (filteredRegisterData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             No assets found matching your criteria.
                         </td>
                     </tr>
@@ -21501,6 +21742,33 @@
                         ? `<span class="asset-code-disposed" title="Disposed: ${disposalInfo ? disposalInfo.reason : 'Unknown'}">${escapeHtml(asset.assetCode)}<span class="disposed-badge">DISPOSED</span></span>`
                         : `<span class="asset-code-link" onclick="viewAssetDetails('${asset.id}')">${escapeHtml(asset.assetCode)}</span>`;
 
+                    // Calculate depreciation
+                    const depr = calcAssetDepreciation(asset, registerDeprMethodOverride);
+
+                    // Depreciation columns
+                    let deprAnnualHtml, deprMonthlyHtml, bookValueHtml;
+                    if (depr.hasData) {
+                        deprAnnualHtml = `<span class="depr-value">JMD ${formatCurrency(depr.annual)}</span><span class="depr-method-badge">${depr.method}</span>`;
+                        deprMonthlyHtml = `<span class="depr-value">JMD ${formatCurrency(depr.monthly)}</span>`;
+                        bookValueHtml = `<span class="depr-value${depr.bookValue <= (parseFloat(asset.salvageValue) || 0) ? ' negative' : ''}">JMD ${formatCurrency(depr.bookValue)}</span>`;
+                    } else {
+                        deprAnnualHtml = '<span class="depr-na">N/A</span>';
+                        deprMonthlyHtml = '<span class="depr-na">N/A</span>';
+                        bookValueHtml = '<span class="depr-na">N/A</span>';
+                    }
+
+                    // Comment column
+                    const commentText = asset.comment || '';
+                    const commentDisplay = escapeHtml(commentText) || 'Click to add...';
+                    const commentHtml = `
+                        <div class="register-comment-cell">
+                            <div id="comment-display-${asset.id}" class="register-comment-text" onclick="editRegisterComment('${asset.id}')" title="${escapeHtml(commentText)}">${commentDisplay}</div>
+                            <div id="comment-editor-${asset.id}" style="display:none;">
+                                <textarea class="register-comment-input" rows="2" onblur="closeRegisterComment('${asset.id}')">${escapeHtml(commentText)}</textarea>
+                            </div>
+                        </div>
+                    `;
+
                     return `
                         <tr${disposed ? ' style="background: rgba(231, 76, 60, 0.05);"' : ''}>
                             <td>${assetCodeDisplay}</td>
@@ -21513,6 +21781,10 @@
                             <td>${escapeHtml(asset.serialModel || 'N/A')}</td>
                             <td>${asset.quantity || 1}</td>
                             <td>JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
+                            <td>${deprAnnualHtml}</td>
+                            <td>${deprMonthlyHtml}</td>
+                            <td>${bookValueHtml}</td>
+                            <td>${commentHtml}</td>
                         </tr>
                     `;
                 }).join('');
