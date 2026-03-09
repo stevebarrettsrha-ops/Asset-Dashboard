@@ -18792,21 +18792,29 @@
             }
             
             const wb = XLSX.utils.book_new();
-            const headers = ['Asset Code', 'Date In', 'Description', 'Category', 'Supplier/Donor', 
-                           'Source', 'Serial/Model', 'Quantity', 'Total Price (JMD)', 'Month'];
-            const rows = filteredData.map(item => [
-                item.assetCode,
-                item.dateIn,
-                item.description,
-                item.category,
-                item.supplier,
-                item.source,
-                item.serialModel,
-                item.quantity,
-                item.totalPrice,
-                item.month
-            ]);
-            
+            const headers = ['Asset Code', 'Date In', 'Description', 'Category', 'Supplier/Donor',
+                           'Source', 'Serial/Model', 'Quantity', 'Total Price (JMD)', 'Month',
+                           'Annual Depr. (JMD)', 'Monthly Depr. (JMD)', 'Book Value (JMD)', 'Comment'];
+            const rows = filteredData.map(item => {
+                const depr = calcAssetDepreciation(item, null);
+                return [
+                    item.assetCode,
+                    item.dateIn,
+                    item.description,
+                    item.category,
+                    item.supplier,
+                    item.source,
+                    item.serialModel,
+                    item.quantity,
+                    item.totalPrice,
+                    item.month,
+                    depr.hasData ? Math.round(depr.annual * 100) / 100 : '',
+                    depr.hasData ? Math.round(depr.monthly * 100) / 100 : '',
+                    depr.hasData ? Math.round(depr.bookValue * 100) / 100 : '',
+                    item.comment || ''
+                ];
+            });
+
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
             XLSX.utils.book_append_sheet(wb, ws, 'Assets');
             XLSX.writeFile(wb, `MayPen_Asset_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -21830,21 +21838,32 @@
 
             const wb = XLSX.utils.book_new();
             const headers = ['Asset Code', 'Date In', 'Description', 'Department', 'Category',
-                           'Supplier/Donor', 'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month'];
-            const rows = filteredRegisterData.map(asset => [
-                asset.assetCode,
-                normalizeDateToDisplay(asset.dateIn) || '',
-                asset.description || '',
-                asset.department || '',
-                asset.category || '',
-                asset.supplier || '',
-                asset.source || '',
-                asset.serialModel || '',
-                asset.quantity || 1,
-                asset.unitPrice || 0,
-                asset.totalPrice || 0,
-                asset.month || ''
-            ]);
+                           'Supplier/Donor', 'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month',
+                           'Useful Life (Yrs)', 'Salvage Value (JMD)', 'Depr. Method', 'Annual Depr. (JMD)', 'Monthly Depr. (JMD)', 'Book Value (JMD)', 'Comment'];
+            const rows = filteredRegisterData.map(asset => {
+                const depr = calcAssetDepreciation(asset, registerDeprMethodOverride);
+                return [
+                    asset.assetCode,
+                    normalizeDateToDisplay(asset.dateIn) || '',
+                    asset.description || '',
+                    asset.department || '',
+                    asset.category || '',
+                    asset.supplier || '',
+                    asset.source || '',
+                    asset.serialModel || '',
+                    asset.quantity || 1,
+                    asset.unitPrice || 0,
+                    asset.totalPrice || 0,
+                    asset.month || '',
+                    asset.usefulLife || '',
+                    asset.salvageValue || '',
+                    depr.hasData ? (depr.method === 'SL' ? 'Straight Line' : 'Declining Balance') : '',
+                    depr.hasData ? Math.round(depr.annual * 100) / 100 : '',
+                    depr.hasData ? Math.round(depr.monthly * 100) / 100 : '',
+                    depr.hasData ? Math.round(depr.bookValue * 100) / 100 : '',
+                    asset.comment || ''
+                ];
+            });
 
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
             XLSX.utils.book_append_sheet(wb, ws, 'Asset Register');
@@ -21873,6 +21892,7 @@
             const tableRows = filteredRegisterData.map((asset, index) => {
                 const isDisposed = disposedAssetCodes.has(asset.assetCode);
                 const disposalInfo = isDisposed ? disposedRecords.find(r => r.assetCode === asset.assetCode) : null;
+                const depr = calcAssetDepreciation(asset, registerDeprMethodOverride);
 
                 return `
                     <tr${isDisposed ? ' class="disposed-row"' : ''}>
@@ -21887,6 +21907,10 @@
                         <td>${asset.serialModel || 'N/A'}</td>
                         <td style="text-align: center;">${asset.quantity || 1}</td>
                         <td style="text-align: right;">JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
+                        <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.annual) : '-'}</td>
+                        <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.monthly) : '-'}</td>
+                        <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.bookValue) : '-'}</td>
+                        <td>${asset.comment || '-'}</td>
                         <td>${isDisposed ? (disposalInfo ? disposalInfo.reason : 'Yes') : '-'}</td>
                     </tr>
                 `;
@@ -21966,18 +21990,18 @@
                         table {
                             width: 100%;
                             border-collapse: collapse;
-                            font-size: 9px;
+                            font-size: 7px;
                         }
                         th, td {
                             border: 1px solid #ddd;
-                            padding: 5px 4px;
+                            padding: 4px 3px;
                             text-align: left;
                         }
                         th {
                             background: #2C3E50;
                             color: white;
                             font-weight: bold;
-                            font-size: 8px;
+                            font-size: 7px;
                         }
                         tr:nth-child(even) {
                             background: #f9f9f9;
@@ -22075,6 +22099,10 @@
                                 <th>Serial/Model</th>
                                 <th>Qty</th>
                                 <th>Total Price</th>
+                                <th>Depreciation</th>
+                                <th>Monthly Depr.</th>
+                                <th>Book Value</th>
+                                <th>Comment</th>
                                 <th>Disposed</th>
                             </tr>
                         </thead>
