@@ -6355,7 +6355,8 @@
                     </div>
                     <div class="form-group">
                         <label for="quantity">Quantity *</label>
-                        <input type="number" id="quantity" required min="1" value="1">
+                        <input type="number" id="quantity" required min="1" value="1" oninput="document.getElementById('quantityExpandNote').style.display = this.value > 1 && !currentEditingAsset ? 'block' : 'none'">
+                        <small id="quantityExpandNote" style="color: #e67e22; font-size: 0.75rem; display: none;">Qty &gt; 1 will create separate individual assets with suffixed codes</small>
                     </div>
                     <div class="form-group">
                         <label for="description">Description *</label>
@@ -9547,7 +9548,6 @@
                     </tr>`;
             });
 
-            const combinedQty = (asset1.quantity || 1) + (asset2.quantity || 1);
             const combinedValue = (asset1.totalPrice || 0) + (asset2.totalPrice || 0);
 
             html += `
@@ -9555,14 +9555,15 @@
                 </table>
 
                 <div style="background: #E8F5E9; padding: 1rem; border-radius: 0.5rem; border: 1px solid #4CAF50;">
-                    <h4 style="color: #2E7D32; margin-bottom: 0.5rem;">Quantity & Value Summary (Auto-Combined)</h4>
+                    <h4 style="color: #2E7D32; margin-bottom: 0.5rem;">Value Summary</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <p><strong>Asset A:</strong> Qty: ${asset1.quantity || 1}, Value: JMD ${formatCurrency(asset1.totalPrice || 0)}</p>
-                        <p><strong>Asset B:</strong> Qty: ${asset2.quantity || 1}, Value: JMD ${formatCurrency(asset2.totalPrice || 0)}</p>
+                        <p><strong>Asset A:</strong> Value: JMD ${formatCurrency(asset1.totalPrice || 0)}</p>
+                        <p><strong>Asset B:</strong> Value: JMD ${formatCurrency(asset2.totalPrice || 0)}</p>
                         <p style="grid-column: 1/-1; font-size: 1.1rem; color: #1B5E20;">
-                            <strong>Combined Total: Qty: ${combinedQty}, Value: JMD ${formatCurrency(combinedValue)}</strong>
+                            <strong>Combined Total Value: JMD ${formatCurrency(combinedValue)}</strong>
                         </p>
                     </div>
+                    <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">Note: Merged asset will have Qty = 1. Use "Keep Asset A" data action to preserve original value, or "Combine" to sum values.</p>
                 </div>`;
 
             document.getElementById('mergeComparisonTable').innerHTML = html;
@@ -9597,10 +9598,10 @@
             const dataAction = document.getElementById('mergeDataAction').value;
 
             if (dataAction === 'combine') {
-                mergedAsset.quantity = (asset1.quantity || 1) + (asset2.quantity || 1);
                 mergedAsset.totalPrice = (asset1.totalPrice || 0) + (asset2.totalPrice || 0);
-                mergedAsset.unitPrice = mergedAsset.totalPrice / mergedAsset.quantity;
+                mergedAsset.unitPrice = mergedAsset.totalPrice;
             }
+            mergedAsset.quantity = 1;
 
             // Get indices in main storage
             let assets = loadAssetsFromStorage();
@@ -9637,7 +9638,7 @@
             loadData();
             closeMergeModal();
 
-            alert(`Assets merged successfully!\n\nMerged asset: ${mergedAsset.assetCode}\nQuantity: ${mergedAsset.quantity}\nTotal Value: JMD ${formatCurrency(mergedAsset.totalPrice)}`);
+            alert(`Assets merged successfully!\n\nMerged asset: ${mergedAsset.assetCode}\nTotal Value: JMD ${formatCurrency(mergedAsset.totalPrice)}`);
         }
 
         // Find potential duplicate assets
@@ -12757,12 +12758,19 @@
                         fixed = true;
                     }
 
-                    // Recalculate totalPrice if incorrect
-                    const calculatedTotal = asset.quantity * asset.unitPrice;
-                    if (Math.abs(asset.totalPrice - calculatedTotal) > 0.01) {
-                        asset.totalPrice = calculatedTotal;
+                    // For qty=1 assets (expanded), totalPrice should equal unitPrice
+                    // For legacy qty>1 assets, recalculate totalPrice = qty * unitPrice
+                    if (asset.quantity === 1 && asset.unitPrice > 0 && asset.totalPrice === 0) {
+                        asset.totalPrice = asset.unitPrice;
                         fixed = true;
                         issues.push(`Fixed total price for: ${asset.assetCode}`);
+                    } else if (asset.quantity > 1) {
+                        const calculatedTotal = asset.quantity * asset.unitPrice;
+                        if (Math.abs(asset.totalPrice - calculatedTotal) > 0.01) {
+                            asset.totalPrice = calculatedTotal;
+                            fixed = true;
+                            issues.push(`Fixed total price for: ${asset.assetCode}`);
+                        }
                     }
 
                     // Ensure source is valid
@@ -13063,15 +13071,33 @@
                 // Update existing asset
                 const index = assets.findIndex(a => a.id === currentEditingAsset.id);
                 if (index !== -1) {
+                    assetData.quantity = 1; // Enforce qty=1 on edit
                     assets[index] = assetData;
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
                     alert('✅ Asset updated successfully!');
                 }
             } else {
-                // Add new asset
-                assets.push(assetData);
-                addAuditEntry(assetData.assetCode, 'Asset Created', assetData.department, 'New asset added to inventory');
-                alert('✅ Asset added successfully!');
+                // Add new asset(s) — expand by quantity if qty > 1
+                const qty = assetData.quantity || 1;
+                if (qty > 1) {
+                    const baseCode = assetData.assetCode;
+                    const padLen = String(qty).length;
+                    for (let i = 0; i < qty; i++) {
+                        const expandedAsset = { ...assetData };
+                        expandedAsset.id = generateAssetId();
+                        expandedAsset.assetCode = `${baseCode}-${String(i + 1).padStart(padLen, '0')}`;
+                        expandedAsset.quantity = 1;
+                        expandedAsset.totalPrice = assetData.unitPrice;
+                        assets.push(expandedAsset);
+                        addAuditEntry(expandedAsset.assetCode, 'Asset Created', expandedAsset.department, 'New asset added to inventory (expanded from qty ' + qty + ')');
+                    }
+                    alert(`✅ ${qty} individual assets created! (${baseCode}-01 through ${baseCode}-${String(qty).padStart(padLen, '0')})`);
+                } else {
+                    assetData.quantity = 1;
+                    assets.push(assetData);
+                    addAuditEntry(assetData.assetCode, 'Asset Created', assetData.department, 'New asset added to inventory');
+                    alert('✅ Asset added successfully!');
+                }
             }
 
             saveAssetsToStorage(assets);
@@ -23098,7 +23124,7 @@
 
                     <div class="legend">
                         <span class="legend-item"><span class="legend-disposed">■</span> Red bordered = Disposed Asset</span>
-                        <span class="legend-item">Total records: ${filteredRegisterData.length} | Total items (qty): ${totalAssets}</span>
+                        <span class="legend-item">Total assets: ${filteredRegisterData.length}</span>
                     </div>
 
                     <table>
