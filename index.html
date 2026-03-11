@@ -10421,7 +10421,7 @@
 
                 // Step 3: Upload merged local data to cloud
                 const backupData = {
-                    version: '1.1',
+                    version: '1.2',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -10430,6 +10430,7 @@
                         auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -10598,6 +10599,25 @@
                 }
             }
 
+            // Merge disposal records by ID
+            if (cloudDataObj.disposalRecords && cloudDataObj.disposalRecords.length > 0) {
+                const localDisposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                const localDisposalIds = new Set(localDisposals.map(d => d.id).filter(Boolean));
+                let added = 0;
+                cloudDataObj.disposalRecords.forEach(record => {
+                    if (record.id && !localDisposalIds.has(record.id)) {
+                        localDisposals.push(record);
+                        localDisposalIds.add(record.id);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localDisposals.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(localDisposals));
+                    dataChanged = true;
+                }
+            }
+
             return dataChanged;
         }
 
@@ -10721,7 +10741,7 @@
 
             try {
                 const backupData = {
-                    version: '1.1',
+                    version: '1.2',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -10730,6 +10750,7 @@
                         auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                        disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -10877,6 +10898,12 @@
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
                 }
 
+                // Restore disposal records
+                if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(backupData.data.disposalRecords));
+                    disposalRecords = backupData.data.disposalRecords;
+                }
+
                 // Restore portal user accounts
                 if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
                     localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
@@ -10894,6 +10921,7 @@
 
                 // Refresh the UI with restored data
                 if (typeof loadData === 'function') loadData();
+                if (typeof loadDisposalRecords === 'function') loadDisposalRecords();
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -10905,8 +10933,9 @@
 
                 setCloudSyncing(false);
 
+                const disposalCount = (backupData.data.disposalRecords || []).length;
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
-                alert(`Data synced from cloud successfully!\n\nAssets restored: ${restoredCount}\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
+                alert(`Data synced from cloud successfully!\n\nAssets restored: ${restoredCount}\nDisposal records: ${disposalCount}\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
@@ -11324,6 +11353,12 @@
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
                 }
 
+                // Restore disposal records
+                if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(backupData.data.disposalRecords));
+                    disposalRecords = backupData.data.disposalRecords;
+                }
+
                 // Restore portal user accounts
                 if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
                     localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
@@ -11341,6 +11376,7 @@
 
                 // Refresh the UI with restored data
                 if (typeof loadData === 'function') loadData();
+                if (typeof loadDisposalRecords === 'function') loadDisposalRecords();
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -11352,8 +11388,9 @@
 
                 setCloudSyncing(false);
 
+                const disposalCountLogin = (backupData.data.disposalRecords || []).length;
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                alert(`Synced from cloud${savedByInfo}\n\nAssets restored: ${restoredCount}`);
+                alert(`Synced from cloud${savedByInfo}\n\nAssets restored: ${restoredCount}\nDisposal records: ${disposalCountLogin}`);
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
