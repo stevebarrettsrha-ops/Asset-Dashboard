@@ -22279,7 +22279,6 @@
                     const p = row.parsed;
 
                     // Apply defaults for invalid rows with missing fields
-                    if (!p.assetCode) p.assetCode = 'BOS-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
                     if (!p.description) p.description = 'Unnamed Asset';
                     if (!p.disposalDate) p.disposalDate = new Date().toISOString().split('T')[0];
                     if (!p.reason) p.reason = 'Other';
