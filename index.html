@@ -22134,8 +22134,10 @@
                 if (!assetCode) errors.push('Missing asset code');
                 if (!description) errors.push('Missing description');
                 if (!normalizedDate) errors.push('Missing/invalid date');
-                if (!reason) errors.push('Missing reason');
-                if (!method) errors.push('Missing method');
+
+                // Default reason and method if not provided
+                if (!reason) reason = 'Other';
+                if (!method) method = 'Destruction';
 
                 bosPreviewRows.push({
                     rowNum: idx + 1,
@@ -22157,7 +22159,13 @@
             document.getElementById('bosPagePreviewStats').innerHTML = `
                 <div class="bos-preview-stat total">Total Rows: ${bosPreviewRows.length}</div>
                 <div class="bos-preview-stat valid">Valid: ${validCount}</div>
-                ${invalidCount > 0 ? `<div class="bos-preview-stat invalid">Invalid: ${invalidCount} (will be skipped)</div>` : ''}
+                ${invalidCount > 0 ? `
+                    <div class="bos-preview-stat invalid">Invalid: ${invalidCount}</div>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-left: 10px; font-size: 0.9rem; cursor: pointer; color: var(--text-secondary);">
+                        <input type="checkbox" id="bosIncludeInvalid" onchange="bosToggleInvalidRows()" style="width: 16px; height: 16px; cursor: pointer;">
+                        Import invalid rows anyway (missing fields will use defaults)
+                    </label>
+                ` : ''}
             `;
 
             // Render preview table
@@ -22176,6 +22184,16 @@
                     <td>${escapeHtml(row.parsed.approvedBy)}</td>
                 </tr>
             `).join('');
+        }
+
+        function bosToggleInvalidRows() {
+            const include = document.getElementById('bosIncludeInvalid').checked;
+            const rows = document.querySelectorAll('#bosPagePreviewTableBody tr');
+            bosPreviewRows.forEach((row, i) => {
+                if (row.status === 'invalid' && rows[i]) {
+                    rows[i].style.opacity = include ? '1' : '0.5';
+                }
+            });
         }
 
         // Step navigation functions
@@ -22236,14 +22254,18 @@
 
         // Import confirmed
         function confirmBosPageImport() {
-            const validRows = bosPreviewRows.filter(r => r.status === 'valid');
+            const includeInvalid = document.getElementById('bosIncludeInvalid')?.checked || false;
+            const rowsToImport = includeInvalid ? bosPreviewRows : bosPreviewRows.filter(r => r.status === 'valid');
 
-            if (validRows.length === 0) {
-                alert('No valid rows to import. Please check your column mappings and go back to adjust.');
+            if (rowsToImport.length === 0) {
+                alert('No rows to import. Please check your column mappings and go back to adjust.');
                 return;
             }
 
-            if (!confirm(`You are about to import ${validRows.length} disposal record(s).\n\nThis will:\n• Add records to the Board of Survey\n• Add assets to the Fixed Asset Register (if enabled)\n• Update the main Dashboard\n\nContinue?`)) {
+            const invalidCount = rowsToImport.filter(r => r.status === 'invalid').length;
+            const invalidNote = invalidCount > 0 ? `\n\n⚠ ${invalidCount} invalid row(s) will use default values for missing fields.` : '';
+
+            if (!confirm(`You are about to import ${rowsToImport.length} disposal record(s).${invalidNote}\n\nThis will:\n• Add records to the Board of Survey\n• Add assets to the Fixed Asset Register (if enabled)\n• Update the main Dashboard\n\nContinue?`)) {
                 return;
             }
 
@@ -22253,8 +22275,15 @@
                 let importedDisposals = 0;
                 let importedAssets = 0;
 
-                validRows.forEach(row => {
+                rowsToImport.forEach(row => {
                     const p = row.parsed;
+
+                    // Apply defaults for invalid rows with missing fields
+                    if (!p.assetCode) p.assetCode = 'BOS-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+                    if (!p.description) p.description = 'Unnamed Asset';
+                    if (!p.disposalDate) p.disposalDate = new Date().toISOString().split('T')[0];
+                    if (!p.reason) p.reason = 'Other';
+                    if (!p.method) p.method = 'Destruction';
 
                     // Create disposal record
                     const disposalRecord = {
@@ -22364,7 +22393,12 @@
                 if (importedAssets > 0) {
                     successMsg += `<br><br><strong>${importedAssets}</strong> new asset(s) added to the Fixed Asset Register and Dashboard.`;
                 }
-                const skipped = bosPreviewRows.filter(r => r.status === 'invalid').length;
+                const totalInvalid = bosPreviewRows.filter(r => r.status === 'invalid').length;
+                const importedInvalid = rowsToImport.filter(r => r.status === 'invalid').length;
+                const skipped = totalInvalid - importedInvalid;
+                if (importedInvalid > 0) {
+                    successMsg += `<br><br><span style="color: #3498db;">${importedInvalid} row(s) imported with default values for missing fields.</span>`;
+                }
                 if (skipped > 0) {
                     successMsg += `<br><br><span style="color: #e67e22;">${skipped} row(s) skipped due to validation errors.</span>`;
                 }
