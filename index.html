@@ -4577,6 +4577,136 @@
         }
 
         /* ============================================
+           BOS EXCEL UPLOAD STYLES
+           ============================================ */
+        .bos-upload-dropzone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+        }
+
+        .bos-upload-dropzone:hover,
+        .bos-upload-dropzone.drag-over {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .bos-mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .bos-mapping-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .bos-mapping-item label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .bos-mapping-item label .required-star {
+            color: #e74c3c;
+        }
+
+        .bos-mapping-item select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9em;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+        .bos-mapping-item select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .bos-preview-stat {
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .bos-preview-stat.valid {
+            background: rgba(39, 174, 96, 0.15);
+            color: #27ae60;
+        }
+
+        .bos-preview-stat.invalid {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+        }
+
+        .bos-preview-stat.total {
+            background: rgba(52, 152, 219, 0.15);
+            color: #3498db;
+        }
+
+        .bos-row-valid {
+            color: #27ae60;
+        }
+
+        .bos-row-invalid {
+            color: #e74c3c;
+        }
+
+        .bos-step-badge {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .bos-step-badge.bos-step-active {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .bos-step-badge.bos-step-done {
+            background: #27ae60;
+            color: white;
+            border-color: #27ae60;
+        }
+
+        .bos-step-connector {
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 600px) {
+            .bos-mapping-grid {
+                grid-template-columns: 1fr;
+            }
+            .bos-step-connector {
+                display: none;
+            }
+            .bos-step-badge {
+                font-size: 0.8rem;
+                padding: 8px 14px;
+            }
+        }
+
+        /* ============================================
            ASSET REGISTER DASHBOARD STYLES
            ============================================ */
         .register-container {
@@ -6571,6 +6701,12 @@
                 <span class="sidebar-nav-icon">&#x1F50D;</span>
                 <span class="sidebar-nav-text">Asset Code Lookup</span>
             </button>
+
+            <div class="sidebar-section-label">Import</div>
+            <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
+                <span class="sidebar-nav-icon">&#x1F4E4;</span>
+                <span class="sidebar-nav-text">BOS Upload</span>
+            </button>
         </div>
 
         <div class="sidebar-footer">
@@ -8121,6 +8257,138 @@
         </div>
     </div>
 
+    <!-- PAGE 9: BOS EXCEL UPLOAD -->
+    <div class="page" id="page9">
+        <div class="header" style="background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">BOS Asset Upload</h1>
+                        <div class="dashboard-subtitle">Import Board of Survey Assets from Excel</div>
+                    </div>
+                    <div class="user-info" id="userInfo9"></div>
+                </div>
+
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="resetBosUploadPage()" style="background: linear-gradient(135deg, #e67e22, #d35400);">🔄 Reset</button>
+                    <button class="btn monthly-view-btn" onclick="bosDownloadTemplate()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📋 Download Template</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="disposal-container" style="margin-bottom: 30px;">
+            <!-- Step Indicator -->
+            <div id="bosStepIndicator" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap;">
+                <div class="bos-step-badge bos-step-active" id="bosStepBadge1">1. Upload File</div>
+                <div class="bos-step-connector">→</div>
+                <div class="bos-step-badge" id="bosStepBadge2">2. Map Columns</div>
+                <div class="bos-step-connector">→</div>
+                <div class="bos-step-badge" id="bosStepBadge3">3. Preview & Import</div>
+            </div>
+
+            <!-- Step 1: File Upload -->
+            <div id="bosPageStep1">
+                <h2 style="margin-bottom: 20px; color: var(--text-primary);">📁 Upload Excel File</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Upload an Excel file (.xlsx or .xls) containing your Board of Survey asset records. The data will be added to the BOS disposal records, fixed asset register, and main dashboard.</p>
+
+                <div class="bos-upload-dropzone" id="bosPageDropzone" onclick="document.getElementById('bosPageFileInput').click()">
+                    <div style="font-size: 3.5rem; margin-bottom: 10px;">📤</div>
+                    <p style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary);">Click to browse or drag & drop your Excel file here</p>
+                    <p style="font-size: 0.9rem; opacity: 0.6; margin-top: 8px;">Accepted formats: .xlsx, .xls</p>
+                </div>
+                <input type="file" id="bosPageFileInput" accept=".xlsx,.xls" onchange="handleBosPageFile(event)" style="display: none;">
+
+                <div id="bosPageFileInfo" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 10px; border-left: 4px solid #3498db;">
+                    <p id="bosPageFileDetails" style="font-size: 0.95rem;"></p>
+                </div>
+
+                <div id="bosPageProgress" style="display: none; margin-top: 20px;">
+                    <div style="background: var(--bg-secondary); border-radius: 8px; overflow: hidden; height: 10px;">
+                        <div id="bosPageProgressFill" style="height: 100%; background: linear-gradient(90deg, #3498db, #2980b9); width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="bosPageProgressText" style="font-size: 0.85rem; margin-top: 8px; text-align: center; color: var(--text-secondary);"></p>
+                </div>
+
+                <div id="bosPageStep1Actions" style="display: none; margin-top: 25px; text-align: right;">
+                    <button class="btn monthly-view-btn" onclick="bosPageGoToStep2()" style="background: linear-gradient(135deg, #2980b9, #3498db); font-size: 1rem; padding: 12px 30px;">Next: Map Columns →</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Column Mapping -->
+            <div id="bosPageStep2" style="display: none;">
+                <h2 style="margin-bottom: 10px; color: var(--text-primary);">⚙️ Map Excel Columns</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">We auto-detected your columns below. Verify and adjust the mappings if needed. Fields marked with <span style="color: #e74c3c; font-weight: bold;">*</span> are required.</p>
+
+                <div id="bosPageMappingGrid" class="bos-mapping-grid"></div>
+
+                <!-- Add to inventory option -->
+                <div style="margin-top: 25px; padding: 18px; background: var(--bg-secondary); border-radius: 10px; border-left: 4px solid #27ae60;">
+                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="bosPageAddToInventory" checked style="width: 20px; height: 20px; margin-top: 2px;">
+                        <div>
+                            <strong style="color: var(--text-primary); font-size: 1rem;">Also add assets to Fixed Asset Register & Dashboard</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">When enabled, uploaded assets will automatically appear in the main dashboard, asset inventory, and asset register — keeping all views consistent.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="margin-top: 25px; display: flex; justify-content: space-between;">
+                    <button class="btn monthly-view-btn" onclick="bosPageGoToStep1()" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6); padding: 12px 25px;">← Back</button>
+                    <button class="btn monthly-view-btn" onclick="bosPageGoToStep3()" style="background: linear-gradient(135deg, #2980b9, #3498db); font-size: 1rem; padding: 12px 30px;">Next: Preview →</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Preview & Import -->
+            <div id="bosPageStep3" style="display: none;">
+                <h2 style="margin-bottom: 15px; color: var(--text-primary);">📋 Preview & Import</h2>
+
+                <div id="bosPagePreviewStats" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;"></div>
+
+                <div style="max-height: 450px; overflow: auto; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <table class="disposal-table" id="bosPagePreviewTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Status</th>
+                                <th>Asset Code</th>
+                                <th>Description</th>
+                                <th>Disposal Date</th>
+                                <th>Reason</th>
+                                <th>Method</th>
+                                <th>Original Value</th>
+                                <th>Disposal Value</th>
+                                <th>Approved By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bosPagePreviewTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 25px; display: flex; justify-content: space-between;">
+                    <button class="btn monthly-view-btn" onclick="bosPageGoToStep2FromPreview()" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6); padding: 12px 25px;">← Back</button>
+                    <button class="btn monthly-view-btn" id="bosPageImportBtn" onclick="confirmBosPageImport()" style="background: linear-gradient(135deg, #27ae60, #219a52); font-size: 1.05rem; padding: 12px 35px;">✓ Import Assets</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Success -->
+            <div id="bosPageStep4" style="display: none; text-align: center; padding: 50px 20px;">
+                <div style="font-size: 5rem; margin-bottom: 20px;">✅</div>
+                <h2 style="color: #27ae60; margin-bottom: 15px;">Import Successful!</h2>
+                <p id="bosPageSuccessDetails" style="color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6;"></p>
+                <div style="margin-top: 30px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(6)" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">View Board of Survey</button>
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(7)" style="background: linear-gradient(135deg, #3498db, #2980b9);">View Asset Register</button>
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(1)" style="background: linear-gradient(135deg, #27ae60, #219a52);">View Dashboard</button>
+                    <button class="btn monthly-view-btn" onclick="resetBosUploadPage()" style="background: linear-gradient(135deg, #e67e22, #d35400);">Upload Another File</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System © <span id="copyrightYear9"></span> • May Pen Hospital</p>
+        </div>
+    </div>
+
     <!-- Add Asset Code Modal (Admin Only) -->
     <div class="asset-code-modal" id="addAssetCodeModal">
         <div class="asset-code-modal-content">
@@ -8371,7 +8639,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -13787,6 +14055,18 @@
                     `;
                 }
                 initAssetCodeLookup();
+            }
+
+            // Handle BOS Upload page
+            if (pageNum === 9) {
+                const userInfo9 = document.getElementById('userInfo9');
+                if (userInfo9 && currentUser) {
+                    userInfo9.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                initBosUploadPage();
             }
         }
 
@@ -21460,6 +21740,608 @@
             const printWindow = window.open('', '_blank');
             printWindow.document.write(printContent);
             printWindow.document.close();
+        }
+
+        // ============================================
+        // BOS EXCEL UPLOAD PAGE FUNCTIONS
+        // ============================================
+
+        let bosUploadData = [];
+        let bosUploadHeaders = [];
+        let bosColumnMapping = {};
+        let bosPreviewRows = [];
+        let bosPageCurrentStep = 1;
+
+        // BOS field definitions with auto-detect aliases
+        const bosFieldDefinitions = {
+            assetCode: {
+                label: 'Asset Code',
+                required: true,
+                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'code', 'asset no', 'asset number', 'asset#', 'id']
+            },
+            description: {
+                label: 'Description',
+                required: true,
+                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc']
+            },
+            disposalDate: {
+                label: 'Disposal Date',
+                required: true,
+                aliases: ['disposal date', 'disposaldate', 'disposal_date', 'date disposed', 'date of disposal', 'date', 'bos date', 'survey date']
+            },
+            reason: {
+                label: 'Reason',
+                required: true,
+                aliases: ['reason', 'disposal reason', 'reason for disposal', 'cause', 'condition', 'status']
+            },
+            method: {
+                label: 'Method',
+                required: true,
+                aliases: ['method', 'disposal method', 'method of disposal', 'action', 'disposal action', 'disposal type']
+            },
+            originalValue: {
+                label: 'Original Value (JMD)',
+                required: false,
+                aliases: ['original value', 'originalvalue', 'original_value', 'original cost', 'cost', 'value', 'purchase price', 'unit price', 'price', 'total price', 'total value', 'amount']
+            },
+            disposalValue: {
+                label: 'Disposal Value (JMD)',
+                required: false,
+                aliases: ['disposal value', 'disposalvalue', 'disposal_value', 'salvage value', 'sale value', 'recovered value', 'sale price', 'auction value']
+            },
+            approvedBy: {
+                label: 'Approved By',
+                required: false,
+                aliases: ['approved by', 'approvedby', 'approved_by', 'authorised by', 'authorized by', 'officer', 'approver', 'surveyor']
+            },
+            reference: {
+                label: 'BOS Reference',
+                required: false,
+                aliases: ['reference', 'bos reference', 'ref', 'reference number', 'ref no', 'bos ref', 'survey reference', 'bos no']
+            },
+            remarks: {
+                label: 'Remarks',
+                required: false,
+                aliases: ['remarks', 'notes', 'comments', 'remark', 'note', 'comment', 'observations', 'additional notes']
+            },
+            department: {
+                label: 'Department/Location',
+                required: false,
+                aliases: ['department', 'location', 'dept', 'ward', 'unit', 'area', 'section', 'asset location', 'asset department']
+            },
+            category: {
+                label: 'Category',
+                required: false,
+                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'class', 'classification', 'group']
+            },
+            quantity: {
+                label: 'Quantity',
+                required: false,
+                aliases: ['quantity', 'qty', 'count', 'units', 'no of items', 'number']
+            },
+            supplier: {
+                label: 'Supplier/Vendor',
+                required: false,
+                aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'donor', 'manufacturer']
+            },
+            serialModel: {
+                label: 'Serial/Model',
+                required: false,
+                aliases: ['serial', 'model', 'serial number', 'serial no', 'model number', 'model no', 'serial/model', 's/n']
+            }
+        };
+
+        // Initialize BOS upload page
+        function initBosUploadPage() {
+            const dropzone = document.getElementById('bosPageDropzone');
+            if (!dropzone) return;
+
+            dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); };
+            dropzone.ondragleave = () => dropzone.classList.remove('drag-over');
+            dropzone.ondrop = (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) handleBosPageFileSelection(e.dataTransfer.files[0]);
+            };
+        }
+
+        // Reset BOS upload page to initial state
+        function resetBosUploadPage() {
+            bosUploadData = [];
+            bosUploadHeaders = [];
+            bosColumnMapping = {};
+            bosPreviewRows = [];
+            bosPageCurrentStep = 1;
+
+            document.getElementById('bosPageStep1').style.display = 'block';
+            document.getElementById('bosPageStep2').style.display = 'none';
+            document.getElementById('bosPageStep3').style.display = 'none';
+            document.getElementById('bosPageStep4').style.display = 'none';
+            document.getElementById('bosPageFileInfo').style.display = 'none';
+            document.getElementById('bosPageProgress').style.display = 'none';
+            document.getElementById('bosPageStep1Actions').style.display = 'none';
+            document.getElementById('bosPageFileInput').value = '';
+
+            bosUpdateStepIndicator(1);
+        }
+
+        // Update step indicator badges
+        function bosUpdateStepIndicator(step) {
+            for (let i = 1; i <= 3; i++) {
+                const badge = document.getElementById('bosStepBadge' + i);
+                if (!badge) continue;
+                badge.classList.remove('bos-step-active', 'bos-step-done');
+                if (i < step) badge.classList.add('bos-step-done');
+                else if (i === step) badge.classList.add('bos-step-active');
+            }
+        }
+
+        // Download a template Excel file
+        function bosDownloadTemplate() {
+            const wb = XLSX.utils.book_new();
+            const headers = ['Asset Code', 'Description', 'Disposal Date', 'Reason', 'Method',
+                           'Original Value (JMD)', 'Disposal Value (JMD)', 'Approved By', 'Reference',
+                           'Remarks', 'Department', 'Category', 'Quantity', 'Supplier', 'Serial/Model'];
+            const exampleRow = ['AC-1234', 'Office Desk', '2025-03-15', 'Damaged', 'Destruction',
+                              50000, 0, 'John Smith', 'BOS-2025-001', 'Beyond repair',
+                              'Administration', 'Furniture & Appliances', 1, 'ABC Supplies', 'MOD-555'];
+            const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+
+            // Set column widths
+            ws['!cols'] = headers.map(() => ({ wch: 18 }));
+
+            XLSX.utils.book_append_sheet(wb, ws, 'BOS Template');
+            XLSX.writeFile(wb, 'BOS_Upload_Template.xlsx');
+        }
+
+        function handleBosPageFile(event) {
+            if (event.target.files[0]) handleBosPageFileSelection(event.target.files[0]);
+        }
+
+        function handleBosPageFileSelection(file) {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (ext !== '.xlsx' && ext !== '.xls') {
+                alert('Please select a valid Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            const progress = document.getElementById('bosPageProgress');
+            const progressFill = document.getElementById('bosPageProgressFill');
+            const progressText = document.getElementById('bosPageProgressText');
+
+            progress.style.display = 'block';
+            progressFill.style.width = '10%';
+            progressText.textContent = 'Reading file...';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    progressFill.style.width = '40%';
+                    progressText.textContent = 'Parsing Excel data...';
+
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    progressFill.style.width = '70%';
+                    progressText.textContent = 'Analyzing columns...';
+
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                    if (jsonData.length < 2) {
+                        throw new Error('File appears empty or has no data rows');
+                    }
+
+                    // Find header row (first row with multiple non-empty cells)
+                    let headerIdx = 0;
+                    for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
+                        const nonEmpty = jsonData[i].filter(c => String(c || '').trim() !== '').length;
+                        if (nonEmpty >= 3) { headerIdx = i; break; }
+                    }
+
+                    bosUploadHeaders = (jsonData[headerIdx] || []).map(h => String(h || '').trim());
+                    bosUploadData = jsonData.slice(headerIdx + 1).filter(row => row.some(cell => String(cell || '').trim() !== ''));
+
+                    progressFill.style.width = '90%';
+                    progressText.textContent = 'Auto-detecting columns...';
+
+                    // Auto-detect column mappings
+                    bosAutoDetectColumns();
+
+                    progressFill.style.width = '100%';
+                    progressText.textContent = 'File loaded successfully!';
+
+                    // Show file info
+                    document.getElementById('bosPageFileInfo').style.display = 'block';
+                    document.getElementById('bosPageFileDetails').innerHTML =
+                        `<strong>${escapeHtml(file.name)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong>`;
+
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }, 500);
+
+                    // Show next button
+                    document.getElementById('bosPageStep1Actions').style.display = 'block';
+
+                } catch (error) {
+                    console.error('Error parsing BOS Excel file:', error);
+                    progress.style.display = 'none';
+                    alert('Error reading Excel file: ' + error.message);
+                }
+            };
+            reader.onerror = function() {
+                progress.style.display = 'none';
+                alert('Error reading file. Please try again.');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function bosAutoDetectColumns() {
+            bosColumnMapping = {};
+            bosUploadHeaders.forEach((header, index) => {
+                const normalized = header.toLowerCase().trim();
+                for (const [fieldKey, fieldDef] of Object.entries(bosFieldDefinitions)) {
+                    if (bosColumnMapping[fieldKey] !== undefined) continue;
+                    const match = fieldDef.aliases.some(alias =>
+                        normalized === alias || normalized.includes(alias) || alias.includes(normalized)
+                    );
+                    if (match) {
+                        bosColumnMapping[fieldKey] = index;
+                        break;
+                    }
+                }
+            });
+        }
+
+        function bosBuildMappingUI() {
+            const grid = document.getElementById('bosPageMappingGrid');
+            const headerOptions = bosUploadHeaders.map((h, i) =>
+                `<option value="${i}">${escapeHtml(h)}</option>`
+            ).join('');
+
+            grid.innerHTML = Object.entries(bosFieldDefinitions).map(([key, def]) => {
+                const requiredStar = def.required ? '<span class="required-star">*</span>' : '';
+                return `
+                    <div class="bos-mapping-item">
+                        <label>${def.label} ${requiredStar}</label>
+                        <select id="bosMap_${key}" onchange="bosColumnMapping['${key}'] = this.value === '' ? undefined : parseInt(this.value)">
+                            <option value="">-- Not Mapped --</option>
+                            ${headerOptions}
+                        </select>
+                    </div>
+                `;
+            }).join('');
+
+            // Set auto-detected values
+            Object.entries(bosColumnMapping).forEach(([key, colIdx]) => {
+                const select = document.getElementById('bosMap_' + key);
+                if (select && colIdx !== undefined) select.value = colIdx;
+            });
+        }
+
+        function bosGeneratePreview() {
+            bosPreviewRows = [];
+
+            const validReasons = ['damaged', 'obsolete', 'surplus', 'other'];
+            const validMethods = ['auction', 'donation', 'destruction', 'transfer'];
+
+            bosUploadData.forEach((row, idx) => {
+                const getValue = (field) => {
+                    const colIdx = bosColumnMapping[field];
+                    if (colIdx === undefined || colIdx === null) return '';
+                    const val = row[colIdx];
+                    if (val instanceof Date) {
+                        return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+                    }
+                    return String(val || '').trim();
+                };
+
+                const assetCode = getValue('assetCode');
+                const description = getValue('description');
+                const disposalDate = getValue('disposalDate');
+                let reason = getValue('reason');
+                let method = getValue('method');
+                const originalValue = parseFloat(String(getValue('originalValue')).replace(/[^0-9.-]/g, '')) || 0;
+                const disposalValue = parseFloat(String(getValue('disposalValue')).replace(/[^0-9.-]/g, '')) || 0;
+                const approvedBy = getValue('approvedBy');
+                const reference = getValue('reference');
+                const remarks = getValue('remarks');
+                const department = getValue('department');
+                const category = getValue('category');
+                const quantity = parseInt(getValue('quantity')) || 1;
+                const supplier = getValue('supplier');
+                const serialModel = getValue('serialModel');
+
+                // Normalize reason
+                const reasonLower = reason.toLowerCase();
+                if (validReasons.includes(reasonLower)) {
+                    reason = reasonLower.charAt(0).toUpperCase() + reasonLower.slice(1);
+                } else if (reasonLower.includes('damage') || reasonLower.includes('broken') || reasonLower.includes('defective')) {
+                    reason = 'Damaged';
+                } else if (reasonLower.includes('obsolete') || reasonLower.includes('outdated') || reasonLower.includes('expired')) {
+                    reason = 'Obsolete';
+                } else if (reasonLower.includes('surplus') || reasonLower.includes('excess') || reasonLower.includes('redundant')) {
+                    reason = 'Surplus';
+                } else if (reason) {
+                    reason = 'Other';
+                }
+
+                // Normalize method
+                const methodLower = method.toLowerCase();
+                if (validMethods.includes(methodLower)) {
+                    method = methodLower.charAt(0).toUpperCase() + methodLower.slice(1);
+                } else if (methodLower.includes('auction') || methodLower.includes('sale') || methodLower.includes('sold')) {
+                    method = 'Auction';
+                } else if (methodLower.includes('donat') || methodLower.includes('give') || methodLower.includes('gift')) {
+                    method = 'Donation';
+                } else if (methodLower.includes('destroy') || methodLower.includes('scrap') || methodLower.includes('discard') || methodLower.includes('dump')) {
+                    method = 'Destruction';
+                } else if (methodLower.includes('transfer') || methodLower.includes('relocat') || methodLower.includes('moved')) {
+                    method = 'Transfer';
+                } else if (method) {
+                    method = 'Destruction';
+                }
+
+                // Normalize disposal date
+                let normalizedDate = disposalDate;
+                if (disposalDate && !disposalDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    const parsed = new Date(disposalDate);
+                    if (!isNaN(parsed.getTime())) {
+                        normalizedDate = `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}`;
+                    }
+                }
+
+                const errors = [];
+                if (!assetCode) errors.push('Missing asset code');
+                if (!description) errors.push('Missing description');
+                if (!normalizedDate) errors.push('Missing/invalid date');
+                if (!reason) errors.push('Missing reason');
+                if (!method) errors.push('Missing method');
+
+                bosPreviewRows.push({
+                    rowNum: idx + 1,
+                    status: errors.length === 0 ? 'valid' : 'invalid',
+                    errors: errors,
+                    parsed: {
+                        assetCode, description, disposalDate: normalizedDate,
+                        reason, method, originalValue, disposalValue,
+                        approvedBy, reference, remarks, department, category,
+                        quantity, supplier, serialModel
+                    }
+                });
+            });
+
+            // Render preview stats
+            const validCount = bosPreviewRows.filter(r => r.status === 'valid').length;
+            const invalidCount = bosPreviewRows.filter(r => r.status === 'invalid').length;
+
+            document.getElementById('bosPagePreviewStats').innerHTML = `
+                <div class="bos-preview-stat total">Total Rows: ${bosPreviewRows.length}</div>
+                <div class="bos-preview-stat valid">Valid: ${validCount}</div>
+                ${invalidCount > 0 ? `<div class="bos-preview-stat invalid">Invalid: ${invalidCount} (will be skipped)</div>` : ''}
+            `;
+
+            // Render preview table
+            const tbody = document.getElementById('bosPagePreviewTableBody');
+            tbody.innerHTML = bosPreviewRows.map(row => `
+                <tr>
+                    <td>${row.rowNum}</td>
+                    <td><span class="bos-row-${row.status}">${row.status === 'valid' ? '✓ Valid' : '✗ ' + row.errors.join(', ')}</span></td>
+                    <td>${escapeHtml(row.parsed.assetCode)}</td>
+                    <td>${escapeHtml(row.parsed.description)}</td>
+                    <td>${escapeHtml(row.parsed.disposalDate)}</td>
+                    <td>${row.parsed.reason ? `<span class="disposal-reason-badge ${row.parsed.reason.toLowerCase()}">${escapeHtml(row.parsed.reason)}</span>` : ''}</td>
+                    <td>${row.parsed.method ? `<span class="disposal-method-badge ${row.parsed.method.toLowerCase()}">${escapeHtml(row.parsed.method)}</span>` : ''}</td>
+                    <td>JMD ${formatCurrency(row.parsed.originalValue)}</td>
+                    <td>JMD ${formatCurrency(row.parsed.disposalValue)}</td>
+                    <td>${escapeHtml(row.parsed.approvedBy)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Step navigation functions
+        function bosPageGoToStep2() {
+            if (bosUploadData.length === 0) {
+                alert('Please upload an Excel file first.');
+                return;
+            }
+            bosPageCurrentStep = 2;
+            document.getElementById('bosPageStep1').style.display = 'none';
+            document.getElementById('bosPageStep2').style.display = 'block';
+            bosUpdateStepIndicator(2);
+            bosBuildMappingUI();
+        }
+
+        function bosPageGoToStep1() {
+            bosPageCurrentStep = 1;
+            document.getElementById('bosPageStep2').style.display = 'none';
+            document.getElementById('bosPageStep1').style.display = 'block';
+            bosUpdateStepIndicator(1);
+        }
+
+        function bosPageGoToStep3() {
+            // Re-read mappings from selects
+            Object.keys(bosFieldDefinitions).forEach(key => {
+                const sel = document.getElementById('bosMap_' + key);
+                if (sel) {
+                    bosColumnMapping[key] = sel.value === '' ? undefined : parseInt(sel.value);
+                }
+            });
+
+            // Validate required fields
+            const missingRequired = [];
+            for (const [key, def] of Object.entries(bosFieldDefinitions)) {
+                if (def.required && (bosColumnMapping[key] === undefined || bosColumnMapping[key] === null)) {
+                    missingRequired.push(def.label);
+                }
+            }
+
+            if (missingRequired.length > 0) {
+                alert('Please map these required fields:\n\n' + missingRequired.join('\n'));
+                return;
+            }
+
+            bosPageCurrentStep = 3;
+            document.getElementById('bosPageStep2').style.display = 'none';
+            document.getElementById('bosPageStep3').style.display = 'block';
+            bosUpdateStepIndicator(3);
+            bosGeneratePreview();
+        }
+
+        function bosPageGoToStep2FromPreview() {
+            bosPageCurrentStep = 2;
+            document.getElementById('bosPageStep3').style.display = 'none';
+            document.getElementById('bosPageStep2').style.display = 'block';
+            bosUpdateStepIndicator(2);
+        }
+
+        // Import confirmed
+        function confirmBosPageImport() {
+            const validRows = bosPreviewRows.filter(r => r.status === 'valid');
+
+            if (validRows.length === 0) {
+                alert('No valid rows to import. Please check your column mappings and go back to adjust.');
+                return;
+            }
+
+            if (!confirm(`You are about to import ${validRows.length} disposal record(s).\n\nThis will:\n• Add records to the Board of Survey\n• Add assets to the Fixed Asset Register (if enabled)\n• Update the main Dashboard\n\nContinue?`)) {
+                return;
+            }
+
+            try {
+                const addToInventory = document.getElementById('bosPageAddToInventory').checked;
+                let existingAssets = loadAssetsFromStorage();
+                let importedDisposals = 0;
+                let importedAssets = 0;
+
+                validRows.forEach(row => {
+                    const p = row.parsed;
+
+                    // Create disposal record
+                    const disposalRecord = {
+                        id: 'disposal_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        assetId: '',
+                        assetCode: p.assetCode,
+                        assetDescription: p.description,
+                        originalValue: p.originalValue,
+                        disposalDate: p.disposalDate,
+                        reason: p.reason,
+                        method: p.method,
+                        disposalValue: p.disposalValue,
+                        approvedBy: p.approvedBy || '',
+                        reference: p.reference || '',
+                        remarks: p.remarks || '',
+                        createdBy: currentUser ? currentUser.username : 'Unknown',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    // Check if asset already exists in inventory
+                    let existingAsset = existingAssets.find(a =>
+                        a.assetCode === p.assetCode &&
+                        (a.description || '').toLowerCase() === (p.description || '').toLowerCase()
+                    );
+
+                    if (!existingAsset && addToInventory) {
+                        // Determine month from disposal date
+                        let month = 'April';
+                        if (p.disposalDate) {
+                            const dateObj = new Date(p.disposalDate);
+                            if (!isNaN(dateObj.getTime())) {
+                                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                                    'July', 'August', 'September', 'October', 'November', 'December'];
+                                month = monthNames[dateObj.getMonth()];
+                            }
+                        }
+
+                        // Format date as DD-MMM-YYYY for consistency
+                        let formattedDate = p.disposalDate;
+                        if (p.disposalDate) {
+                            const dateObj = new Date(p.disposalDate);
+                            if (!isNaN(dateObj.getTime())) {
+                                const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}-${monthAbbr[dateObj.getMonth()]}-${dateObj.getFullYear()}`;
+                            }
+                        }
+
+                        // Create new asset in inventory
+                        const newAsset = {
+                            id: generateAssetId(),
+                            assetCode: p.assetCode,
+                            description: p.description,
+                            dateIn: formattedDate,
+                            supplier: p.supplier || '',
+                            department: p.department || 'Other',
+                            source: 'Purchased',
+                            category: p.category || 'Furniture & Appliances',
+                            serialModel: p.serialModel || '',
+                            quantity: p.quantity || 1,
+                            unitPrice: p.originalValue || 0,
+                            totalPrice: p.originalValue || 0,
+                            month: month,
+                            itemType: p.description
+                        };
+
+                        existingAssets.push(newAsset);
+                        disposalRecord.assetId = newAsset.id;
+                        importedAssets++;
+
+                        // Add audit entry for asset creation
+                        addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department,
+                            'Imported via BOS Excel Upload');
+                    } else if (existingAsset) {
+                        disposalRecord.assetId = existingAsset.id;
+                    }
+
+                    // Add disposal record
+                    disposalRecords.push(disposalRecord);
+                    importedDisposals++;
+
+                    // Add audit entry for disposal
+                    addAuditEntry(p.assetCode, 'Disposed',
+                        p.department || '',
+                        `BOS Upload - Reason: ${p.reason}, Method: ${p.method}`);
+                });
+
+                // Save all data
+                saveDisposalRecords();
+                if (addToInventory && importedAssets > 0) {
+                    saveAssetsToStorage(existingAssets);
+                }
+
+                // Show success step
+                bosPageCurrentStep = 4;
+                document.getElementById('bosPageStep3').style.display = 'none';
+                document.getElementById('bosPageStep4').style.display = 'block';
+
+                // Update step indicator to show all done
+                for (let i = 1; i <= 3; i++) {
+                    const badge = document.getElementById('bosStepBadge' + i);
+                    if (badge) { badge.classList.remove('bos-step-active'); badge.classList.add('bos-step-done'); }
+                }
+
+                let successMsg = `<strong>${importedDisposals}</strong> disposal record(s) imported to Board of Survey.`;
+                if (importedAssets > 0) {
+                    successMsg += `<br><br><strong>${importedAssets}</strong> new asset(s) added to the Fixed Asset Register and Dashboard.`;
+                }
+                const skipped = bosPreviewRows.filter(r => r.status === 'invalid').length;
+                if (skipped > 0) {
+                    successMsg += `<br><br><span style="color: #e67e22;">${skipped} row(s) skipped due to validation errors.</span>`;
+                }
+                successMsg += `<br><br><span style="font-size: 0.9rem; opacity: 0.8;">All views (Dashboard, Asset Register, Board of Survey) are now updated and consistent.</span>`;
+                document.getElementById('bosPageSuccessDetails').innerHTML = successMsg;
+
+                // Refresh all views
+                loadDisposalRecords();
+                loadData();
+
+            } catch (error) {
+                console.error('BOS import error:', error);
+                alert('Error during import: ' + error.message);
+            }
         }
 
         // ============================================
