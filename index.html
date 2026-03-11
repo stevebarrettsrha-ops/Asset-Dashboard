@@ -7499,6 +7499,10 @@
                         <input type="checkbox" id="importAllowMissingFields" onchange="generatePreview()">
                         <label for="importAllowMissingFields">Allow importing rows with missing required fields (fill with "-Data needed-")</label>
                     </div>
+                    <div class="import-option-item">
+                        <input type="checkbox" id="importExpandQuantity" checked onchange="generatePreview()">
+                        <label for="importExpandQuantity"><strong>Expand by Quantity:</strong> Split rows with Qty &gt; 1 into individual asset rows (e.g. Qty 20 = 20 separate assets for individual BOS tracking)</label>
+                    </div>
                 </div>
 
                 <!-- Preview Section -->
@@ -7784,6 +7788,10 @@
                         <div class="import-option-item">
                             <input type="checkbox" id="gdriveSkipInvalid" checked>
                             <label for="gdriveSkipInvalid">Skip rows with missing required fields</label>
+                        </div>
+                        <div class="import-option-item">
+                            <input type="checkbox" id="gdriveExpandQuantity" checked>
+                            <label for="gdriveExpandQuantity"><strong>Expand by Quantity:</strong> Split rows with Qty &gt; 1 into individual asset rows (e.g. Qty 20 = 20 separate assets for individual BOS tracking)</label>
                         </div>
                     </div>
 
@@ -8327,6 +8335,16 @@
                         <div>
                             <strong style="color: var(--text-primary); font-size: 1rem;">Also add assets to Fixed Asset Register & Dashboard</strong>
                             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">When enabled, uploaded assets will automatically appear in the main dashboard, asset inventory, and asset register — keeping all views consistent.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="margin-top: 15px; padding: 18px; background: var(--bg-secondary); border-radius: 10px; border-left: 4px solid #e67e22;">
+                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="bosPageExpandQuantity" checked style="width: 20px; height: 20px; margin-top: 2px;">
+                        <div>
+                            <strong style="color: var(--text-primary); font-size: 1rem;">Expand by Quantity</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">Split rows with Qty &gt; 1 into individual asset rows (e.g. Qty 20 = 20 separate assets for individual BOS tracking)</p>
                         </div>
                     </label>
                 </div>
@@ -19881,13 +19899,22 @@
                 return;
             }
 
+            // Calculate expanded count for confirmation message
+            const willExpand = document.getElementById('importExpandQuantity').checked;
+            const expandedTotal = willExpand
+                ? rowsToImport.reduce((sum, row) => sum + (row.parsed.quantity || 1), 0)
+                : rowsToImport.length;
+            const expandNote = willExpand && expandedTotal !== rowsToImport.length
+                ? `\n(${rowsToImport.length} rows will be expanded to ${expandedTotal} individual assets by quantity)\n`
+                : '';
+
             // Confirm with user
             const confirmMsg = importMode === 'replace' ?
                 `⚠️ WARNING: This will REPLACE all existing assets!\n\n` +
-                `You are about to import ${rowsToImport.length} assets.\n` +
+                `You are about to import ${expandedTotal} assets.${expandNote}\n` +
                 `All current data will be lost.\n\n` +
                 `Are you sure you want to continue?` :
-                `You are about to import ${rowsToImport.length} new assets.\n` +
+                `You are about to import ${expandedTotal} new assets.${expandNote}\n` +
                 `Existing assets will be preserved.\n\n` +
                 `Continue with import?`;
 
@@ -19904,30 +19931,42 @@
                     existingAssets = [];
                 }
 
+                // Check if expand by quantity is enabled
+                const expandQuantity = document.getElementById('importExpandQuantity').checked;
+
                 // Create new assets
                 rowsToImport.forEach(row => {
-                    const newAsset = {
-                        id: generateAssetId(),
-                        assetCode: row.parsed.assetCode,
-                        description: row.parsed.description,
-                        dateIn: row.parsed.dateIn,
-                        supplier: row.parsed.supplier || '',
-                        department: row.parsed.department,
-                        source: row.parsed.source,
-                        category: row.parsed.category,
-                        serialModel: row.parsed.serialModel || '',
-                        quantity: row.parsed.quantity,
-                        unitPrice: row.parsed.unitPrice,
-                        totalPrice: row.parsed.totalPrice,
-                        month: row.parsed.month,
-                        itemType: row.parsed.description // Use description as item type
-                    };
+                    const qty = row.parsed.quantity || 1;
+                    const shouldExpand = expandQuantity && qty > 1;
+                    const iterations = shouldExpand ? qty : 1;
 
-                    existingAssets.push(newAsset);
-                    importedCount++;
+                    for (let i = 0; i < iterations; i++) {
+                        const assetCode = shouldExpand
+                            ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
+                            : row.parsed.assetCode;
 
-                    // Add audit entry
-                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
+                        const newAsset = {
+                            id: generateAssetId(),
+                            assetCode: assetCode,
+                            description: row.parsed.description,
+                            dateIn: row.parsed.dateIn,
+                            supplier: row.parsed.supplier || '',
+                            department: row.parsed.department,
+                            source: row.parsed.source,
+                            category: row.parsed.category,
+                            serialModel: row.parsed.serialModel || '',
+                            quantity: 1,
+                            unitPrice: row.parsed.unitPrice,
+                            totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice,
+                            month: row.parsed.month,
+                            itemType: row.parsed.description
+                        };
+
+                        existingAssets.push(newAsset);
+                        importedCount++;
+
+                        addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
+                    }
                 });
 
                 // Save to storage
@@ -20879,36 +20918,48 @@
                 const importedFiles = new Set();
                 const importedSheets = new Set();
 
+                // Check if expand by quantity is enabled
+                const gdriveExpandQty = document.getElementById('gdriveExpandQuantity').checked;
+
                 dataToImport.forEach(row => {
                     if (importMode === 'merge' && existingCodes.has(row.parsed.assetCode?.toLowerCase())) {
                         return; // Skip duplicates in merge mode
                     }
 
-                    const newAsset = {
-                        id: generateAssetId(),
-                        assetCode: row.parsed.assetCode,
-                        description: row.parsed.description,
-                        dateIn: row.parsed.dateIn,
-                        supplier: row.parsed.supplier,
-                        department: row.parsed.department,
-                        source: row.parsed.source,
-                        month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
-                        category: row.parsed.category,
-                        serialModel: row.parsed.serialModel,
-                        quantity: row.parsed.quantity,
-                        unitPrice: row.parsed.unitPrice,
-                        totalPrice: row.parsed.totalPrice
-                    };
+                    const qty = row.parsed.quantity || 1;
+                    const shouldExpand = gdriveExpandQty && qty > 1;
+                    const iterations = shouldExpand ? qty : 1;
 
-                    existingAssets.push(newAsset);
-                    existingCodes.add(newAsset.assetCode?.toLowerCase());
-                    importedCount++;
-                    importedFiles.add(row.sourceFile);
-                    importedSheets.add(row.sourceSheet);
+                    for (let i = 0; i < iterations; i++) {
+                        const assetCode = shouldExpand
+                            ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
+                            : row.parsed.assetCode;
 
-                    // Add audit entry
-                    if (typeof addAuditEntry === 'function') {
-                        addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, `Imported from Google Drive: ${row.sourceFile} - ${row.sourceSheet}`);
+                        const newAsset = {
+                            id: generateAssetId(),
+                            assetCode: assetCode,
+                            description: row.parsed.description,
+                            dateIn: row.parsed.dateIn,
+                            supplier: row.parsed.supplier,
+                            department: row.parsed.department,
+                            source: row.parsed.source,
+                            month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
+                            category: row.parsed.category,
+                            serialModel: row.parsed.serialModel,
+                            quantity: 1,
+                            unitPrice: row.parsed.unitPrice,
+                            totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice
+                        };
+
+                        existingAssets.push(newAsset);
+                        existingCodes.add(newAsset.assetCode?.toLowerCase());
+                        importedCount++;
+                        importedFiles.add(row.sourceFile);
+                        importedSheets.add(row.sourceSheet);
+
+                        if (typeof addAuditEntry === 'function') {
+                            addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, `Imported from Google Drive: ${row.sourceFile} - ${row.sourceSheet}`);
+                        }
                     }
                 });
 
@@ -22249,24 +22300,33 @@
 
             try {
                 const addToInventory = document.getElementById('bosPageAddToInventory').checked;
+                const bosExpandQty = document.getElementById('bosPageExpandQuantity').checked;
                 let existingAssets = loadAssetsFromStorage();
                 let importedDisposals = 0;
                 let importedAssets = 0;
 
                 validRows.forEach(row => {
                     const p = row.parsed;
+                    const qty = p.quantity || 1;
+                    const shouldExpand = bosExpandQty && qty > 1;
+                    const iterations = shouldExpand ? qty : 1;
+
+                    for (let i = 0; i < iterations; i++) {
+                        const expandedAssetCode = shouldExpand
+                            ? `${p.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
+                            : p.assetCode;
 
                     // Create disposal record
                     const disposalRecord = {
-                        id: 'disposal_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        id: 'disposal_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_' + i,
                         assetId: '',
-                        assetCode: p.assetCode,
+                        assetCode: expandedAssetCode,
                         assetDescription: p.description,
-                        originalValue: p.originalValue,
+                        originalValue: shouldExpand ? (p.originalValue || 0) / qty : p.originalValue,
                         disposalDate: p.disposalDate,
                         reason: p.reason,
                         method: p.method,
-                        disposalValue: p.disposalValue,
+                        disposalValue: shouldExpand ? (p.disposalValue || 0) / qty : p.disposalValue,
                         approvedBy: p.approvedBy || '',
                         reference: p.reference || '',
                         remarks: p.remarks || '',
@@ -22277,7 +22337,7 @@
 
                     // Check if asset already exists in inventory
                     let existingAsset = existingAssets.find(a =>
-                        a.assetCode === p.assetCode &&
+                        a.assetCode === expandedAssetCode &&
                         (a.description || '').toLowerCase() === (p.description || '').toLowerCase()
                     );
 
@@ -22304,10 +22364,12 @@
                             }
                         }
 
+                        const unitValue = shouldExpand ? (p.originalValue || 0) / qty : (p.originalValue || 0);
+
                         // Create new asset in inventory
                         const newAsset = {
                             id: generateAssetId(),
-                            assetCode: p.assetCode,
+                            assetCode: expandedAssetCode,
                             description: p.description,
                             dateIn: formattedDate,
                             supplier: p.supplier || '',
@@ -22315,9 +22377,9 @@
                             source: 'Purchased',
                             category: p.category || 'Furniture & Appliances',
                             serialModel: p.serialModel || '',
-                            quantity: p.quantity || 1,
-                            unitPrice: p.originalValue || 0,
-                            totalPrice: p.originalValue || 0,
+                            quantity: 1,
+                            unitPrice: unitValue,
+                            totalPrice: unitValue,
                             month: month,
                             itemType: p.description
                         };
@@ -22338,9 +22400,10 @@
                     importedDisposals++;
 
                     // Add audit entry for disposal
-                    addAuditEntry(p.assetCode, 'Disposed',
+                    addAuditEntry(expandedAssetCode, 'Disposed',
                         p.department || '',
                         `BOS Upload - Reason: ${p.reason}, Method: ${p.method}`);
+                    } // end for loop (quantity expansion)
                 });
 
                 // Save all data
