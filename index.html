@@ -22607,6 +22607,7 @@
                     <td>
                         <div class="disposal-action-btns">
                             <button class="disposal-action-btn edit" onclick="editDisposalRecord('${record.id}')" title="Edit">✏️</button>
+                            <button class="disposal-action-btn" onclick="reverseDisposal('${record.id}')" title="Reverse Disposal - Mark as Not Disposed" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;">↩️</button>
                             <button class="disposal-action-btn delete" onclick="deleteDisposalRecord('${record.id}')" title="Delete">🗑️</button>
                         </div>
                     </td>
@@ -22836,6 +22837,41 @@
                 'Asset and disposal record deleted from Board of Survey');
 
             refreshAllViews();
+        }
+
+        // Reverse disposal - mark asset as NOT disposed (undo mistaken disposal)
+        function reverseDisposal(recordId) {
+            const record = disposalRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const confirmed = confirm(
+                `Reverse disposal for: ${record.assetCode}?\n${record.assetDescription || ''}\n\n` +
+                `This will remove the disposal record and restore the asset to active status.\n` +
+                `The asset will remain in the Asset Register as a non-disposed asset.`
+            );
+
+            if (!confirmed) return;
+
+            // Remove the disposal record but keep the asset in main storage
+            disposalRecords = disposalRecords.filter(r => r.id !== recordId);
+            trackDeletedDisposalIds([recordId]);
+            saveDisposalRecords();
+
+            addAuditEntry(record.assetCode, 'Disposal Reversed',
+                record.reason || '',
+                `Disposal reversed – asset restored to active status. Was disposed via ${record.method || 'N/A'}, BOS Ref: ${record.reference || 'N/A'}`);
+
+            refreshAllViews();
+        }
+
+        // Reverse disposal by asset code (used from Asset Register view)
+        function reverseDisposalByAssetCode(assetCode) {
+            const record = disposalRecords.find(r => r.assetCode === assetCode);
+            if (record) {
+                reverseDisposal(record.id);
+            } else {
+                alert('No disposal record found for asset code: ' + assetCode);
+            }
         }
 
         // Select all / deselect all checkboxes in disposal table
@@ -24539,6 +24575,7 @@
                             <td>${bookValueHtml}</td>
                             <td>${commentHtml}</td>
                             <td style="white-space: nowrap;">
+                                ${disposed ? `<button class="btn-delete-inline" onclick="reverseDisposalByAssetCode('${escapeHtml(asset.assetCode)}')" title="Reverse Disposal - Mark as Not Disposed" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; margin-right: 4px;">↩️</button>` : ''}
                                 <button class="btn-delete-inline" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="background: #e3f2fd; color: #1976D2; border: 1px solid #90CAF9; margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
                             </td>
