@@ -13333,6 +13333,10 @@
                     assetData.quantity = 1; // Enforce qty=1 on edit
                     assets[index] = assetData;
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
+
+                    // Sync changes to Board of Survey disposal records
+                    syncMainAssetToDisposals(assetData, currentEditingAsset);
+
                     alert('✅ Asset updated successfully!');
                 }
             } else {
@@ -13363,9 +13367,19 @@
             closeAssetModal();
             loadData(); // Refresh main dashboard display
 
+            // Sync with Monthly Breakdown
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
+            }
+
             // Sync with Asset Register Card Data
             if (typeof loadAssetRegister === 'function') {
                 loadAssetRegister(); // Refresh Asset Register to sync data
+            }
+
+            // Sync with Board of Survey display
+            if (typeof loadDisposalRecords === 'function') {
+                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
         }
 
@@ -13380,15 +13394,28 @@
             assets = assets.filter(a => a.id !== currentEditingAsset.id);
             saveAssetsToStorage(assets);
 
+            // Remove matching disposal records from Board of Survey
+            removeDisposalRecordsForAsset(currentEditingAsset.assetCode, currentEditingAsset.id);
+
             addAuditEntry(currentEditingAsset.assetCode, 'Disposed', currentEditingAsset.department, 'Asset removed from inventory');
 
             alert('✅ Asset deleted successfully!');
             closeAssetModal();
             loadData(); // Refresh main dashboard display
 
+            // Sync with Monthly Breakdown
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
+            }
+
             // Sync with Asset Register Card Data
             if (typeof loadAssetRegister === 'function') {
                 loadAssetRegister(); // Refresh Asset Register to sync data
+            }
+
+            // Sync with Board of Survey display
+            if (typeof loadDisposalRecords === 'function') {
+                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
         }
 
@@ -21754,6 +21781,9 @@
                 if (index !== -1) {
                     disposalRecords[index] = record;
                 }
+
+                // Sync updated asset details back to main asset storage
+                syncDisposalToMainAssets(record, currentEditingDisposal);
             } else {
                 disposalRecords.push(record);
             }
@@ -21860,11 +21890,144 @@
             alert(`${selectedIds.length} disposal record(s) deleted successfully.`);
         }
 
-        // Refresh views that depend on disposal data (dashboard, asset register)
+        // Sync main asset edits to Board of Survey disposal records
+        function syncMainAssetToDisposals(updatedAsset, previousAsset) {
+            try {
+                let disposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                let changed = false;
+
+                disposals.forEach(record => {
+                    // Match by assetId or old asset code
+                    const matchById = record.assetId && record.assetId === previousAsset.id;
+                    const matchByCode = record.assetCode === previousAsset.assetCode;
+
+                    if (matchById || matchByCode) {
+                        // Update asset code if changed
+                        if (previousAsset.assetCode !== updatedAsset.assetCode) {
+                            record.assetCode = updatedAsset.assetCode;
+                            changed = true;
+                        }
+                        // Update description if changed
+                        if (updatedAsset.description && record.assetDescription !== updatedAsset.description) {
+                            record.assetDescription = updatedAsset.description;
+                            changed = true;
+                        }
+                        // Update original value if changed
+                        const newValue = parseFloat(updatedAsset.totalPrice) || 0;
+                        if (newValue > 0 && parseFloat(record.originalValue) !== newValue) {
+                            record.originalValue = newValue;
+                            changed = true;
+                        }
+                        // Update assetId reference
+                        if (updatedAsset.id && record.assetId !== updatedAsset.id) {
+                            record.assetId = updatedAsset.id;
+                            changed = true;
+                        }
+                        record.updatedAt = new Date().toISOString();
+                    }
+                });
+
+                if (changed) {
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(disposals));
+                    // Update in-memory disposal records if they exist
+                    if (typeof disposalRecords !== 'undefined') {
+                        disposalRecords = disposals;
+                        filteredDisposalRecords = [...disposals];
+                    }
+                }
+            } catch(e) {
+                console.error('Error syncing asset changes to disposal records:', e);
+            }
+        }
+
+        // Remove disposal records when an asset is deleted from the main dashboard
+        function removeDisposalRecordsForAsset(assetCode, assetId) {
+            try {
+                let disposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                const removedIds = [];
+
+                const filtered = disposals.filter(record => {
+                    const matchById = assetId && record.assetId === assetId;
+                    const matchByCode = record.assetCode === assetCode;
+                    if (matchById || matchByCode) {
+                        removedIds.push(record.id);
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (removedIds.length > 0) {
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filtered));
+                    trackDeletedDisposalIds(removedIds);
+                    // Update in-memory disposal records if they exist
+                    if (typeof disposalRecords !== 'undefined') {
+                        disposalRecords = filtered;
+                        filteredDisposalRecords = [...filtered];
+                    }
+                }
+            } catch(e) {
+                console.error('Error removing disposal records for deleted asset:', e);
+            }
+        }
+
+        // Sync disposal record changes back to the main asset storage
+        // so Dashboard, Monthly Breakdown, Asset Register, and Tools & Features stay consistent
+        function syncDisposalToMainAssets(updatedRecord, previousRecord) {
+            let assets = loadAssetsFromStorage();
+            let changed = false;
+
+            // Find matching asset by assetId or assetCode
+            const matchByOldCode = previousRecord ? previousRecord.assetCode : updatedRecord.assetCode;
+            let assetIndex = -1;
+
+            // First try to match by assetId if available
+            if (updatedRecord.assetId) {
+                assetIndex = assets.findIndex(a => a.id === updatedRecord.assetId);
+            }
+
+            // Fall back to matching by old asset code
+            if (assetIndex === -1) {
+                assetIndex = assets.findIndex(a => a.assetCode === matchByOldCode);
+            }
+
+            if (assetIndex !== -1) {
+                const asset = assets[assetIndex];
+
+                // Update asset code if changed
+                if (previousRecord && previousRecord.assetCode !== updatedRecord.assetCode) {
+                    asset.assetCode = updatedRecord.assetCode;
+                    changed = true;
+                }
+
+                // Update description if changed
+                if (updatedRecord.assetDescription && asset.description !== updatedRecord.assetDescription) {
+                    asset.description = updatedRecord.assetDescription;
+                    changed = true;
+                }
+
+                // Update value if changed
+                const newValue = parseFloat(updatedRecord.originalValue) || 0;
+                if (newValue > 0 && asset.totalPrice !== newValue) {
+                    asset.totalPrice = newValue;
+                    asset.unitPrice = newValue / (asset.quantity || 1);
+                    changed = true;
+                }
+
+                if (changed) {
+                    saveAssetsToStorage(assets);
+                }
+            }
+        }
+
+        // Refresh views that depend on disposal data (dashboard, asset register, monthly breakdown)
         function refreshDependentViews() {
             // Refresh main dashboard if data functions exist
             if (typeof loadData === 'function') {
                 try { loadData(); } catch(e) { console.error('Error refreshing dashboard:', e); }
+            }
+            // Refresh monthly breakdown display
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
             }
             // Refresh asset register if it's been loaded
             if (typeof loadAssetRegister === 'function') {
