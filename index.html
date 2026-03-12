@@ -10689,6 +10689,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
                         disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
@@ -10754,7 +10755,21 @@
         function mergeCloudIntoLocal(cloudDataObj) {
             let dataChanged = false;
 
-            // Merge assets by ID and asset code
+            // Merge deleted asset IDs from cloud (so deletions sync across clients)
+            if (cloudDataObj.deletedAssetIds && cloudDataObj.deletedAssetIds.length > 0) {
+                cloudDataObj.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+
+                // Remove any locally present assets that were deleted on another client
+                let localAssets = loadAssetsFromStorage();
+                const filtered = localAssets.filter(a => !deletedAssetIds.has(a.id));
+                if (filtered.length < localAssets.length) {
+                    saveAssetsToStorage(filtered);
+                    dataChanged = true;
+                }
+            }
+
+            // Merge assets by ID and asset code (skip deleted ones)
             if (cloudDataObj.assets && cloudDataObj.assets.length > 0) {
                 const localAssets = loadAssetsFromStorage();
                 const localIdSet = new Set(localAssets.map(a => a.id).filter(Boolean));
@@ -10762,6 +10777,9 @@
 
                 let added = 0;
                 cloudDataObj.assets.forEach(ca => {
+                    // Skip assets that have been deleted locally or from cloud
+                    if (ca.id && deletedAssetIds.has(ca.id)) return;
+
                     const hasId = ca.id && localIdSet.has(ca.id);
                     const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
                     if (!hasId && !hasCode) {
@@ -11032,6 +11050,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
                         disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
@@ -11151,12 +11170,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -11355,12 +11382,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -11606,12 +11641,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -12221,7 +12264,9 @@
         // ============================================
 
         const STORAGE_KEY = 'assetInventoryData';
+        const ASSET_DELETED_IDS_KEY = 'assetDeletedIds';
         const AUDIT_STORAGE_KEY = 'assetAuditTrail';
+        let deletedAssetIds = new Set(JSON.parse(localStorage.getItem('assetDeletedIds') || '[]'));
         const DEPARTMENTS_STORAGE_KEY = 'customDepartments';
         const CATEGORIES_STORAGE_KEY = 'customCategories';
 
@@ -12851,6 +12896,12 @@
                 alert('⚠️ Error saving data. Storage may be full.');
                 return false;
             }
+        }
+
+        // Track deleted asset IDs so cloud sync doesn't re-add them
+        function trackDeletedAssetIds(ids) {
+            ids.forEach(id => { if (id) deletedAssetIds.add(id); });
+            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
         }
 
         // Generate unique ID for assets
@@ -13743,6 +13794,9 @@
             assets = assets.filter(a => a.id !== asset.id);
             saveAssetsToStorage(assets);
 
+            // Track deleted ID so cloud sync won't re-add it
+            trackDeletedAssetIds([asset.id]);
+
             // Remove matching disposal records from Board of Survey
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
 
@@ -13773,6 +13827,9 @@
 
             assets = assets.filter(a => !idsToDelete.has(a.id));
             saveAssetsToStorage(assets);
+
+            // Track deleted IDs so cloud sync won't re-add them
+            trackDeletedAssetIds([...idsToDelete]);
 
             // Remove matching disposal records and add audit entries
             assetsToDelete.forEach(asset => {
@@ -21908,6 +21965,7 @@
             if (assetToRemove) {
                 assets = assets.filter(a => a.id !== assetToRemove.id);
                 saveAssetsToStorage(assets);
+                trackDeletedAssetIds([assetToRemove.id]);
             }
 
             addAuditEntry(record.assetCode, 'Asset Deleted',
@@ -21964,17 +22022,23 @@
 
             // Also remove the associated assets from main storage
             let assets = loadAssetsFromStorage();
+            const removedAssetIds = [];
             deletedRecords.forEach(record => {
                 assets = assets.filter(a => {
                     const matchById = record.assetId && a.id === record.assetId;
                     const matchByCode = a.assetCode === record.assetCode;
-                    return !(matchById || matchByCode);
+                    if (matchById || matchByCode) {
+                        removedAssetIds.push(a.id);
+                        return false;
+                    }
+                    return true;
                 });
                 addAuditEntry(record.assetCode, 'Asset Deleted',
                     `Reason was: ${record.reason} (bulk delete from Board of Survey)`,
                     currentUser ? currentUser.username : 'Unknown');
             });
             saveAssetsToStorage(assets);
+            trackDeletedAssetIds(removedAssetIds);
 
             refreshAllViews();
             alert(`${selectedIds.length} record(s) and associated assets deleted successfully.`);
@@ -23593,10 +23657,13 @@
             assets = assets.filter(a => a.id !== assetId);
             saveAssetsToStorage(assets);
 
+            // Track deleted ID so cloud sync won't re-add it
+            trackDeletedAssetIds([assetId]);
+
             // Remove matching disposal records
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
 
-            addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from Asset Register');
+            addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Asset Register');
 
             refreshAllViews();
         }
