@@ -22083,62 +22083,62 @@
             assetCode: {
                 label: 'Asset Code',
                 required: true,
-                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'code', 'asset no', 'asset number', 'asset#', 'id', 'inventory #', 'inventory no', 'inventory number', 'inventory code', 'inv #', 'inv no']
+                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'code', 'asset no', 'asset number', 'asset#', 'asset #', 'id', 'inventory #', 'inventory no', 'inventory number', 'inventory code', 'inv #', 'inv no', 'item code', 'item no', 'item number', 'item #', 'item id', 'tag', 'tag no', 'tag number', 'asset tag', 'fixed asset code', 'fa code', 'equipment id', 'equipment no', 'equip no', 'equip #']
             },
             description: {
                 label: 'Description',
                 required: true,
-                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc']
+                aliases: ['description', 'asset description', 'item description', 'name', 'asset name', 'item name', 'item', 'desc', 'particulars', 'details', 'asset details', 'equipment', 'equipment name', 'equipment description', 'article', 'designation']
             },
             disposalDate: {
                 label: 'Disposal Date',
                 required: false,
-                aliases: ['disposal date', 'disposaldate', 'disposal_date', 'date disposed', 'date of disposal', 'date', 'bos date', 'survey date']
+                aliases: ['disposal date', 'disposaldate', 'disposal_date', 'date disposed', 'date of disposal', 'date', 'bos date', 'survey date', 'date of survey', 'condemned date', 'write off date', 'write-off date', 'disposal']
             },
             reason: {
                 label: 'Reason',
                 required: false,
-                aliases: ['reason', 'disposal reason', 'reason for disposal', 'cause', 'condition', 'status']
+                aliases: ['reason', 'disposal reason', 'reason for disposal', 'cause', 'condition', 'status', 'reason for condemnation', 'grounds', 'justification']
             },
             method: {
                 label: 'Method',
                 required: false,
-                aliases: ['method', 'disposal method', 'method of disposal', 'action', 'disposal action', 'disposal type', 'recommendation', 'recommended action', 'disposal recommendation']
+                aliases: ['method', 'disposal method', 'method of disposal', 'action', 'disposal action', 'disposal type', 'recommendation', 'recommended action', 'disposal recommendation', 'mode of disposal', 'disposal mode']
             },
             originalValue: {
                 label: 'Original Value (JMD)',
                 required: false,
-                aliases: ['original value', 'originalvalue', 'original_value', 'original cost', 'cost', 'value', 'purchase price', 'unit price', 'price', 'total price', 'total value', 'amount']
+                aliases: ['original value', 'originalvalue', 'original_value', 'original cost', 'cost', 'value', 'purchase price', 'unit price', 'price', 'total price', 'total value', 'amount', 'book value', 'acquisition cost', 'acquisition value']
             },
             disposalValue: {
                 label: 'Disposal Value (JMD)',
                 required: false,
-                aliases: ['disposal value', 'disposalvalue', 'disposal_value', 'salvage value', 'sale value', 'recovered value', 'sale price', 'auction value']
+                aliases: ['disposal value', 'disposalvalue', 'disposal_value', 'salvage value', 'sale value', 'recovered value', 'sale price', 'auction value', 'residual value', 'scrap value', 'realised value', 'realized value']
             },
             approvedBy: {
                 label: 'Approved By',
                 required: false,
-                aliases: ['approved by', 'approvedby', 'approved_by', 'authorised by', 'authorized by', 'officer', 'approver', 'surveyor']
+                aliases: ['approved by', 'approvedby', 'approved_by', 'authorised by', 'authorized by', 'officer', 'approver', 'surveyor', 'board member', 'signatory', 'authorized officer']
             },
             reference: {
                 label: 'BOS Reference',
                 required: false,
-                aliases: ['reference', 'bos reference', 'ref', 'reference number', 'ref no', 'bos ref', 'survey reference', 'bos no']
+                aliases: ['reference', 'bos reference', 'ref', 'reference number', 'ref no', 'bos ref', 'survey reference', 'bos no', 'bos number', 'document ref', 'doc ref']
             },
             remarks: {
                 label: 'Remarks',
                 required: false,
-                aliases: ['remarks', 'notes', 'comments', 'remark', 'note', 'comment', 'observations', 'additional notes']
+                aliases: ['remarks', 'notes', 'comments', 'remark', 'note', 'comment', 'observations', 'additional notes', 'observation']
             },
             department: {
                 label: 'Department/Location',
                 required: false,
-                aliases: ['department', 'location', 'dept', 'ward', 'unit', 'area', 'section', 'asset location', 'asset department']
+                aliases: ['department', 'location', 'dept', 'ward', 'unit', 'area', 'section', 'asset location', 'asset department', 'placed in', 'room', 'building', 'floor', 'site']
             },
             category: {
                 label: 'Category',
                 required: false,
-                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'class', 'classification', 'group']
+                aliases: ['category', 'asset category', 'item category', 'asset type', 'item type', 'class', 'classification', 'group', 'type']
             },
             quantity: {
                 label: 'Quantity',
@@ -22153,7 +22153,7 @@
             serialModel: {
                 label: 'Serial/Model',
                 required: false,
-                aliases: ['serial', 'model', 'serial number', 'serial no', 'model number', 'model no', 'serial/model', 's/n']
+                aliases: ['serial', 'model', 'serial number', 'serial no', 'model number', 'model no', 'serial/model', 's/n', 'make', 'brand', 'make/model']
             }
         };
 
@@ -22272,13 +22272,31 @@
 
                     // Find header row - search up to 30 rows to handle government forms
                     // with extensive metadata/titles before the actual data table
+                    // Prefer rows where cells look like headers (mostly text, not numbers/dates)
                     let headerIdx = 0;
                     let bestHeaderIdx = 0;
-                    let bestNonEmpty = 0;
+                    let bestScore = 0;
+                    const headerKeywords = ['asset', 'code', 'description', 'name', 'date', 'value', 'qty',
+                        'quantity', 'department', 'reason', 'method', 'serial', 'model', 'supplier',
+                        'category', 'reference', 'remarks', 'notes', 'price', 'cost', 'no', 'number',
+                        'location', 'item', 'particulars', 'condition', 'status', 'approved', 'action',
+                        'recommendation', 'unit', 'total', 'amount', 'disposal', 'survey', 'ref'];
                     for (let i = 0; i < Math.min(jsonData.length, 30); i++) {
-                        const nonEmpty = jsonData[i].filter(c => String(c || '').trim() !== '').length;
-                        if (nonEmpty > bestNonEmpty) {
-                            bestNonEmpty = nonEmpty;
+                        const cells = jsonData[i].map(c => String(c || '').trim()).filter(c => c !== '');
+                        if (cells.length < 2) continue;
+                        let textCells = 0;
+                        let keywordHits = 0;
+                        cells.forEach(cell => {
+                            if (cell instanceof Date) return;
+                            const isNumber = /^[\d,.$%()-]+$/.test(cell);
+                            if (!isNumber) textCells++;
+                            const lower = cell.toLowerCase();
+                            if (headerKeywords.some(kw => lower.includes(kw))) keywordHits++;
+                        });
+                        // Score favors: many non-empty cells, mostly text, keyword matches
+                        const score = (cells.length * 1) + (textCells * 2) + (keywordHits * 5);
+                        if (score > bestScore) {
+                            bestScore = score;
                             bestHeaderIdx = i;
                         }
                     }
@@ -22300,10 +22318,19 @@
                     progressFill.style.width = '100%';
                     progressText.textContent = 'File loaded successfully!';
 
+                    // Warn if required columns not auto-detected
+                    const missingRequired = [];
+                    if (bosColumnMapping.assetCode === undefined) missingRequired.push('Asset Code');
+                    if (bosColumnMapping.description === undefined) missingRequired.push('Description');
+                    let mappingWarning = '';
+                    if (missingRequired.length > 0) {
+                        mappingWarning = ` <span style="color: #e67e22; font-weight: 600;">⚠ Could not auto-detect: ${missingRequired.join(', ')}. Please map manually in Step 2.</span>`;
+                    }
+
                     // Show file info
                     document.getElementById('bosPageFileInfo').style.display = 'block';
                     document.getElementById('bosPageFileDetails').innerHTML =
-                        `<strong>${escapeHtml(file.name)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong>`;
+                        `<strong>${escapeHtml(file.name)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong>${mappingWarning}`;
 
                     setTimeout(() => {
                         progress.style.display = 'none';
@@ -22328,15 +22355,48 @@
 
         function bosAutoDetectColumns() {
             bosColumnMapping = {};
+            const usedColumns = new Set();
+
+            // Pass 1: exact matches (highest confidence)
             bosUploadHeaders.forEach((header, index) => {
                 const normalized = header.toLowerCase().trim();
+                if (!normalized) return;
                 for (const [fieldKey, fieldDef] of Object.entries(bosFieldDefinitions)) {
                     if (bosColumnMapping[fieldKey] !== undefined) continue;
-                    const match = fieldDef.aliases.some(alias =>
-                        normalized === alias || normalized.includes(alias) || alias.includes(normalized)
-                    );
-                    if (match) {
+                    if (fieldDef.aliases.some(alias => normalized === alias)) {
                         bosColumnMapping[fieldKey] = index;
+                        usedColumns.add(index);
+                        break;
+                    }
+                }
+            });
+
+            // Pass 2: header contains alias (e.g. header "Asset Code #" contains "asset code")
+            bosUploadHeaders.forEach((header, index) => {
+                if (usedColumns.has(index)) return;
+                const normalized = header.toLowerCase().trim();
+                if (!normalized) return;
+                for (const [fieldKey, fieldDef] of Object.entries(bosFieldDefinitions)) {
+                    if (bosColumnMapping[fieldKey] !== undefined) continue;
+                    if (fieldDef.aliases.some(alias => alias.length >= 3 && normalized.includes(alias))) {
+                        bosColumnMapping[fieldKey] = index;
+                        usedColumns.add(index);
+                        break;
+                    }
+                }
+            });
+
+            // Pass 3: alias contains header (e.g. alias "asset code" contains short header "code")
+            // Only for headers with 3+ chars to avoid false matches on "no", "id" etc.
+            bosUploadHeaders.forEach((header, index) => {
+                if (usedColumns.has(index)) return;
+                const normalized = header.toLowerCase().trim();
+                if (!normalized || normalized.length < 3) return;
+                for (const [fieldKey, fieldDef] of Object.entries(bosFieldDefinitions)) {
+                    if (bosColumnMapping[fieldKey] !== undefined) continue;
+                    if (fieldDef.aliases.some(alias => alias.includes(normalized))) {
+                        bosColumnMapping[fieldKey] = index;
+                        usedColumns.add(index);
                         break;
                     }
                 }
@@ -22466,7 +22526,23 @@
             const validCount = bosPreviewRows.filter(r => r.status === 'valid').length;
             const invalidCount = bosPreviewRows.filter(r => r.status === 'invalid').length;
 
+            // Show prominent warning if all rows are invalid (likely column mapping issue)
+            let allInvalidWarning = '';
+            if (validCount === 0 && bosPreviewRows.length > 0) {
+                const unmappedFields = [];
+                if (bosColumnMapping.assetCode === undefined) unmappedFields.push('Asset Code');
+                if (bosColumnMapping.description === undefined) unmappedFields.push('Description');
+                const cause = unmappedFields.length > 0
+                    ? `The following required columns could not be detected: <strong>${unmappedFields.join(', ')}</strong>. Go back to Step 2 and map them manually.`
+                    : 'All rows are missing required fields (Asset Code or Description). Check your column mappings in Step 2.';
+                allInvalidWarning = `<div style="background: #FFF3E0; border: 2px solid #FF9800; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; color: #E65100;">
+                    <strong>⚠ No importable rows found!</strong><br>${cause}
+                    <br>Or check the <strong>"Import invalid rows anyway"</strong> checkbox below to import with default values.
+                </div>`;
+            }
+
             document.getElementById('bosPagePreviewStats').innerHTML = `
+                ${allInvalidWarning}
                 <div class="bos-preview-stat total">Total Rows: ${bosPreviewRows.length}</div>
                 <div class="bos-preview-stat valid">Valid: ${validCount}</div>
                 ${invalidCount > 0 ? `
