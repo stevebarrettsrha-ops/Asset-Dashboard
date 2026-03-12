@@ -8689,7 +8689,6 @@
             <p>Fixed Asset Management System © <span id="copyrightYear9"></span> • May Pen Hospital</p>
         </div>
     </div>
-    </div>
 
     <!-- PAGE 10: BULK CATEGORIES -->
     <div class="page" id="page10">
@@ -8701,6 +8700,31 @@
                         <div class="dashboard-subtitle">Bulk Pricing, Categorization & Depreciation</div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">☁️</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>☁️ Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="user-info" id="userInfo10"></div>
                     </div>
                 </div>
@@ -8861,6 +8885,31 @@
                         <div class="dashboard-subtitle">Detect, Merge & Remove Duplicate Assets</div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">☁️</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>☁️ Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="user-info" id="userInfo11"></div>
                     </div>
                 </div>
@@ -9178,7 +9227,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -13009,6 +13058,48 @@
                     option.textContent = cat;
                     if (cat === currentValue) option.selected = true;
                     registerCategoryFilter.appendChild(option);
+                });
+            }
+
+            // Update bulk categories page filter
+            const bulkFilterCategory = document.getElementById('bulkFilterCategory');
+            if (bulkFilterCategory) {
+                const currentValue = bulkFilterCategory.value;
+                bulkFilterCategory.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    bulkFilterCategory.appendChild(option);
+                });
+            }
+
+            // Update bulk categories page category select
+            const bulkCategorySelect = document.getElementById('bulkCategorySelect');
+            if (bulkCategorySelect) {
+                const currentValue = bulkCategorySelect.value;
+                bulkCategorySelect.innerHTML = '<option value="">Select Category</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    bulkCategorySelect.appendChild(option);
+                });
+            }
+
+            // Update category report filter
+            const categoryReportFilter = document.getElementById('categoryReportFilter');
+            if (categoryReportFilter) {
+                const currentValue = categoryReportFilter.value;
+                categoryReportFilter.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    if (cat === currentValue) option.selected = true;
+                    categoryReportFilter.appendChild(option);
                 });
             }
 
@@ -20087,6 +20178,18 @@
             return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
+        // Centralized hospital name retrieval from portal settings
+        function getHospitalName() {
+            try {
+                const stored = localStorage.getItem('portalHeadingSettings');
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    return settings.hospitalName || 'May Pen Hospital';
+                }
+            } catch(e) {}
+            return 'May Pen Hospital';
+        }
+
         // Animate a number counting up from 0 to target
         function animateCountUp(element, target, options = {}) {
             const duration = options.duration || 1200;
@@ -24462,6 +24565,8 @@
                 return;
             }
 
+            const hospitalName = getHospitalName();
+
             // Get disposal records to check status
             const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
@@ -24505,7 +24610,7 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Fixed Asset Register - May Pen Hospital</title>
+                    <title>Fixed Asset Register - ${hospitalName}</title>
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body {
@@ -24638,7 +24743,7 @@
                 <body>
                     <div class="header">
                         <h1>FIXED ASSET REGISTER</h1>
-                        <h2>May Pen Hospital</h2>
+                        <h2>${hospitalName}</h2>
                         <p>Generated on: ${new Date().toLocaleString()}</p>
                     </div>
 
@@ -24697,7 +24802,7 @@
                     </table>
 
                     <div class="footer">
-                        <p>Fixed Asset Management System - May Pen Hospital</p>
+                        <p>Fixed Asset Management System - ${hospitalName}</p>
                         <p>This is a computer-generated document. No signature required.</p>
                     </div>
 
@@ -25393,13 +25498,7 @@
             const grandTotalAssets = sortedCategories.reduce((s, c) => s + categoryGroups[c].reduce((ss, a) => ss + (a.quantity || 1), 0), 0);
             const grandTotalValue = sortedCategories.reduce((s, c) => s + categoryGroups[c].reduce((ss, a) => ss + (parseFloat(a.totalPrice) || 0), 0), 0);
 
-            const hospitalName = (() => {
-                try {
-                    const s = localStorage.getItem('portalHeadingSettings');
-                    if (s) { const p = JSON.parse(s); return p.hospitalName || 'May Pen Hospital'; }
-                } catch(e) {}
-                return 'May Pen Hospital';
-            })();
+            const hospitalName = getHospitalName();
 
             const printContent = `<!DOCTYPE html>
             <html>
