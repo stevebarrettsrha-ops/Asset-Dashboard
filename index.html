@@ -8622,6 +8622,7 @@
                     <table class="disposal-table" id="bosPagePreviewTable">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="bosSelectAll" onchange="bosToggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;" title="Select/Deselect All"></th>
                                 <th>#</th>
                                 <th>Status</th>
                                 <th>Asset Code</th>
@@ -22970,6 +22971,7 @@
                 bosPreviewRows.push({
                     rowNum: idx + 1,
                     status: errors.length === 0 ? 'valid' : 'invalid',
+                    selected: errors.length === 0,
                     errors: errors,
                     parsed: {
                         assetCode, description, disposalDate: normalizedDate,
@@ -22999,23 +23001,35 @@
                 </div>`;
             }
 
+            const selectedCount = bosPreviewRows.filter(r => r.selected).length;
+
             document.getElementById('bosPagePreviewStats').innerHTML = `
                 ${allInvalidWarning}
                 <div class="bos-preview-stat total">Total Rows: ${bosPreviewRows.length}</div>
                 <div class="bos-preview-stat valid">Valid: ${validCount}</div>
-                ${invalidCount > 0 ? `
-                    <div class="bos-preview-stat invalid">Invalid: ${invalidCount}</div>
-                    <label style="display: flex; align-items: center; gap: 8px; margin-left: 10px; font-size: 0.9rem; cursor: pointer; color: var(--text-secondary);">
-                        <input type="checkbox" id="bosIncludeInvalid" onchange="bosToggleInvalidRows()" style="width: 16px; height: 16px; cursor: pointer;">
-                        Import invalid rows anyway (missing fields will use defaults)
-                    </label>
-                ` : ''}
+                ${invalidCount > 0 ? `<div class="bos-preview-stat invalid">Invalid: ${invalidCount}</div>` : ''}
+                <div class="bos-preview-stat" style="background: #E3F2FD; color: #1565C0; border-color: #1565C0; font-weight: bold;" id="bosSelectedStat">Selected for Import: ${selectedCount}</div>
+                <div style="display: flex; gap: 8px; margin-left: auto;">
+                    <button class="btn monthly-view-btn" onclick="bosSelectAllRows()" style="background: linear-gradient(135deg, #27ae60, #219a52); padding: 5px 12px; font-size: 0.8rem;">Select All</button>
+                    <button class="btn monthly-view-btn" onclick="bosSelectValidOnly()" style="background: linear-gradient(135deg, #2980b9, #3498db); padding: 5px 12px; font-size: 0.8rem;">Select Valid Only</button>
+                    <button class="btn monthly-view-btn" onclick="bosDeselectAllRows()" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6); padding: 5px 12px; font-size: 0.8rem;">Deselect All</button>
+                </div>
             `;
 
             // Render preview table
+            bosRenderPreviewTable();
+        }
+
+        function bosRenderPreviewTable() {
             const tbody = document.getElementById('bosPagePreviewTableBody');
             tbody.innerHTML = bosPreviewRows.map(row => `
-                <tr>
+                <tr style="opacity: ${row.selected ? '1' : '0.45'};">
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="bos-row-checkbox" data-row="${row.rowNum}"
+                               ${row.selected ? 'checked' : ''}
+                               onchange="bosToggleRow(${row.rowNum}, this.checked)"
+                               style="width: 18px; height: 18px; cursor: pointer;">
+                    </td>
                     <td>${row.rowNum}</td>
                     <td><span class="bos-row-${row.status}">${row.status === 'valid' ? '✓ Valid' : '✗ ' + row.errors.join(', ')}</span></td>
                     <td>${escapeHtml(row.parsed.assetCode)}</td>
@@ -23028,16 +23042,60 @@
                     <td>${escapeHtml(row.parsed.approvedBy)}</td>
                 </tr>
             `).join('');
+
+            // Sync select-all checkbox
+            const selectAllCb = document.getElementById('bosSelectAll');
+            if (selectAllCb) {
+                selectAllCb.checked = bosPreviewRows.length > 0 && bosPreviewRows.every(r => r.selected);
+            }
         }
 
-        function bosToggleInvalidRows() {
-            const include = document.getElementById('bosIncludeInvalid').checked;
-            const rows = document.querySelectorAll('#bosPagePreviewTableBody tr');
-            bosPreviewRows.forEach((row, i) => {
-                if (row.status === 'invalid' && rows[i]) {
-                    rows[i].style.opacity = include ? '1' : '0.5';
-                }
-            });
+        function bosToggleRow(rowNum, checked) {
+            const row = bosPreviewRows.find(r => r.rowNum === rowNum);
+            if (row) {
+                row.selected = checked;
+                // Update row opacity
+                const rows = document.querySelectorAll('#bosPagePreviewTableBody tr');
+                const idx = bosPreviewRows.indexOf(row);
+                if (rows[idx]) rows[idx].style.opacity = checked ? '1' : '0.45';
+                bosUpdateSelectedCount();
+            }
+        }
+
+        function bosToggleSelectAll(masterCheckbox) {
+            const checked = masterCheckbox.checked;
+            bosPreviewRows.forEach(r => { r.selected = checked; });
+            bosRenderPreviewTable();
+            bosUpdateSelectedCount();
+        }
+
+        function bosSelectAllRows() {
+            bosPreviewRows.forEach(r => { r.selected = true; });
+            bosRenderPreviewTable();
+            bosUpdateSelectedCount();
+        }
+
+        function bosSelectValidOnly() {
+            bosPreviewRows.forEach(r => { r.selected = r.status === 'valid'; });
+            bosRenderPreviewTable();
+            bosUpdateSelectedCount();
+        }
+
+        function bosDeselectAllRows() {
+            bosPreviewRows.forEach(r => { r.selected = false; });
+            bosRenderPreviewTable();
+            bosUpdateSelectedCount();
+        }
+
+        function bosUpdateSelectedCount() {
+            const count = bosPreviewRows.filter(r => r.selected).length;
+            const stat = document.getElementById('bosSelectedStat');
+            if (stat) stat.textContent = `Selected for Import: ${count}`;
+            // Sync select-all checkbox
+            const selectAllCb = document.getElementById('bosSelectAll');
+            if (selectAllCb) {
+                selectAllCb.checked = bosPreviewRows.length > 0 && bosPreviewRows.every(r => r.selected);
+            }
         }
 
         function bosUpdateRowDate(rowNum, dateValue) {
@@ -23121,8 +23179,7 @@
 
         // Import confirmed
         function confirmBosPageImport() {
-            const includeInvalid = document.getElementById('bosIncludeInvalid')?.checked || false;
-            const rowsToImport = includeInvalid ? bosPreviewRows : bosPreviewRows.filter(r => r.status === 'valid');
+            const rowsToImport = bosPreviewRows.filter(r => r.selected);
 
             if (rowsToImport.length === 0) {
                 alert('No rows to import. Please check your column mappings and go back to adjust.');
