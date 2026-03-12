@@ -8274,11 +8274,23 @@
                     </div>
                 </div>
 
+                <!-- Register Delete Controls -->
+                <div id="registerDeleteControls" style="margin-bottom: 1rem; display: none; align-items: center; gap: 1rem; padding: 1rem; background: #FFEBEE; border-radius: 0.5rem; border: 2px solid #e74c3c;">
+                    <span id="registerSelectedCount" style="font-weight: bold; color: #c0392b;">0 assets selected</span>
+                    <button class="btn" onclick="deleteSelectedFromRegister()" style="background: #e74c3c; color: white;">
+                        🗑️ Delete Selected
+                    </button>
+                    <button class="btn" onclick="clearRegisterSelection()" style="background: #757575; color: white;">
+                        Clear Selection
+                    </button>
+                </div>
+
                 <!-- Asset Register Table -->
                 <div class="register-table-container" style="max-height: 600px; overflow-y: auto;">
                     <table class="register-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="registerSelectAll" onchange="toggleSelectAllRegister(this)" style="width: 18px; height: 18px; cursor: pointer;"></th>
                                 <th>Asset Code</th>
                                 <th>Date In</th>
                                 <th>Description</th>
@@ -8303,7 +8315,7 @@
                         </thead>
                         <tbody id="registerTableBody">
                             <tr>
-                                <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <td colspan="16" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                     Loading all assets...
                                 </td>
                             </tr>
@@ -10689,6 +10701,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
                         disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
@@ -10754,7 +10767,21 @@
         function mergeCloudIntoLocal(cloudDataObj) {
             let dataChanged = false;
 
-            // Merge assets by ID and asset code
+            // Merge deleted asset IDs from cloud (so deletions sync across clients)
+            if (cloudDataObj.deletedAssetIds && cloudDataObj.deletedAssetIds.length > 0) {
+                cloudDataObj.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+
+                // Remove any locally present assets that were deleted on another client
+                let localAssets = loadAssetsFromStorage();
+                const filtered = localAssets.filter(a => !deletedAssetIds.has(a.id));
+                if (filtered.length < localAssets.length) {
+                    saveAssetsToStorage(filtered);
+                    dataChanged = true;
+                }
+            }
+
+            // Merge assets by ID and asset code (skip deleted ones)
             if (cloudDataObj.assets && cloudDataObj.assets.length > 0) {
                 const localAssets = loadAssetsFromStorage();
                 const localIdSet = new Set(localAssets.map(a => a.id).filter(Boolean));
@@ -10762,6 +10789,9 @@
 
                 let added = 0;
                 cloudDataObj.assets.forEach(ca => {
+                    // Skip assets that have been deleted locally or from cloud
+                    if (ca.id && deletedAssetIds.has(ca.id)) return;
+
                     const hasId = ca.id && localIdSet.has(ca.id);
                     const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
                     if (!hasId && !hasCode) {
@@ -11032,6 +11062,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
                         disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
@@ -11151,12 +11182,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -11355,12 +11394,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -11606,12 +11653,20 @@
                 // Restore data to correct storage key and refresh UI
                 let restoredCount = 0;
 
+                // Merge deleted asset IDs from cloud
+                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
+                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
+                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                }
+
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    saveAssetsToStorage(backupData.data.assets);
-                    allAssetsData = backupData.data.assets;
+                    // Filter out assets that have been deleted
+                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
+                    saveAssetsToStorage(filteredAssets);
+                    allAssetsData = filteredAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData;
-                    restoredCount = backupData.data.assets.length;
+                    restoredCount = filteredAssets.length;
                 }
 
                 // Restore QR code registry
@@ -12221,7 +12276,9 @@
         // ============================================
 
         const STORAGE_KEY = 'assetInventoryData';
+        const ASSET_DELETED_IDS_KEY = 'assetDeletedIds';
         const AUDIT_STORAGE_KEY = 'assetAuditTrail';
+        let deletedAssetIds = new Set(JSON.parse(localStorage.getItem('assetDeletedIds') || '[]'));
         const DEPARTMENTS_STORAGE_KEY = 'customDepartments';
         const CATEGORIES_STORAGE_KEY = 'customCategories';
 
@@ -12822,8 +12879,17 @@
             try {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
-                    const assets = JSON.parse(stored);
+                    let assets = JSON.parse(stored);
                     if (Array.isArray(assets)) {
+                        // Filter out any assets that have been deleted
+                        if (deletedAssetIds && deletedAssetIds.size > 0) {
+                            const beforeCount = assets.length;
+                            assets = assets.filter(a => !a.id || !deletedAssetIds.has(a.id));
+                            // If we filtered some out, persist the cleaned list back to storage
+                            if (assets.length < beforeCount) {
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
+                            }
+                        }
                         // Normalize all date formats to DD-MMM-YYYY
                         assets.forEach(asset => {
                             if (asset.dateIn) {
@@ -12851,6 +12917,12 @@
                 alert('⚠️ Error saving data. Storage may be full.');
                 return false;
             }
+        }
+
+        // Track deleted asset IDs so cloud sync doesn't re-add them
+        function trackDeletedAssetIds(ids) {
+            ids.forEach(id => { if (id) deletedAssetIds.add(id); });
+            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
         }
 
         // Generate unique ID for assets
@@ -13743,6 +13815,9 @@
             assets = assets.filter(a => a.id !== asset.id);
             saveAssetsToStorage(assets);
 
+            // Track deleted ID so cloud sync won't re-add it
+            trackDeletedAssetIds([asset.id]);
+
             // Remove matching disposal records from Board of Survey
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
 
@@ -13773,6 +13848,9 @@
 
             assets = assets.filter(a => !idsToDelete.has(a.id));
             saveAssetsToStorage(assets);
+
+            // Track deleted IDs so cloud sync won't re-add them
+            trackDeletedAssetIds([...idsToDelete]);
 
             // Remove matching disposal records and add audit entries
             assetsToDelete.forEach(asset => {
@@ -21908,6 +21986,7 @@
             if (assetToRemove) {
                 assets = assets.filter(a => a.id !== assetToRemove.id);
                 saveAssetsToStorage(assets);
+                trackDeletedAssetIds([assetToRemove.id]);
             }
 
             addAuditEntry(record.assetCode, 'Asset Deleted',
@@ -21964,17 +22043,23 @@
 
             // Also remove the associated assets from main storage
             let assets = loadAssetsFromStorage();
+            const removedAssetIds = [];
             deletedRecords.forEach(record => {
                 assets = assets.filter(a => {
                     const matchById = record.assetId && a.id === record.assetId;
                     const matchByCode = a.assetCode === record.assetCode;
-                    return !(matchById || matchByCode);
+                    if (matchById || matchByCode) {
+                        removedAssetIds.push(a.id);
+                        return false;
+                    }
+                    return true;
                 });
                 addAuditEntry(record.assetCode, 'Asset Deleted',
                     `Reason was: ${record.reason} (bulk delete from Board of Survey)`,
                     currentUser ? currentUser.username : 'Unknown');
             });
             saveAssetsToStorage(assets);
+            trackDeletedAssetIds(removedAssetIds);
 
             refreshAllViews();
             alert(`${selectedIds.length} record(s) and associated assets deleted successfully.`);
@@ -23477,7 +23562,7 @@
             if (filteredRegisterData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="16" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             No assets found matching your criteria.
                         </td>
                     </tr>
@@ -23526,6 +23611,11 @@
 
                     return `
                         <tr${disposed ? ' style="background: rgba(231, 76, 60, 0.05);"' : ''}>
+                            <td style="text-align: center;">
+                                <input type="checkbox" class="register-row-checkbox" value="${asset.id}"
+                                       onchange="onRegisterCheckboxChange()"
+                                       style="width: 18px; height: 18px; cursor: pointer;">
+                            </td>
                             <td>${assetCodeDisplay}</td>
                             <td>${escapeHtml(normalizeDateToDisplay(asset.dateIn) || 'N/A')}</td>
                             <td>${escapeHtml(asset.description || 'N/A')}</td>
@@ -23593,12 +23683,85 @@
             assets = assets.filter(a => a.id !== assetId);
             saveAssetsToStorage(assets);
 
+            // Track deleted ID so cloud sync won't re-add it
+            trackDeletedAssetIds([assetId]);
+
             // Remove matching disposal records
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
 
-            addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from Asset Register');
+            addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Asset Register');
 
             refreshAllViews();
+        }
+
+        // Asset Register multi-select functions
+        function toggleSelectAllRegister(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.register-row-checkbox');
+            checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
+            updateRegisterDeleteControls();
+        }
+
+        function onRegisterCheckboxChange() {
+            const checkboxes = document.querySelectorAll('.register-row-checkbox');
+            const allChecked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+            const selectAllCb = document.getElementById('registerSelectAll');
+            if (selectAllCb) selectAllCb.checked = allChecked;
+            updateRegisterDeleteControls();
+        }
+
+        function updateRegisterDeleteControls() {
+            const checked = document.querySelectorAll('.register-row-checkbox:checked');
+            const controls = document.getElementById('registerDeleteControls');
+            const countSpan = document.getElementById('registerSelectedCount');
+            if (controls) {
+                controls.style.display = checked.length > 0 ? 'flex' : 'none';
+            }
+            if (countSpan) {
+                countSpan.textContent = `${checked.length} asset${checked.length !== 1 ? 's' : ''} selected`;
+            }
+        }
+
+        function clearRegisterSelection() {
+            const checkboxes = document.querySelectorAll('.register-row-checkbox');
+            checkboxes.forEach(cb => { cb.checked = false; });
+            const selectAllCb = document.getElementById('registerSelectAll');
+            if (selectAllCb) selectAllCb.checked = false;
+            updateRegisterDeleteControls();
+        }
+
+        function deleteSelectedFromRegister() {
+            const checked = document.querySelectorAll('.register-row-checkbox:checked');
+            const selectedIds = [...checked].map(cb => cb.value);
+
+            if (selectedIds.length === 0) return;
+
+            const assetsToDelete = selectedIds.map(id => assetRegisterData.find(a => a.id === id)).filter(Boolean);
+            if (assetsToDelete.length === 0) return;
+
+            const assetList = assetsToDelete.slice(0, 5).map(a => `  \u2022 ${a.assetCode} - ${a.description}`).join('\n');
+            const moreText = assetsToDelete.length > 5 ? `\n  ...and ${assetsToDelete.length - 5} more` : '';
+
+            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views.\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            let assets = loadAssetsFromStorage();
+            const idsToDelete = new Set(selectedIds);
+
+            assets = assets.filter(a => !idsToDelete.has(a.id));
+            saveAssetsToStorage(assets);
+
+            // Track deleted IDs so cloud sync won't re-add them
+            trackDeletedAssetIds(selectedIds);
+
+            // Remove matching disposal records and add audit entries
+            assetsToDelete.forEach(asset => {
+                removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Asset Register (bulk delete)');
+            });
+
+            refreshAllViews();
+            alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
         }
 
         // Central function to refresh all views after data changes
