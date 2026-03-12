@@ -7555,6 +7555,13 @@
                         This shows exactly what the system is reading from your spreadsheet. <strong>Row 1 is used as column headers.</strong>
                     </p>
                     <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--primary-orange);">
+                        <div id="importSheetSelector" style="display: none; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <span>Sheet:</span>
+                                <select id="importSheetSelect" onchange="changeImportSheet(this.value)" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); font-weight: 600;"></select>
+                                <span style="font-size: 0.85em; color: var(--text-secondary);">Select which sheet to import from</span>
+                            </label>
+                        </div>
                         <label style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <span>Header row:</span>
                             <select id="importHeaderRowSelect" onchange="changeImportHeaderRow(this.value)" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary);">
@@ -8625,6 +8632,13 @@
 
                 <div id="bosPageFileInfo" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 10px; border-left: 4px solid #3498db;">
                     <p id="bosPageFileDetails" style="font-size: 0.95rem;"></p>
+                    <div id="bosSheetSelector" style="display: none; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-weight: 600;">Sheet:</span>
+                            <select id="bosSheetSelect" onchange="changeBosImportSheet(this.value)" style="padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); font-weight: 600;"></select>
+                            <span style="font-size: 0.85em; color: var(--text-secondary);">Select which sheet to import from</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="bosPageProgress" style="display: none; margin-top: 20px;">
@@ -20337,6 +20351,8 @@
         let importRawData = [];          // Store raw Excel data for preview
         let importHeaderRow = 1;         // Which row to use as headers (1-indexed)
         let importFileName = '';         // Store the imported file name
+        let importWorkbook = null;       // Store workbook for sheet selection
+        let importCurrentSheet = '';     // Currently selected sheet name
 
         // Field definitions with aliases for auto-detection
         const importFieldDefinitions = {
@@ -20465,12 +20481,28 @@
 
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        importWorkbook = workbook;
 
                         progressFill.style.width = '60%';
                         progressText.textContent = 'Analyzing columns...';
 
+                        // Populate sheet selector if multiple sheets
+                        const sheetSelector = document.getElementById('importSheetSelector');
+                        const sheetSelect = document.getElementById('importSheetSelect');
+                        if (workbook.SheetNames.length > 1) {
+                            sheetSelect.innerHTML = workbook.SheetNames.map((name, i) => {
+                                const ws = workbook.Sheets[name];
+                                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).length;
+                                return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${rows} rows)</option>`;
+                            }).join('');
+                            sheetSelector.style.display = 'block';
+                        } else {
+                            sheetSelector.style.display = 'none';
+                        }
+
                         // Get first sheet
                         const firstSheetName = workbook.SheetNames[0];
+                        importCurrentSheet = firstSheetName;
                         const worksheet = workbook.Sheets[firstSheetName];
 
                         // Convert to JSON with headers
@@ -20500,7 +20532,7 @@
                         // Show file info
                         const fileInfo = document.getElementById('importFileInfo');
                         const formatSection = document.getElementById('importDetectedFormat');
-                        fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(firstSheetName)}</strong>`;
+                        fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(firstSheetName)}</strong>${workbook.SheetNames.length > 1 ? ` (${workbook.SheetNames.length} sheets available)` : ''}`;
                         formatSection.style.display = 'block';
 
                         // Display raw data preview
@@ -20649,9 +20681,45 @@
                     // Update file info
                     const fileInfo = document.getElementById('importFileInfo');
                     if (fileInfo) {
-                        fileInfo.innerHTML = `<strong>${escapeHtml(importFileName)}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected`;
+                        const sheetInfo = importCurrentSheet ? ` • Sheet: <strong>${escapeHtml(importCurrentSheet)}</strong>` : '';
+                        const multiSheet = importWorkbook && importWorkbook.SheetNames.length > 1 ? ` (${importWorkbook.SheetNames.length} sheets available)` : '';
+                        fileInfo.innerHTML = `<strong>${escapeHtml(importFileName)}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected${sheetInfo}${multiSheet}`;
                     }
                 }
+            }
+
+            // Refresh displays
+            displayRawDataPreview();
+            autoDetectColumns();
+        }
+
+        // Change the selected sheet to import from
+        function changeImportSheet(sheetName) {
+            if (!importWorkbook || !importWorkbook.Sheets[sheetName]) return;
+
+            importCurrentSheet = sheetName;
+            const worksheet = importWorkbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+            if (jsonData.length < 2) {
+                alert('Sheet "' + sheetName + '" appears to be empty or has no data rows. Please select another sheet.');
+                return;
+            }
+
+            // Update raw data and reset header row
+            importRawData = jsonData;
+            importHeaderRow = 1;
+            const headerSelect = document.getElementById('importHeaderRowSelect');
+            if (headerSelect) headerSelect.value = '1';
+
+            // Re-extract headers and data
+            importFileHeaders = (jsonData[0] || []).map(h => String(h || '').trim());
+            importedExcelData = jsonData.slice(1).filter(row => row.some(cell => cell !== ''));
+
+            // Update file info
+            const fileInfo = document.getElementById('importFileInfo');
+            if (fileInfo) {
+                fileInfo.innerHTML = `<strong>${escapeHtml(importFileName)}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(sheetName)}</strong> (${importWorkbook.SheetNames.length} sheets available)`;
             }
 
             // Refresh displays
@@ -23418,6 +23486,9 @@
         let bosColumnMapping = {};
         let bosPreviewRows = [];
         let bosPageCurrentStep = 1;
+        let bosWorkbook = null;          // Store workbook for sheet selection
+        let bosCurrentSheet = '';        // Currently selected sheet name
+        let bosFileName = '';            // Store filename for sheet switching
 
         // BOS field definitions with auto-detect aliases
         const bosFieldDefinitions = {
@@ -23588,9 +23659,25 @@
 
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    bosWorkbook = workbook;
+                    bosFileName = file.name;
 
                     progressFill.style.width = '70%';
                     progressText.textContent = 'Analyzing columns...';
+
+                    // Populate sheet selector if multiple sheets
+                    const bosSheetSelector = document.getElementById('bosSheetSelector');
+                    const bosSheetSelect = document.getElementById('bosSheetSelect');
+                    if (workbook.SheetNames.length > 1) {
+                        bosSheetSelect.innerHTML = workbook.SheetNames.map(name => {
+                            const ws = workbook.Sheets[name];
+                            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).length;
+                            return `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${rows} rows)</option>`;
+                        }).join('');
+                        bosSheetSelector.style.display = 'block';
+                    } else {
+                        bosSheetSelector.style.display = 'none';
+                    }
 
                     // Try each sheet until we find one with data
                     let sheetName = '';
@@ -23606,6 +23693,9 @@
                             break;
                         }
                     }
+
+                    bosCurrentSheet = sheetName;
+                    if (bosSheetSelect) bosSheetSelect.value = sheetName;
 
                     if (!foundData || jsonData.length < 2) {
                         throw new Error('File appears empty or has no data rows');
@@ -23671,7 +23761,7 @@
                     // Show file info
                     document.getElementById('bosPageFileInfo').style.display = 'block';
                     document.getElementById('bosPageFileDetails').innerHTML =
-                        `<strong>${escapeHtml(file.name)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong>${mappingWarning}`;
+                        `<strong>${escapeHtml(file.name)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong>${workbook.SheetNames.length > 1 ? ` (${workbook.SheetNames.length} sheets available)` : ''}${mappingWarning}`;
 
                     setTimeout(() => {
                         progress.style.display = 'none';
@@ -23692,6 +23782,70 @@
                 alert('Error reading file. Please try again.');
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        // Change the selected sheet for BOS import
+        function changeBosImportSheet(sheetName) {
+            if (!bosWorkbook || !bosWorkbook.Sheets[sheetName]) return;
+
+            bosCurrentSheet = sheetName;
+            const worksheet = bosWorkbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+            if (jsonData.length < 2) {
+                alert('Sheet "' + sheetName + '" appears to be empty or has no data rows. Please select another sheet.');
+                return;
+            }
+
+            // Re-run intelligent header detection
+            let bestHeaderIdx = 0;
+            let bestScore = 0;
+            const headerKeywords = ['asset', 'code', 'description', 'name', 'date', 'value', 'qty',
+                'quantity', 'department', 'reason', 'method', 'serial', 'model', 'supplier',
+                'category', 'reference', 'remarks', 'notes', 'price', 'cost', 'no', 'number',
+                'location', 'item', 'particulars', 'condition', 'status', 'approved', 'action',
+                'recommendation', 'unit', 'total', 'amount', 'disposal', 'survey', 'ref'];
+            for (let i = 0; i < Math.min(jsonData.length, 30); i++) {
+                const cells = jsonData[i].map(c => String(c || '').trim()).filter(c => c !== '');
+                if (cells.length < 2) continue;
+                let textCells = 0;
+                let keywordHits = 0;
+                cells.forEach(cell => {
+                    if (cell instanceof Date) return;
+                    const isNumber = /^[\d,.$%()-]+$/.test(cell);
+                    if (!isNumber) textCells++;
+                    const lower = cell.toLowerCase();
+                    if (headerKeywords.some(kw => lower.includes(kw))) keywordHits++;
+                });
+                const score = (cells.length * 1) + (textCells * 2) + (keywordHits * 5);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestHeaderIdx = i;
+                }
+            }
+
+            bosUploadHeaders = (jsonData[bestHeaderIdx] || []).map(h => String(h || '').trim());
+            bosUploadData = jsonData.slice(bestHeaderIdx + 1).filter(row => row.some(cell => String(cell || '').trim() !== ''));
+
+            if (bosUploadData.length === 0) {
+                alert('No data rows found in sheet "' + sheetName + '". Please select another sheet.');
+                return;
+            }
+
+            // Re-detect column mappings
+            bosAutoDetectColumns();
+
+            // Update file info
+            const missingRequired = [];
+            if (bosColumnMapping.assetCode === undefined) missingRequired.push('Asset Code');
+            if (bosColumnMapping.description === undefined) missingRequired.push('Description');
+            let mappingWarning = '';
+            if (missingRequired.length > 0) {
+                mappingWarning = ` <span style="color: #e67e22; font-weight: 600;">⚠ Could not auto-detect: ${missingRequired.join(', ')}. Please map manually in Step 2.</span>`;
+            }
+
+            document.getElementById('bosPageFileDetails').innerHTML =
+                `<strong>${escapeHtml(bosFileName)}</strong> &bull; ${bosUploadData.length} rows found &bull; ${bosUploadHeaders.length} columns detected &bull; Sheet: <strong>${escapeHtml(sheetName)}</strong> (${bosWorkbook.SheetNames.length} sheets available)${mappingWarning}`;
         }
 
         function bosAutoDetectColumns() {
