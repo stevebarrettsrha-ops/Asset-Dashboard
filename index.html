@@ -21871,7 +21871,7 @@
             assetCode: {
                 label: 'Asset Code',
                 required: true,
-                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'code', 'asset no', 'asset number', 'asset#', 'id']
+                aliases: ['asset code', 'assetcode', 'asset_code', 'asset id', 'assetid', 'code', 'asset no', 'asset number', 'asset#', 'id', 'inventory #', 'inventory no', 'inventory number', 'inventory code', 'inv #', 'inv no']
             },
             description: {
                 label: 'Description',
@@ -21891,7 +21891,7 @@
             method: {
                 label: 'Method',
                 required: false,
-                aliases: ['method', 'disposal method', 'method of disposal', 'action', 'disposal action', 'disposal type']
+                aliases: ['method', 'disposal method', 'method of disposal', 'action', 'disposal action', 'disposal type', 'recommendation', 'recommended action', 'disposal recommendation']
             },
             originalValue: {
                 label: 'Original Value (JMD)',
@@ -22039,23 +22039,45 @@
                     progressFill.style.width = '70%';
                     progressText.textContent = 'Analyzing columns...';
 
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                    // Try each sheet until we find one with data
+                    let sheetName = '';
+                    let jsonData = [];
+                    let foundData = false;
 
-                    if (jsonData.length < 2) {
+                    for (let si = 0; si < workbook.SheetNames.length; si++) {
+                        sheetName = workbook.SheetNames[si];
+                        const worksheet = workbook.Sheets[sheetName];
+                        jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        if (jsonData.length >= 2) {
+                            foundData = true;
+                            break;
+                        }
+                    }
+
+                    if (!foundData || jsonData.length < 2) {
                         throw new Error('File appears empty or has no data rows');
                     }
 
-                    // Find header row (first row with multiple non-empty cells)
+                    // Find header row - search up to 30 rows to handle government forms
+                    // with extensive metadata/titles before the actual data table
                     let headerIdx = 0;
-                    for (let i = 0; i < Math.min(jsonData.length, 10); i++) {
+                    let bestHeaderIdx = 0;
+                    let bestNonEmpty = 0;
+                    for (let i = 0; i < Math.min(jsonData.length, 30); i++) {
                         const nonEmpty = jsonData[i].filter(c => String(c || '').trim() !== '').length;
-                        if (nonEmpty >= 3) { headerIdx = i; break; }
+                        if (nonEmpty > bestNonEmpty) {
+                            bestNonEmpty = nonEmpty;
+                            bestHeaderIdx = i;
+                        }
                     }
+                    headerIdx = bestHeaderIdx;
 
                     bosUploadHeaders = (jsonData[headerIdx] || []).map(h => String(h || '').trim());
                     bosUploadData = jsonData.slice(headerIdx + 1).filter(row => row.some(cell => String(cell || '').trim() !== ''));
+
+                    if (bosUploadData.length === 0) {
+                        throw new Error('Could not find data rows in the Excel file. Please ensure the file contains data below the column headers.');
+                    }
 
                     progressFill.style.width = '90%';
                     progressText.textContent = 'Auto-detecting columns...';
