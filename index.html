@@ -388,6 +388,7 @@
 
         .page {
             display: none;
+            overflow-x: hidden;
         }
 
         .page.active {
@@ -1233,10 +1234,14 @@
             overflow-y: auto;
         }
 
+        .table-container table {
+            min-width: 1400px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1400px;
+            min-width: 0;
         }
 
         thead {
@@ -5128,8 +5133,8 @@
 
         /* Mobile responsive styles for all tables - maintain full width for horizontal scrolling */
         @media (max-width: 992px) {
-            /* Tables maintain their full width, users scroll horizontally to see all content */
-            table {
+            /* Tables inside scroll containers maintain their full width */
+            .table-container table {
                 min-width: 1400px;
             }
 
@@ -5872,7 +5877,7 @@
             margin-left: 270px;
             width: calc(100% - 270px);
             max-width: 100%;
-            overflow-x: auto;
+            overflow-x: hidden;
             box-sizing: border-box;
             transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
