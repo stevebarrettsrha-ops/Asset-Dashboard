@@ -20408,69 +20408,72 @@
             const reader = new FileReader();
 
             reader.onload = function(e) {
-                try {
-                    progressFill.style.width = '40%';
-                    progressText.textContent = 'Parsing Excel data...';
+                // Use setTimeout to let the progress bar render before heavy parsing
+                setTimeout(() => {
+                    try {
+                        progressFill.style.width = '40%';
+                        progressText.textContent = 'Parsing Excel data...';
 
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-                    progressFill.style.width = '60%';
-                    progressText.textContent = 'Analyzing columns...';
+                        progressFill.style.width = '60%';
+                        progressText.textContent = 'Analyzing columns...';
 
-                    // Get first sheet
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+                        // Get first sheet
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
 
-                    // Convert to JSON with headers
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        // Convert to JSON with headers
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-                    if (jsonData.length < 2) {
-                        throw new Error('File appears to be empty or has no data rows');
-                    }
+                        if (jsonData.length < 2) {
+                            throw new Error('File appears to be empty or has no data rows');
+                        }
 
-                    // Store raw data for preview and header row selection
-                    importRawData = jsonData;
-                    importFileName = file.name;
-                    importHeaderRow = 1; // Reset to default
+                        // Store raw data for preview and header row selection
+                        importRawData = jsonData;
+                        importFileName = file.name;
+                        importHeaderRow = 1; // Reset to default
 
-                    // Reset header row selector
-                    const headerSelect = document.getElementById('importHeaderRowSelect');
-                    if (headerSelect) headerSelect.value = '1';
+                        // Reset header row selector
+                        const headerSelect = document.getElementById('importHeaderRowSelect');
+                        if (headerSelect) headerSelect.value = '1';
 
-                    // Extract headers and data based on current header row
-                    const headerRowIndex = importHeaderRow - 1;
-                    importFileHeaders = (jsonData[headerRowIndex] || []).map(h => String(h || '').trim());
-                    importedExcelData = jsonData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
+                        // Extract headers and data based on current header row
+                        const headerRowIndex = importHeaderRow - 1;
+                        importFileHeaders = (jsonData[headerRowIndex] || []).map(h => String(h || '').trim());
+                        importedExcelData = jsonData.slice(headerRowIndex + 1).filter(row => row.some(cell => cell !== ''));
 
-                    progressFill.style.width = '80%';
-                    progressText.textContent = 'Auto-detecting column mappings...';
+                        progressFill.style.width = '80%';
+                        progressText.textContent = 'Auto-detecting column mappings...';
 
-                    // Show file info
-                    const fileInfo = document.getElementById('importFileInfo');
-                    const formatSection = document.getElementById('importDetectedFormat');
-                    fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(firstSheetName)}</strong>`;
-                    formatSection.style.display = 'block';
+                        // Show file info
+                        const fileInfo = document.getElementById('importFileInfo');
+                        const formatSection = document.getElementById('importDetectedFormat');
+                        fileInfo.innerHTML = `<strong>${file.name}</strong> • ${importedExcelData.length} rows found • ${importFileHeaders.length} columns detected • Sheet: <strong>${escapeHtml(firstSheetName)}</strong>`;
+                        formatSection.style.display = 'block';
 
-                    // Display raw data preview
-                    displayRawDataPreview();
+                        // Display raw data preview
+                        displayRawDataPreview();
 
-                    // Auto-detect column mappings
-                    autoDetectColumns();
+                        // Auto-detect column mappings
+                        autoDetectColumns();
 
-                    progressFill.style.width = '100%';
-                    progressText.textContent = 'Complete!';
+                        progressFill.style.width = '100%';
+                        progressText.textContent = 'Complete!';
 
-                    setTimeout(() => {
+                        setTimeout(() => {
+                            progress.style.display = 'none';
+                            progressFill.style.width = '0%';
+                        }, 500);
+
+                    } catch (error) {
+                        console.error('Error parsing Excel file:', error);
                         progress.style.display = 'none';
-                        progressFill.style.width = '0%';
-                    }, 500);
-
-                } catch (error) {
-                    console.error('Error parsing Excel file:', error);
-                    progress.style.display = 'none';
-                    alert('⚠️ Error reading Excel file: ' + error.message);
-                }
+                        alert('⚠️ Error reading Excel file: ' + error.message);
+                    }
+                }, 50);
             };
 
             reader.onerror = function() {
@@ -20848,11 +20851,22 @@
         }
 
         // Generate preview data
-        function generatePreview() {
+        async function generatePreview() {
             const previewSection = document.getElementById('importPreviewSection');
             const previewTable = document.getElementById('importPreviewTable');
             const importOptions = document.getElementById('importOptions');
             const importActions = document.getElementById('importActions');
+
+            // Show progress for large datasets
+            const progress = document.getElementById('importProgress');
+            const progressFill = document.getElementById('importProgressFill');
+            const progressText = document.getElementById('importProgressText');
+            const isLargeDataset = importedExcelData.length > 500;
+            if (isLargeDataset) {
+                progress.style.display = 'block';
+                progressFill.style.width = '0%';
+                progressText.textContent = 'Generating preview...';
+            }
 
             // Get existing asset codes for duplicate detection
             const existingAssets = loadAssetsFromStorage();
@@ -20863,71 +20877,85 @@
             let invalidCount = 0;
             let duplicateCount = 0;
 
-            // Process each row
-            importedExcelData.forEach((row, rowIndex) => {
-                const rowData = {
-                    rowNumber: rowIndex + 2, // Account for header row
-                    raw: row,
-                    parsed: {},
-                    status: 'valid',
-                    errors: []
-                };
+            // Process in chunks to keep UI responsive for large files
+            const allowMissingFields = document.getElementById('importAllowMissingFields').checked;
+            const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
+            const CHUNK_SIZE = 200;
 
-                // Extract values based on mapping
-                const getValue = (fieldKey) => {
-                    const colIndex = importColumnMapping[fieldKey];
-                    return colIndex !== undefined ? row[colIndex] : undefined;
-                };
+            for (let chunkStart = 0; chunkStart < importedExcelData.length; chunkStart += CHUNK_SIZE) {
+                const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, importedExcelData.length);
 
-                // Parse each field
-                rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
-                rowData.parsed.description = String(getValue('description') || '').trim();
-                rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
-                rowData.parsed.supplier = String(getValue('supplier') || '').trim();
-                rowData.parsed.department = String(getValue('department') || '').trim();
-                rowData.parsed.source = normalizeSource(getValue('source'));
-                rowData.parsed.category = normalizeCategory(getValue('category'));
-                rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
-                rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
-                rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
-                rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
+                for (let rowIndex = chunkStart; rowIndex < chunkEnd; rowIndex++) {
+                    const row = importedExcelData[rowIndex];
+                    const rowData = {
+                        rowNumber: rowIndex + 2, // Account for header row
+                        raw: row,
+                        parsed: {},
+                        status: 'valid',
+                        errors: []
+                    };
 
-                // Detect month
-                rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
+                    // Extract values based on mapping
+                    const getValue = (fieldKey) => {
+                        const colIndex = importColumnMapping[fieldKey];
+                        return colIndex !== undefined ? row[colIndex] : undefined;
+                    };
 
-                // Calculate total if not provided
-                if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice) {
-                    rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
-                }
+                    // Parse each field
+                    rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
+                    rowData.parsed.description = String(getValue('description') || '').trim();
+                    rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
+                    rowData.parsed.supplier = String(getValue('supplier') || '').trim();
+                    rowData.parsed.department = String(getValue('department') || '').trim();
+                    rowData.parsed.source = normalizeSource(getValue('source'));
+                    rowData.parsed.category = normalizeCategory(getValue('category'));
+                    rowData.parsed.serialModel = String(getValue('serialModel') || '').trim();
+                    rowData.parsed.quantity = parseImportNumber(getValue('quantity')) || 1;
+                    rowData.parsed.unitPrice = parseImportNumber(getValue('unitPrice'));
+                    rowData.parsed.totalPrice = parseImportNumber(getValue('totalPrice'));
 
-                // Validate required fields
-                const allowMissingFields = document.getElementById('importAllowMissingFields').checked;
-                const requiredFields = ['assetCode', 'description', 'dateIn', 'department', 'source', 'category'];
-                requiredFields.forEach(field => {
-                    if (!rowData.parsed[field]) {
-                        if (allowMissingFields) {
-                            // Fill missing fields with "-Data needed-"
-                            rowData.parsed[field] = '-Data needed-';
-                        } else {
-                            rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
-                            rowData.status = 'invalid';
-                        }
+                    // Detect month
+                    rowData.parsed.month = detectMonth(rowData.parsed.dateIn, getValue('month'));
+
+                    // Calculate total if not provided
+                    if (!rowData.parsed.totalPrice && rowData.parsed.unitPrice) {
+                        rowData.parsed.totalPrice = rowData.parsed.unitPrice * rowData.parsed.quantity;
                     }
-                });
 
-                // Check for duplicates
-                if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
-                    rowData.status = 'duplicate';
-                    rowData.errors.push('Asset code already exists');
+                    // Validate required fields
+                    requiredFields.forEach(field => {
+                        if (!rowData.parsed[field]) {
+                            if (allowMissingFields) {
+                                rowData.parsed[field] = '-Data needed-';
+                            } else {
+                                rowData.errors.push(`Missing ${importFieldDefinitions[field].label}`);
+                                rowData.status = 'invalid';
+                            }
+                        }
+                    });
+
+                    // Check for duplicates
+                    if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                        rowData.status = 'duplicate';
+                        rowData.errors.push('Asset code already exists');
+                    }
+
+                    // Count by status
+                    if (rowData.status === 'valid') validCount++;
+                    else if (rowData.status === 'invalid') invalidCount++;
+                    else if (rowData.status === 'duplicate') duplicateCount++;
+
+                    importPreviewData.push(rowData);
                 }
 
-                // Count by status
-                if (rowData.status === 'valid') validCount++;
-                else if (rowData.status === 'invalid') invalidCount++;
-                else if (rowData.status === 'duplicate') duplicateCount++;
-
-                importPreviewData.push(rowData);
-            });
+                // Yield to UI thread between chunks for large datasets
+                if (isLargeDataset) {
+                    const pct = Math.round((chunkEnd / importedExcelData.length) * 90);
+                    progressFill.style.width = pct + '%';
+                    progressText.textContent = `Analyzing rows... ${chunkEnd} of ${importedExcelData.length}`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
 
             // Update stats
             document.getElementById('previewValidCount').textContent = `${validCount} Valid`;
@@ -21005,10 +21033,20 @@
             importBtn.textContent = validCount > 0 ?
                 `✅ Import ${validCount} Valid Assets` :
                 '✅ No Valid Assets to Import';
+
+            // Hide progress bar
+            if (isLargeDataset) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Preview ready!';
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 500);
+            }
         }
 
         // Confirm and execute import
-        function confirmImport() {
+        async function confirmImport() {
             const importMode = document.querySelector('input[name="importMode"]:checked').value;
 
             // Filter rows to import
@@ -21042,6 +21080,18 @@
                 return;
             }
 
+            // Show progress during import
+            const progress = document.getElementById('importProgress');
+            const progressFill = document.getElementById('importProgressFill');
+            const progressText = document.getElementById('importProgressText');
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Preparing import...';
+
+            // Disable import button to prevent double-clicks
+            const importBtn = document.getElementById('importConfirmBtn');
+            if (importBtn) importBtn.disabled = true;
+
             try {
                 let existingAssets = loadAssetsFromStorage();
                 let importedCount = 0;
@@ -21054,43 +21104,91 @@
                 // Check if expand by quantity is enabled
                 const expandQuantity = document.getElementById('importExpandQuantity').checked;
 
-                // Create new assets
-                rowsToImport.forEach(row => {
-                    const qty = row.parsed.quantity || 1;
-                    const shouldExpand = expandQuantity && qty > 1;
-                    const iterations = shouldExpand ? qty : 1;
+                // Build all new assets and audit entries in memory first (avoid per-asset storage I/O)
+                const newAuditEntries = [];
+                const timestamp = new Date().toISOString();
+                const userName = currentUser ? currentUser.displayName : 'Unknown';
 
-                    for (let i = 0; i < iterations; i++) {
-                        const assetCode = shouldExpand
-                            ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
-                            : row.parsed.assetCode;
+                // Process in chunks to keep UI responsive
+                const CHUNK_SIZE = 100;
+                for (let chunkStart = 0; chunkStart < rowsToImport.length; chunkStart += CHUNK_SIZE) {
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, rowsToImport.length);
+                    const chunk = rowsToImport.slice(chunkStart, chunkEnd);
 
-                        const newAsset = {
-                            id: generateAssetId(),
-                            assetCode: assetCode,
-                            description: row.parsed.description,
-                            dateIn: row.parsed.dateIn,
-                            supplier: row.parsed.supplier || '',
-                            department: row.parsed.department,
-                            source: row.parsed.source,
-                            category: row.parsed.category,
-                            serialModel: row.parsed.serialModel || '',
-                            quantity: 1,
-                            unitPrice: row.parsed.unitPrice,
-                            totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice,
-                            month: row.parsed.month,
-                            itemType: row.parsed.description
-                        };
+                    chunk.forEach(row => {
+                        const qty = row.parsed.quantity || 1;
+                        const shouldExpand = expandQuantity && qty > 1;
+                        const iterations = shouldExpand ? qty : 1;
 
-                        existingAssets.push(newAsset);
-                        importedCount++;
+                        for (let i = 0; i < iterations; i++) {
+                            const assetCode = shouldExpand
+                                ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
+                                : row.parsed.assetCode;
 
-                        addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Imported via Excel Import Dashboard');
-                    }
-                });
+                            const newAsset = {
+                                id: generateAssetId(),
+                                assetCode: assetCode,
+                                description: row.parsed.description,
+                                dateIn: row.parsed.dateIn,
+                                supplier: row.parsed.supplier || '',
+                                department: row.parsed.department,
+                                source: row.parsed.source,
+                                category: row.parsed.category,
+                                serialModel: row.parsed.serialModel || '',
+                                quantity: 1,
+                                unitPrice: row.parsed.unitPrice,
+                                totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice,
+                                month: row.parsed.month,
+                                itemType: row.parsed.description
+                            };
 
-                // Save to storage
-                saveAssetsToStorage(existingAssets);
+                            existingAssets.push(newAsset);
+                            importedCount++;
+
+                            // Build audit entry in memory instead of saving per-asset
+                            newAuditEntries.push({
+                                id: generateAssetId(),
+                                assetCode: newAsset.assetCode,
+                                action: 'Asset Created',
+                                department: newAsset.department,
+                                description: newAsset.description,
+                                value: newAsset.totalPrice || 0,
+                                notes: 'Imported via Excel Import Dashboard',
+                                timestamp: timestamp,
+                                user: userName
+                            });
+                        }
+                    });
+
+                    // Update progress and yield to the UI thread between chunks
+                    const pct = Math.round((chunkEnd / rowsToImport.length) * 80);
+                    progressFill.style.width = pct + '%';
+                    progressText.textContent = `Processing assets... ${chunkEnd} of ${rowsToImport.length} rows`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                // Save assets to storage (single write)
+                progressFill.style.width = '85%';
+                progressText.textContent = 'Saving assets...';
+                await new Promise(resolve => setTimeout(resolve, 0));
+
+                const assetsSaved = saveAssetsToStorage(existingAssets);
+                if (!assetsSaved) {
+                    throw new Error('Failed to save assets. Storage may be full. Try a smaller file or clear old data first.');
+                }
+
+                // Save all audit entries in a single batch write
+                progressFill.style.width = '95%';
+                progressText.textContent = 'Saving audit trail...';
+                await new Promise(resolve => setTimeout(resolve, 0));
+
+                const auditRecords = loadAuditFromStorage();
+                // Prepend all new entries at once
+                auditRecords.unshift(...newAuditEntries);
+                saveAuditToStorage(auditRecords);
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Import complete!';
 
                 // Show success summary
                 const summary = document.getElementById('importSummary');
@@ -21115,11 +21213,18 @@
                 document.getElementById('importRawDataPreview').style.display = 'none';
                 document.getElementById('importDropzone').style.display = 'none';
 
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 1000);
+
                 // Reload main dashboard data
                 loadData();
 
             } catch (error) {
                 console.error('Import error:', error);
+                progress.style.display = 'none';
+                if (importBtn) importBtn.disabled = false;
                 alert('⚠️ Error during import: ' + error.message);
             }
         }
@@ -22041,50 +22146,81 @@
                 // Check if expand by quantity is enabled
                 const gdriveExpandQty = document.getElementById('gdriveExpandQuantity').checked;
 
-                dataToImport.forEach(row => {
-                    if (importMode === 'merge' && existingCodes.has(row.parsed.assetCode?.toLowerCase())) {
-                        return; // Skip duplicates in merge mode
-                    }
+                // Build all audit entries in memory instead of per-asset storage I/O
+                const newAuditEntries = [];
+                const auditTimestamp = new Date().toISOString();
+                const auditUser = currentUser ? currentUser.displayName : 'Unknown';
 
-                    const qty = row.parsed.quantity || 1;
-                    const shouldExpand = gdriveExpandQty && qty > 1;
-                    const iterations = shouldExpand ? qty : 1;
+                // Process in chunks to keep UI responsive
+                const CHUNK_SIZE = 100;
+                for (let chunkStart = 0; chunkStart < dataToImport.length; chunkStart += CHUNK_SIZE) {
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, dataToImport.length);
+                    const chunk = dataToImport.slice(chunkStart, chunkEnd);
 
-                    for (let i = 0; i < iterations; i++) {
-                        const assetCode = shouldExpand
-                            ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
-                            : row.parsed.assetCode;
-
-                        const newAsset = {
-                            id: generateAssetId(),
-                            assetCode: assetCode,
-                            description: row.parsed.description,
-                            dateIn: row.parsed.dateIn,
-                            supplier: row.parsed.supplier,
-                            department: row.parsed.department,
-                            source: row.parsed.source,
-                            month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
-                            category: row.parsed.category,
-                            serialModel: row.parsed.serialModel,
-                            quantity: 1,
-                            unitPrice: row.parsed.unitPrice,
-                            totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice
-                        };
-
-                        existingAssets.push(newAsset);
-                        existingCodes.add(newAsset.assetCode?.toLowerCase());
-                        importedCount++;
-                        importedFiles.add(row.sourceFile);
-                        importedSheets.add(row.sourceSheet);
-
-                        if (typeof addAuditEntry === 'function') {
-                            addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, `Imported from Google Drive: ${row.sourceFile} - ${row.sourceSheet}`);
+                    chunk.forEach(row => {
+                        if (importMode === 'merge' && existingCodes.has(row.parsed.assetCode?.toLowerCase())) {
+                            return; // Skip duplicates in merge mode
                         }
-                    }
-                });
 
-                // Save to storage
-                saveAssetsToStorage(existingAssets);
+                        const qty = row.parsed.quantity || 1;
+                        const shouldExpand = gdriveExpandQty && qty > 1;
+                        const iterations = shouldExpand ? qty : 1;
+
+                        for (let i = 0; i < iterations; i++) {
+                            const assetCode = shouldExpand
+                                ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
+                                : row.parsed.assetCode;
+
+                            const newAsset = {
+                                id: generateAssetId(),
+                                assetCode: assetCode,
+                                description: row.parsed.description,
+                                dateIn: row.parsed.dateIn,
+                                supplier: row.parsed.supplier,
+                                department: row.parsed.department,
+                                source: row.parsed.source,
+                                month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
+                                category: row.parsed.category,
+                                serialModel: row.parsed.serialModel,
+                                quantity: 1,
+                                unitPrice: row.parsed.unitPrice,
+                                totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice
+                            };
+
+                            existingAssets.push(newAsset);
+                            existingCodes.add(newAsset.assetCode?.toLowerCase());
+                            importedCount++;
+                            importedFiles.add(row.sourceFile);
+                            importedSheets.add(row.sourceSheet);
+
+                            newAuditEntries.push({
+                                id: generateAssetId(),
+                                assetCode: newAsset.assetCode,
+                                action: 'Asset Created',
+                                department: newAsset.department,
+                                description: newAsset.description,
+                                value: newAsset.totalPrice || 0,
+                                notes: `Imported from Google Drive: ${row.sourceFile} - ${row.sourceSheet}`,
+                                timestamp: auditTimestamp,
+                                user: auditUser
+                            });
+                        }
+                    });
+
+                    // Yield to UI thread between chunks
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                // Save assets to storage (single write)
+                const assetsSaved = saveAssetsToStorage(existingAssets);
+                if (!assetsSaved) {
+                    throw new Error('Failed to save assets. Storage may be full. Try a smaller file or clear old data first.');
+                }
+
+                // Save all audit entries in a single batch write
+                const auditRecords = loadAuditFromStorage();
+                auditRecords.unshift(...newAuditEntries);
+                saveAuditToStorage(auditRecords);
 
                 // Extract unique departments from imported assets and add to department list
                 const importedDepts = [...new Set(dataToImport.map(r => r.parsed.department).filter(d => d && d.trim()))];
