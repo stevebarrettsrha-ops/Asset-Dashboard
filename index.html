@@ -8362,6 +8362,12 @@
 
                 <div id="bosPagePreviewStats" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;"></div>
 
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; padding: 12px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                    <label for="bosApplyAllDate" style="font-weight: 600; color: var(--text-primary); white-space: nowrap;">Set Disposal Date for all rows:</label>
+                    <input type="date" id="bosApplyAllDate" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.9rem; background: var(--card-bg); color: var(--text-primary);">
+                    <button class="btn monthly-view-btn" onclick="bosApplyDateToAll()" style="background: linear-gradient(135deg, #2980b9, #3498db); padding: 6px 16px; font-size: 0.85rem;">Apply to All</button>
+                </div>
+
                 <div style="max-height: 450px; overflow: auto; border-radius: 10px; border: 1px solid var(--border-color);">
                     <table class="disposal-table" id="bosPagePreviewTable">
                         <thead>
@@ -22299,6 +22305,22 @@
             if (row) {
                 row.parsed.disposalDate = dateValue;
             }
+        }
+
+        function bosApplyDateToAll() {
+            const dateValue = document.getElementById('bosApplyAllDate').value;
+            if (!dateValue) {
+                alert('Please select a date first.');
+                return;
+            }
+            bosPreviewRows.forEach(row => {
+                row.parsed.disposalDate = dateValue;
+            });
+            // Update all date inputs in the preview table
+            const dateInputs = document.querySelectorAll('#bosPagePreviewTableBody input[type="date"]');
+            dateInputs.forEach(input => {
+                input.value = dateValue;
+            });
         }
 
         // Step navigation functions
