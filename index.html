@@ -8298,11 +8298,12 @@
                                 <th>Monthly Depr.</th>
                                 <th>Book Value</th>
                                 <th>Comment</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="registerTableBody">
                             <tr>
-                                <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                     Loading all assets...
                                 </td>
                             </tr>
@@ -13734,7 +13735,7 @@
             const asset = filteredData[index];
             if (!asset) return;
 
-            if (!confirm(`Are you sure you want to delete asset: ${asset.assetCode}?\n${asset.description}\n\nThis action cannot be undone.`)) {
+            if (!confirm(`Are you sure you want to delete this asset?\n\nAsset Code: ${asset.assetCode}\nDescription: ${asset.description}\n\nThis will remove it from ALL views (Dashboard, Board of Survey, and Asset Register).\nThis action cannot be undone.`)) {
                 return;
             }
 
@@ -13745,22 +13746,9 @@
             // Remove matching disposal records from Board of Survey
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
 
-            addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from inventory');
+            addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Dashboard');
 
-            // Clear selection state
-            selectedForMerge = [];
-
-            // Refresh all views
-            loadData();
-            if (typeof displayMonthlyBreakdown === 'function') {
-                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
-            }
-            if (typeof loadAssetRegister === 'function') {
-                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
-            }
-            if (typeof loadDisposalRecords === 'function') {
-                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
-            }
+            refreshAllViews();
         }
 
         // Bulk delete selected assets from inventory table
@@ -13776,7 +13764,7 @@
             const assetList = assetsToDelete.slice(0, 5).map(a => `  • ${a.assetCode} - ${a.description}`).join('\n');
             const moreText = assetsToDelete.length > 5 ? `\n  ...and ${assetsToDelete.length - 5} more` : '';
 
-            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis action cannot be undone.`)) {
+            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views (Dashboard, Board of Survey, and Asset Register).\nThis action cannot be undone.`)) {
                 return;
             }
 
@@ -13789,24 +13777,10 @@
             // Remove matching disposal records and add audit entries
             assetsToDelete.forEach(asset => {
                 removeDisposalRecordsForAsset(asset.assetCode, asset.id);
-                addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from inventory (bulk delete)');
+                addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Dashboard (bulk delete)');
             });
 
-            // Clear selection state
-            selectedForMerge = [];
-
-            // Refresh all views
-            loadData();
-            if (typeof displayMonthlyBreakdown === 'function') {
-                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
-            }
-            if (typeof loadAssetRegister === 'function') {
-                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
-            }
-            if (typeof loadDisposalRecords === 'function') {
-                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
-            }
-
+            refreshAllViews();
             alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
         }
 
@@ -21909,23 +21883,38 @@
 
         // Delete disposal record
         function deleteDisposalRecord(recordId) {
-            if (!confirm('Are you sure you want to delete this disposal record? This action cannot be undone.')) {
-                return;
-            }
-
             const record = disposalRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const alsoDeleteAsset = confirm(
+                `Delete disposal record for: ${record.assetCode}?\n${record.assetDescription || ''}\n\n` +
+                `Click OK to delete this disposal record AND remove the asset from all views.\n` +
+                `This action cannot be undone.`
+            );
+
+            if (!alsoDeleteAsset) return;
+
+            // Delete the disposal record
             disposalRecords = disposalRecords.filter(r => r.id !== recordId);
             trackDeletedDisposalIds([recordId]);
             saveDisposalRecords();
 
-            if (record) {
-                addAuditEntry(record.assetCode, 'Disposal Record Deleted',
-                    `Reason was: ${record.reason}`,
-                    currentUser ? currentUser.username : 'Unknown');
+            // Also remove the asset from main storage so it disappears from Dashboard & Asset Register
+            let assets = loadAssetsFromStorage();
+            const assetToRemove = assets.find(a =>
+                (record.assetId && a.id === record.assetId) ||
+                a.assetCode === record.assetCode
+            );
+            if (assetToRemove) {
+                assets = assets.filter(a => a.id !== assetToRemove.id);
+                saveAssetsToStorage(assets);
             }
 
-            loadDisposalRecords();
-            refreshDependentViews();
+            addAuditEntry(record.assetCode, 'Asset Deleted',
+                record.reason || '',
+                'Asset and disposal record deleted from Board of Survey');
+
+            refreshAllViews();
         }
 
         // Select all / deselect all checkboxes in disposal table
@@ -21964,7 +21953,7 @@
 
             if (selectedIds.length === 0) return;
 
-            if (!confirm(`Are you sure you want to delete ${selectedIds.length} disposal record(s)? This action cannot be undone.`)) {
+            if (!confirm(`Are you sure you want to delete ${selectedIds.length} disposal record(s) AND their associated assets from all views?\n\nThis action cannot be undone.`)) {
                 return;
             }
 
@@ -21973,15 +21962,22 @@
             trackDeletedDisposalIds(selectedIds);
             saveDisposalRecords();
 
+            // Also remove the associated assets from main storage
+            let assets = loadAssetsFromStorage();
             deletedRecords.forEach(record => {
-                addAuditEntry(record.assetCode, 'Disposal Record Deleted',
-                    `Reason was: ${record.reason} (bulk delete)`,
+                assets = assets.filter(a => {
+                    const matchById = record.assetId && a.id === record.assetId;
+                    const matchByCode = a.assetCode === record.assetCode;
+                    return !(matchById || matchByCode);
+                });
+                addAuditEntry(record.assetCode, 'Asset Deleted',
+                    `Reason was: ${record.reason} (bulk delete from Board of Survey)`,
                     currentUser ? currentUser.username : 'Unknown');
             });
+            saveAssetsToStorage(assets);
 
-            loadDisposalRecords();
-            refreshDependentViews();
-            alert(`${selectedIds.length} disposal record(s) deleted successfully.`);
+            refreshAllViews();
+            alert(`${selectedIds.length} record(s) and associated assets deleted successfully.`);
         }
 
         // Sync main asset edits to Board of Survey disposal records
@@ -22115,18 +22111,7 @@
 
         // Refresh views that depend on disposal data (dashboard, asset register, monthly breakdown)
         function refreshDependentViews() {
-            // Refresh main dashboard if data functions exist
-            if (typeof loadData === 'function') {
-                try { loadData(); } catch(e) { console.error('Error refreshing dashboard:', e); }
-            }
-            // Refresh monthly breakdown display
-            if (typeof displayMonthlyBreakdown === 'function') {
-                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
-            }
-            // Refresh asset register if it's been loaded
-            if (typeof loadAssetRegister === 'function') {
-                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
-            }
+            refreshAllViews();
         }
 
         // Export disposal records
@@ -23492,7 +23477,7 @@
             if (filteredRegisterData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="15" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             No assets found matching your criteria.
                         </td>
                     </tr>
@@ -23555,6 +23540,9 @@
                             <td>${deprMonthlyHtml}</td>
                             <td>${bookValueHtml}</td>
                             <td>${commentHtml}</td>
+                            <td>
+                                <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -23588,6 +23576,53 @@
             const asset = assetRegisterData.find(a => a.id === assetId);
             if (asset) {
                 editAsset(asset);
+            }
+        }
+
+        // Delete asset from Asset Register page
+        function deleteAssetFromRegister(assetId) {
+            const asset = assetRegisterData.find(a => a.id === assetId);
+            if (!asset) return;
+
+            if (!confirm(`Are you sure you want to delete this asset?\n\nAsset Code: ${asset.assetCode}\nDescription: ${asset.description}\n\nThis will remove it from ALL views (Dashboard, Board of Survey, and Asset Register).\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            // Remove from main storage
+            let assets = loadAssetsFromStorage();
+            assets = assets.filter(a => a.id !== assetId);
+            saveAssetsToStorage(assets);
+
+            // Remove matching disposal records
+            removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+
+            addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from Asset Register');
+
+            refreshAllViews();
+        }
+
+        // Central function to refresh all views after data changes
+        function refreshAllViews() {
+            // Clear dashboard selection state
+            if (typeof selectedForMerge !== 'undefined') {
+                selectedForMerge = [];
+            }
+
+            // Refresh Dashboard (Asset Inventory table + KPIs + charts)
+            if (typeof loadData === 'function') {
+                try { loadData(); } catch(e) { console.error('Error refreshing dashboard:', e); }
+            }
+            // Refresh Monthly Breakdown
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
+            }
+            // Refresh Asset Register
+            if (typeof loadAssetRegister === 'function') {
+                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+            }
+            // Refresh Board of Survey
+            if (typeof loadDisposalRecords === 'function') {
+                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
         }
 
