@@ -21880,7 +21880,7 @@
             },
             disposalDate: {
                 label: 'Disposal Date',
-                required: true,
+                required: false,
                 aliases: ['disposal date', 'disposaldate', 'disposal_date', 'date disposed', 'date of disposal', 'date', 'bos date', 'survey date']
             },
             reason: {
@@ -22232,7 +22232,6 @@
                 const errors = [];
                 if (!assetCode) errors.push('Missing asset code');
                 if (!description) errors.push('Missing description');
-                if (!normalizedDate) errors.push('Missing/invalid date');
 
                 // Default reason and method if not provided
                 if (!reason) reason = 'Other';
@@ -22275,7 +22274,7 @@
                     <td><span class="bos-row-${row.status}">${row.status === 'valid' ? '✓ Valid' : '✗ ' + row.errors.join(', ')}</span></td>
                     <td>${escapeHtml(row.parsed.assetCode)}</td>
                     <td>${escapeHtml(row.parsed.description)}</td>
-                    <td>${escapeHtml(row.parsed.disposalDate)}</td>
+                    <td><input type="date" value="${row.parsed.disposalDate || ''}" onchange="bosUpdateRowDate(${row.rowNum}, this.value)" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary);"></td>
                     <td>${row.parsed.reason ? `<span class="disposal-reason-badge ${row.parsed.reason.toLowerCase()}">${escapeHtml(row.parsed.reason)}</span>` : ''}</td>
                     <td>${row.parsed.method ? `<span class="disposal-method-badge ${row.parsed.method.toLowerCase()}">${escapeHtml(row.parsed.method)}</span>` : ''}</td>
                     <td>JMD ${formatCurrency(row.parsed.originalValue)}</td>
@@ -22293,6 +22292,13 @@
                     rows[i].style.opacity = include ? '1' : '0.5';
                 }
             });
+        }
+
+        function bosUpdateRowDate(rowNum, dateValue) {
+            const row = bosPreviewRows.find(r => r.rowNum === rowNum);
+            if (row) {
+                row.parsed.disposalDate = dateValue;
+            }
         }
 
         // Step navigation functions
