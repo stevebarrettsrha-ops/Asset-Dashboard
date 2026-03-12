@@ -2169,6 +2169,22 @@
             transform: scale(1.1);
         }
 
+        .btn-delete-inline {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .btn-delete-inline:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
         .btn-pdf-download {
             background: #e74c3c;
             color: white;
@@ -6898,6 +6914,9 @@
                     <button class="btn" onclick="findAndShowDuplicates()" style="background: #FF9800; color: white;">
                         Find Duplicates
                     </button>
+                    <button class="btn" onclick="deleteSelectedAssets()" style="background: #e74c3c; color: white;">
+                        🗑️ Delete Selected
+                    </button>
                     <button class="btn" onclick="clearMergeSelection()" style="background: #757575; color: white;">
                         Clear Selection
                     </button>
@@ -9667,14 +9686,7 @@
             if (pos > -1) {
                 selectedForMerge.splice(pos, 1);
             } else {
-                if (selectedForMerge.length < 2) {
-                    selectedForMerge.push(index);
-                } else {
-                    alert('You can only select 2 assets to merge at a time. Please deselect one first.');
-                    const checkbox = document.querySelector(`.merge-checkbox[data-index="${index}"]`);
-                    if (checkbox) checkbox.checked = false;
-                    return;
-                }
+                selectedForMerge.push(index);
             }
             updateMergeControls();
         }
@@ -13715,6 +13727,87 @@
             if (asset) {
                 openAssetModal(asset);
             }
+        }
+
+        // Delete asset directly from the inventory table
+        function deleteAssetByIndex(index) {
+            const asset = filteredData[index];
+            if (!asset) return;
+
+            if (!confirm(`Are you sure you want to delete asset: ${asset.assetCode}?\n${asset.description}\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            let assets = loadAssetsFromStorage();
+            assets = assets.filter(a => a.id !== asset.id);
+            saveAssetsToStorage(assets);
+
+            // Remove matching disposal records from Board of Survey
+            removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+
+            addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from inventory');
+
+            // Clear selection state
+            selectedForMerge = [];
+
+            // Refresh all views
+            loadData();
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
+            }
+            if (typeof loadAssetRegister === 'function') {
+                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+            }
+            if (typeof loadDisposalRecords === 'function') {
+                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+        }
+
+        // Bulk delete selected assets from inventory table
+        function deleteSelectedAssets() {
+            if (selectedForMerge.length === 0) {
+                alert('No assets selected. Use the checkboxes to select assets first.');
+                return;
+            }
+
+            const assetsToDelete = selectedForMerge.map(idx => filteredData[idx]).filter(Boolean);
+            if (assetsToDelete.length === 0) return;
+
+            const assetList = assetsToDelete.slice(0, 5).map(a => `  • ${a.assetCode} - ${a.description}`).join('\n');
+            const moreText = assetsToDelete.length > 5 ? `\n  ...and ${assetsToDelete.length - 5} more` : '';
+
+            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            let assets = loadAssetsFromStorage();
+            const idsToDelete = new Set(assetsToDelete.map(a => a.id));
+
+            assets = assets.filter(a => !idsToDelete.has(a.id));
+            saveAssetsToStorage(assets);
+
+            // Remove matching disposal records and add audit entries
+            assetsToDelete.forEach(asset => {
+                removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                addAuditEntry(asset.assetCode, 'Disposed', asset.department, 'Asset deleted from inventory (bulk delete)');
+            });
+
+            // Clear selection state
+            selectedForMerge = [];
+
+            // Refresh all views
+            loadData();
+            if (typeof displayMonthlyBreakdown === 'function') {
+                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
+            }
+            if (typeof loadAssetRegister === 'function') {
+                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+            }
+            if (typeof loadDisposalRecords === 'function') {
+                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+
+            alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
         }
 
         // Import/Export Functions
@@ -18921,6 +19014,7 @@
                         <td>${escapeHtml(item.month)}</td>
                         <td>
                             <button class="btn-edit" onclick="editAssetByIndex(${index})" title="Edit Asset">✏️</button>
+                            <button class="btn-delete-inline" onclick="deleteAssetByIndex(${index})" title="Delete Asset">🗑️</button>
                         </td>
                     </tr>
                 `;
