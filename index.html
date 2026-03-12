@@ -14124,6 +14124,14 @@
             if (typeof loadDisposalRecords === 'function') {
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
+
+            // Re-scan duplicates if the Duplicates Tracker page is active
+            if (typeof scanForDuplicates === 'function') {
+                const page11 = document.getElementById('page11');
+                if (page11 && page11.classList.contains('active')) {
+                    try { scanForDuplicates(); } catch(e) { console.error('Error refreshing duplicates:', e); }
+                }
+            }
         }
 
         function deleteCurrentAsset() {
@@ -25571,7 +25579,8 @@
                         <td style="padding:8px; text-align:right;">JMD ${formatCurrency(parseFloat(a.totalPrice) || 0)}</td>
                         <td style="padding:8px;">${a.serialModel || '-'}</td>
                         <td style="padding:8px;">${a.source || 'N/A'}</td>
-                        <td style="padding:8px; text-align:center;">
+                        <td style="padding:8px; text-align:center; white-space:nowrap;">
+                            <button onclick="editDuplicateAsset('${a.id}')" style="padding:4px 10px; border:1px solid #3498db; background:transparent; color:#3498db; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-right:4px;" title="Edit this asset">✏️</button>
                             <button onclick="deleteSingleDuplicate('${a.id}', ${gi})" style="padding:4px 10px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:4px; cursor:pointer; font-size:0.8rem;" title="Delete this asset">🗑️</button>
                         </td>
                     </tr>
@@ -25602,7 +25611,7 @@
                                         <th style="padding:8px; text-align:right;">Total Price</th>
                                         <th style="padding:8px; text-align:left;">Serial/Model</th>
                                         <th style="padding:8px; text-align:left;">Source</th>
-                                        <th style="padding:8px; width:60px; text-align:center;">Action</th>
+                                        <th style="padding:8px; width:110px; text-align:center;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rows}</tbody>
@@ -25694,6 +25703,16 @@
             addAuditEntry(primary ? primary.assetCode : 'BULK', 'Duplicate Cleanup', '-', `Deleted ${others.length} duplicate(s)`);
             alert(`✅ Deleted ${others.length} duplicate(s)!`);
             scanForDuplicates();
+        }
+
+        function editDuplicateAsset(assetId) {
+            const assets = loadAssetsFromStorage();
+            const asset = assets.find(a => a.id === assetId);
+            if (!asset) {
+                alert('Asset not found.');
+                return;
+            }
+            openAssetModal(asset);
         }
 
         function deleteSingleDuplicate(assetId, groupIndex) {
