@@ -6723,6 +6723,10 @@
                 <span class="sidebar-nav-icon">&#x1F4E6;</span>
                 <span class="sidebar-nav-text">Bulk Categories</span>
             </button>
+            <button class="sidebar-nav-item" data-page="11" data-tooltip="Duplicates Tracker" onclick="sidebarNavigate(11)">
+                <span class="sidebar-nav-icon">&#128203;</span>
+                <span class="sidebar-nav-text">Duplicates Tracker</span>
+            </button>
 
             <div class="sidebar-section-label">Import</div>
             <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
@@ -8844,6 +8848,81 @@
 
         <div class="footer">
             <p>Fixed Asset Management System &copy; <span id="copyrightYear10"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
+    <!-- PAGE 11: DUPLICATES TRACKER -->
+    <div class="page" id="page11">
+        <div class="header" style="background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Duplicates Tracker</h1>
+                        <div class="dashboard-subtitle">Detect, Merge & Remove Duplicate Assets</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="user-info" id="userInfo11"></div>
+                    </div>
+                </div>
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="scanForDuplicates()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🔄 Re-scan</button>
+                    <button class="btn monthly-view-btn" onclick="resetIgnoredDuplicates()" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6);">🔓 Reset Ignored</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+            <!-- Stats -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Duplicate Groups</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #e74c3c;" id="dupGroupCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Duplicate Assets</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="dupAssetCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Ignored Groups</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #95a5a6;" id="dupIgnoredCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets Scanned</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="dupTotalScanned">0</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+                <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Match by:</label>
+                <select id="dupMatchType" onchange="scanForDuplicates()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <option value="code">Asset Code (Exact)</option>
+                    <option value="description">Description (Exact)</option>
+                    <option value="both">Asset Code + Description</option>
+                </select>
+                <div style="display: flex; align-items: center; gap: 8px; margin-left: 10px;">
+                    <label style="font-size: 0.9rem; color: var(--text-primary); cursor: pointer;" for="dupFuzzyToggle">Fuzzy matching:</label>
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer;">
+                        <input type="checkbox" id="dupFuzzyToggle" onchange="scanForDuplicates()" style="opacity: 0; width: 0; height: 0;">
+                        <span style="position: absolute; inset: 0; background: #ccc; border-radius: 24px; transition: 0.3s;" id="dupFuzzySlider"></span>
+                        <span style="position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.3s;" id="dupFuzzyKnob"></span>
+                    </label>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);" id="dupFuzzyLabel">Off</span>
+                </div>
+                <div style="flex: 1;"></div>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="dupScanTime"></span>
+            </div>
+
+            <!-- Duplicates List -->
+            <div id="dupResultsContainer">
+                <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                    Scanning for duplicates...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear11"></span> &bull; May Pen Hospital</p>
         </div>
     </div>
 
@@ -15047,6 +15126,18 @@
                     `;
                 }
                 loadBulkCategoriesPage();
+            }
+
+            // Handle Duplicates Tracker page
+            if (pageNum === 11) {
+                const userInfo11 = document.getElementById('userInfo11');
+                if (userInfo11 && currentUser) {
+                    userInfo11.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                scanForDuplicates();
             }
         }
 
@@ -24850,6 +24941,365 @@
             addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, JMD ${formatCurrency(salvage)} salvage for ${updated} assets`);
             alert(`✅ Depreciation updated for ${updated} asset(s)!`);
             loadBulkCategoriesPage();
+        }
+
+        // ============================================
+        // DUPLICATES TRACKER FUNCTIONS
+        // ============================================
+
+        const DUP_IGNORED_KEY = 'duplicateIgnoredGroups';
+        let dupGroups = [];
+        let dupIgnoredKeys = new Set();
+
+        function loadIgnoredDuplicates() {
+            try {
+                const stored = localStorage.getItem(DUP_IGNORED_KEY);
+                if (stored) dupIgnoredKeys = new Set(JSON.parse(stored));
+                else dupIgnoredKeys = new Set();
+            } catch(e) { dupIgnoredKeys = new Set(); }
+        }
+
+        function saveIgnoredDuplicates() {
+            localStorage.setItem(DUP_IGNORED_KEY, JSON.stringify([...dupIgnoredKeys]));
+        }
+
+        function resetIgnoredDuplicates() {
+            if (!confirm('Reset all ignored duplicates? They will appear again in the scan results.')) return;
+            dupIgnoredKeys = new Set();
+            saveIgnoredDuplicates();
+            scanForDuplicates();
+        }
+
+        // Fuzzy toggle styling
+        function updateFuzzyToggleStyle() {
+            const toggle = document.getElementById('dupFuzzyToggle');
+            const slider = document.getElementById('dupFuzzySlider');
+            const knob = document.getElementById('dupFuzzyKnob');
+            const label = document.getElementById('dupFuzzyLabel');
+            if (!toggle || !slider || !knob || !label) return;
+            if (toggle.checked) {
+                slider.style.background = '#e74c3c';
+                knob.style.transform = 'translateX(20px)';
+                label.textContent = 'On';
+            } else {
+                slider.style.background = '#ccc';
+                knob.style.transform = 'translateX(0)';
+                label.textContent = 'Off';
+            }
+        }
+
+        // Simple fuzzy similarity (Dice coefficient on bigrams)
+        function stringSimilarity(a, b) {
+            a = a.toLowerCase().trim();
+            b = b.toLowerCase().trim();
+            if (a === b) return 1;
+            if (a.length < 2 || b.length < 2) return 0;
+
+            const bigrams = (str) => {
+                const set = new Map();
+                for (let i = 0; i < str.length - 1; i++) {
+                    const bg = str.substring(i, i + 2);
+                    set.set(bg, (set.get(bg) || 0) + 1);
+                }
+                return set;
+            };
+
+            const bg1 = bigrams(a);
+            const bg2 = bigrams(b);
+            let matches = 0;
+
+            for (const [bg, count] of bg1) {
+                if (bg2.has(bg)) matches += Math.min(count, bg2.get(bg));
+            }
+
+            return (2 * matches) / (a.length - 1 + b.length - 1);
+        }
+
+        function scanForDuplicates() {
+            const startTime = performance.now();
+            loadIgnoredDuplicates();
+            updateFuzzyToggleStyle();
+
+            const matchType = document.getElementById('dupMatchType').value;
+            const fuzzyEnabled = document.getElementById('dupFuzzyToggle').checked;
+            const FUZZY_THRESHOLD = 0.8;
+
+            const allAssets = loadAssetsFromStorage();
+            const groups = new Map();
+
+            if (fuzzyEnabled) {
+                // Fuzzy matching: compare all pairs
+                const used = new Set();
+                for (let i = 0; i < allAssets.length; i++) {
+                    if (used.has(i)) continue;
+                    const cluster = [allAssets[i]];
+                    for (let j = i + 1; j < allAssets.length; j++) {
+                        if (used.has(j)) continue;
+                        let isSimilar = false;
+                        const a = allAssets[i];
+                        const b = allAssets[j];
+
+                        if (matchType === 'code' || matchType === 'both') {
+                            if (stringSimilarity(a.assetCode || '', b.assetCode || '') >= FUZZY_THRESHOLD) isSimilar = true;
+                        }
+                        if (matchType === 'description' || matchType === 'both') {
+                            if (stringSimilarity(a.description || '', b.description || '') >= FUZZY_THRESHOLD) isSimilar = true;
+                        }
+
+                        if (isSimilar) {
+                            cluster.push(b);
+                            used.add(j);
+                        }
+                    }
+                    if (cluster.length > 1) {
+                        const key = cluster.map(a => a.id).sort().join('|');
+                        groups.set(key, cluster);
+                    }
+                    used.add(i);
+                }
+            } else {
+                // Exact matching
+                const keyMap = new Map();
+                allAssets.forEach(a => {
+                    let key = '';
+                    if (matchType === 'code') key = (a.assetCode || '').toLowerCase().trim();
+                    else if (matchType === 'description') key = (a.description || '').toLowerCase().trim();
+                    else key = (a.assetCode || '').toLowerCase().trim() + '||' + (a.description || '').toLowerCase().trim();
+
+                    if (!key) return;
+                    if (!keyMap.has(key)) keyMap.set(key, []);
+                    keyMap.get(key).push(a);
+                });
+
+                keyMap.forEach((assets, key) => {
+                    if (assets.length > 1) groups.set(key, assets);
+                });
+            }
+
+            // Filter out ignored groups
+            dupGroups = [];
+            let ignoredCount = 0;
+            groups.forEach((assets, key) => {
+                if (dupIgnoredKeys.has(key)) {
+                    ignoredCount++;
+                } else {
+                    dupGroups.push({ key, assets });
+                }
+            });
+
+            const elapsed = (performance.now() - startTime).toFixed(0);
+
+            // Update stats
+            const totalDupAssets = dupGroups.reduce((s, g) => s + g.assets.length, 0);
+            document.getElementById('dupGroupCount').textContent = dupGroups.length;
+            document.getElementById('dupAssetCount').textContent = totalDupAssets;
+            document.getElementById('dupIgnoredCount').textContent = ignoredCount;
+            document.getElementById('dupTotalScanned').textContent = allAssets.length;
+            document.getElementById('dupScanTime').textContent = `Scanned in ${elapsed}ms`;
+
+            renderDuplicateGroups();
+        }
+
+        function renderDuplicateGroups() {
+            const container = document.getElementById('dupResultsContainer');
+            if (!container) return;
+
+            if (dupGroups.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 8px;">No Duplicates Found</h3>
+                        <p>All assets have unique codes and descriptions. Try enabling fuzzy matching or changing the match type for a broader scan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = dupGroups.map((group, gi) => {
+                const rows = group.assets.map((a, ai) => `
+                    <tr style="background: ${ai === 0 ? 'rgba(46,204,113,0.08)' : 'transparent'};">
+                        <td style="padding:8px; text-align:center;">
+                            <input type="radio" name="dupPrimary_${gi}" value="${a.id}" ${ai === 0 ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+                        </td>
+                        <td style="padding:8px; font-weight:${ai === 0 ? '600' : '400'};">${a.assetCode || 'N/A'}${ai === 0 ? ' <span style="background:#27ae60;color:white;padding:1px 6px;border-radius:8px;font-size:0.7rem;">Primary</span>' : ''}</td>
+                        <td style="padding:8px;">${a.description || 'N/A'}</td>
+                        <td style="padding:8px;">${a.department || 'N/A'}</td>
+                        <td style="padding:8px;">${a.category || 'N/A'}</td>
+                        <td style="padding:8px; text-align:right;">JMD ${formatCurrency(parseFloat(a.totalPrice) || 0)}</td>
+                        <td style="padding:8px;">${a.serialModel || '-'}</td>
+                        <td style="padding:8px;">${a.source || 'N/A'}</td>
+                        <td style="padding:8px; text-align:center;">
+                            <button onclick="deleteSingleDuplicate('${a.id}', ${gi})" style="padding:4px 10px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:4px; cursor:pointer; font-size:0.8rem;" title="Delete this asset">🗑️</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                return `
+                    <div style="margin-bottom: 20px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); overflow: hidden;">
+                        <div style="padding: 12px 18px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <strong style="font-size: 1rem;">Duplicate Group #${gi + 1}</strong>
+                                <span style="opacity: 0.85; margin-left: 10px; font-size: 0.85rem;">${group.assets.length} matching assets</span>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="mergeGroup(${gi})" style="padding: 6px 14px; border-radius: 6px; border: 1px solid white; background: transparent; color: white; cursor: pointer; font-size: 0.85rem; font-weight: 600;">🔀 Merge into Primary</button>
+                                <button onclick="deleteOthersInGroup(${gi})" style="padding: 6px 14px; border-radius: 6px; border: 1px solid white; background: rgba(255,255,255,0.15); color: white; cursor: pointer; font-size: 0.85rem;">🗑️ Delete Others</button>
+                                <button onclick="ignoreGroup(${gi})" style="padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.5); background: transparent; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 0.85rem;">✕ Ignore</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                                <thead>
+                                    <tr style="background: var(--bg-secondary);">
+                                        <th style="padding:8px; width:60px; text-align:center;">Primary</th>
+                                        <th style="padding:8px; text-align:left;">Asset Code</th>
+                                        <th style="padding:8px; text-align:left;">Description</th>
+                                        <th style="padding:8px; text-align:left;">Department</th>
+                                        <th style="padding:8px; text-align:left;">Category</th>
+                                        <th style="padding:8px; text-align:right;">Total Price</th>
+                                        <th style="padding:8px; text-align:left;">Serial/Model</th>
+                                        <th style="padding:8px; text-align:left;">Source</th>
+                                        <th style="padding:8px; width:60px; text-align:center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getSelectedPrimaryId(groupIndex) {
+            const radios = document.querySelectorAll(`input[name="dupPrimary_${groupIndex}"]`);
+            for (const r of radios) {
+                if (r.checked) return r.value;
+            }
+            return dupGroups[groupIndex].assets[0].id;
+        }
+
+        function mergeGroup(groupIndex) {
+            const group = dupGroups[groupIndex];
+            if (!group) return;
+
+            const primaryId = getSelectedPrimaryId(groupIndex);
+            const secondaries = group.assets.filter(a => a.id !== primaryId);
+
+            if (!confirm(`Merge ${secondaries.length} duplicate(s) into the primary asset?\n\nThe primary asset will inherit any missing fields from duplicates. Duplicates will be deleted from all views (Dashboard, Asset Register, BOS, etc.)`)) return;
+
+            let assets = loadAssetsFromStorage();
+            const primaryIdx = assets.findIndex(a => a.id === primaryId);
+            if (primaryIdx === -1) { alert('Primary asset not found.'); return; }
+
+            const primary = assets[primaryIdx];
+
+            // Merge: fill in blanks from secondaries
+            secondaries.forEach(sec => {
+                if (!primary.serialModel && sec.serialModel) primary.serialModel = sec.serialModel;
+                if (!primary.supplier && sec.supplier) primary.supplier = sec.supplier;
+                if ((!primary.totalPrice || primary.totalPrice === 0) && sec.totalPrice) {
+                    primary.totalPrice = sec.totalPrice;
+                    primary.unitPrice = sec.unitPrice || sec.totalPrice;
+                }
+                if ((!primary.unitPrice || primary.unitPrice === 0) && sec.unitPrice) primary.unitPrice = sec.unitPrice;
+                if (!primary.category && sec.category) primary.category = sec.category;
+                if (!primary.department && sec.department) primary.department = sec.department;
+                if (!primary.comment && sec.comment) primary.comment = sec.comment;
+                if ((!primary.usefulLife || primary.usefulLife === 0) && sec.usefulLife) {
+                    primary.usefulLife = sec.usefulLife;
+                    primary.salvageValue = sec.salvageValue || 0;
+                    primary.depreciationMethod = sec.depreciationMethod || 'straight';
+                }
+                if (!primary.itemType && sec.itemType) primary.itemType = sec.itemType;
+            });
+
+            assets[primaryIdx] = primary;
+
+            // Remove secondaries
+            const secIds = new Set(secondaries.map(s => s.id));
+            assets = assets.filter(a => !secIds.has(a.id));
+            saveAssetsToStorage(assets);
+
+            // Remove disposal records for secondaries
+            secondaries.forEach(sec => {
+                removeDisposalRecordsForAsset(sec.assetCode, sec.id);
+            });
+
+            // Track deleted IDs for cloud sync
+            secIds.forEach(id => {
+                deletedAssetIds.add(id);
+            });
+            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+
+            addAuditEntry(primary.assetCode, 'Merge', primary.department || '-', `Merged ${secondaries.length} duplicate(s) into this asset`);
+
+            alert(`✅ Merged ${secondaries.length} duplicate(s) into ${primary.assetCode}!`);
+            scanForDuplicates();
+        }
+
+        function deleteOthersInGroup(groupIndex) {
+            const group = dupGroups[groupIndex];
+            if (!group) return;
+
+            const primaryId = getSelectedPrimaryId(groupIndex);
+            const others = group.assets.filter(a => a.id !== primaryId);
+
+            if (!confirm(`Delete ${others.length} duplicate asset(s)?\n\nThe primary asset will be kept. Duplicates will be removed from all views (Dashboard, Asset Register, BOS, etc.)`)) return;
+
+            performBulkDelete(others);
+            const primary = group.assets.find(a => a.id === primaryId);
+            addAuditEntry(primary ? primary.assetCode : 'BULK', 'Duplicate Cleanup', '-', `Deleted ${others.length} duplicate(s)`);
+            alert(`✅ Deleted ${others.length} duplicate(s)!`);
+            scanForDuplicates();
+        }
+
+        function deleteSingleDuplicate(assetId, groupIndex) {
+            const group = dupGroups[groupIndex];
+            if (!group) return;
+            const asset = group.assets.find(a => a.id === assetId);
+            if (!asset) return;
+
+            if (!confirm(`Delete asset ${asset.assetCode}?\n\nThis will remove it from all views (Dashboard, Asset Register, BOS, etc.)`)) return;
+
+            performBulkDelete([asset]);
+            addAuditEntry(asset.assetCode, 'Duplicate Deleted', asset.department || '-', 'Removed duplicate asset');
+            alert(`✅ Asset ${asset.assetCode} deleted!`);
+            scanForDuplicates();
+        }
+
+        function performBulkDelete(assetsToDelete) {
+            let assets = loadAssetsFromStorage();
+            const deleteIds = new Set(assetsToDelete.map(a => a.id));
+
+            assets = assets.filter(a => !deleteIds.has(a.id));
+            saveAssetsToStorage(assets);
+
+            // Remove disposal records
+            assetsToDelete.forEach(a => {
+                removeDisposalRecordsForAsset(a.assetCode, a.id);
+            });
+
+            // Track for cloud sync
+            deleteIds.forEach(id => {
+                deletedAssetIds.add(id);
+            });
+            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+        }
+
+        function ignoreGroup(groupIndex) {
+            const group = dupGroups[groupIndex];
+            if (!group) return;
+            dupIgnoredKeys.add(group.key);
+            saveIgnoredDuplicates();
+            dupGroups.splice(groupIndex, 1);
+
+            // Update stats
+            const totalDupAssets = dupGroups.reduce((s, g) => s + g.assets.length, 0);
+            document.getElementById('dupGroupCount').textContent = dupGroups.length;
+            document.getElementById('dupAssetCount').textContent = totalDupAssets;
+            document.getElementById('dupIgnoredCount').textContent = dupIgnoredKeys.size;
+
+            renderDuplicateGroups();
         }
 
         // ============================================
