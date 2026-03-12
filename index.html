@@ -8074,6 +8074,7 @@
 
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="openDisposalModal()" style="background: linear-gradient(135deg, #27ae60, #219a52);">➕ Add Disposal Record</button>
+                        <button class="btn monthly-view-btn" id="deleteSelectedDisposalsBtn" onclick="deleteSelectedDisposals()" style="background: linear-gradient(135deg, #e74c3c, #c0392b); display: none;">🗑️ Delete Selected (<span id="selectedDisposalCount">0</span>)</button>
                         <button class="btn monthly-view-btn" onclick="exportDisposalRecords()">📥 Export Records</button>
                         <button class="btn monthly-view-btn" onclick="printDisposalRecords()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Records</button>
                     </div>
@@ -8124,6 +8125,7 @@
                     <table class="disposal-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="disposalSelectAll" onchange="toggleSelectAllDisposals(this)" title="Select all"></th>
                                 <th>Asset Code</th>
                                 <th>Description</th>
                                 <th>Disposal Date</th>
@@ -10664,7 +10666,7 @@
 
                 // Step 3: Upload merged local data to cloud
                 const backupData = {
-                    version: '1.2',
+                    version: '1.3',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -10674,6 +10676,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -10842,13 +10845,14 @@
                 }
             }
 
-            // Merge disposal records by ID
+            // Merge disposal records by ID (skip locally deleted records)
             if (cloudDataObj.disposalRecords && cloudDataObj.disposalRecords.length > 0) {
                 const localDisposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
                 const localDisposalIds = new Set(localDisposals.map(d => d.id).filter(Boolean));
+                const deletedIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
                 let added = 0;
                 cloudDataObj.disposalRecords.forEach(record => {
-                    if (record.id && !localDisposalIds.has(record.id)) {
+                    if (record.id && !localDisposalIds.has(record.id) && !deletedIds.has(record.id)) {
                         localDisposals.push(record);
                         localDisposalIds.add(record.id);
                         added++;
@@ -10858,6 +10862,28 @@
                     localDisposals.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                     localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(localDisposals));
                     dataChanged = true;
+                }
+            }
+
+            // Merge disposal deleted IDs from cloud (so deletions sync across clients)
+            if (cloudDataObj.disposalDeletedIds && cloudDataObj.disposalDeletedIds.length > 0) {
+                const localDeletedIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                let added = 0;
+                cloudDataObj.disposalDeletedIds.forEach(id => {
+                    if (!localDeletedIds.has(id)) {
+                        localDeletedIds.add(id);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDeletedIds]));
+                    // Remove any locally present records that were deleted on another client
+                    const localDisposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                    const filtered = localDisposals.filter(d => !localDeletedIds.has(d.id));
+                    if (filtered.length < localDisposals.length) {
+                        localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filtered));
+                        dataChanged = true;
+                    }
                 }
             }
 
@@ -10983,7 +11009,7 @@
 
             try {
                 const backupData = {
-                    version: '1.2',
+                    version: '1.3',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -10993,6 +11019,7 @@
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
                         disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
+                        disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -11139,10 +11166,20 @@
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
                 }
 
-                // Restore disposal records
+                // Restore disposal deleted IDs (merge cloud + local)
+                if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
+                    const localDelIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
+                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDelIds]));
+                    disposalDeletedIds = localDelIds;
+                }
+
+                // Restore disposal records (filtering out deleted ones)
                 if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(backupData.data.disposalRecords));
-                    disposalRecords = backupData.data.disposalRecords;
+                    const delIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filteredRecs));
+                    disposalRecords = filteredRecs;
                 }
 
                 // Restore portal user accounts
@@ -11584,10 +11621,20 @@
                     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
                 }
 
-                // Restore disposal records
+                // Restore disposal deleted IDs (merge cloud + local)
+                if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
+                    const localDelIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
+                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDelIds]));
+                    disposalDeletedIds = localDelIds;
+                }
+
+                // Restore disposal records (filtering out deleted ones)
                 if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(backupData.data.disposalRecords));
-                    disposalRecords = backupData.data.disposalRecords;
+                    const delIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
+                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filteredRecs));
+                    disposalRecords = filteredRecs;
                 }
 
                 // Restore portal user accounts
@@ -21473,8 +21520,10 @@
         // ============================================
 
         const DISPOSAL_STORAGE_KEY = 'assetDisposalRecords';
+        const DISPOSAL_DELETED_IDS_KEY = 'assetDisposalDeletedIds';
         let disposalRecords = [];
         let filteredDisposalRecords = [];
+        let disposalDeletedIds = new Set(JSON.parse(localStorage.getItem('assetDisposalDeletedIds') || '[]'));
         let currentEditingDisposal = null;
 
         // Load disposal records from localStorage
@@ -21513,10 +21562,15 @@
         function displayDisposalRecords() {
             const tbody = document.getElementById('disposalTableBody');
 
+            // Reset select-all checkbox and hide delete button
+            const selectAllCb = document.getElementById('disposalSelectAll');
+            if (selectAllCb) selectAllCb.checked = false;
+            updateDeleteSelectedBtn();
+
             if (filteredDisposalRecords.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             No disposal records found. Click "Add Disposal Record" to create one.
                         </td>
                     </tr>
@@ -21526,6 +21580,7 @@
 
             tbody.innerHTML = filteredDisposalRecords.map(record => `
                 <tr>
+                    <td><input type="checkbox" class="disposal-row-checkbox" value="${record.id}" onchange="onDisposalCheckboxChange()"></td>
                     <td><span class="asset-code">${escapeHtml(record.assetCode)}</span></td>
                     <td>${escapeHtml(record.assetDescription || 'N/A')}</td>
                     <td>${escapeHtml(record.disposalDate)}</td>
@@ -21710,6 +21765,7 @@
 
             closeDisposalModal();
             loadDisposalRecords();
+            refreshDependentViews();
             alert(currentEditingDisposal ? 'Disposal record updated successfully!' : 'Disposal record added successfully!');
         }
 
@@ -21721,6 +21777,12 @@
             }
         }
 
+        // Track deleted disposal IDs so auto-sync doesn't re-add them from cloud
+        function trackDeletedDisposalIds(ids) {
+            ids.forEach(id => disposalDeletedIds.add(id));
+            localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...disposalDeletedIds]));
+        }
+
         // Delete disposal record
         function deleteDisposalRecord(recordId) {
             if (!confirm('Are you sure you want to delete this disposal record? This action cannot be undone.')) {
@@ -21729,6 +21791,7 @@
 
             const record = disposalRecords.find(r => r.id === recordId);
             disposalRecords = disposalRecords.filter(r => r.id !== recordId);
+            trackDeletedDisposalIds([recordId]);
             saveDisposalRecords();
 
             if (record) {
@@ -21738,7 +21801,75 @@
             }
 
             loadDisposalRecords();
-            alert('Disposal record deleted successfully.');
+            refreshDependentViews();
+        }
+
+        // Select all / deselect all checkboxes in disposal table
+        function toggleSelectAllDisposals(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.disposal-row-checkbox');
+            checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
+            updateDeleteSelectedBtn();
+        }
+
+        // Update checkbox change handler
+        function onDisposalCheckboxChange() {
+            const checkboxes = document.querySelectorAll('.disposal-row-checkbox');
+            const allChecked = checkboxes.length > 0 && [...checkboxes].every(cb => cb.checked);
+            const selectAllCb = document.getElementById('disposalSelectAll');
+            if (selectAllCb) selectAllCb.checked = allChecked;
+            updateDeleteSelectedBtn();
+        }
+
+        // Show/hide the Delete Selected button based on checked count
+        function updateDeleteSelectedBtn() {
+            const checked = document.querySelectorAll('.disposal-row-checkbox:checked');
+            const btn = document.getElementById('deleteSelectedDisposalsBtn');
+            const countSpan = document.getElementById('selectedDisposalCount');
+            if (btn) {
+                btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+            }
+            if (countSpan) {
+                countSpan.textContent = checked.length;
+            }
+        }
+
+        // Bulk delete selected disposal records
+        function deleteSelectedDisposals() {
+            const checked = document.querySelectorAll('.disposal-row-checkbox:checked');
+            const selectedIds = [...checked].map(cb => cb.value);
+
+            if (selectedIds.length === 0) return;
+
+            if (!confirm(`Are you sure you want to delete ${selectedIds.length} disposal record(s)? This action cannot be undone.`)) {
+                return;
+            }
+
+            const deletedRecords = disposalRecords.filter(r => selectedIds.includes(r.id));
+            disposalRecords = disposalRecords.filter(r => !selectedIds.includes(r.id));
+            trackDeletedDisposalIds(selectedIds);
+            saveDisposalRecords();
+
+            deletedRecords.forEach(record => {
+                addAuditEntry(record.assetCode, 'Disposal Record Deleted',
+                    `Reason was: ${record.reason} (bulk delete)`,
+                    currentUser ? currentUser.username : 'Unknown');
+            });
+
+            loadDisposalRecords();
+            refreshDependentViews();
+            alert(`${selectedIds.length} disposal record(s) deleted successfully.`);
+        }
+
+        // Refresh views that depend on disposal data (dashboard, asset register)
+        function refreshDependentViews() {
+            // Refresh main dashboard if data functions exist
+            if (typeof loadData === 'function') {
+                try { loadData(); } catch(e) { console.error('Error refreshing dashboard:', e); }
+            }
+            // Refresh asset register if it's been loaded
+            if (typeof loadAssetRegister === 'function') {
+                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+            }
         }
 
         // Export disposal records
