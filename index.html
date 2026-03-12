@@ -6736,27 +6736,27 @@
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <!-- Cloud Sync Dropdown -->
                             <div class="cloud-dropdown">
-                                <button class="cloud-menu-btn" onclick="toggleCloudMenu()">
-                                    <span id="cloudMenuIcon">☁️</span>
-                                    <span class="cloud-status-dot" id="cloudStatusDot"></span>
-                                    <span id="cloudStatusText">Not connected</span>
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
                                 </button>
-                                <div class="cloud-dropdown-menu" id="cloudDropdownMenu">
+                                <div class="cloud-dropdown-menu">
                                     <div class="cloud-menu-header">
                                         <h4>☁️ Google Drive Sync</h4>
-                                        <p id="lastSyncInfo">Last sync: Never</p>
-                                        <p id="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
                                     </div>
 
                                     <!-- Not Connected State -->
-                                    <div id="cloudNotConnected">
+                                    <div class="cloudNotConnected">
                                         <button class="cloud-menu-item" onclick="connectToGoogleDrive()">
                                             <span>🔗</span> Connect to Google Drive
                                         </button>
                                     </div>
 
                                     <!-- Connected State -->
-                                    <div id="cloudConnected" style="display: none;">
+                                    <div class="cloudConnected" style="display: none;">
                                         <button class="cloud-menu-item" onclick="saveToCloud()">
                                             <span>💾</span> Save to Cloud
                                         </button>
@@ -6925,7 +6925,34 @@
                             <h1 class="dashboard-title">Monthly Breakdown</h1>
                             <div class="dashboard-subtitle">Detailed view of all 12 months • Currency: JMD</div>
                         </div>
-                        <div class="user-info" id="userInfo2"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo2"></div>
+                        </div>
                     </div>
 
                     <div class="page-action-bar">
@@ -6955,9 +6982,36 @@
                             <h1 class="dashboard-title">Tools & Features</h1>
                             <div class="dashboard-subtitle">Advanced asset management tools</div>
                         </div>
-                        <div class="user-info" id="userInfo3"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo3"></div>
+                        </div>
                     </div>
-                    
+
                 </div>
             </div>
 
@@ -7396,7 +7450,34 @@
                             <h1 class="dashboard-title">Asset Import Dashboard</h1>
                             <div class="dashboard-subtitle">Import assets from Excel files with smart column detection</div>
                         </div>
-                        <div class="user-info" id="userInfo4"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo4"></div>
+                        </div>
                     </div>
 
                     <div class="page-action-bar">
@@ -7625,7 +7706,34 @@
                             <h1 class="dashboard-title">Google Drive Asset Import</h1>
                             <div class="dashboard-subtitle">Import assets from Excel files in your Google Drive folder</div>
                         </div>
-                        <div class="user-info" id="userInfo5"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo5"></div>
+                        </div>
                     </div>
 
                     <div class="page-action-bar">
@@ -7934,7 +8042,34 @@
                             <h1 class="dashboard-title">Board of Survey</h1>
                             <div class="dashboard-subtitle">Disposal of Obsolete and Damaged Assets</div>
                         </div>
-                        <div class="user-info" id="userInfo6"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo6"></div>
+                        </div>
                     </div>
 
                     <div class="page-action-bar">
@@ -8025,7 +8160,34 @@
                             <h1 class="dashboard-title">Asset Register</h1>
                             <div class="dashboard-subtitle">Complete Register of All Assets (All Years)</div>
                         </div>
-                        <div class="user-info" id="userInfo7"></div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="cloud-dropdown">
+                                <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                    <span class="cloudMenuIcon">☁️</span>
+                                    <span class="cloud-status-dot cloudStatusDot"></span>
+                                    <span class="cloudStatusText">Not connected</span>
+                                </button>
+                                <div class="cloud-dropdown-menu">
+                                    <div class="cloud-menu-header">
+                                        <h4>☁️ Google Drive Sync</h4>
+                                        <p class="lastSyncInfo">Last sync: Never</p>
+                                        <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                    </div>
+                                    <div class="cloudNotConnected">
+                                        <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                    </div>
+                                    <div class="cloudConnected" style="display: none;">
+                                        <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                        <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                        <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                        <div class="cloud-menu-divider"></div>
+                                        <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="user-info" id="userInfo7"></div>
+                        </div>
                     </div>
 
                     <div class="page-action-bar">
@@ -8149,7 +8311,34 @@
                         <h1 class="dashboard-title">Asset Code Lookup</h1>
                         <div class="dashboard-subtitle">Standard Asset Code Reference - May Pen Hospital</div>
                     </div>
-                    <div class="user-info" id="userInfo8"></div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">☁️</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>☁️ Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-info" id="userInfo8"></div>
+                    </div>
                 </div>
 
                 <div class="page-action-bar">
@@ -8274,7 +8463,34 @@
                         <h1 class="dashboard-title">BOS Asset Upload</h1>
                         <div class="dashboard-subtitle">Import Board of Survey Assets from Excel</div>
                     </div>
-                    <div class="user-info" id="userInfo9"></div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">☁️</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>☁️ Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>🔗</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>💾</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>🔄</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>🔀</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>📁</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>🔌</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-info" id="userInfo9"></div>
+                    </div>
                 </div>
 
                 <div class="page-action-bar">
@@ -9788,8 +10004,7 @@
                 return;
             }
 
-            const menu = document.getElementById('cloudDropdownMenu');
-            if (menu) menu.classList.remove('show');
+            document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 
             if (!cloudFileId) {
                 await findExistingBackupFile();
@@ -10130,60 +10345,63 @@
             updateCloudUI(false);
         }
 
-        // Update cloud UI based on connection status
+        // Update cloud UI based on connection status (all dropdowns)
         function updateCloudUI(connected) {
-            const notConnectedDiv = document.getElementById('cloudNotConnected');
-            const connectedDiv = document.getElementById('cloudConnected');
-            const statusDot = document.getElementById('cloudStatusDot');
-            const statusText = document.getElementById('cloudStatusText');
-
-            if (connected) {
-                if (notConnectedDiv) notConnectedDiv.style.display = 'none';
-                if (connectedDiv) connectedDiv.style.display = 'block';
-                if (statusDot) statusDot.className = 'cloud-status-dot connected';
-                if (statusText) statusText.textContent = 'Connected';
-            } else {
-                if (notConnectedDiv) notConnectedDiv.style.display = 'block';
-                if (connectedDiv) connectedDiv.style.display = 'none';
-                if (statusDot) statusDot.className = 'cloud-status-dot';
-                if (statusText) statusText.textContent = 'Not connected';
-            }
+            document.querySelectorAll('.cloudNotConnected').forEach(el => {
+                el.style.display = connected ? 'none' : 'block';
+            });
+            document.querySelectorAll('.cloudConnected').forEach(el => {
+                el.style.display = connected ? 'block' : 'none';
+            });
+            document.querySelectorAll('.cloudStatusDot').forEach(el => {
+                el.className = connected ? 'cloud-status-dot cloudStatusDot connected' : 'cloud-status-dot cloudStatusDot';
+            });
+            document.querySelectorAll('.cloudStatusText').forEach(el => {
+                el.textContent = connected ? 'Connected' : 'Not connected';
+            });
         }
 
-        // Update syncing status
+        // Update syncing status (all dropdowns)
         function setCloudSyncing(syncing) {
-            const statusDot = document.getElementById('cloudStatusDot');
-            const statusText = document.getElementById('cloudStatusText');
-            const menuIcon = document.getElementById('cloudMenuIcon');
-
-            if (syncing) {
-                if (statusDot) statusDot.className = 'cloud-status-dot syncing';
-                if (statusText) statusText.textContent = 'Syncing...';
-                if (menuIcon) menuIcon.innerHTML = '<span class="spinning">🔄</span>';
-            } else {
-                if (statusDot) statusDot.className = 'cloud-status-dot connected';
-                if (statusText) statusText.textContent = 'Connected';
-                if (menuIcon) menuIcon.textContent = '☁️';
-            }
+            document.querySelectorAll('.cloudStatusDot').forEach(el => {
+                el.className = syncing ? 'cloud-status-dot cloudStatusDot syncing' : 'cloud-status-dot cloudStatusDot connected';
+            });
+            document.querySelectorAll('.cloudStatusText').forEach(el => {
+                el.textContent = syncing ? 'Syncing...' : 'Connected';
+            });
+            document.querySelectorAll('.cloudMenuIcon').forEach(el => {
+                if (syncing) {
+                    el.innerHTML = '<span class="spinning">🔄</span>';
+                } else {
+                    el.textContent = '☁️';
+                }
+            });
         }
 
-        // Toggle cloud dropdown menu
-        function toggleCloudMenu() {
-            const menu = document.getElementById('cloudDropdownMenu');
+        // Toggle cloud dropdown menu (called from button with `this`)
+        function toggleCloudMenu(btn) {
+            const dropdown = btn ? btn.closest('.cloud-dropdown') : document.querySelector('.cloud-dropdown');
+            const menu = dropdown.querySelector('.cloud-dropdown-menu');
+            // Close all other open menus first
+            document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => {
+                if (m !== menu) m.classList.remove('show');
+            });
             menu.classList.toggle('show');
 
-            // Close when clicking outside
             setTimeout(() => {
                 document.addEventListener('click', closeCloudMenuOnClickOutside);
             }, 0);
         }
 
         function closeCloudMenuOnClickOutside(e) {
-            const menu = document.getElementById('cloudDropdownMenu');
-            const dropdown = document.querySelector('.cloud-dropdown');
-
-            if (dropdown && !dropdown.contains(e.target)) {
-                menu.classList.remove('show');
+            let clickedInsideDropdown = false;
+            document.querySelectorAll('.cloud-dropdown').forEach(dropdown => {
+                if (dropdown.contains(e.target)) clickedInsideDropdown = true;
+            });
+            if (!clickedInsideDropdown) {
+                document.querySelectorAll('.cloud-dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
                 document.removeEventListener('click', closeCloudMenuOnClickOutside);
             }
         }
@@ -10659,7 +10877,7 @@
                 localStorage.removeItem('assetDashboardCloudFileId');
 
                 updateCloudUI(false);
-                toggleCloudMenu();
+                document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
                 alert('Disconnected from Google Drive');
             }
         }
@@ -10757,8 +10975,7 @@
                 return;
             }
 
-            const menu = document.getElementById('cloudDropdownMenu');
-            if (menu) menu.classList.remove('show');
+            document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 
             if (!confirm('This will save your current data to the cloud. Continue?')) return;
 
@@ -10862,8 +11079,7 @@
                 return;
             }
 
-            const menu = document.getElementById('cloudDropdownMenu');
-            if (menu) menu.classList.remove('show');
+            document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 
             if (!cloudFileId) {
                 await findExistingBackupFile();
@@ -10982,8 +11198,7 @@
                 return;
             }
 
-            const menu = document.getElementById('cloudDropdownMenu');
-            if (menu) menu.classList.remove('show');
+            document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 
             setCloudSyncing(true);
 
@@ -11157,29 +11372,20 @@
             }
         }
 
-        // Update display functions
+        // Update display functions (all dropdowns)
         function updateLastSyncDisplay() {
-            const lastSyncInfo = document.getElementById('lastSyncInfo');
-            if (lastSyncInfo) {
-                if (lastSyncTime) {
-                    lastSyncInfo.textContent = `Last sync: ${getTimeAgo(lastSyncTime)}`;
-                } else {
-                    lastSyncInfo.textContent = 'Last sync: Never';
-                }
-            }
+            const text = lastSyncTime ? `Last sync: ${getTimeAgo(lastSyncTime)}` : 'Last sync: Never';
+            document.querySelectorAll('.lastSyncInfo').forEach(el => { el.textContent = text; });
         }
 
         function updateLastSavedByDisplay() {
-            const lastSavedByInfo = document.getElementById('lastSavedByInfo');
-            if (lastSavedByInfo) {
-                if (lastSavedBy && cloudFileTimestamp) {
-                    lastSavedByInfo.textContent = `Last saved by: ${lastSavedBy} (${getTimeAgo(new Date(cloudFileTimestamp))})`;
-                } else if (lastSavedBy) {
-                    lastSavedByInfo.textContent = `Last saved by: ${lastSavedBy}`;
-                } else {
-                    lastSavedByInfo.textContent = 'Last saved by: --';
-                }
+            let text = 'Last saved by: --';
+            if (lastSavedBy && cloudFileTimestamp) {
+                text = `Last saved by: ${lastSavedBy} (${getTimeAgo(new Date(cloudFileTimestamp))})`;
+            } else if (lastSavedBy) {
+                text = `Last saved by: ${lastSavedBy}`;
             }
+            document.querySelectorAll('.lastSavedByInfo').forEach(el => { el.textContent = text; });
         }
 
         function getTimeAgo(date) {
