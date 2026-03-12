@@ -6402,7 +6402,7 @@
                         <input type="text" id="itemType" required placeholder="e.g., Hospital Bed, X-Ray Machine">
                     </div>
                     <div class="form-group">
-                        <label for="category">Category *</label>
+                        <label for="category">Category * <span id="autoCatBadge" style="display:none; font-size:0.7rem; background:#27ae60; color:#fff; padding:1px 6px; border-radius:8px; margin-left:4px; font-weight:normal;">Auto</span></label>
                         <div style="display: flex; gap: 5px; align-items: flex-start;">
                             <select id="category" required style="flex: 1;">
                                 <option value="">Select Category</option>
@@ -12285,9 +12285,270 @@
 
         // Default categories
         const DEFAULT_CATEGORIES = [
+            'Appliance',
+            'Electronical Device',
+            'Electronics',
+            'Equipment',
+            'Furniture',
+            'Furniture & Appliances',
+            'Industrial Equipment',
+            'Industrial Medical Equipment',
             'Medical Equipment',
-            'Furniture & Appliances'
+            'Office Equipment',
+            'Office Furniture'
         ];
+
+        // ─── Auto-Categorization: Keyword-to-Category Mapping ───
+        // Each entry maps a category name to an array of keywords.
+        // When the user types in the Description or Item Type fields,
+        // the system checks for keyword matches and auto-selects the category.
+        const AUTO_CATEGORY_KEYWORDS = {
+            'Medical Equipment': [
+                'ventilator', 'defibrillator', 'monitor', 'patient monitor',
+                'stethoscope', 'syringe', 'infusion pump', 'iv pump', 'iv stand',
+                'oxygen', 'nebulizer', 'nebuliser', 'autoclave', 'sterilizer', 'steriliser',
+                'suction', 'ultrasound', 'ecg', 'ekg', 'x-ray', 'xray', 'ct scan',
+                'mri', 'blood pressure', 'bp machine', 'bp apparatus', 'sphygmomanometer',
+                'thermometer', 'pulse oximeter', 'oximeter', 'laryngoscope',
+                'otoscope', 'ophthalmoscope', 'surgical', 'scalpel', 'forceps',
+                'catheter', 'cannula', 'endoscope', 'microscope', 'centrifuge',
+                'incubator', 'phototherapy', 'cpap', 'bipap', 'anaesthetic',
+                'anesthetic', 'anaesthesia', 'anesthesia', 'wheelchair', 'stretcher',
+                'hospital bed', 'examination table', 'exam table', 'medical',
+                'clinical', 'diagnostic', 'glucometer', 'doppler', 'spirometer',
+                'ambu bag', 'resuscitator', 'splint', 'traction', 'crutch', 'crutches',
+                'walker', 'commode', 'bedpan', 'specimen', 'reagent', 'test kit',
+                'hematology', 'haematology', 'analyzer', 'analyser', 'pipette',
+                'tourniquet', 'bandage', 'dressing trolley', 'instrument trolley',
+                'mayo stand', 'operating table', 'operating light', 'surgical light',
+                'electrosurgical', 'cautery', 'dental chair', 'dental unit',
+                'amalgamator', 'curing light', 'scaler'
+            ],
+            'Furniture & Appliances': [
+                'desk', 'chair', 'table', 'cabinet', 'cupboard', 'shelf', 'shelving',
+                'bookcase', 'bookshelf', 'sofa', 'couch', 'bench', 'stool',
+                'filing cabinet', 'locker', 'wardrobe', 'drawer', 'credenza',
+                'partition', 'divider', 'whiteboard', 'notice board', 'noticeboard',
+                'fan', 'air condition', 'a/c', 'ac unit', 'refrigerator', 'fridge',
+                'freezer', 'microwave', 'oven', 'stove', 'cooker', 'kettle',
+                'toaster', 'blender', 'water dispenser', 'water cooler',
+                'washing machine', 'washer', 'dryer', 'iron', 'ironing board',
+                'television', 'tv', 'curtain', 'blind', 'carpet', 'rug', 'mat',
+                'bin', 'trash can', 'waste bin', 'clock', 'lamp', 'light fixture',
+                'bed frame', 'mattress', 'pillow', 'linen', 'towel rack',
+                'mirror', 'safe', 'strongbox', 'reception desk', 'counter',
+                'workstation', 'office chair', 'swivel chair', 'executive chair',
+                'conference table', 'dining table', 'bedside table', 'nightstand',
+                'appliance', 'furniture'
+            ],
+            'IT Equipment': [
+                'computer', 'laptop', 'desktop', 'pc', 'notebook',
+                'printer', 'scanner', 'copier', 'photocopier', 'fax',
+                'projector', 'screen', 'server', 'router', 'switch', 'modem',
+                'ups', 'uninterruptible', 'keyboard', 'mouse', 'webcam',
+                'headset', 'speaker', 'microphone', 'hard drive', 'ssd',
+                'flash drive', 'usb', 'tablet', 'ipad', 'monitor screen',
+                'lcd', 'led monitor', 'docking station', 'hub', 'ethernet',
+                'network', 'wifi', 'access point', 'firewall', 'nas',
+                'backup drive', 'external drive', 'toner', 'cartridge',
+                'cctv', 'camera', 'surveillance', 'biometric', 'fingerprint',
+                'barcode', 'label printer', 'pos', 'point of sale',
+                'telephone', 'phone system', 'pbx', 'intercom'
+            ],
+            'Vehicles & Transport': [
+                'vehicle', 'car', 'van', 'truck', 'bus', 'ambulance',
+                'motorcycle', 'motorbike', 'bicycle', 'cart', 'trolley',
+                'forklift', 'trailer', 'boat', 'engine', 'generator',
+                'fuel', 'tyre', 'tire', 'battery', 'gps', 'transport'
+            ],
+            'Tools & Maintenance': [
+                'drill', 'saw', 'hammer', 'wrench', 'spanner', 'screwdriver',
+                'pliers', 'ladder', 'scaffold', 'pump', 'compressor',
+                'welding', 'welder', 'grinder', 'sander', 'mower',
+                'trimmer', 'chainsaw', 'pressure washer', 'vacuum',
+                'toolbox', 'tool kit', 'toolkit', 'tape measure',
+                'level', 'multimeter', 'voltage tester', 'pipe',
+                'plumbing', 'electrical', 'paintbrush', 'roller',
+                'maintenance', 'repair', 'garden', 'hose', 'sprinkler'
+            ],
+            'Kitchen & Catering': [
+                'pot', 'pan', 'baking', 'mixing bowl', 'utensil',
+                'cutlery', 'plate', 'cup', 'glass', 'tray', 'serving',
+                'food warmer', 'steam table', 'bain marie', 'deep fryer',
+                'grill', 'griddle', 'mixer', 'food processor', 'dishwasher',
+                'ice machine', 'ice maker', 'cold room', 'walk-in',
+                'kitchen', 'catering', 'canteen', 'cafeteria',
+                'coffee maker', 'coffee machine', 'urn', 'chafing dish'
+            ],
+            'Linen & Laundry': [
+                'sheet', 'bed sheet', 'pillow case', 'pillowcase',
+                'blanket', 'duvet', 'comforter', 'gown', 'scrubs',
+                'uniform', 'laundry', 'linen', 'fabric', 'textile',
+                'curtain fabric', 'drape', 'mop', 'broom', 'cleaning'
+            ],
+            'Appliance': [
+                'blender', 'toaster', 'iron', 'kettle', 'heater',
+                'air purifier', 'humidifier', 'dehumidifier', 'space heater',
+                'water heater', 'electric fan', 'stand fan', 'ceiling fan'
+            ],
+            'Electronical Device': [
+                'radio', 'amplifier', 'receiver', 'transmitter',
+                'walkie talkie', 'two-way radio', 'intercom system',
+                'power supply', 'transformer', 'inverter', 'charger',
+                'voltage regulator', 'stabilizer', 'electronic'
+            ],
+            'Electronics': [
+                'television', 'tv', 'smart tv', 'dvd', 'blu-ray',
+                'sound system', 'audio', 'stereo', 'bluetooth speaker',
+                'projector screen', 'display', 'digital signage',
+                'remote control', 'media player', 'streaming'
+            ],
+            'Equipment': [
+                'equipment', 'machine', 'apparatus', 'device', 'system',
+                'unit', 'instrument', 'mechanism', 'assembly'
+            ],
+            'Furniture': [
+                'sofa', 'couch', 'armchair', 'recliner', 'ottoman',
+                'bookcase', 'bookshelf', 'sideboard', 'dresser',
+                'bed frame', 'headboard', 'footboard', 'bunk bed',
+                'cot', 'crib', 'bassinet', 'rocking chair'
+            ],
+            'Industrial Equipment': [
+                'industrial', 'conveyor', 'crane', 'hoist', 'winch',
+                'press', 'lathe', 'mill', 'cnc', 'hydraulic',
+                'pneumatic', 'boiler', 'furnace', 'kiln',
+                'compactor', 'shredder', 'incinerator', 'autoclave industrial'
+            ],
+            'Industrial Medical Equipment': [
+                'industrial autoclave', 'sterilization unit', 'medical gas',
+                'oxygen plant', 'medical air compressor', 'vacuum system medical',
+                'waste treatment', 'medical waste', 'industrial sterilizer',
+                'central sterile', 'cssd', 'decontamination'
+            ],
+            'Office Equipment': [
+                'paper shredder', 'laminator', 'binding machine', 'calculator',
+                'typewriter', 'stamp', 'stapler', 'hole punch', 'paper cutter',
+                'guillotine', 'envelope', 'postage', 'franking',
+                'whiteboard', 'flip chart', 'notice board', 'pin board',
+                'office', 'stationery', 'filing', 'document'
+            ],
+            'Office Furniture': [
+                'office desk', 'office chair', 'executive desk', 'executive chair',
+                'swivel chair', 'ergonomic chair', 'standing desk', 'sit-stand',
+                'filing cabinet', 'pedestal', 'credenza', 'hutch',
+                'reception desk', 'reception counter', 'conference table',
+                'boardroom table', 'meeting table', 'workstation',
+                'cubicle', 'partition', 'office partition', 'desk lamp'
+            ]
+        };
+
+        // Ensure categories used in auto-categorization exist in the user's list
+        function ensureAutoCategoryExists() {
+            const categories = loadCategories();
+            let updated = false;
+            for (const category of Object.keys(AUTO_CATEGORY_KEYWORDS)) {
+                if (!categories.includes(category)) {
+                    categories.push(category);
+                    updated = true;
+                }
+            }
+            if (updated) {
+                categories.sort();
+                saveCategories(categories);
+                updateAllCategoryDropdowns();
+            }
+        }
+
+        // Auto-categorize based on description and itemType text
+        function autoCategorizeAsset(text) {
+            if (!text || text.trim() === '') return null;
+
+            const lowerText = text.toLowerCase().trim();
+            const categories = loadCategories();
+            let bestMatch = null;
+            let bestMatchLength = 0;
+
+            for (const [category, keywords] of Object.entries(AUTO_CATEGORY_KEYWORDS)) {
+                // Only suggest categories that exist in the user's category list
+                if (!categories.includes(category)) continue;
+
+                for (const keyword of keywords) {
+                    if (lowerText.includes(keyword) && keyword.length > bestMatchLength) {
+                        bestMatch = category;
+                        bestMatchLength = keyword.length;
+                    }
+                }
+            }
+
+            return bestMatch;
+        }
+
+        // Apply auto-categorization to the asset form
+        function applyAutoCategorization() {
+            const descriptionField = document.getElementById('description');
+            const itemTypeField = document.getElementById('itemType');
+            const categorySelect = document.getElementById('category');
+
+            if (!descriptionField || !itemTypeField || !categorySelect) return;
+
+            // Combine both fields for matching
+            const combinedText = (descriptionField.value + ' ' + itemTypeField.value).trim();
+            const suggestedCategory = autoCategorizeAsset(combinedText);
+
+            const autoBadge = document.getElementById('autoCatBadge');
+
+            if (suggestedCategory) {
+                // Only auto-fill if user hasn't manually selected a category yet
+                const currentValue = categorySelect.value;
+                if (!currentValue || currentValue === '' || categorySelect.dataset.autoSet === 'true') {
+                    categorySelect.value = suggestedCategory;
+                    categorySelect.dataset.autoSet = 'true';
+
+                    // Show the "Auto" badge
+                    if (autoBadge) autoBadge.style.display = 'inline';
+
+                    // Brief highlight to show auto-categorization happened
+                    categorySelect.style.transition = 'background-color 0.3s ease';
+                    categorySelect.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        categorySelect.style.backgroundColor = '';
+                    }, 1500);
+                }
+            } else {
+                // No match — clear auto-set category if it was auto-set
+                if (categorySelect.dataset.autoSet === 'true') {
+                    categorySelect.value = '';
+                    categorySelect.dataset.autoSet = 'true';
+                    if (autoBadge) autoBadge.style.display = 'none';
+                }
+            }
+        }
+
+        // Reset auto-set flag when user manually changes category
+        function initAutoCategorization() {
+            const categorySelect = document.getElementById('category');
+            const descriptionField = document.getElementById('description');
+            const itemTypeField = document.getElementById('itemType');
+
+            if (descriptionField) {
+                descriptionField.addEventListener('input', applyAutoCategorization);
+                descriptionField.addEventListener('change', applyAutoCategorization);
+            }
+
+            if (itemTypeField) {
+                itemTypeField.addEventListener('input', applyAutoCategorization);
+                itemTypeField.addEventListener('change', applyAutoCategorization);
+            }
+
+            if (categorySelect) {
+                categorySelect.addEventListener('change', function() {
+                    // User manually selected — stop overriding
+                    categorySelect.dataset.autoSet = 'false';
+                    const autoBadge = document.getElementById('autoCatBadge');
+                    if (autoBadge) autoBadge.style.display = 'none';
+                });
+            }
+        }
 
         // Default departments
         const DEFAULT_DEPARTMENTS = [
@@ -13287,6 +13548,12 @@
                 populateAssetDeptDropdown('');
             }
 
+            // Reset auto-categorization flag
+            const categorySelect = document.getElementById('category');
+            if (categorySelect) {
+                categorySelect.dataset.autoSet = asset ? 'false' : 'true';
+            }
+
             modal.style.display = 'block';
         }
 
@@ -13525,6 +13792,10 @@
             // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
             updateAllCategoryDropdowns();
+
+            // Initialize auto-categorization on description and item type fields
+            ensureAutoCategoryExists();
+            initAutoCategorization();
 
             // Apply portal heading settings across the dashboard
             (function applyPortalHeadings() {
