@@ -8300,9 +8300,12 @@
                     </div>
                 </div>
 
-                <!-- Register Delete Controls -->
-                <div id="registerDeleteControls" style="margin-bottom: 1rem; display: none; align-items: center; gap: 1rem; padding: 1rem; background: #FFEBEE; border-radius: 0.5rem; border: 2px solid #e74c3c;">
-                    <span id="registerSelectedCount" style="font-weight: bold; color: #c0392b;">0 assets selected</span>
+                <!-- Register Selection Controls -->
+                <div id="registerDeleteControls" style="margin-bottom: 1rem; display: none; align-items: center; gap: 1rem; padding: 1rem; background: #E3F2FD; border-radius: 0.5rem; border: 2px solid #2196F3;">
+                    <span id="registerSelectedCount" style="font-weight: bold; color: #1565C0;">0 assets selected</span>
+                    <button class="btn" onclick="openDuplicateAssetModal()" style="background: linear-gradient(135deg, #2196F3, #1976D2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        📋 Duplicate Selected
+                    </button>
                     <button class="btn" onclick="deleteSelectedFromRegister()" style="background: #e74c3c; color: white;">
                         🗑️ Delete Selected
                     </button>
@@ -8359,6 +8362,39 @@
 
             <div class="footer">
                 <p>Fixed Asset Management System © <span id="copyrightYear7"></span> • May Pen Hospital</p>
+            </div>
+        </div>
+
+        <!-- Duplicate Asset Modal -->
+        <div id="duplicateAssetModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+            <div style="background:var(--bg-card, #fff); border-radius:16px; padding:0; width:520px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden;">
+                <div style="background:linear-gradient(135deg, #2196F3, #1565C0); color:white; padding:20px 24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2 style="margin:0; font-size:1.3rem;">📋 Duplicate Assets</h2>
+                        <button onclick="closeDuplicateAssetModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; padding:0 4px;">&times;</button>
+                    </div>
+                    <p id="duplicateModalSubtitle" style="margin:6px 0 0; opacity:0.9; font-size:0.9rem;">Create copies of the selected asset(s)</p>
+                </div>
+                <div style="padding:24px;">
+                    <div id="duplicateAssetList" style="max-height:180px; overflow-y:auto; margin-bottom:20px; border:1px solid var(--border-color, #e0e0e0); border-radius:8px; padding:12px; background:var(--bg-secondary, #f8f9fa);"></div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; font-weight:600; margin-bottom:8px; color:var(--text-primary, #2C3E50);">Number of copies for each asset:</label>
+                        <input type="number" id="duplicateCount" min="1" max="500" value="1"
+                               style="width:100%; padding:12px; border:2px solid var(--border-color, #e0e0e0); border-radius:8px; font-size:1.1rem; box-sizing:border-box; background:var(--bg-card, #fff); color:var(--text-primary, #2C3E50);"
+                               oninput="updateDuplicatePreview()">
+                        <p id="duplicatePreviewText" style="margin:8px 0 0; font-size:0.85rem; color:var(--text-secondary, #7f8c8d);">This will create 1 new asset(s)</p>
+                    </div>
+                    <div style="margin-bottom:20px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-primary, #2C3E50);">
+                            <input type="checkbox" id="duplicateNewCodes" checked style="width:18px; height:18px;">
+                            <span>Auto-generate new asset codes with suffix (e.g. -COPY-01)</span>
+                        </label>
+                    </div>
+                    <div style="display:flex; gap:12px; justify-content:flex-end;">
+                        <button onclick="closeDuplicateAssetModal()" style="padding:10px 24px; border:1px solid var(--border-color, #e0e0e0); background:var(--bg-card, #fff); border-radius:8px; cursor:pointer; font-size:0.95rem; color:var(--text-primary, #2C3E50);">Cancel</button>
+                        <button onclick="executeDuplicateAssets()" style="padding:10px 24px; background:linear-gradient(135deg, #2196F3, #1565C0); color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem; font-weight:600;">Duplicate Now</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -24494,7 +24530,8 @@
                             <td>${deprMonthlyHtml}</td>
                             <td>${bookValueHtml}</td>
                             <td>${commentHtml}</td>
-                            <td>
+                            <td style="white-space: nowrap;">
+                                <button class="btn-delete-inline" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="background: #e3f2fd; color: #1976D2; border: 1px solid #90CAF9; margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
                             </td>
                         </tr>
@@ -24626,6 +24663,171 @@
 
             refreshAllViews();
             alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
+        }
+
+        // ============================================
+        // DUPLICATE ASSETS FEATURE
+        // ============================================
+
+        let duplicateTargetAssets = []; // Assets to duplicate
+
+        function openDuplicateAssetModal(singleAssetId) {
+            duplicateTargetAssets = [];
+
+            if (singleAssetId) {
+                // Single asset duplicate (from row button)
+                const asset = assetRegisterData.find(a => a.id === singleAssetId);
+                if (asset) duplicateTargetAssets = [asset];
+            } else {
+                // Bulk duplicate (from selection bar)
+                const checked = document.querySelectorAll('.register-row-checkbox:checked');
+                const selectedIds = [...checked].map(cb => cb.value);
+                duplicateTargetAssets = selectedIds.map(id => assetRegisterData.find(a => a.id === id)).filter(Boolean);
+            }
+
+            if (duplicateTargetAssets.length === 0) {
+                alert('No assets selected to duplicate.');
+                return;
+            }
+
+            // Populate modal
+            const subtitle = document.getElementById('duplicateModalSubtitle');
+            subtitle.textContent = `Create copies of ${duplicateTargetAssets.length} selected asset${duplicateTargetAssets.length !== 1 ? 's' : ''}`;
+
+            const listDiv = document.getElementById('duplicateAssetList');
+            listDiv.innerHTML = duplicateTargetAssets.map(a =>
+                `<div style="padding:6px 0; border-bottom:1px solid var(--border-color, #eee); display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="color:var(--text-primary, #2C3E50);">${escapeHtml(a.assetCode)}</strong>
+                        <span style="color:var(--text-secondary, #7f8c8d); margin-left:8px;">${escapeHtml(a.description || '')}</span>
+                    </div>
+                    <span style="color:var(--text-secondary, #7f8c8d); font-size:0.85rem;">${escapeHtml(a.department || '')}</span>
+                </div>`
+            ).join('');
+
+            // Reset count
+            document.getElementById('duplicateCount').value = 1;
+            document.getElementById('duplicateNewCodes').checked = true;
+            updateDuplicatePreview();
+
+            // Show modal
+            document.getElementById('duplicateAssetModal').style.display = 'flex';
+        }
+
+        function closeDuplicateAssetModal() {
+            document.getElementById('duplicateAssetModal').style.display = 'none';
+            duplicateTargetAssets = [];
+        }
+
+        function updateDuplicatePreview() {
+            const count = parseInt(document.getElementById('duplicateCount').value) || 0;
+            const total = count * duplicateTargetAssets.length;
+            const previewText = document.getElementById('duplicatePreviewText');
+            previewText.textContent = `This will create ${total} new asset${total !== 1 ? 's' : ''} (${count} cop${count !== 1 ? 'ies' : 'y'} × ${duplicateTargetAssets.length} asset${duplicateTargetAssets.length !== 1 ? 's' : ''})`;
+        }
+
+        function executeDuplicateAssets() {
+            const count = parseInt(document.getElementById('duplicateCount').value);
+            if (!count || count < 1) {
+                alert('Please enter a valid number of copies (1 or more).');
+                return;
+            }
+            if (count > 500) {
+                alert('Maximum 500 copies per operation.');
+                return;
+            }
+
+            const autoNewCodes = document.getElementById('duplicateNewCodes').checked;
+            const totalNew = count * duplicateTargetAssets.length;
+
+            if (!confirm(`Create ${totalNew} new asset${totalNew !== 1 ? 's' : ''}?\n\n${count} cop${count !== 1 ? 'ies' : 'y'} of each of ${duplicateTargetAssets.length} asset${duplicateTargetAssets.length !== 1 ? 's' : ''}.`)) {
+                return;
+            }
+
+            try {
+                const assets = loadAssetsFromStorage();
+                const existingCodes = new Set(assets.map(a => a.assetCode?.toLowerCase()));
+                const newAssets = [];
+                const newAuditEntries = [];
+                const timestamp = new Date().toISOString();
+                const userName = currentUser ? currentUser.displayName : 'Unknown';
+
+                duplicateTargetAssets.forEach(source => {
+                    for (let i = 1; i <= count; i++) {
+                        let newCode = source.assetCode;
+                        if (autoNewCodes) {
+                            // Generate a unique suffixed code
+                            const padLen = Math.max(2, String(count).length);
+                            let candidate = `${source.assetCode}-COPY-${String(i).padStart(padLen, '0')}`;
+                            // Ensure uniqueness
+                            let attempt = i;
+                            while (existingCodes.has(candidate.toLowerCase())) {
+                                attempt++;
+                                candidate = `${source.assetCode}-COPY-${String(attempt).padStart(padLen, '0')}`;
+                            }
+                            newCode = candidate;
+                        }
+
+                        const newAsset = {
+                            id: generateAssetId(),
+                            assetCode: newCode,
+                            description: source.description || '',
+                            dateIn: source.dateIn || '',
+                            supplier: source.supplier || '',
+                            department: source.department || '',
+                            source: source.source || '',
+                            category: source.category || '',
+                            serialModel: source.serialModel || '',
+                            quantity: 1,
+                            unitPrice: source.unitPrice || 0,
+                            totalPrice: source.totalPrice || 0,
+                            month: source.month || '',
+                            itemType: source.itemType || source.description || '',
+                            usefulLife: source.usefulLife || 0,
+                            salvageValue: source.salvageValue || 0,
+                            depreciationMethod: source.depreciationMethod || '',
+                            comment: ''
+                        };
+
+                        newAssets.push(newAsset);
+                        existingCodes.add(newCode.toLowerCase());
+
+                        newAuditEntries.push({
+                            id: generateAssetId(),
+                            assetCode: newAsset.assetCode,
+                            action: 'Asset Created',
+                            department: newAsset.department,
+                            description: newAsset.description,
+                            value: newAsset.totalPrice || 0,
+                            notes: `Duplicated from ${source.assetCode}`,
+                            timestamp: timestamp,
+                            user: userName
+                        });
+                    }
+                });
+
+                // Save all new assets in a single write
+                assets.push(...newAssets);
+                const saved = saveAssetsToStorage(assets);
+                if (!saved) {
+                    throw new Error('Failed to save. Storage may be full.');
+                }
+
+                // Batch save audit entries
+                const auditRecords = loadAuditFromStorage();
+                auditRecords.unshift(...newAuditEntries);
+                saveAuditToStorage(auditRecords);
+
+                closeDuplicateAssetModal();
+                clearRegisterSelection();
+                refreshAllViews();
+
+                alert(`Successfully created ${newAssets.length} duplicate asset${newAssets.length !== 1 ? 's' : ''}.`);
+
+            } catch (error) {
+                console.error('Duplicate error:', error);
+                alert('Error duplicating assets: ' + error.message);
+            }
         }
 
         // Central function to refresh all views after data changes
