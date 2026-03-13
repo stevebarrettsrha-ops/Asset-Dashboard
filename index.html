@@ -26031,6 +26031,13 @@
             bulkSelectedIds = new Set();
             populateBulkFilters();
             filterBulkAssets();
+            // Reset Asset Code Replacement panel state
+            const acFind = document.getElementById('bulkAssetCodeFind');
+            const acReplace = document.getElementById('bulkAssetCodeReplace');
+            const acPreview = document.getElementById('bulkAssetCodePreview');
+            if (acFind) acFind.value = '';
+            if (acReplace) acReplace.value = '';
+            if (acPreview) acPreview.style.display = 'none';
         }
 
         function populateBulkFilters() {
@@ -26330,6 +26337,12 @@
             refreshAllViews();
         }
 
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         function previewBulkAssetCode() {
             if (bulkSelectedIds.size === 0) {
                 alert('Please select at least one asset.');
@@ -26351,17 +26364,17 @@
                 if (bulkSelectedIds.has(a.id) && a.assetCode && a.assetCode.includes(findText)) {
                     const newCode = a.assetCode.replaceAll(findText, replaceText);
                     html += `<div style="padding: 4px 0; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center;">
-                        <span style="color: #e74c3c; text-decoration: line-through;">${a.assetCode}</span>
+                        <span style="color: #e74c3c; text-decoration: line-through;">${escapeHtml(a.assetCode)}</span>
                         <span style="color: var(--text-secondary);">→</span>
-                        <span style="color: #27ae60; font-weight: 600;">${newCode}</span>
-                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: auto;">${a.description || ''}</span>
+                        <span style="color: #27ae60; font-weight: 600;">${escapeHtml(newCode)}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: auto;">${escapeHtml(a.description || '')}</span>
                     </div>`;
                     matchCount++;
                 }
             });
 
             if (matchCount === 0) {
-                html = `<div style="color: var(--text-secondary); padding: 8px 0;">No matching asset codes found containing "${findText}" in selected assets.</div>`;
+                html = `<div style="color: var(--text-secondary); padding: 8px 0;">No matching asset codes found containing "${escapeHtml(findText)}" in selected assets.</div>`;
             } else {
                 html = `<div style="margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">${matchCount} asset code(s) will be changed:</div>` + html;
             }
