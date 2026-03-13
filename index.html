@@ -11300,6 +11300,8 @@
                 });
                 if (added > 0) {
                     _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDeletedIds]);
+                    // Update global variable to stay in sync
+                    if (typeof disposalDeletedIds !== 'undefined') disposalDeletedIds = localDeletedIds;
                     // Remove any locally present records that were deleted on another client
                     const localDisposals = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                     const filtered = localDisposals.filter(d => !localDeletedIds.has(d.id));
@@ -12687,7 +12689,10 @@
         const _dbCache = {};
         let _idbReady = false;
 
+        let _idbInstance = null;
+
         function _openIDB() {
+            if (_idbInstance) return Promise.resolve(_idbInstance);
             return new Promise((resolve, reject) => {
                 const req = indexedDB.open(IDB_NAME, IDB_VERSION);
                 req.onupgradeneeded = (e) => {
@@ -12696,7 +12701,11 @@
                         db.createObjectStore(IDB_STORE);
                     }
                 };
-                req.onsuccess = () => resolve(req.result);
+                req.onsuccess = () => {
+                    _idbInstance = req.result;
+                    _idbInstance.onclose = () => { _idbInstance = null; };
+                    resolve(_idbInstance);
+                };
                 req.onerror = () => reject(req.error);
             });
         }
@@ -12708,7 +12717,6 @@
                 const req = store.get(key);
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => reject(req.error);
-                tx.oncomplete = () => db.close();
             }));
         }
 
@@ -12717,8 +12725,8 @@
                 const tx = db.transaction(IDB_STORE, 'readwrite');
                 const store = tx.objectStore(IDB_STORE);
                 store.put(value, key);
-                tx.oncomplete = () => { db.close(); resolve(); };
-                tx.onerror = () => { db.close(); reject(tx.error); };
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
             }));
         }
 
@@ -14135,7 +14143,9 @@
 
             // Reset salvage auto-calc: if editing with existing salvage, mark as manual
             if (typeof window._resetSalvageAutoCalc === 'function') {
-                const hasManualSalvage = asset && asset.salvageValue > 0;
+                // Detect manual override: compare stored salvage to what auto-calc would produce
+                const hasManualSalvage = asset && asset.salvageValue > 0 &&
+                    Math.abs(asset.salvageValue - calcSalvageValue(asset.totalPrice || asset.unitPrice || 0, asset.category || '')) > 0.01;
                 window._resetSalvageAutoCalc(hasManualSalvage);
             }
 
@@ -14298,6 +14308,8 @@
                         expandedAsset.assetCode = `${baseCode}-${String(i + 1).padStart(padLen, '0')}`;
                         expandedAsset.quantity = 1;
                         expandedAsset.totalPrice = assetData.unitPrice;
+                        // Recalculate salvage for individual unit cost
+                        expandedAsset.salvageValue = calcSalvageValue(assetData.unitPrice, assetData.category || '');
                         assets.push(expandedAsset);
                         addAuditEntry(expandedAsset.assetCode, 'Asset Created', expandedAsset.department, 'New asset added to inventory (expanded from qty ' + qty + ')');
                     }
@@ -22986,6 +22998,8 @@
         // Load disposal records from localStorage
         function loadDisposalRecords() {
             try {
+                // Re-initialize from cache (may have been empty during script parse before IDB init)
+                disposalDeletedIds = new Set(_dbGet(DISPOSAL_DELETED_IDS_KEY) || []);
                 disposalRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                 filteredDisposalRecords = [...disposalRecords];
                 updateDisposalStats();
