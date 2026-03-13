@@ -14461,6 +14461,11 @@
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
 
+            // Sync with Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
+            }
+
             // Re-scan duplicates if the Duplicates Tracker page is active
             if (typeof scanForDuplicates === 'function') {
                 const page11 = document.getElementById('page11');
@@ -14503,6 +14508,11 @@
             // Sync with Board of Survey display
             if (typeof loadDisposalRecords === 'function') {
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+
+            // Sync with Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
             }
         }
 
@@ -25651,6 +25661,10 @@
             // Refresh Board of Survey
             if (typeof loadDisposalRecords === 'function') {
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+            // Refresh Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
             }
         }
 
