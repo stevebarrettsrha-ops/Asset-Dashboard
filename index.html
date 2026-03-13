@@ -1232,6 +1232,27 @@
             border: 1px solid var(--border-color);
             max-height: 500px;
             overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-orange) var(--bg-secondary);
+        }
+
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--primary-orange);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-orange);
         }
 
         .table-container table {
@@ -4312,6 +4333,27 @@
         .disposal-table-container {
             overflow-x: auto;
             margin-top: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-orange) var(--bg-secondary);
+        }
+
+        .disposal-table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .disposal-table-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .disposal-table-container::-webkit-scrollbar-thumb {
+            background: var(--primary-orange);
+            border-radius: 4px;
+        }
+
+        .disposal-table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-orange);
         }
 
         .disposal-table {
@@ -4331,6 +4373,10 @@
             overflow-wrap: break-word;
             vertical-align: top;
             line-height: 1.4;
+        }
+
+        .disposal-table thead {
+            background: var(--bg-secondary);
         }
 
         .disposal-table th {
@@ -4872,6 +4918,27 @@
             border: 1px solid var(--border-color);
             position: relative;
             z-index: 1;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-orange) var(--bg-secondary);
+        }
+
+        .register-table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .register-table-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .register-table-container::-webkit-scrollbar-thumb {
+            background: var(--primary-orange);
+            border-radius: 4px;
+        }
+
+        .register-table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-orange);
         }
 
         .register-table {
@@ -4890,6 +4957,10 @@
             overflow-wrap: break-word;
             vertical-align: top;
             line-height: 1.4;
+        }
+
+        .register-table thead {
+            background: var(--bg-secondary);
         }
 
         .register-table th {
