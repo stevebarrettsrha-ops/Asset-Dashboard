@@ -8954,6 +8954,9 @@
                 <button class="bulk-tab-btn" onclick="switchBulkTab('assetcode')" id="bulkTabAssetcode" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🔄 Bulk Asset Code
                 </button>
+                <button class="bulk-tab-btn" onclick="switchBulkTab('comment')" id="bulkTabComment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                    💬 Bulk Comment
+                </button>
             </div>
 
             <!-- Bulk Asset Selection (shared) -->
@@ -9132,6 +9135,28 @@
                         <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border-color); max-height: 200px; overflow-y: auto;">
                             <h4 style="margin-bottom: 8px; color: var(--text-primary); font-size: 0.9rem;">Preview of Changes:</h4>
                             <div id="bulkAssetCodePreviewList" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Comment Panel -->
+            <div id="bulkCommentPanel" style="display: none;">
+                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: var(--text-primary);">💬 Set Comment for Selected Assets</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 300px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Comment:</label>
+                            <textarea id="bulkCommentText" rows="3" placeholder="Enter comment to apply to selected assets..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="bulkCommentAppend" style="width: 16px; height: 16px;">
+                                Append to existing comments
+                            </label>
+                            <button onclick="applyBulkComment()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                                Apply Comment to Selected
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -26285,14 +26310,15 @@
         }
 
         function switchBulkTab(tab) {
-            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department', 'assetcode'];
+            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department', 'assetcode', 'comment'];
             const panelIds = {
                 pricing: 'bulkPricingPanel',
                 category: 'bulkCategoryPanel',
                 depreciation: 'bulkDepreciationPanel',
                 date: 'bulkDatePanel',
                 department: 'bulkDepartmentPanel',
-                assetcode: 'bulkAssetcodePanel'
+                assetcode: 'bulkAssetcodePanel',
+                comment: 'bulkCommentPanel'
             };
             const tabIds = {
                 pricing: 'bulkTabPricing',
@@ -26300,7 +26326,8 @@
                 depreciation: 'bulkTabDepreciation',
                 date: 'bulkTabDate',
                 department: 'bulkTabDepartment',
-                assetcode: 'bulkTabAssetcode'
+                assetcode: 'bulkTabAssetcode',
+                comment: 'bulkTabComment'
             };
             tabs.forEach(t => {
                 document.getElementById(panelIds[t]).style.display = t === tab ? 'block' : 'none';
@@ -26460,6 +26487,38 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
             alert(`✅ Department updated for ${updated} asset(s)!`);
+            refreshAllViews();
+        }
+
+        function applyBulkComment() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const comment = document.getElementById('bulkCommentText').value.trim();
+            if (!comment) {
+                alert('Please enter a comment.');
+                return;
+            }
+            const append = document.getElementById('bulkCommentAppend').checked;
+            const action = append ? 'Append comment to' : 'Set comment for';
+            if (!confirm(`${action} ${bulkSelectedIds.size} asset(s)?\n\nComment: "${comment}"`)) return;
+
+            let assets = loadAssetsFromStorage();
+            let updated = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id)) {
+                    if (append && a.comment) {
+                        a.comment = a.comment.trim() + '\n' + comment;
+                    } else {
+                        a.comment = comment;
+                    }
+                    updated++;
+                }
+            });
+            saveAssetsToStorage(assets);
+            addAuditEntry('BULK', 'Bulk Comment', '', `${append ? 'Appended' : 'Set'} comment for ${updated} assets`);
+            alert(`✅ Comment ${append ? 'appended to' : 'set for'} ${updated} asset(s)!`);
             refreshAllViews();
         }
 
