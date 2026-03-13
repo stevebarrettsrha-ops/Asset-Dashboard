@@ -1337,9 +1337,13 @@
             background: var(--dark-orange);
         }
 
+        #auditEntries thead {
+            background: var(--bg-secondary);
+        }
+
         #auditEntries thead th {
             background: var(--bg-secondary);
-            color: #2c3e50;
+            color: var(--text-primary);
         }
 
         /* Enable text wrapping for all Audit Trail columns */
@@ -2209,6 +2213,36 @@
         .btn-delete-inline:hover {
             background: #c0392b;
             transform: scale(1.1);
+        }
+
+        .btn-delete-inline.btn-reverse {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--dark-green);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-delete-inline.btn-reverse:hover {
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .btn-delete-inline.btn-edit {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--dark-orange);
+            border: 1px solid rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-delete-inline.btn-edit:hover {
+            background: rgba(255, 107, 53, 0.2);
+        }
+
+        .btn-delete-inline.btn-duplicate {
+            background: rgba(52, 152, 219, 0.1);
+            color: #1976D2;
+            border: 1px solid rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-delete-inline.btn-duplicate:hover {
+            background: rgba(52, 152, 219, 0.2);
         }
 
         .btn-pdf-download {
@@ -3091,6 +3125,10 @@
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
+        }
+
+        .gdrive-history-table thead {
+            background: var(--bg-card);
         }
 
         .gdrive-history-table th {
@@ -4481,6 +4519,12 @@
             color: #c0392b;
         }
 
+        .disposal-action-btn.btn-reverse {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--dark-green);
+            border: 1px solid rgba(46, 204, 113, 0.4);
+        }
+
         .disposal-action-btn:hover {
             transform: scale(1.05);
         }
@@ -5137,6 +5181,11 @@
 
         .register-pagination span {
             color: var(--text-secondary);
+        }
+
+        /* Disposed row highlight */
+        .register-table tr.disposed-row {
+            background: rgba(231, 76, 60, 0.05);
         }
 
         /* Disposed asset indicator */
@@ -7186,7 +7235,7 @@
                     </label>
                 </div>
                 <div id="warrantyList">
-                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">Load asset data to see warranty information</p>
+                    <p style="text-align: center; color: var(--text-secondary); padding: 20px;">Load asset data to see warranty information</p>
                 </div>
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="generateWarrantyReport()">Generate Warranty Report</button>
@@ -7383,7 +7432,7 @@
                 </div>
 
                 <div id="auditEntries">
-                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">Load asset data to see audit trail</p>
+                    <p style="text-align: center; color: var(--text-secondary); padding: 20px;">Load asset data to see audit trail</p>
                 </div>
                 <div style="margin-top: 20px;">
                     <button class="search-btn" onclick="exportAuditTrail()">Export Audit Trail</button>
@@ -7413,7 +7462,7 @@
                 </div>
 
                 <div id="sheetDataContent" style="overflow-x: auto;">
-                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">Load asset data to view sheet information</p>
+                    <p style="text-align: center; color: var(--text-secondary); padding: 20px;">Load asset data to view sheet information</p>
                 </div>
 
                 <div style="margin-top: 20px;">
@@ -14412,6 +14461,11 @@
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
             }
 
+            // Sync with Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
+            }
+
             // Re-scan duplicates if the Duplicates Tracker page is active
             if (typeof scanForDuplicates === 'function') {
                 const page11 = document.getElementById('page11');
@@ -14454,6 +14508,11 @@
             // Sync with Board of Survey display
             if (typeof loadDisposalRecords === 'function') {
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+
+            // Sync with Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
             }
         }
 
@@ -17608,7 +17667,7 @@
             });
             
             if (html === '') {
-                html = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No assets match the current filter criteria.</p>';
+                html = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No assets match the current filter criteria.</p>';
             }
             
             warrantyList.innerHTML = html;
@@ -18950,7 +19009,7 @@
             updateDepartmentSummary();
 
             if (auditRecords.length === 0) {
-                auditEntries.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No audit trail entries found matching the selected filters</p>';
+                auditEntries.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No audit trail entries found matching the selected filters</p>';
                 window.currentAuditData = [];
                 return;
             }
@@ -20191,7 +20250,7 @@
             resultsHeader.textContent = `Search Results (${results.length} found)`;
             
             if (results.length === 0) {
-                resultsContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No assets found</p>';
+                resultsContent.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">No assets found</p>';
             } else {
                 let html = '';
                 results.slice(0, 10).forEach(item => {
@@ -20208,7 +20267,7 @@
                 });
                 
                 if (results.length > 10) {
-                    html += `<p style="text-align: center; color: #7f8c8d; padding: 10px; font-size: 0.9em;">Showing first 10 of ${results.length} results</p>`;
+                    html += `<p style="text-align: center; color: var(--text-secondary); padding: 10px; font-size: 0.9em;">Showing first 10 of ${results.length} results</p>`;
                 }
                 
                 resultsContent.innerHTML = html;
@@ -23134,7 +23193,7 @@
                     <td>
                         <div class="disposal-action-btns">
                             <button class="disposal-action-btn edit" onclick="editDisposalRecord('${record.id}')" title="Edit">✏️</button>
-                            <button class="disposal-action-btn" onclick="reverseDisposal('${record.id}')" title="Reverse Disposal - Mark as Not Disposed" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;">↩️</button>
+                            <button class="disposal-action-btn btn-reverse" onclick="reverseDisposal('${record.id}')" title="Reverse Disposal - Mark as Not Disposed">↩️</button>
                             <button class="disposal-action-btn delete" onclick="deleteDisposalRecord('${record.id}')" title="Delete">🗑️</button>
                         </div>
                     </td>
@@ -25258,7 +25317,7 @@
                     `;
 
                     return `
-                        <tr${disposed ? ' style="background: rgba(231, 76, 60, 0.05);"' : ''}>
+                        <tr${disposed ? ' class="disposed-row"' : ''}>
                             <td style="text-align: center;">
                                 <input type="checkbox" class="register-row-checkbox" value="${asset.id}"
                                        onchange="onRegisterCheckboxChange()"
@@ -25279,9 +25338,9 @@
                             <td>${bookValueHtml}</td>
                             <td>${commentHtml}</td>
                             <td style="white-space: nowrap;">
-                                ${disposed ? `<button class="btn-delete-inline" onclick="reverseDisposalByAssetCode('${escapeHtml(asset.assetCode)}')" title="Reverse Disposal - Mark as Not Disposed" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; margin-right: 4px;">↩️</button>` : ''}
-                                <button class="btn-delete-inline" onclick="viewAssetDetails('${asset.id}')" title="Edit Asset" style="background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; margin-right: 4px;">✏️</button>
-                                <button class="btn-delete-inline" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="background: #e3f2fd; color: #1976D2; border: 1px solid #90CAF9; margin-right: 4px;">📋</button>
+                                ${disposed ? `<button class="btn-delete-inline btn-reverse" onclick="reverseDisposalByAssetCode('${escapeHtml(asset.assetCode)}')" title="Reverse Disposal - Mark as Not Disposed" style="margin-right: 4px;">↩️</button>` : ''}
+                                <button class="btn-delete-inline btn-edit" onclick="viewAssetDetails('${asset.id}')" title="Edit Asset" style="margin-right: 4px;">✏️</button>
+                                <button class="btn-delete-inline btn-duplicate" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
                             </td>
                         </tr>
@@ -25602,6 +25661,10 @@
             // Refresh Board of Survey
             if (typeof loadDisposalRecords === 'function') {
                 try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
+            }
+            // Refresh Bulk Categories
+            if (typeof loadBulkCategoriesPage === 'function') {
+                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
             }
         }
 
