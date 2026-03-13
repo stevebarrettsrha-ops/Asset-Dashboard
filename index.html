@@ -8964,10 +8964,15 @@
                         <input type="text" id="bulkSearchInput" oninput="filterBulkAssets()" placeholder="Search by asset code, description..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <span id="bulkSelectedCount" style="font-weight: 600; color: #8e44ad;">0 of 0 assets selected</span>
                     <button onclick="bulkSelectAll()" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #8e44ad; background: transparent; color: #8e44ad; cursor: pointer; font-size: 0.85rem;">Select All Visible</button>
                     <button onclick="bulkDeselectAll()" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #95a5a6; background: transparent; color: #95a5a6; cursor: pointer; font-size: 0.85rem;">Deselect All</button>
+                    <button onclick="syncBosAssets()" style="padding: 6px 14px; border-radius: 6px; border: none; background: linear-gradient(135deg, #2980b9, #3498db); color: white; cursor: pointer; font-size: 0.85rem; font-weight: 600;">🔄 Sync BOS Assets</button>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); margin-left: 8px;">
+                        <input type="checkbox" id="bulkShowBosAssets" checked onchange="filterBulkAssets()" style="width: 16px; height: 16px; cursor: pointer;">
+                        Show BOS Assets
+                    </label>
                 </div>
             </div>
 
@@ -24972,7 +24977,8 @@
                             month: month,
                             itemType: p.description,
                             salvageValue: calcSalvageValue(unitValue, _bosCategory),
-                            depreciationMethod: 'straight'
+                            depreciationMethod: 'straight',
+                            bosAsset: true
                         };
 
                         existingAssets.push(newAsset);
@@ -26099,8 +26105,10 @@
             const deptFilter = document.getElementById('bulkFilterDepartment').value;
             const srcFilter = document.getElementById('bulkFilterSource').value;
             const search = (document.getElementById('bulkSearchInput').value || '').toLowerCase().trim();
+            const showBos = document.getElementById('bulkShowBosAssets') ? document.getElementById('bulkShowBosAssets').checked : true;
 
             bulkFilteredAssets = bulkAllAssets.filter(a => {
+                if (!showBos && a.bosAsset) return false;
                 if (catFilter && a.category !== catFilter) return false;
                 if (deptFilter && a.department !== deptFilter) return false;
                 if (srcFilter && a.source !== srcFilter) return false;
@@ -26112,6 +26120,85 @@
             });
 
             displayBulkAssets();
+        }
+
+        function syncBosAssets() {
+            try {
+                const allDisposals = _dbGet(DISPOSAL_STORAGE_KEY) || [];
+                if (allDisposals.length === 0) {
+                    alert('No BOS disposal records found. Upload BOS assets first via the BOS Upload page.');
+                    return;
+                }
+
+                let existingAssets = loadAssetsFromStorage();
+                const existingCodes = new Set(existingAssets.map(a => (a.assetCode || '').toLowerCase() + '|' + (a.description || a.assetDescription || '').toLowerCase()));
+
+                let synced = 0;
+                allDisposals.forEach(d => {
+                    const key = ((d.assetCode || '').toLowerCase() + '|' + (d.assetDescription || '').toLowerCase());
+                    if (existingCodes.has(key)) return;
+
+                    let month = 'April';
+                    if (d.disposalDate) {
+                        const dateObj = new Date(d.disposalDate);
+                        if (!isNaN(dateObj.getTime())) {
+                            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                            month = monthNames[dateObj.getMonth()];
+                        }
+                    }
+
+                    let formattedDate = d.disposalDate || '';
+                    if (d.disposalDate) {
+                        const dateObj = new Date(d.disposalDate);
+                        if (!isNaN(dateObj.getTime())) {
+                            const monthAbbr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            formattedDate = `${String(dateObj.getDate()).padStart(2,'0')}-${monthAbbr[dateObj.getMonth()]}-${dateObj.getFullYear()}`;
+                        }
+                    }
+
+                    const unitValue = d.originalValue || 0;
+                    const category = 'Furniture & Appliances';
+
+                    const newAsset = {
+                        id: generateAssetId(),
+                        assetCode: d.assetCode || 'N/A',
+                        description: d.assetDescription || 'Unnamed Asset',
+                        dateIn: formattedDate,
+                        supplier: '',
+                        department: 'Other',
+                        source: 'Purchased',
+                        category: category,
+                        serialModel: '',
+                        quantity: 1,
+                        unitPrice: unitValue,
+                        totalPrice: unitValue,
+                        month: month,
+                        itemType: d.assetDescription || '',
+                        salvageValue: calcSalvageValue(unitValue, category),
+                        depreciationMethod: 'straight',
+                        bosAsset: true
+                    };
+
+                    existingAssets.push(newAsset);
+                    existingCodes.add(key);
+                    synced++;
+
+                    addAuditEntry(newAsset.assetCode, 'Asset Created', newAsset.department, 'Synced from BOS disposal records');
+                });
+
+                if (synced === 0) {
+                    alert('All BOS disposal assets are already in the dashboard. Nothing to sync.');
+                    return;
+                }
+
+                saveAssetsToStorage(existingAssets);
+                addAuditEntry('BULK', 'BOS Sync', '-', `Synced ${synced} BOS asset(s) from disposal records`);
+                alert(`✅ ${synced} BOS asset(s) synced to dashboard!`);
+                refreshAllViews();
+            } catch (error) {
+                console.error('Error syncing BOS assets:', error);
+                alert('Error syncing BOS assets: ' + error.message);
+            }
         }
 
         function displayBulkAssets() {
@@ -26127,9 +26214,10 @@
             tbody.innerHTML = bulkFilteredAssets.map(a => {
                 const checked = bulkSelectedIds.has(a.id) ? 'checked' : '';
                 const rowBg = bulkSelectedIds.has(a.id) ? 'background: rgba(142,68,173,0.08);' : '';
+                const bosTag = a.bosAsset ? ' <span style="display:inline-block;background:#2980b9;color:white;font-size:0.7rem;padding:1px 5px;border-radius:3px;vertical-align:middle;">BOS</span>' : '';
                 return `<tr style="${rowBg}">
                     <td style="padding:8px; text-align:center;"><input type="checkbox" class="bulk-row-cb" data-id="${a.id}" ${checked} onchange="bulkToggleRow(this)" style="width:17px;height:17px;cursor:pointer;"></td>
-                    <td style="padding:8px;">${a.assetCode || 'N/A'}</td>
+                    <td style="padding:8px;">${a.assetCode || 'N/A'}${bosTag}</td>
                     <td style="padding:8px;">${a.description || 'N/A'}</td>
                     <td style="padding:8px;">${a.department || 'N/A'}</td>
                     <td style="padding:8px;">${a.category || '<em style="color:#e74c3c;">Uncategorized</em>'}</td>
@@ -26180,7 +26268,9 @@
         function updateBulkSelectedCount() {
             const el = document.getElementById('bulkSelectedCount');
             if (el) {
-                el.textContent = `${bulkSelectedIds.size} of ${bulkFilteredAssets.length} assets selected`;
+                const bosCount = bulkFilteredAssets.filter(a => a.bosAsset).length;
+                const bosInfo = bosCount > 0 ? ` (${bosCount} BOS)` : '';
+                el.textContent = `${bulkSelectedIds.size} of ${bulkFilteredAssets.length} assets selected${bosInfo}`;
             }
         }
 
