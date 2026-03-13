@@ -6588,6 +6588,27 @@
                             <option value="declining">Declining Balance</option>
                         </select>
                     </div>
+                    <!-- Auto-Calculated Depreciation Preview -->
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            Depreciation Preview
+                            <span style="font-weight: normal; font-size: 0.8em; color: var(--primary-green);">(auto-calculated)</span>
+                        </label>
+                        <div id="deprPreviewPanel" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 12px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Annual Depreciation</div>
+                                <div id="deprPreviewAnnual" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-orange);">—</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Monthly Depreciation</div>
+                                <div id="deprPreviewMonthly" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-orange);">—</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Current Book Value</div>
+                                <div id="deprPreviewBookValue" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-green);">—</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label for="assetComment">Comment</label>
                         <textarea id="assetComment" rows="2" placeholder="Add any notes or comments about this asset..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical;"></textarea>
@@ -8943,6 +8964,9 @@
                 <button class="bulk-tab-btn" onclick="switchBulkTab('assetcode')" id="bulkTabAssetcode" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🔄 Bulk Asset Code
                 </button>
+                <button class="bulk-tab-btn" onclick="switchBulkTab('comment')" id="bulkTabComment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                    💬 Bulk Comment
+                </button>
             </div>
 
             <!-- Bulk Asset Selection (shared) -->
@@ -9126,6 +9150,28 @@
                         <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border-color); max-height: 200px; overflow-y: auto;">
                             <h4 style="margin-bottom: 8px; color: var(--text-primary); font-size: 0.9rem;">Preview of Changes:</h4>
                             <div id="bulkAssetCodePreviewList" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Comment Panel -->
+            <div id="bulkCommentPanel" style="display: none;">
+                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: var(--text-primary);">💬 Set Comment for Selected Assets</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 300px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Comment:</label>
+                            <textarea id="bulkCommentText" rows="3" placeholder="Enter comment to apply to selected assets..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="bulkCommentAppend" style="width: 16px; height: 16px;">
+                                Append to existing comments
+                            </label>
+                            <button onclick="applyBulkComment()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                                Apply Comment to Selected
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -14378,6 +14424,11 @@
                 window._resetSalvageAutoCalc(hasManualSalvage);
             }
 
+            // Update depreciation preview with current form values
+            if (typeof window._updateDeprPreview === 'function') {
+                window._updateDeprPreview();
+            }
+
             modal.style.display = 'block';
         }
 
@@ -14648,6 +14699,80 @@
                 if (salvageHint) salvageHint.textContent = isManual ? '(manual)' : '';
                 if (!isManual) autoCalcSalvage();
             };
+
+            // ── Auto-calculate depreciation preview in asset form ──
+            const deprPreviewAnnual = document.getElementById('deprPreviewAnnual');
+            const deprPreviewMonthly = document.getElementById('deprPreviewMonthly');
+            const deprPreviewBookValue = document.getElementById('deprPreviewBookValue');
+            const dateInInput = document.getElementById('dateIn');
+            const usefulLifeInput = document.getElementById('assetUsefulLife');
+            const deprMethodSelect = document.getElementById('assetDepreciationMethod');
+
+            function updateDeprPreview() {
+                const cost = parseFloat(totalPriceInput?.value) || 0;
+                const life = parseFloat(usefulLifeInput?.value) || 0;
+                const salvage = parseFloat(salvageInput?.value) || 0;
+                const method = deprMethodSelect?.value || 'straight';
+
+                if (!cost || !life || life <= 0) {
+                    if (deprPreviewAnnual) deprPreviewAnnual.textContent = '—';
+                    if (deprPreviewMonthly) deprPreviewMonthly.textContent = '—';
+                    if (deprPreviewBookValue) deprPreviewBookValue.textContent = '—';
+                    return;
+                }
+
+                // Calculate years elapsed since dateIn
+                let yearsElapsed = 0;
+                const dateInVal = dateInInput?.value;
+                if (dateInVal) {
+                    const dateIn = new Date(dateInVal);
+                    if (!isNaN(dateIn.getTime())) {
+                        yearsElapsed = Math.max(0, (new Date() - dateIn) / (1000 * 60 * 60 * 24 * 365.25));
+                    }
+                }
+
+                let annual, monthly, bookValue;
+                if (method === 'straight') {
+                    annual = (cost - salvage) / life;
+                    monthly = annual / 12;
+                    const totalDepr = Math.min(annual * yearsElapsed, cost - salvage);
+                    bookValue = Math.max(cost - totalDepr, salvage);
+                } else {
+                    // Declining balance
+                    const rate = 2 / life;
+                    bookValue = cost;
+                    const fullYears = Math.floor(yearsElapsed);
+                    const partialYear = yearsElapsed - fullYears;
+                    for (let y = 0; y < Math.min(fullYears, life); y++) {
+                        const depr = Math.min(bookValue * rate, bookValue - salvage);
+                        bookValue -= depr;
+                    }
+                    if (partialYear > 0 && fullYears < life) {
+                        const depr = Math.min(bookValue * rate * partialYear, bookValue - salvage);
+                        bookValue -= depr;
+                    }
+                    annual = Math.min(bookValue * rate, bookValue - salvage);
+                    monthly = annual / 12;
+                    bookValue = Math.max(bookValue, salvage);
+                }
+
+                if (deprPreviewAnnual) deprPreviewAnnual.textContent = 'JMD ' + formatCurrency(annual);
+                if (deprPreviewMonthly) deprPreviewMonthly.textContent = 'JMD ' + formatCurrency(monthly);
+                if (deprPreviewBookValue) deprPreviewBookValue.textContent = 'JMD ' + formatCurrency(bookValue);
+            }
+
+            // Trigger depreciation preview on relevant field changes
+            [quantityInput, unitPriceInput, totalPriceInput].forEach(function(el) {
+                if (el) el.addEventListener('input', updateDeprPreview);
+            });
+            if (dateInInput) dateInInput.addEventListener('change', updateDeprPreview);
+            if (usefulLifeInput) usefulLifeInput.addEventListener('input', updateDeprPreview);
+            if (salvageInput) salvageInput.addEventListener('input', updateDeprPreview);
+            if (deprMethodSelect) deprMethodSelect.addEventListener('change', updateDeprPreview);
+            if (categorySelect) categorySelect.addEventListener('change', updateDeprPreview);
+
+            // Expose for modal open/close to refresh preview
+            window._updateDeprPreview = updateDeprPreview;
 
             // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
@@ -26318,14 +26443,15 @@
         }
 
         function switchBulkTab(tab) {
-            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department', 'assetcode'];
+            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department', 'assetcode', 'comment'];
             const panelIds = {
                 pricing: 'bulkPricingPanel',
                 category: 'bulkCategoryPanel',
                 depreciation: 'bulkDepreciationPanel',
                 date: 'bulkDatePanel',
                 department: 'bulkDepartmentPanel',
-                assetcode: 'bulkAssetcodePanel'
+                assetcode: 'bulkAssetcodePanel',
+                comment: 'bulkCommentPanel'
             };
             const tabIds = {
                 pricing: 'bulkTabPricing',
@@ -26333,7 +26459,8 @@
                 depreciation: 'bulkTabDepreciation',
                 date: 'bulkTabDate',
                 department: 'bulkTabDepartment',
-                assetcode: 'bulkTabAssetcode'
+                assetcode: 'bulkTabAssetcode',
+                comment: 'bulkTabComment'
             };
             tabs.forEach(t => {
                 document.getElementById(panelIds[t]).style.display = t === tab ? 'block' : 'none';
@@ -26493,6 +26620,38 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
             alert(`✅ Department updated for ${updated} asset(s)!`);
+            refreshAllViews();
+        }
+
+        function applyBulkComment() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const comment = document.getElementById('bulkCommentText').value.trim();
+            if (!comment) {
+                alert('Please enter a comment.');
+                return;
+            }
+            const append = document.getElementById('bulkCommentAppend').checked;
+            const action = append ? 'Append comment to' : 'Set comment for';
+            if (!confirm(`${action} ${bulkSelectedIds.size} asset(s)?\n\nComment: "${comment}"`)) return;
+
+            let assets = loadAssetsFromStorage();
+            let updated = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id)) {
+                    if (append && a.comment) {
+                        a.comment = a.comment.trim() + '\n' + comment;
+                    } else {
+                        a.comment = comment;
+                    }
+                    updated++;
+                }
+            });
+            saveAssetsToStorage(assets);
+            addAuditEntry('BULK', 'Bulk Comment', '', `${append ? 'Appended' : 'Set'} comment for ${updated} assets`);
+            alert(`✅ Comment ${append ? 'appended to' : 'set for'} ${updated} asset(s)!`);
             refreshAllViews();
         }
 
