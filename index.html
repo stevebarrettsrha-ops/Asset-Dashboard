@@ -24892,7 +24892,10 @@
 
         // Populate category report filter dropdown
         function populateCategoryReportFilter() {
-            const categories = [...new Set(assetRegisterData.map(a => a.category).filter(Boolean))].sort();
+            // Merge defined categories with categories actually used by assets
+            const definedCategories = loadCategories();
+            const usedCategories = assetRegisterData.map(a => a.category).filter(Boolean);
+            const categories = [...new Set([...definedCategories, ...usedCategories])].sort();
             const select = document.getElementById('categoryReportFilter');
             if (!select) return;
             select.innerHTML = '<option value="">All Categories</option>' +
@@ -25206,6 +25209,7 @@
                             <td>${commentHtml}</td>
                             <td style="white-space: nowrap;">
                                 ${disposed ? `<button class="btn-delete-inline" onclick="reverseDisposalByAssetCode('${escapeHtml(asset.assetCode)}')" title="Reverse Disposal - Mark as Not Disposed" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; margin-right: 4px;">↩️</button>` : ''}
+                                <button class="btn-delete-inline" onclick="viewAssetDetails('${asset.id}')" title="Edit Asset" style="background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; margin-right: 4px;">✏️</button>
                                 <button class="btn-delete-inline" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="background: #e3f2fd; color: #1976D2; border: 1px solid #90CAF9; margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
                             </td>
@@ -26445,8 +26449,15 @@
             const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
 
-            // Group assets by category
+            // Group assets by category - include ALL defined categories
             let categoryGroups = {};
+            const allDefinedCategories = loadCategories();
+            // Pre-populate with all defined categories so empty ones appear in the report
+            allDefinedCategories.forEach(cat => {
+                if (!categoryFilter || cat === categoryFilter) {
+                    categoryGroups[cat] = [];
+                }
+            });
             allAssets.forEach(a => {
                 const cat = a.category || 'Uncategorized';
                 if (categoryFilter && cat !== categoryFilter) return;
