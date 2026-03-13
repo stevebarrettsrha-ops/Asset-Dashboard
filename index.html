@@ -6588,6 +6588,27 @@
                             <option value="declining">Declining Balance</option>
                         </select>
                     </div>
+                    <!-- Auto-Calculated Depreciation Preview -->
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                            Depreciation Preview
+                            <span style="font-weight: normal; font-size: 0.8em; color: var(--primary-green);">(auto-calculated)</span>
+                        </label>
+                        <div id="deprPreviewPanel" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 12px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Annual Depreciation</div>
+                                <div id="deprPreviewAnnual" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-orange);">—</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Monthly Depreciation</div>
+                                <div id="deprPreviewMonthly" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-orange);">—</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Current Book Value</div>
+                                <div id="deprPreviewBookValue" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-green);">—</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-group" style="grid-column: 1 / -1;">
                         <label for="assetComment">Comment</label>
                         <textarea id="assetComment" rows="2" placeholder="Add any notes or comments about this asset..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical;"></textarea>
@@ -14363,6 +14384,11 @@
                 window._resetSalvageAutoCalc(hasManualSalvage);
             }
 
+            // Update depreciation preview with current form values
+            if (typeof window._updateDeprPreview === 'function') {
+                window._updateDeprPreview();
+            }
+
             modal.style.display = 'block';
         }
 
@@ -14633,6 +14659,80 @@
                 if (salvageHint) salvageHint.textContent = isManual ? '(manual)' : '';
                 if (!isManual) autoCalcSalvage();
             };
+
+            // ── Auto-calculate depreciation preview in asset form ──
+            const deprPreviewAnnual = document.getElementById('deprPreviewAnnual');
+            const deprPreviewMonthly = document.getElementById('deprPreviewMonthly');
+            const deprPreviewBookValue = document.getElementById('deprPreviewBookValue');
+            const dateInInput = document.getElementById('dateIn');
+            const usefulLifeInput = document.getElementById('assetUsefulLife');
+            const deprMethodSelect = document.getElementById('assetDepreciationMethod');
+
+            function updateDeprPreview() {
+                const cost = parseFloat(totalPriceInput?.value) || 0;
+                const life = parseFloat(usefulLifeInput?.value) || 0;
+                const salvage = parseFloat(salvageInput?.value) || 0;
+                const method = deprMethodSelect?.value || 'straight';
+
+                if (!cost || !life || life <= 0) {
+                    if (deprPreviewAnnual) deprPreviewAnnual.textContent = '—';
+                    if (deprPreviewMonthly) deprPreviewMonthly.textContent = '—';
+                    if (deprPreviewBookValue) deprPreviewBookValue.textContent = '—';
+                    return;
+                }
+
+                // Calculate years elapsed since dateIn
+                let yearsElapsed = 0;
+                const dateInVal = dateInInput?.value;
+                if (dateInVal) {
+                    const dateIn = new Date(dateInVal);
+                    if (!isNaN(dateIn.getTime())) {
+                        yearsElapsed = Math.max(0, (new Date() - dateIn) / (1000 * 60 * 60 * 24 * 365.25));
+                    }
+                }
+
+                let annual, monthly, bookValue;
+                if (method === 'straight') {
+                    annual = (cost - salvage) / life;
+                    monthly = annual / 12;
+                    const totalDepr = Math.min(annual * yearsElapsed, cost - salvage);
+                    bookValue = Math.max(cost - totalDepr, salvage);
+                } else {
+                    // Declining balance
+                    const rate = 2 / life;
+                    bookValue = cost;
+                    const fullYears = Math.floor(yearsElapsed);
+                    const partialYear = yearsElapsed - fullYears;
+                    for (let y = 0; y < Math.min(fullYears, life); y++) {
+                        const depr = Math.min(bookValue * rate, bookValue - salvage);
+                        bookValue -= depr;
+                    }
+                    if (partialYear > 0 && fullYears < life) {
+                        const depr = Math.min(bookValue * rate * partialYear, bookValue - salvage);
+                        bookValue -= depr;
+                    }
+                    annual = Math.min(bookValue * rate, bookValue - salvage);
+                    monthly = annual / 12;
+                    bookValue = Math.max(bookValue, salvage);
+                }
+
+                if (deprPreviewAnnual) deprPreviewAnnual.textContent = 'JMD ' + formatCurrency(annual);
+                if (deprPreviewMonthly) deprPreviewMonthly.textContent = 'JMD ' + formatCurrency(monthly);
+                if (deprPreviewBookValue) deprPreviewBookValue.textContent = 'JMD ' + formatCurrency(bookValue);
+            }
+
+            // Trigger depreciation preview on relevant field changes
+            [quantityInput, unitPriceInput, totalPriceInput].forEach(function(el) {
+                if (el) el.addEventListener('input', updateDeprPreview);
+            });
+            if (dateInInput) dateInInput.addEventListener('change', updateDeprPreview);
+            if (usefulLifeInput) usefulLifeInput.addEventListener('input', updateDeprPreview);
+            if (salvageInput) salvageInput.addEventListener('input', updateDeprPreview);
+            if (deprMethodSelect) deprMethodSelect.addEventListener('change', updateDeprPreview);
+            if (categorySelect) categorySelect.addEventListener('change', updateDeprPreview);
+
+            // Expose for modal open/close to refresh preview
+            window._updateDeprPreview = updateDeprPreview;
 
             // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
