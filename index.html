@@ -9538,7 +9538,7 @@
         }
 
         // Complete the login process (after password verification and optional 2FA)
-        function completeLogin(user) {
+        async function completeLogin(user) {
             currentUser = user;
             console.log('Completing login for:', user.username);
 
@@ -9583,6 +9583,9 @@
 
                 // Initialize charts
                 initializeCharts();
+
+                // Ensure IndexedDB is ready before loading data
+                await _idbInitPromise;
 
                 // Load data
                 loadData();
@@ -11065,12 +11068,12 @@
                     data: {
                         assets: loadAssetsFromStorage(),
                         qrCodeRegistry: loadQRRegistry(),
-                        auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
+                        auditTrail: loadAuditFromStorage(),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-                        disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
-                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
-                        disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
+                        disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
+                        deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
+                        disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -11138,7 +11141,7 @@
             // Merge deleted asset IDs from cloud (so deletions sync across clients)
             if (cloudDataObj.deletedAssetIds && cloudDataObj.deletedAssetIds.length > 0) {
                 cloudDataObj.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
 
                 // Remove any locally present assets that were deleted on another client
                 let localAssets = loadAssetsFromStorage();
@@ -11181,7 +11184,7 @@
 
             // Merge audit trail by ID
             if (cloudDataObj.auditTrail && cloudDataObj.auditTrail.length > 0) {
-                const localAudit = JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]');
+                const localAudit = loadAuditFromStorage();
                 const localAuditIds = new Set(localAudit.map(a => a.id).filter(Boolean));
                 let added = 0;
                 cloudDataObj.auditTrail.forEach(entry => {
@@ -11193,7 +11196,7 @@
                 });
                 if (added > 0) {
                     localAudit.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(localAudit));
+                    saveAuditToStorage(localAudit);
                     dataChanged = true;
                 }
             }
@@ -11258,9 +11261,9 @@
 
             // Merge disposal records by ID (skip locally deleted records)
             if (cloudDataObj.disposalRecords && cloudDataObj.disposalRecords.length > 0) {
-                const localDisposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                const localDisposals = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                 const localDisposalIds = new Set(localDisposals.map(d => d.id).filter(Boolean));
-                const deletedIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                const deletedIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                 let added = 0;
                 cloudDataObj.disposalRecords.forEach(record => {
                     if (record.id && !localDisposalIds.has(record.id) && !deletedIds.has(record.id)) {
@@ -11271,14 +11274,14 @@
                 });
                 if (added > 0) {
                     localDisposals.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(localDisposals));
+                    _dbSet(DISPOSAL_STORAGE_KEY, localDisposals);
                     dataChanged = true;
                 }
             }
 
             // Merge disposal deleted IDs from cloud (so deletions sync across clients)
             if (cloudDataObj.disposalDeletedIds && cloudDataObj.disposalDeletedIds.length > 0) {
-                const localDeletedIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                const localDeletedIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                 let added = 0;
                 cloudDataObj.disposalDeletedIds.forEach(id => {
                     if (!localDeletedIds.has(id)) {
@@ -11287,12 +11290,12 @@
                     }
                 });
                 if (added > 0) {
-                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDeletedIds]));
+                    _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDeletedIds]);
                     // Remove any locally present records that were deleted on another client
-                    const localDisposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                    const localDisposals = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                     const filtered = localDisposals.filter(d => !localDeletedIds.has(d.id));
                     if (filtered.length < localDisposals.length) {
-                        localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filtered));
+                        _dbSet(DISPOSAL_STORAGE_KEY, filtered);
                         dataChanged = true;
                     }
                 }
@@ -11426,12 +11429,12 @@
                     data: {
                         assets: loadAssetsFromStorage(),
                         qrCodeRegistry: loadQRRegistry(),
-                        auditTrail: JSON.parse(localStorage.getItem(AUDIT_STORAGE_KEY) || '[]'),
+                        auditTrail: loadAuditFromStorage(),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
                         categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-                        disposalRecords: JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]'),
-                        deletedAssetIds: JSON.parse(localStorage.getItem(ASSET_DELETED_IDS_KEY) || '[]'),
-                        disposalDeletedIds: JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'),
+                        disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
+                        deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
+                        disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         localUserSettings: localUserSettings
@@ -11553,7 +11556,7 @@
                 // Merge deleted asset IDs from cloud
                 if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
                     backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                    _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
                 }
 
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
@@ -11573,7 +11576,7 @@
 
                 // Restore audit trail
                 if (backupData.data.auditTrail) {
-                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                    saveAuditToStorage(backupData.data.auditTrail);
                 }
 
                 // Restore departments
@@ -11588,17 +11591,17 @@
 
                 // Restore disposal deleted IDs (merge cloud + local)
                 if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
-                    const localDelIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const localDelIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                     backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
-                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDelIds]));
+                    _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDelIds]);
                     disposalDeletedIds = localDelIds;
                 }
 
                 // Restore disposal records (filtering out deleted ones)
                 if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                    const delIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const delIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                     const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filteredRecs));
+                    _dbSet(DISPOSAL_STORAGE_KEY, filteredRecs);
                     disposalRecords = filteredRecs;
                 }
 
@@ -11765,7 +11768,7 @@
                 // Merge deleted asset IDs from cloud
                 if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
                     backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                    _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
                 }
 
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
@@ -11785,7 +11788,7 @@
 
                 // Restore audit trail
                 if (backupData.data.auditTrail) {
-                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                    saveAuditToStorage(backupData.data.auditTrail);
                 }
 
                 // Restore departments
@@ -12024,7 +12027,7 @@
                 // Merge deleted asset IDs from cloud
                 if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
                     backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                    localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+                    _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
                 }
 
                 if (backupData.data.assets && backupData.data.assets.length > 0) {
@@ -12044,7 +12047,7 @@
 
                 // Restore audit trail
                 if (backupData.data.auditTrail) {
-                    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(backupData.data.auditTrail));
+                    saveAuditToStorage(backupData.data.auditTrail);
                 }
 
                 // Restore departments
@@ -12059,17 +12062,17 @@
 
                 // Restore disposal deleted IDs (merge cloud + local)
                 if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
-                    const localDelIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const localDelIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                     backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
-                    localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...localDelIds]));
+                    _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDelIds]);
                     disposalDeletedIds = localDelIds;
                 }
 
                 // Restore disposal records (filtering out deleted ones)
                 if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                    const delIds = new Set(JSON.parse(localStorage.getItem(DISPOSAL_DELETED_IDS_KEY) || '[]'));
+                    const delIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
                     const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filteredRecs));
+                    _dbSet(DISPOSAL_STORAGE_KEY, filteredRecs);
                     disposalRecords = filteredRecs;
                 }
 
@@ -12646,9 +12649,138 @@
         const STORAGE_KEY = 'assetInventoryData';
         const ASSET_DELETED_IDS_KEY = 'assetDeletedIds';
         const AUDIT_STORAGE_KEY = 'assetAuditTrail';
-        let deletedAssetIds = new Set(JSON.parse(localStorage.getItem('assetDeletedIds') || '[]'));
+        // Initially empty; populated by _initializeIDB() from IndexedDB (or localStorage fallback)
+        let deletedAssetIds = new Set();
         const DEPARTMENTS_STORAGE_KEY = 'customDepartments';
         const CATEGORIES_STORAGE_KEY = 'customCategories';
+
+        // ============================================
+        // INDEXEDDB STORAGE LAYER
+        // ============================================
+        // Large data stores use IndexedDB instead of localStorage to avoid
+        // the ~5-10 MB quota limit. Data is kept in an in-memory cache for
+        // synchronous access and persisted to IndexedDB asynchronously.
+
+        const IDB_NAME = 'AssetDashboardDB';
+        const IDB_VERSION = 1;
+        const IDB_STORE = 'appData';
+
+        // Keys that use IndexedDB (large/growing data)
+        const IDB_KEYS = new Set([
+            STORAGE_KEY,
+            AUDIT_STORAGE_KEY,
+            ASSET_DELETED_IDS_KEY,
+            'assetDisposalRecords',
+            'assetDisposalDeletedIds'
+        ]);
+
+        // In-memory cache for IndexedDB-backed data
+        const _dbCache = {};
+        let _idbReady = false;
+
+        function _openIDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IDB_STORE)) {
+                        db.createObjectStore(IDB_STORE);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function _idbGet(key) {
+            return _openIDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB_STORE, 'readonly');
+                const store = tx.objectStore(IDB_STORE);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+                tx.oncomplete = () => db.close();
+            }));
+        }
+
+        function _idbSet(key, value) {
+            return _openIDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB_STORE, 'readwrite');
+                const store = tx.objectStore(IDB_STORE);
+                store.put(value, key);
+                tx.oncomplete = () => { db.close(); resolve(); };
+                tx.onerror = () => { db.close(); reject(tx.error); };
+            }));
+        }
+
+        // Initialize: load large data from IndexedDB, migrate from localStorage if needed
+        async function _initializeIDB() {
+            try {
+                for (const key of IDB_KEYS) {
+                    let data = await _idbGet(key);
+                    if (data === undefined || data === null) {
+                        // Migrate from localStorage on first run
+                        const lsData = localStorage.getItem(key);
+                        if (lsData) {
+                            try {
+                                data = JSON.parse(lsData);
+                                await _idbSet(key, data);
+                                localStorage.removeItem(key); // Free localStorage space
+                                console.log(`[IDB] Migrated "${key}" from localStorage to IndexedDB`);
+                            } catch (e) {
+                                console.error(`[IDB] Failed to migrate "${key}":`, e);
+                                data = [];
+                            }
+                        }
+                    }
+                    _dbCache[key] = data || [];
+                }
+                _idbReady = true;
+                console.log('[IDB] IndexedDB storage initialized');
+
+                // Re-initialize deletedAssetIds from the migrated cache
+                deletedAssetIds = new Set(_dbCache[ASSET_DELETED_IDS_KEY] || []);
+            } catch (error) {
+                console.error('[IDB] IndexedDB init failed, falling back to localStorage:', error);
+                for (const key of IDB_KEYS) {
+                    try {
+                        const data = localStorage.getItem(key);
+                        _dbCache[key] = data ? JSON.parse(data) : [];
+                    } catch (e) {
+                        _dbCache[key] = [];
+                    }
+                }
+                _idbReady = true;
+            }
+        }
+
+        // Synchronous read from in-memory cache
+        function _dbGet(key) {
+            if (_dbCache[key] !== undefined) return _dbCache[key];
+            // Fallback for pre-init reads
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        // Synchronous write to cache + async persist to IndexedDB
+        function _dbSet(key, value) {
+            _dbCache[key] = value;
+            if (_idbReady) {
+                _idbSet(key, value).catch(err => {
+                    console.error(`[IDB] Write error for "${key}":`, err);
+                    // Fallback: try localStorage
+                    try {
+                        localStorage.setItem(key, JSON.stringify(value));
+                    } catch (lsErr) {
+                        console.error(`[IDB] localStorage fallback also failed for "${key}":`, lsErr);
+                    }
+                });
+            }
+        }
 
         // Default categories
         const DEFAULT_CATEGORIES = [
@@ -13548,44 +13680,40 @@
 
         function loadAssetsFromStorage() {
             try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    let assets = JSON.parse(stored);
-                    if (Array.isArray(assets)) {
-                        // Filter out any assets that have been deleted
-                        if (deletedAssetIds && deletedAssetIds.size > 0) {
-                            const beforeCount = assets.length;
-                            assets = assets.filter(a => !a.id || !deletedAssetIds.has(a.id));
-                            // If we filtered some out, persist the cleaned list back to storage
-                            if (assets.length < beforeCount) {
-                                localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
-                            }
+                let assets = _dbGet(STORAGE_KEY);
+                if (Array.isArray(assets)) {
+                    // Filter out any assets that have been deleted
+                    if (deletedAssetIds && deletedAssetIds.size > 0) {
+                        const beforeCount = assets.length;
+                        assets = assets.filter(a => !a.id || !deletedAssetIds.has(a.id));
+                        // If we filtered some out, persist the cleaned list back to storage
+                        if (assets.length < beforeCount) {
+                            _dbSet(STORAGE_KEY, assets);
                         }
-                        // Normalize all date formats to DD-MMM-YYYY
-                        assets.forEach(asset => {
-                            if (asset.dateIn) {
-                                asset.dateIn = normalizeDateToDisplay(asset.dateIn);
-                            }
-                        });
-                        return assets;
                     }
-                    return [];
+                    // Normalize all date formats to DD-MMM-YYYY
+                    assets.forEach(asset => {
+                        if (asset.dateIn) {
+                            asset.dateIn = normalizeDateToDisplay(asset.dateIn);
+                        }
+                    });
+                    return assets;
                 }
                 return [];
             } catch (error) {
-                console.error('Error loading from localStorage:', error);
+                console.error('Error loading assets:', error);
                 return [];
             }
         }
 
-        // Save assets to localStorage
+        // Save assets to IndexedDB (via in-memory cache)
         function saveAssetsToStorage(assets) {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(assets));
+                _dbSet(STORAGE_KEY, assets);
                 return true;
             } catch (error) {
-                console.error('Error saving to localStorage:', error);
-                alert('⚠️ Error saving data. Storage may be full.');
+                console.error('Error saving assets:', error);
+                alert('⚠️ Error saving data: ' + error.message);
                 return false;
             }
         }
@@ -13593,7 +13721,7 @@
         // Track deleted asset IDs so cloud sync doesn't re-add them
         function trackDeletedAssetIds(ids) {
             ids.forEach(id => { if (id) deletedAssetIds.add(id); });
-            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+            _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
         }
 
         // Generate unique ID for assets
@@ -13601,28 +13729,24 @@
             return 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
-        // Load audit trail from localStorage
+        // Load audit trail from IndexedDB cache
         function loadAuditFromStorage() {
             try {
-                const stored = localStorage.getItem(AUDIT_STORAGE_KEY);
-                if (stored) {
-                    const audit = JSON.parse(stored);
-                    return Array.isArray(audit) ? audit : [];
-                }
-                return [];
+                const audit = _dbGet(AUDIT_STORAGE_KEY);
+                return Array.isArray(audit) ? audit : [];
             } catch (error) {
-                console.error('Error loading audit from localStorage:', error);
+                console.error('Error loading audit:', error);
                 return [];
             }
         }
 
-        // Save audit trail to localStorage
+        // Save audit trail to IndexedDB (via in-memory cache)
         function saveAuditToStorage(auditRecords) {
             try {
-                localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(auditRecords));
+                _dbSet(AUDIT_STORAGE_KEY, auditRecords);
                 return true;
             } catch (error) {
-                console.error('Error saving audit to localStorage:', error);
+                console.error('Error saving audit:', error);
                 return false;
             }
         }
@@ -14190,6 +14314,9 @@
         }
 
         // Auto-calculate total price
+        // Start IndexedDB initialization as early as possible
+        const _idbInitPromise = _initializeIDB();
+
         document.addEventListener('DOMContentLoaded', function() {
             const quantityInput = document.getElementById('quantity');
             const unitPriceInput = document.getElementById('unitPrice');
@@ -22687,13 +22814,13 @@
         const DISPOSAL_DELETED_IDS_KEY = 'assetDisposalDeletedIds';
         let disposalRecords = [];
         let filteredDisposalRecords = [];
-        let disposalDeletedIds = new Set(JSON.parse(localStorage.getItem('assetDisposalDeletedIds') || '[]'));
+        let disposalDeletedIds = new Set(_dbGet(DISPOSAL_DELETED_IDS_KEY) || []);
         let currentEditingDisposal = null;
 
         // Load disposal records from localStorage
         function loadDisposalRecords() {
             try {
-                disposalRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                disposalRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                 filteredDisposalRecords = [...disposalRecords];
                 updateDisposalStats();
                 displayDisposalRecords();
@@ -22706,7 +22833,7 @@
 
         // Save disposal records to localStorage
         function saveDisposalRecords() {
-            localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(disposalRecords));
+            _dbSet(DISPOSAL_STORAGE_KEY, disposalRecords);
         }
 
         // Update disposal statistics
@@ -22948,7 +23075,7 @@
         // Track deleted disposal IDs so auto-sync doesn't re-add them from cloud
         function trackDeletedDisposalIds(ids) {
             ids.forEach(id => disposalDeletedIds.add(id));
-            localStorage.setItem(DISPOSAL_DELETED_IDS_KEY, JSON.stringify([...disposalDeletedIds]));
+            _dbSet(DISPOSAL_DELETED_IDS_KEY, [...disposalDeletedIds]);
         }
 
         // Delete disposal record
@@ -23095,7 +23222,7 @@
         // Sync main asset edits to Board of Survey disposal records
         function syncMainAssetToDisposals(updatedAsset, previousAsset) {
             try {
-                let disposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                let disposals = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                 let changed = false;
 
                 disposals.forEach(record => {
@@ -23130,7 +23257,7 @@
                 });
 
                 if (changed) {
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(disposals));
+                    _dbSet(DISPOSAL_STORAGE_KEY, disposals);
                     // Update in-memory disposal records if they exist
                     if (typeof disposalRecords !== 'undefined') {
                         disposalRecords = disposals;
@@ -23145,7 +23272,7 @@
         // Remove disposal records when an asset is deleted from the main dashboard
         function removeDisposalRecordsForAsset(assetCode, assetId) {
             try {
-                let disposals = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+                let disposals = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
                 const removedIds = [];
 
                 const filtered = disposals.filter(record => {
@@ -23159,7 +23286,7 @@
                 });
 
                 if (removedIds.length > 0) {
-                    localStorage.setItem(DISPOSAL_STORAGE_KEY, JSON.stringify(filtered));
+                    _dbSet(DISPOSAL_STORAGE_KEY, filtered);
                     trackDeletedDisposalIds(removedIds);
                     // Update in-memory disposal records if they exist
                     if (typeof disposalRecords !== 'undefined') {
@@ -24698,13 +24825,13 @@
 
         // Check if an asset is disposed
         function isAssetDisposed(assetCode) {
-            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             return disposedRecords.some(record => record.assetCode === assetCode);
         }
 
         // Get disposal info for an asset
         function getDisposalInfo(assetCode) {
-            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             return disposedRecords.find(record => record.assetCode === assetCode);
         }
 
@@ -25271,7 +25398,7 @@
             const hospitalName = getHospitalName();
 
             // Get disposal records to check status
-            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
 
             // Calculate totals (sum quantities to be consistent with dashboard KPIs)
@@ -26038,7 +26165,7 @@
             secIds.forEach(id => {
                 deletedAssetIds.add(id);
             });
-            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+            _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
 
             addAuditEntry(primary.assetCode, 'Merge', primary.department || '-', `Merged ${secondaries.length} duplicate(s) into this asset`);
 
@@ -26102,7 +26229,7 @@
             deleteIds.forEach(id => {
                 deletedAssetIds.add(id);
             });
-            localStorage.setItem(ASSET_DELETED_IDS_KEY, JSON.stringify([...deletedAssetIds]));
+            _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
         }
 
         function ignoreGroup(groupIndex) {
@@ -26128,7 +26255,7 @@
         function printCategoryReport() {
             const categoryFilter = document.getElementById('categoryReportFilter').value;
             const allAssets = loadAssetsFromStorage();
-            const disposedRecords = JSON.parse(localStorage.getItem(DISPOSAL_STORAGE_KEY) || '[]');
+            const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
 
             // Group assets by category
