@@ -26166,7 +26166,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Pricing', '-', `Set unit price JMD ${formatCurrency(price)} for ${updated} assets`);
             alert(`✅ Price updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkCategory() {
@@ -26192,7 +26192,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Category', '-', `Set category "${category}" for ${updated} assets`);
             alert(`✅ Category updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDepreciation() {
@@ -26233,7 +26233,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, ${salvageDesc} salvage for ${updated} assets`);
             alert(`✅ Depreciation updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDate() {
@@ -26267,7 +26267,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Date', '-', `Set ${desc} for ${updated} assets`);
             alert(`✅ Date updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDepartment() {
@@ -26293,7 +26293,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
             alert(`✅ Department updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         // ============================================
