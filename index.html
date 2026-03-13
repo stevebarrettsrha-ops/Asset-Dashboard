@@ -14444,35 +14444,7 @@
 
             saveAssetsToStorage(assets);
             closeAssetModal();
-            loadData(); // Refresh main dashboard display
-
-            // Sync with Monthly Breakdown
-            if (typeof displayMonthlyBreakdown === 'function') {
-                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
-            }
-
-            // Sync with Asset Register Card Data
-            if (typeof loadAssetRegister === 'function') {
-                loadAssetRegister(); // Refresh Asset Register to sync data
-            }
-
-            // Sync with Board of Survey display
-            if (typeof loadDisposalRecords === 'function') {
-                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
-            }
-
-            // Sync with Bulk Categories
-            if (typeof loadBulkCategoriesPage === 'function') {
-                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
-            }
-
-            // Re-scan duplicates if the Duplicates Tracker page is active
-            if (typeof scanForDuplicates === 'function') {
-                const page11 = document.getElementById('page11');
-                if (page11 && page11.classList.contains('active')) {
-                    try { scanForDuplicates(); } catch(e) { console.error('Error refreshing duplicates:', e); }
-                }
-            }
+            refreshAllViews();
         }
 
         function deleteCurrentAsset() {
@@ -14493,27 +14465,7 @@
 
             alert('✅ Asset deleted successfully!');
             closeAssetModal();
-            loadData(); // Refresh main dashboard display
-
-            // Sync with Monthly Breakdown
-            if (typeof displayMonthlyBreakdown === 'function') {
-                try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
-            }
-
-            // Sync with Asset Register Card Data
-            if (typeof loadAssetRegister === 'function') {
-                loadAssetRegister(); // Refresh Asset Register to sync data
-            }
-
-            // Sync with Board of Survey display
-            if (typeof loadDisposalRecords === 'function') {
-                try { loadDisposalRecords(); } catch(e) { console.error('Error refreshing disposal records:', e); }
-            }
-
-            // Sync with Bulk Categories
-            if (typeof loadBulkCategoriesPage === 'function') {
-                try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
-            }
+            refreshAllViews();
         }
 
         // Auto-calculate total price
@@ -25665,6 +25617,13 @@
             // Refresh Bulk Categories
             if (typeof loadBulkCategoriesPage === 'function') {
                 try { loadBulkCategoriesPage(); } catch(e) { console.error('Error refreshing bulk categories:', e); }
+            }
+            // Refresh Duplicates Tracker if active
+            if (typeof scanForDuplicates === 'function') {
+                const page11 = document.getElementById('page11');
+                if (page11 && page11.classList.contains('active')) {
+                    try { scanForDuplicates(); } catch(e) { console.error('Error refreshing duplicates:', e); }
+                }
             }
         }
 
