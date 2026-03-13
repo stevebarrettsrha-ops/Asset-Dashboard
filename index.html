@@ -8924,6 +8924,12 @@
                 <button class="bulk-tab-btn" onclick="switchBulkTab('depreciation')" id="bulkTabDepreciation" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     📉 Bulk Depreciation
                 </button>
+                <button class="bulk-tab-btn" onclick="switchBulkTab('date')" id="bulkTabDate" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                    📅 Bulk Date
+                </button>
+                <button class="bulk-tab-btn" onclick="switchBulkTab('department')" id="bulkTabDepartment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                    🏢 Bulk Department
+                </button>
             </div>
 
             <!-- Bulk Asset Selection (shared) -->
@@ -9021,6 +9027,58 @@
                         </div>
                         <button onclick="applyBulkDepreciation()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #e67e22, #d35400); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
                             Apply Depreciation to Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Date Panel -->
+            <div id="bulkDatePanel" style="display: none;">
+                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: var(--text-primary);">📅 Set Date for Selected Assets</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Date In:</label>
+                            <input type="date" id="bulkDateIn" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Month:</label>
+                            <select id="bulkMonth" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                                <option value="">Do not change month</option>
+                                <option value="January">January</option>
+                                <option value="February">February</option>
+                                <option value="March">March</option>
+                                <option value="April">April</option>
+                                <option value="May">May</option>
+                                <option value="June">June</option>
+                                <option value="July">July</option>
+                                <option value="August">August</option>
+                                <option value="September">September</option>
+                                <option value="October">October</option>
+                                <option value="November">November</option>
+                                <option value="December">December</option>
+                            </select>
+                        </div>
+                        <button onclick="applyBulkDate()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #2980b9, #3498db); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                            Apply Date to Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Department Panel -->
+            <div id="bulkDepartmentPanel" style="display: none;">
+                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: var(--text-primary);">🏢 Set Department for Selected Assets</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Department:</label>
+                            <select id="bulkDepartmentSelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                                <option value="">Select Department</option>
+                            </select>
+                        </div>
+                        <button onclick="applyBulkDepartment()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #16a085, #1abc9c); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                            Apply Department to Selected
                         </button>
                     </div>
                 </div>
@@ -25946,10 +26004,12 @@
         function populateBulkFilters() {
             const categories = loadCategories();
             const departments = [...new Set(bulkAllAssets.map(a => a.department).filter(Boolean))].sort();
+            const allDepartments = loadDepartments();
 
             const catSelect = document.getElementById('bulkFilterCategory');
             const deptSelect = document.getElementById('bulkFilterDepartment');
             const bulkCatSelect = document.getElementById('bulkCategorySelect');
+            const bulkDeptSelect = document.getElementById('bulkDepartmentSelect');
 
             if (catSelect) {
                 catSelect.innerHTML = '<option value="">All Categories</option>' +
@@ -25962,6 +26022,10 @@
             if (bulkCatSelect) {
                 bulkCatSelect.innerHTML = '<option value="">Select Category</option>' +
                     categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            }
+            if (bulkDeptSelect) {
+                bulkDeptSelect.innerHTML = '<option value="">Select Department</option>' +
+                    allDepartments.map(d => `<option value="${d}">${d}</option>`).join('');
             }
         }
 
@@ -26056,16 +26120,26 @@
         }
 
         function switchBulkTab(tab) {
-            document.getElementById('bulkPricingPanel').style.display = tab === 'pricing' ? 'block' : 'none';
-            document.getElementById('bulkCategoryPanel').style.display = tab === 'category' ? 'block' : 'none';
-            document.getElementById('bulkDepreciationPanel').style.display = tab === 'depreciation' ? 'block' : 'none';
-
-            document.getElementById('bulkTabPricing').style.background = tab === 'pricing' ? '#8e44ad' : 'var(--card-bg)';
-            document.getElementById('bulkTabPricing').style.color = tab === 'pricing' ? 'white' : 'var(--text-primary)';
-            document.getElementById('bulkTabCategory').style.background = tab === 'category' ? '#8e44ad' : 'var(--card-bg)';
-            document.getElementById('bulkTabCategory').style.color = tab === 'category' ? 'white' : 'var(--text-primary)';
-            document.getElementById('bulkTabDepreciation').style.background = tab === 'depreciation' ? '#8e44ad' : 'var(--card-bg)';
-            document.getElementById('bulkTabDepreciation').style.color = tab === 'depreciation' ? 'white' : 'var(--text-primary)';
+            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department'];
+            const panelIds = {
+                pricing: 'bulkPricingPanel',
+                category: 'bulkCategoryPanel',
+                depreciation: 'bulkDepreciationPanel',
+                date: 'bulkDatePanel',
+                department: 'bulkDepartmentPanel'
+            };
+            const tabIds = {
+                pricing: 'bulkTabPricing',
+                category: 'bulkTabCategory',
+                depreciation: 'bulkTabDepreciation',
+                date: 'bulkTabDate',
+                department: 'bulkTabDepartment'
+            };
+            tabs.forEach(t => {
+                document.getElementById(panelIds[t]).style.display = t === tab ? 'block' : 'none';
+                document.getElementById(tabIds[t]).style.background = t === tab ? '#8e44ad' : 'var(--card-bg)';
+                document.getElementById(tabIds[t]).style.color = t === tab ? 'white' : 'var(--text-primary)';
+            });
         }
 
         function applyBulkPricing() {
@@ -26159,6 +26233,66 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, ${salvageDesc} salvage for ${updated} assets`);
             alert(`✅ Depreciation updated for ${updated} asset(s)!`);
+            loadBulkCategoriesPage();
+        }
+
+        function applyBulkDate() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const dateVal = document.getElementById('bulkDateIn').value;
+            const monthVal = document.getElementById('bulkMonth').value;
+            if (!dateVal && !monthVal) {
+                alert('Please enter a date or select a month (or both).');
+                return;
+            }
+
+            const parts = [];
+            if (dateVal) parts.push(`date to "${formatDateForDisplay(dateVal)}"`);
+            if (monthVal) parts.push(`month to "${monthVal}"`);
+            const desc = parts.join(' and ');
+
+            if (!confirm(`Set ${desc} for ${bulkSelectedIds.size} asset(s)?`)) return;
+
+            let assets = loadAssetsFromStorage();
+            let updated = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id)) {
+                    if (dateVal) a.dateIn = formatDateForDisplay(dateVal);
+                    if (monthVal) a.month = monthVal;
+                    updated++;
+                }
+            });
+            saveAssetsToStorage(assets);
+            addAuditEntry('BULK', 'Bulk Date', '-', `Set ${desc} for ${updated} assets`);
+            alert(`✅ Date updated for ${updated} asset(s)!`);
+            loadBulkCategoriesPage();
+        }
+
+        function applyBulkDepartment() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const dept = document.getElementById('bulkDepartmentSelect').value;
+            if (!dept) {
+                alert('Please select a department.');
+                return;
+            }
+            if (!confirm(`Set department to "${dept}" for ${bulkSelectedIds.size} asset(s)?`)) return;
+
+            let assets = loadAssetsFromStorage();
+            let updated = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id)) {
+                    a.department = dept;
+                    updated++;
+                }
+            });
+            saveAssetsToStorage(assets);
+            addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
+            alert(`✅ Department updated for ${updated} asset(s)!`);
             loadBulkCategoriesPage();
         }
 
