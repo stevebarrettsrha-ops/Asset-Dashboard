@@ -6946,6 +6946,10 @@
                         <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
                         <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
+                        <label style="display: flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 0.85em; color: rgba(255,255,255,0.9); cursor: pointer; white-space: nowrap;">
+                            <input type="checkbox" class="exclude-disposed-toggle" onchange="toggleExcludeDisposed()" style="cursor: pointer;">
+                            Exclude Disposed
+                        </label>
                     </div>
                 </div>
             </div>
@@ -8435,6 +8439,12 @@
                     <div class="register-search-box">
                         <input type="text" id="registerSearchInput" placeholder="Search by asset code, description, supplier..."
                                oninput="filterAssetRegister()">
+                    </div>
+                    <div class="register-filter-group" style="display: flex; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer; white-space: nowrap;">
+                            <input type="checkbox" class="exclude-disposed-toggle" onchange="toggleExcludeDisposed()" style="cursor: pointer;">
+                            Exclude Disposed
+                        </label>
                     </div>
                 </div>
 
@@ -19650,12 +19660,18 @@
             try {
                 const allAssets = loadAssetsFromStorage();
 
-                // Filter assets by current fiscal year
+                // Build set of disposed asset codes if exclusion is enabled
+                const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
+
+                // Filter assets by current fiscal year (and optionally exclude disposed)
                 const assets = allAssets.filter(asset => {
                     const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
                     // Only include assets with a determinable fiscal year that matches
                     // Assets with null fiscal year (unparseable dates) are excluded
-                    return assetFiscalYear !== null && assetFiscalYear === currentFiscalYear;
+                    if (assetFiscalYear === null || assetFiscalYear !== currentFiscalYear) return false;
+                    // Exclude disposed assets if toggle is on
+                    if (disposedCodes && disposedCodes.has(asset.assetCode)) return false;
+                    return true;
                 });
 
                 // Process assets into the expected format
@@ -23176,6 +23192,27 @@
         let disposalDeletedIds = new Set(_dbGet(DISPOSAL_DELETED_IDS_KEY) || []);
         let currentEditingDisposal = null;
 
+        // Exclude disposed assets toggle - persisted in localStorage
+        let excludeDisposedAssets = localStorage.getItem('excludeDisposedAssets') === 'true';
+
+        function toggleExcludeDisposed() {
+            excludeDisposedAssets = !excludeDisposedAssets;
+            localStorage.setItem('excludeDisposedAssets', excludeDisposedAssets);
+            // Update all toggle checkboxes
+            document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => {
+                cb.checked = excludeDisposedAssets;
+            });
+            // Refresh views
+            loadData();
+            if (typeof filterAssetRegister === 'function') filterAssetRegister();
+            if (typeof updateRegisterStats === 'function') updateRegisterStats();
+        }
+
+        function getDisposedAssetCodes() {
+            const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
+            return new Set(disposedRecords.map(r => r.assetCode));
+        }
+
         // Load disposal records from localStorage
         function loadDisposalRecords() {
             try {
@@ -25093,10 +25130,14 @@
 
         // Update register statistics
         function updateRegisterStats() {
-            const totalAssets = assetRegisterData.reduce((sum, a) => sum + (a.quantity || 1), 0);
-            const totalValue = assetRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
-            const purchasedCount = assetRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
-            const donatedCount = assetRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
+            const statsData = disposedCodes
+                ? assetRegisterData.filter(a => !disposedCodes.has(a.assetCode))
+                : assetRegisterData;
+            const totalAssets = statsData.reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const totalValue = statsData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
+            const purchasedCount = statsData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const donatedCount = statsData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
 
             animateCountUp(document.getElementById('registerTotalAssets'), totalAssets);
             animateCountUp(document.getElementById('registerTotalValue'), totalValue, { prefix: 'JMD ', isCurrency: true });
@@ -25179,6 +25220,7 @@
             const categoryFilter = document.getElementById('registerCategoryFilter').value;
             const sourceFilter = document.getElementById('registerSourceFilter').value;
             const departmentFilter = document.getElementById('registerDepartmentFilter').value;
+            const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
 
             filteredRegisterData = assetRegisterData.filter(asset => {
                 const matchesSearch = !searchTerm ||
@@ -25189,8 +25231,9 @@
                 const matchesCategory = !categoryFilter || asset.category === categoryFilter;
                 const matchesSource = !sourceFilter || asset.source === sourceFilter;
                 const matchesDepartment = !departmentFilter || asset.department === departmentFilter;
+                const matchesDisposal = !disposedCodes || !disposedCodes.has(asset.assetCode);
 
-                return matchesSearch && matchesCategory && matchesSource && matchesDepartment;
+                return matchesSearch && matchesCategory && matchesSource && matchesDepartment && matchesDisposal;
             });
 
             sortByDateDescending(filteredRegisterData);
@@ -27076,6 +27119,11 @@
         // INITIALIZE ON PAGE LOAD
         // ============================================
         window.addEventListener('DOMContentLoaded', async function() {
+            // Initialize exclude disposed toggle state
+            document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => {
+                cb.checked = excludeDisposedAssets;
+            });
+
             // Initialize import dropzone
             initImportDropzone();
             setDynamicCopyrightYear();
