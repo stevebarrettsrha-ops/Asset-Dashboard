@@ -6458,8 +6458,8 @@
                         <input type="number" id="assetUsefulLife" min="1" max="100" step="1" placeholder="e.g., 5">
                     </div>
                     <div class="form-group">
-                        <label for="assetSalvageValue">Salvage Value (JMD)</label>
-                        <input type="number" id="assetSalvageValue" min="0" step="0.01" placeholder="0.00">
+                        <label for="assetSalvageValue">Salvage Value (JMD) <span id="salvageAutoHint" style="font-weight:normal; font-size:0.8em; color:var(--primary-green);"></span></label>
+                        <input type="number" id="assetSalvageValue" min="0" step="0.01" placeholder="Auto-calculated">
                     </div>
                     <div class="form-group">
                         <label for="assetDepreciationMethod">Depreciation Method</label>
@@ -7064,8 +7064,14 @@
                 <h2 class="section-title">📈 Asset Depreciation Calculator</h2>
                 <div class="calc-grid">
                     <input type="number" id="assetCost" class="calc-input" placeholder="Asset Cost (JMD)">
+                    <select id="calcCategory" class="calc-input">
+                        <option value="">-- Category (for auto salvage) --</option>
+                    </select>
                     <input type="number" id="usefulLife" class="calc-input" placeholder="Useful Life (years)">
-                    <input type="number" id="salvageValue" class="calc-input" placeholder="Salvage Value (JMD)">
+                    <div style="position:relative;">
+                        <input type="number" id="salvageValue" class="calc-input" placeholder="Salvage Value (JMD) - auto">
+                        <span id="calcSalvageHint" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.75em; color:var(--primary-green); pointer-events:none;"></span>
+                    </div>
                     <select id="depreciationMethod" class="calc-input">
                         <option value="straight">Straight Line</option>
                         <option value="declining">Declining Balance</option>
@@ -8888,7 +8894,10 @@
                         </div>
                         <div style="min-width: 160px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Salvage Value (JMD):</label>
-                            <input type="number" id="bulkSalvageValue" min="0" step="0.01" placeholder="e.g., 0" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="number" id="bulkSalvageValue" min="0" step="0.01" placeholder="Auto by category" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <label style="font-size: 0.8rem; color: var(--primary-green); margin-top: 4px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                <input type="checkbox" id="bulkAutoSalvage" checked style="width: 14px; height: 14px;"> Auto-calc by category %
+                            </label>
                         </div>
                         <button onclick="applyBulkDepreciation()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #e67e22, #d35400); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
                             Apply Depreciation to Selected
@@ -12782,6 +12791,33 @@
             }
         }
 
+        // ============================================
+        // CATEGORY-BASED SALVAGE VALUE PERCENTAGES
+        // ============================================
+        // Maps each category to a default salvage value as a percentage of cost.
+        // Used for auto-calculation; users can still override manually.
+        const SALVAGE_PERCENT_BY_CATEGORY = {
+            'Appliance':                    0.05,  // 5%
+            'Electronical Device':          0.10,  // 10%
+            'Electronics':                  0.10,  // 10%
+            'Equipment':                    0.10,  // 10%
+            'Furniture':                    0.05,  // 5%
+            'Furniture & Appliances':       0.05,  // 5%
+            'Industrial Equipment':         0.10,  // 10%
+            'Industrial Medical Equipment': 0.15,  // 15%
+            'Medical Equipment':            0.15,  // 15%
+            'Office Equipment':             0.10,  // 10%
+            'Office Furniture':             0.05   // 5%
+        };
+        const DEFAULT_SALVAGE_PERCENT = 0.10; // 10% fallback for unknown categories
+
+        // Calculate salvage value from cost and category
+        function calcSalvageValue(cost, category) {
+            if (!cost || cost <= 0) return 0;
+            const pct = SALVAGE_PERCENT_BY_CATEGORY[category] || DEFAULT_SALVAGE_PERCENT;
+            return Math.round(cost * pct * 100) / 100;
+        }
+
         // Default categories
         const DEFAULT_CATEGORIES = [
             'Appliance',
@@ -14087,6 +14123,12 @@
                 categorySelect.dataset.autoSet = asset ? 'false' : 'true';
             }
 
+            // Reset salvage auto-calc: if editing with existing salvage, mark as manual
+            if (typeof window._resetSalvageAutoCalc === 'function') {
+                const hasManualSalvage = asset && asset.salvageValue > 0;
+                window._resetSalvageAutoCalc(hasManualSalvage);
+            }
+
             modal.style.display = 'block';
         }
 
@@ -14332,6 +14374,55 @@
 
             if (quantityInput) quantityInput.addEventListener('input', updateTotalPrice);
             if (unitPriceInput) unitPriceInput.addEventListener('input', updateTotalPrice);
+
+            // ── Auto-calculate salvage value based on cost & category ──
+            const salvageInput = document.getElementById('assetSalvageValue');
+            const salvageHint = document.getElementById('salvageAutoHint');
+            const categorySelect = document.getElementById('category');
+            let _salvageManuallyEdited = false;
+
+            function autoCalcSalvage() {
+                if (_salvageManuallyEdited) return; // User overrode, don't touch
+                const cost = parseFloat(totalPriceInput?.value) || 0;
+                const cat = categorySelect?.value || '';
+                const suggested = calcSalvageValue(cost, cat);
+                if (salvageInput) {
+                    salvageInput.value = suggested > 0 ? suggested.toFixed(2) : '';
+                }
+                const pct = SALVAGE_PERCENT_BY_CATEGORY[cat] || DEFAULT_SALVAGE_PERCENT;
+                if (salvageHint) {
+                    salvageHint.textContent = cost > 0 ? `(auto: ${(pct * 100).toFixed(0)}% of cost)` : '';
+                }
+            }
+
+            // Trigger auto-calc when cost or category changes
+            if (quantityInput) quantityInput.addEventListener('input', autoCalcSalvage);
+            if (unitPriceInput) unitPriceInput.addEventListener('input', autoCalcSalvage);
+            if (totalPriceInput) totalPriceInput.addEventListener('input', autoCalcSalvage);
+            if (categorySelect) categorySelect.addEventListener('change', autoCalcSalvage);
+
+            // Mark as manually edited when user types in salvage field
+            if (salvageInput) {
+                salvageInput.addEventListener('input', function() {
+                    _salvageManuallyEdited = true;
+                    if (salvageHint) salvageHint.textContent = '(manual)';
+                });
+                // Reset manual flag when salvage field is cleared
+                salvageInput.addEventListener('change', function() {
+                    if (!salvageInput.value || salvageInput.value === '' || salvageInput.value === '0') {
+                        _salvageManuallyEdited = false;
+                        if (salvageHint) salvageHint.textContent = '';
+                        autoCalcSalvage();
+                    }
+                });
+            }
+
+            // Expose reset function for when modal opens (add new / edit)
+            window._resetSalvageAutoCalc = function(isManual) {
+                _salvageManuallyEdited = isManual;
+                if (salvageHint) salvageHint.textContent = isManual ? '(manual)' : '';
+                if (!isManual) autoCalcSalvage();
+            };
 
             // Initialize departments and categories on page load
             updateAllDepartmentDropdowns();
@@ -17282,6 +17373,53 @@
             document.getElementById('depreciationDetails').innerHTML = result;
             document.getElementById('depreciationResult').style.display = 'block';
         }
+
+        // ── Auto-salvage for Depreciation Calculator tab ──
+        (function initCalcAutoSalvage() {
+            document.addEventListener('DOMContentLoaded', function() {
+                const costInput = document.getElementById('assetCost');
+                const salvageInput = document.getElementById('salvageValue');
+                const catSelect = document.getElementById('calcCategory');
+                const hint = document.getElementById('calcSalvageHint');
+                let manuallyEdited = false;
+
+                // Populate category dropdown
+                if (catSelect) {
+                    const cats = (typeof loadCategories === 'function') ? loadCategories() : DEFAULT_CATEGORIES;
+                    cats.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.textContent = c;
+                        catSelect.appendChild(opt);
+                    });
+                }
+
+                function autoCalc() {
+                    if (manuallyEdited) return;
+                    const cost = parseFloat(costInput?.value) || 0;
+                    const cat = catSelect?.value || '';
+                    const val = calcSalvageValue(cost, cat);
+                    if (salvageInput) salvageInput.value = val > 0 ? val.toFixed(2) : '';
+                    const pct = SALVAGE_PERCENT_BY_CATEGORY[cat] || DEFAULT_SALVAGE_PERCENT;
+                    if (hint) hint.textContent = cost > 0 ? `${(pct * 100).toFixed(0)}%` : '';
+                }
+
+                if (costInput) costInput.addEventListener('input', autoCalc);
+                if (catSelect) catSelect.addEventListener('change', autoCalc);
+                if (salvageInput) {
+                    salvageInput.addEventListener('input', function() {
+                        manuallyEdited = true;
+                        if (hint) hint.textContent = '';
+                    });
+                    salvageInput.addEventListener('change', function() {
+                        if (!salvageInput.value || salvageInput.value === '0') {
+                            manuallyEdited = false;
+                            autoCalc();
+                        }
+                    });
+                }
+            });
+        })();
 
         // ============================================
         // WARRANTY TRACKER
@@ -21445,6 +21583,7 @@
                                 ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
                                 : row.parsed.assetCode;
 
+                            const _importTotal = shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice;
                             const newAsset = {
                                 id: generateAssetId(),
                                 assetCode: assetCode,
@@ -21457,9 +21596,11 @@
                                 serialModel: row.parsed.serialModel || '',
                                 quantity: 1,
                                 unitPrice: row.parsed.unitPrice,
-                                totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice,
+                                totalPrice: _importTotal,
                                 month: row.parsed.month,
-                                itemType: row.parsed.description
+                                itemType: row.parsed.description,
+                                salvageValue: calcSalvageValue(_importTotal, row.parsed.category),
+                                depreciationMethod: 'straight'
                             };
 
                             existingAssets.push(newAsset);
@@ -22491,6 +22632,7 @@
                                 ? `${row.parsed.assetCode}-${String(i + 1).padStart(String(qty).length, '0')}`
                                 : row.parsed.assetCode;
 
+                            const _gdriveTotal = shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice;
                             const newAsset = {
                                 id: generateAssetId(),
                                 assetCode: assetCode,
@@ -22504,7 +22646,9 @@
                                 serialModel: row.parsed.serialModel,
                                 quantity: 1,
                                 unitPrice: row.parsed.unitPrice,
-                                totalPrice: shouldExpand ? row.parsed.unitPrice : row.parsed.totalPrice
+                                totalPrice: _gdriveTotal,
+                                salvageValue: calcSalvageValue(_gdriveTotal, row.parsed.category),
+                                depreciationMethod: 'straight'
                             };
 
                             existingAssets.push(newAsset);
@@ -24592,6 +24736,7 @@
                         const unitValue = shouldExpand ? (p.originalValue || 0) / qty : (p.originalValue || 0);
 
                         // Create new asset in inventory
+                        const _bosCategory = p.category || 'Furniture & Appliances';
                         const newAsset = {
                             id: generateAssetId(),
                             assetCode: expandedAssetCode,
@@ -24600,13 +24745,15 @@
                             supplier: p.supplier || '',
                             department: p.department || 'Other',
                             source: 'Purchased',
-                            category: p.category || 'Furniture & Appliances',
+                            category: _bosCategory,
                             serialModel: p.serialModel || '',
                             quantity: 1,
                             unitPrice: unitValue,
                             totalPrice: unitValue,
                             month: month,
-                            itemType: p.description
+                            itemType: p.description,
+                            salvageValue: calcSalvageValue(unitValue, _bosCategory),
+                            depreciationMethod: 'straight'
                         };
 
                         existingAssets.push(newAsset);
@@ -25848,19 +25995,21 @@
             }
             const method = document.getElementById('bulkDeprMethod').value;
             const life = parseFloat(document.getElementById('bulkUsefulLife').value);
-            const salvage = parseFloat(document.getElementById('bulkSalvageValue').value);
+            const autoSalvage = document.getElementById('bulkAutoSalvage')?.checked;
+            const manualSalvage = parseFloat(document.getElementById('bulkSalvageValue').value);
 
             if (isNaN(life) || life <= 0) {
                 alert('Please enter a valid useful life (years).');
                 return;
             }
-            if (isNaN(salvage) || salvage < 0) {
-                alert('Please enter a valid salvage value.');
+            if (!autoSalvage && (isNaN(manualSalvage) || manualSalvage < 0)) {
+                alert('Please enter a valid salvage value or enable auto-calc by category.');
                 return;
             }
 
             const methodLabel = method === 'declining' ? 'Declining Balance' : 'Straight Line';
-            if (!confirm(`Set depreciation to ${methodLabel}, ${life} years useful life, JMD ${formatCurrency(salvage)} salvage for ${bulkSelectedIds.size} asset(s)?`)) return;
+            const salvageDesc = autoSalvage ? 'auto-calculated by category %' : `JMD ${formatCurrency(manualSalvage)}`;
+            if (!confirm(`Set depreciation to ${methodLabel}, ${life} years useful life, ${salvageDesc} salvage for ${bulkSelectedIds.size} asset(s)?`)) return;
 
             let assets = loadAssetsFromStorage();
             let updated = 0;
@@ -25868,12 +26017,14 @@
                 if (bulkSelectedIds.has(a.id)) {
                     a.depreciationMethod = method;
                     a.usefulLife = life;
-                    a.salvageValue = salvage;
+                    a.salvageValue = autoSalvage
+                        ? calcSalvageValue(a.totalPrice || a.unitPrice || 0, a.category || '')
+                        : manualSalvage;
                     updated++;
                 }
             });
             saveAssetsToStorage(assets);
-            addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, JMD ${formatCurrency(salvage)} salvage for ${updated} assets`);
+            addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, ${salvageDesc} salvage for ${updated} assets`);
             alert(`✅ Depreciation updated for ${updated} asset(s)!`);
             loadBulkCategoriesPage();
         }
