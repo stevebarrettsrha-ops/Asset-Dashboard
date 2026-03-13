@@ -13945,9 +13945,13 @@
                             _dbSet(STORAGE_KEY, assets);
                         }
                     }
-                    // Normalize dates and backfill missing salvage values
+                    // Backfill missing IDs, normalize dates, and backfill salvage values
                     let needsSave = false;
                     assets.forEach(asset => {
+                        if (!asset.id) {
+                            asset.id = generateAssetId();
+                            needsSave = true;
+                        }
                         if (asset.dateIn) {
                             asset.dateIn = normalizeDateToDisplay(asset.dateIn);
                         }
@@ -23494,8 +23498,15 @@
 
         // Reverse disposal by asset code (used from Asset Register view)
         function reverseDisposalByAssetCode(assetCode) {
-            const record = disposalRecords.find(r => r.assetCode === assetCode);
+            // Load disposal records fresh from storage since disposalRecords variable
+            // may not be populated if user hasn't visited the Board of Survey page
+            const allDisposalRecords = _dbGet(DISPOSAL_STORAGE_KEY) || [];
+            const record = allDisposalRecords.find(r => r.assetCode === assetCode);
             if (record) {
+                // Ensure disposalRecords is populated before calling reverseDisposal
+                if (disposalRecords.length === 0) {
+                    disposalRecords = allDisposalRecords;
+                }
                 reverseDisposal(record.id);
             } else {
                 alert('No disposal record found for asset code: ' + assetCode);
@@ -25380,7 +25391,7 @@
                             <td>${bookValueHtml}</td>
                             <td>${commentHtml}</td>
                             <td style="white-space: nowrap;">
-                                ${disposed ? `<button class="btn-delete-inline btn-reverse" onclick="reverseDisposalByAssetCode('${escapeHtml(asset.assetCode)}')" title="Reverse Disposal - Mark as Not Disposed" style="margin-right: 4px;">↩️</button>` : ''}
+                                ${disposed ? `<button class="btn-delete-inline btn-reverse" data-asset-code="${escapeHtml(asset.assetCode)}" onclick="reverseDisposalByAssetCode(this.getAttribute('data-asset-code'))" title="Reverse Disposal - Mark as Not Disposed" style="margin-right: 4px;">↩️</button>` : ''}
                                 <button class="btn-delete-inline btn-edit" onclick="viewAssetDetails('${asset.id}')" title="Edit Asset" style="margin-right: 4px;">✏️</button>
                                 <button class="btn-delete-inline btn-duplicate" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
@@ -25525,15 +25536,30 @@
         function openDuplicateAssetModal(singleAssetId) {
             duplicateTargetAssets = [];
 
+            // Ensure assetRegisterData is populated; reload from storage if empty
+            if (!assetRegisterData || assetRegisterData.length === 0) {
+                assetRegisterData = loadAssetsFromStorage();
+            }
+
             if (singleAssetId) {
                 // Single asset duplicate (from row button)
-                const asset = assetRegisterData.find(a => a.id === singleAssetId);
+                let asset = assetRegisterData.find(a => a.id === singleAssetId);
+                // Fallback: reload from storage if asset not found (stale data)
+                if (!asset) {
+                    assetRegisterData = loadAssetsFromStorage();
+                    asset = assetRegisterData.find(a => a.id === singleAssetId);
+                }
                 if (asset) duplicateTargetAssets = [asset];
             } else {
                 // Bulk duplicate (from selection bar)
                 const checked = document.querySelectorAll('.register-row-checkbox:checked');
                 const selectedIds = [...checked].map(cb => cb.value);
                 duplicateTargetAssets = selectedIds.map(id => assetRegisterData.find(a => a.id === id)).filter(Boolean);
+                // Fallback: reload from storage if no matches found
+                if (duplicateTargetAssets.length === 0 && selectedIds.length > 0) {
+                    assetRegisterData = loadAssetsFromStorage();
+                    duplicateTargetAssets = selectedIds.map(id => assetRegisterData.find(a => a.id === id)).filter(Boolean);
+                }
             }
 
             if (duplicateTargetAssets.length === 0) {
@@ -26031,6 +26057,13 @@
             bulkSelectedIds = new Set();
             populateBulkFilters();
             filterBulkAssets();
+            // Reset Asset Code Replacement panel state
+            const acFind = document.getElementById('bulkAssetCodeFind');
+            const acReplace = document.getElementById('bulkAssetCodeReplace');
+            const acPreview = document.getElementById('bulkAssetCodePreview');
+            if (acFind) acFind.value = '';
+            if (acReplace) acReplace.value = '';
+            if (acPreview) acPreview.style.display = 'none';
         }
 
         function populateBulkFilters() {
@@ -26330,6 +26363,12 @@
             refreshAllViews();
         }
 
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         function previewBulkAssetCode() {
             if (bulkSelectedIds.size === 0) {
                 alert('Please select at least one asset.');
@@ -26351,17 +26390,17 @@
                 if (bulkSelectedIds.has(a.id) && a.assetCode && a.assetCode.includes(findText)) {
                     const newCode = a.assetCode.replaceAll(findText, replaceText);
                     html += `<div style="padding: 4px 0; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center;">
-                        <span style="color: #e74c3c; text-decoration: line-through;">${a.assetCode}</span>
+                        <span style="color: #e74c3c; text-decoration: line-through;">${escapeHtml(a.assetCode)}</span>
                         <span style="color: var(--text-secondary);">→</span>
-                        <span style="color: #27ae60; font-weight: 600;">${newCode}</span>
-                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: auto;">${a.description || ''}</span>
+                        <span style="color: #27ae60; font-weight: 600;">${escapeHtml(newCode)}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: auto;">${escapeHtml(a.description || '')}</span>
                     </div>`;
                     matchCount++;
                 }
             });
 
             if (matchCount === 0) {
-                html = `<div style="color: var(--text-secondary); padding: 8px 0;">No matching asset codes found containing "${findText}" in selected assets.</div>`;
+                html = `<div style="color: var(--text-secondary); padding: 8px 0;">No matching asset codes found containing "${escapeHtml(findText)}" in selected assets.</div>`;
             } else {
                 html = `<div style="margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">${matchCount} asset code(s) will be changed:</div>` + html;
             }
