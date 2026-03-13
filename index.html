@@ -13727,12 +13727,22 @@
                             _dbSet(STORAGE_KEY, assets);
                         }
                     }
-                    // Normalize all date formats to DD-MMM-YYYY
+                    // Normalize dates and backfill missing salvage values
+                    let needsSave = false;
                     assets.forEach(asset => {
                         if (asset.dateIn) {
                             asset.dateIn = normalizeDateToDisplay(asset.dateIn);
                         }
+                        // Auto-calculate salvage for assets that don't have one yet
+                        if ((!asset.salvageValue || asset.salvageValue === 0) && (asset.totalPrice || asset.unitPrice)) {
+                            asset.salvageValue = calcSalvageValue(asset.totalPrice || asset.unitPrice, asset.category || '');
+                            if (!asset.depreciationMethod) asset.depreciationMethod = 'straight';
+                            needsSave = true;
+                        }
                     });
+                    if (needsSave) {
+                        _dbSet(STORAGE_KEY, assets);
+                    }
                     return assets;
                 }
                 return [];
@@ -14259,6 +14269,15 @@
                 const index = assets.findIndex(a => a.id === currentEditingAsset.id);
                 if (index !== -1) {
                     assetData.quantity = 1; // Enforce qty=1 on edit
+
+                    // If category changed and salvage wasn't manually overridden, recalculate
+                    const categoryChanged = currentEditingAsset.category !== assetData.category;
+                    const costChanged = (currentEditingAsset.totalPrice || 0) !== (assetData.totalPrice || 0);
+                    const salvageWasAuto = !window._salvageManuallyEditedFlag;
+                    if ((categoryChanged || costChanged) && salvageWasAuto) {
+                        assetData.salvageValue = calcSalvageValue(assetData.totalPrice || assetData.unitPrice || 0, assetData.category || '');
+                    }
+
                     assets[index] = assetData;
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
 
@@ -14405,12 +14424,14 @@
             if (salvageInput) {
                 salvageInput.addEventListener('input', function() {
                     _salvageManuallyEdited = true;
+                    window._salvageManuallyEditedFlag = true;
                     if (salvageHint) salvageHint.textContent = '(manual)';
                 });
                 // Reset manual flag when salvage field is cleared
                 salvageInput.addEventListener('change', function() {
                     if (!salvageInput.value || salvageInput.value === '' || salvageInput.value === '0') {
                         _salvageManuallyEdited = false;
+                        window._salvageManuallyEditedFlag = false;
                         if (salvageHint) salvageHint.textContent = '';
                         autoCalcSalvage();
                     }
@@ -14420,6 +14441,7 @@
             // Expose reset function for when modal opens (add new / edit)
             window._resetSalvageAutoCalc = function(isManual) {
                 _salvageManuallyEdited = isManual;
+                window._salvageManuallyEditedFlag = isManual;
                 if (salvageHint) salvageHint.textContent = isManual ? '(manual)' : '';
                 if (!isManual) autoCalcSalvage();
             };
