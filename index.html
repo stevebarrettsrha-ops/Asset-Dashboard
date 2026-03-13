@@ -8930,6 +8930,9 @@
                 <button class="bulk-tab-btn" onclick="switchBulkTab('department')" id="bulkTabDepartment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🏢 Bulk Department
                 </button>
+                <button class="bulk-tab-btn" onclick="switchBulkTab('assetcode')" id="bulkTabAssetcode" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                    🔄 Bulk Asset Code
+                </button>
             </div>
 
             <!-- Bulk Asset Selection (shared) -->
@@ -9080,6 +9083,35 @@
                         <button onclick="applyBulkDepartment()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #16a085, #1abc9c); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
                             Apply Department to Selected
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Asset Code Replacement Panel -->
+            <div id="bulkAssetcodePanel" style="display: none;">
+                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 12px; color: var(--text-primary);">🔄 Replace Asset Code for Selected Assets</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Find Text in Asset Code:</label>
+                            <input type="text" id="bulkAssetCodeFind" placeholder="e.g. OLD-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Replace With:</label>
+                            <input type="text" id="bulkAssetCodeReplace" placeholder="e.g. NEW-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                        </div>
+                        <button onclick="previewBulkAssetCode()" style="padding: 10px 25px; border-radius: 6px; border: 1px solid #2980b9; background: transparent; color: #2980b9; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                            Preview Changes
+                        </button>
+                        <button onclick="applyBulkAssetCode()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #2980b9, #3498db); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                            Apply Replacement to Selected
+                        </button>
+                    </div>
+                    <div id="bulkAssetCodePreview" style="margin-top: 12px; display: none;">
+                        <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border-color); max-height: 200px; overflow-y: auto;">
+                            <h4 style="margin-bottom: 8px; color: var(--text-primary); font-size: 0.9rem;">Preview of Changes:</h4>
+                            <div id="bulkAssetCodePreviewList" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -26120,20 +26152,22 @@
         }
 
         function switchBulkTab(tab) {
-            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department'];
+            const tabs = ['pricing', 'category', 'depreciation', 'date', 'department', 'assetcode'];
             const panelIds = {
                 pricing: 'bulkPricingPanel',
                 category: 'bulkCategoryPanel',
                 depreciation: 'bulkDepreciationPanel',
                 date: 'bulkDatePanel',
-                department: 'bulkDepartmentPanel'
+                department: 'bulkDepartmentPanel',
+                assetcode: 'bulkAssetcodePanel'
             };
             const tabIds = {
                 pricing: 'bulkTabPricing',
                 category: 'bulkTabCategory',
                 depreciation: 'bulkTabDepreciation',
                 date: 'bulkTabDate',
-                department: 'bulkTabDepartment'
+                department: 'bulkTabDepartment',
+                assetcode: 'bulkTabAssetcode'
             };
             tabs.forEach(t => {
                 document.getElementById(panelIds[t]).style.display = t === tab ? 'block' : 'none';
@@ -26166,7 +26200,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Pricing', '-', `Set unit price JMD ${formatCurrency(price)} for ${updated} assets`);
             alert(`✅ Price updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkCategory() {
@@ -26192,7 +26226,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Category', '-', `Set category "${category}" for ${updated} assets`);
             alert(`✅ Category updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDepreciation() {
@@ -26233,7 +26267,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Depreciation', '-', `Set ${methodLabel}, ${life}yr life, ${salvageDesc} salvage for ${updated} assets`);
             alert(`✅ Depreciation updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDate() {
@@ -26267,7 +26301,7 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Date', '-', `Set ${desc} for ${updated} assets`);
             alert(`✅ Date updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
         }
 
         function applyBulkDepartment() {
@@ -26293,7 +26327,88 @@
             saveAssetsToStorage(assets);
             addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
             alert(`✅ Department updated for ${updated} asset(s)!`);
-            loadBulkCategoriesPage();
+            refreshAllViews();
+        }
+
+        function previewBulkAssetCode() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const findText = document.getElementById('bulkAssetCodeFind').value;
+            if (!findText) {
+                alert('Please enter the text to find in asset codes.');
+                return;
+            }
+            const replaceText = document.getElementById('bulkAssetCodeReplace').value;
+            const assets = loadAssetsFromStorage();
+            const previewList = document.getElementById('bulkAssetCodePreviewList');
+            const previewContainer = document.getElementById('bulkAssetCodePreview');
+            let html = '';
+            let matchCount = 0;
+
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id) && a.assetCode && a.assetCode.includes(findText)) {
+                    const newCode = a.assetCode.replaceAll(findText, replaceText);
+                    html += `<div style="padding: 4px 0; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center;">
+                        <span style="color: #e74c3c; text-decoration: line-through;">${a.assetCode}</span>
+                        <span style="color: var(--text-secondary);">→</span>
+                        <span style="color: #27ae60; font-weight: 600;">${newCode}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.8rem; margin-left: auto;">${a.description || ''}</span>
+                    </div>`;
+                    matchCount++;
+                }
+            });
+
+            if (matchCount === 0) {
+                html = `<div style="color: var(--text-secondary); padding: 8px 0;">No matching asset codes found containing "${findText}" in selected assets.</div>`;
+            } else {
+                html = `<div style="margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">${matchCount} asset code(s) will be changed:</div>` + html;
+            }
+            previewList.innerHTML = html;
+            previewContainer.style.display = 'block';
+        }
+
+        function applyBulkAssetCode() {
+            if (bulkSelectedIds.size === 0) {
+                alert('Please select at least one asset.');
+                return;
+            }
+            const findText = document.getElementById('bulkAssetCodeFind').value;
+            if (!findText) {
+                alert('Please enter the text to find in asset codes.');
+                return;
+            }
+            const replaceText = document.getElementById('bulkAssetCodeReplace').value;
+
+            // Count how many will actually change
+            let assets = loadAssetsFromStorage();
+            let willChange = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id) && a.assetCode && a.assetCode.includes(findText)) {
+                    willChange++;
+                }
+            });
+
+            if (willChange === 0) {
+                alert(`No selected assets have "${findText}" in their asset code.`);
+                return;
+            }
+
+            if (!confirm(`Replace "${findText}" with "${replaceText}" in ${willChange} asset code(s)?`)) return;
+
+            let updated = 0;
+            assets.forEach(a => {
+                if (bulkSelectedIds.has(a.id) && a.assetCode && a.assetCode.includes(findText)) {
+                    a.assetCode = a.assetCode.replaceAll(findText, replaceText);
+                    updated++;
+                }
+            });
+            saveAssetsToStorage(assets);
+            addAuditEntry('BULK', 'Bulk Asset Code', '-', `Replaced "${findText}" with "${replaceText}" in ${updated} asset codes`);
+            alert(`✅ Asset code updated for ${updated} asset(s)!`);
+            document.getElementById('bulkAssetCodePreview').style.display = 'none';
+            refreshAllViews();
         }
 
         // ============================================
