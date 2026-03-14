@@ -8389,6 +8389,7 @@
 
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
+                        <button class="btn monthly-view-btn" onclick="autoFillMissingCosts()" style="background: linear-gradient(135deg, #e67e22, #d35400);">💲 Auto-Fill Missing Costs</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                     </div>
@@ -25384,6 +25385,127 @@
         const REGISTER_PAGE_SIZE = 50;
 
         // Load all assets (ignoring fiscal year filter)
+        // Auto-fill missing costs based on matching asset codes and descriptions
+        function autoFillMissingCosts() {
+            let assets = loadAssetsFromStorage();
+
+            // Separate assets with and without costs
+            const withCost = assets.filter(a => (a.unitPrice && a.unitPrice > 0) || (a.totalPrice && a.totalPrice > 0));
+            const withoutCost = assets.filter(a => (!a.unitPrice || a.unitPrice <= 0) && (!a.totalPrice || a.totalPrice <= 0));
+
+            if (withoutCost.length === 0) {
+                alert('All assets already have costs assigned. No changes needed.');
+                return;
+            }
+
+            // Build lookup maps for matching
+            // 1. Exact asset code match (highest priority)
+            const exactCodeMap = {};
+            // 2. Base code match (strip trailing -01, -02 suffixes from expanded quantities)
+            const baseCodeMap = {};
+            // 3. Description match (fallback)
+            const descriptionMap = {};
+
+            withCost.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const desc = (a.description || '').trim().toLowerCase();
+                const price = parseFloat(a.totalPrice) || parseFloat(a.unitPrice) || 0;
+
+                if (code && price > 0) {
+                    // Store exact code -> price (keep the most recent / highest price)
+                    if (!exactCodeMap[code] || price > exactCodeMap[code]) {
+                        exactCodeMap[code] = price;
+                    }
+                    // Strip trailing numeric suffix for base code matching (e.g., MPH-MS-190-01 -> MPH-MS-190)
+                    const baseCode = code.replace(/-\d{1,3}$/, '');
+                    if (baseCode !== code) {
+                        if (!baseCodeMap[baseCode] || price > baseCodeMap[baseCode]) {
+                            baseCodeMap[baseCode] = price;
+                        }
+                    }
+                    // Also store as-is for base matching
+                    if (!baseCodeMap[code]) {
+                        baseCodeMap[code] = price;
+                    }
+                }
+                if (desc && price > 0) {
+                    if (!descriptionMap[desc] || price > descriptionMap[desc]) {
+                        descriptionMap[desc] = price;
+                    }
+                }
+            });
+
+            let updatedCount = 0;
+            let matchDetails = { exactCode: 0, baseCode: 0, description: 0 };
+
+            withoutCost.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const desc = (a.description || '').trim().toLowerCase();
+                const baseCode = code.replace(/-\d{1,3}$/, '');
+                let matchedPrice = 0;
+                let matchType = '';
+
+                // Priority 1: Exact asset code match
+                if (code && exactCodeMap[code]) {
+                    matchedPrice = exactCodeMap[code];
+                    matchType = 'exactCode';
+                }
+                // Priority 2: Base code match (for expanded quantity assets)
+                else if (code && baseCodeMap[baseCode]) {
+                    matchedPrice = baseCodeMap[baseCode];
+                    matchType = 'baseCode';
+                }
+                // Priority 3: Description match
+                else if (desc && descriptionMap[desc]) {
+                    matchedPrice = descriptionMap[desc];
+                    matchType = 'description';
+                }
+
+                if (matchedPrice > 0) {
+                    // Find and update the asset in the full array
+                    const target = assets.find(x => x.id === a.id);
+                    if (target) {
+                        target.unitPrice = matchedPrice;
+                        target.totalPrice = matchedPrice * (target.quantity || 1);
+                        // Auto-calculate salvage value
+                        target.salvageValue = calcSalvageValue(target.totalPrice, target.category || '');
+                        if (!target.depreciationMethod) target.depreciationMethod = 'straight';
+                        updatedCount++;
+                        matchDetails[matchType]++;
+                    }
+                }
+            });
+
+            if (updatedCount === 0) {
+                alert(`No matching costs found.\n\n${withoutCost.length} asset(s) have no cost, but no matching records with costs were found by asset code or description.`);
+                return;
+            }
+
+            // Show preview before applying
+            let summary = `Found costs for ${updatedCount} of ${withoutCost.length} assets without prices:\n\n`;
+            if (matchDetails.exactCode > 0) summary += `  \u2022 ${matchDetails.exactCode} matched by exact asset code\n`;
+            if (matchDetails.baseCode > 0) summary += `  \u2022 ${matchDetails.baseCode} matched by base asset code\n`;
+            if (matchDetails.description > 0) summary += `  \u2022 ${matchDetails.description} matched by description\n`;
+            summary += `\nDo you want to apply these cost updates?`;
+
+            if (!confirm(summary)) return;
+
+            saveAssetsToStorage(assets);
+
+            // Audit trail
+            assets.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const baseCode = code.replace(/-\d{1,3}$/, '');
+                const hadMatch = (code && exactCodeMap[code]) || (code && baseCodeMap[baseCode]) ||
+                    ((a.description || '').trim().toLowerCase() && descriptionMap[(a.description || '').trim().toLowerCase()]);
+                // Only audit the ones we actually updated (those that previously had no cost)
+            });
+            addAuditEntry('BULK', 'Auto-Fill Costs', '', `Auto-filled costs for ${updatedCount} assets based on matching records`);
+
+            refreshAllViews();
+            alert(`Successfully updated costs for ${updatedCount} asset(s).\n\n${withoutCost.length - updatedCount} asset(s) still have no matching cost records.`);
+        }
+
         function loadAssetRegister() {
             try {
                 assetRegisterData = loadAssetsFromStorage();
