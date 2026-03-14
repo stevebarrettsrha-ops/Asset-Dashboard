@@ -6873,6 +6873,10 @@
                 <span class="sidebar-nav-icon">&#128203;</span>
                 <span class="sidebar-nav-text">Duplicates Tracker</span>
             </button>
+            <button class="sidebar-nav-item" data-page="12" data-tooltip="Asset Deletion" onclick="sidebarNavigate(12)">
+                <span class="sidebar-nav-icon">&#x1F5D1;</span>
+                <span class="sidebar-nav-text">Asset Deletion</span>
+            </button>
 
             <div class="sidebar-section-label">Import</div>
             <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
@@ -8385,6 +8389,7 @@
 
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
+                        <button class="btn monthly-view-btn" onclick="autoFillMissingCosts()" style="background: linear-gradient(135deg, #e67e22, #d35400);">💲 Auto-Fill Missing Costs</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                     </div>
@@ -9310,6 +9315,156 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- PAGE 12: ASSET DELETION                      -->
+    <!-- ============================================ -->
+    <div class="page" id="page12">
+        <div class="header" style="background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Asset Deletion</h1>
+                        <div class="dashboard-subtitle">Find &amp; Remove Empty or Unwanted Asset Records</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">&#9729;&#65039;</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>&#9729;&#65039; Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>&#128279;</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>&#128190;</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>&#128260;</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>&#128256;</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>&#128193;</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>&#128268;</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-info" id="userInfo12"></div>
+                    </div>
+                </div>
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="scanDeletionPage()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">&#128260; Re-scan Assets</button>
+                    <button class="btn monthly-view-btn" id="delPageDeleteSelectedBtn" onclick="deletionPageDeleteSelected()" style="background: linear-gradient(135deg, #e74c3c, #922b21); display: none;">&#128465; Delete Selected</button>
+                    <button class="btn monthly-view-btn" id="delPageDeleteEmptyBtn" onclick="deletionPageDeleteAllEmpty()" style="background: linear-gradient(135deg, #d35400, #e67e22); display: none;">&#128465; Delete All Empty Records</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+            <!-- Stats Cards -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="delTotalCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Empty Records</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #e74c3c;" id="delEmptyCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Sparse Records</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="delSparseCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Selected for Deletion</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #c0392b;" id="delSelectedCount">0</div>
+                </div>
+            </div>
+
+            <!-- Filters & Controls -->
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+                <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Filter:</label>
+                <select id="delFilterType" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <option value="all">All Assets</option>
+                    <option value="empty" selected>Empty Records (no meaningful data)</option>
+                    <option value="sparse">Sparse Records (mostly empty fields)</option>
+                    <option value="no-code">Missing Asset Code</option>
+                    <option value="no-desc">Missing Description</option>
+                    <option value="no-price">Missing Price/Value</option>
+                    <option value="no-dept">Missing Department</option>
+                    <option value="no-date">Missing Date</option>
+                </select>
+
+                <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-left: 10px;">Range:</label>
+                <select id="delRangeType" onchange="toggleDeletionRange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <option value="all">All Records</option>
+                    <option value="row">Row Range</option>
+                    <option value="date">Date Range</option>
+                    <option value="category">By Category</option>
+                    <option value="department">By Department</option>
+                </select>
+
+                <div id="delRangeRowInputs" style="display: none; gap: 8px; align-items: center;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">From:</label>
+                    <input type="number" id="delRowFrom" min="1" value="1" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">To:</label>
+                    <input type="number" id="delRowTo" min="1" value="100" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <button class="btn" onclick="applyDeletionFilter()" style="padding: 6px 14px; font-size: 0.85rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">Apply</button>
+                </div>
+
+                <div id="delRangeDateInputs" style="display: none; gap: 8px; align-items: center;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">From:</label>
+                    <input type="date" id="delDateFrom" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">To:</label>
+                    <input type="date" id="delDateTo" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <button class="btn" onclick="applyDeletionFilter()" style="padding: 6px 14px; font-size: 0.85rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">Apply</button>
+                </div>
+
+                <div id="delRangeCatInputs" style="display: none; gap: 8px; align-items: center;">
+                    <select id="delCategoryFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <option value="">-- Select Category --</option>
+                    </select>
+                </div>
+
+                <div id="delRangeDeptInputs" style="display: none; gap: 8px; align-items: center;">
+                    <select id="delDeptFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <option value="">-- Select Department --</option>
+                    </select>
+                </div>
+
+                <div style="flex: 1;"></div>
+                <input type="text" id="delSearchInput" placeholder="Search assets..." oninput="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); width: 180px;">
+            </div>
+
+            <!-- Select/Deselect All Bar -->
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px; padding: 10px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-primary);">
+                    <input type="checkbox" id="delSelectAll" onchange="toggleDeletionSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
+                    Select All Visible
+                </label>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="delShowingCount">Showing 0 assets</span>
+                <div style="flex: 1;"></div>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="delPageInfo"></span>
+                <button class="btn" onclick="delPagePrev()" id="delPrevBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>&laquo; Prev</button>
+                <button class="btn" onclick="delPageNext()" id="delNextBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>Next &raquo;</button>
+            </div>
+
+            <!-- Results Table -->
+            <div id="delResultsContainer" style="background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); overflow-x: auto;">
+                <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                    Loading assets for review...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear12"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
     </div>
 
     <!-- Add Asset Code Modal (Admin Only) -->
@@ -9562,7 +9717,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -15860,6 +16015,18 @@
                     `;
                 }
                 scanForDuplicates();
+            }
+
+            // Handle Asset Deletion page
+            if (pageNum === 12) {
+                const userInfo12 = document.getElementById('userInfo12');
+                if (userInfo12 && currentUser) {
+                    userInfo12.innerHTML = `
+                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                scanDeletionPage();
             }
         }
 
@@ -25218,6 +25385,127 @@
         const REGISTER_PAGE_SIZE = 50;
 
         // Load all assets (ignoring fiscal year filter)
+        // Auto-fill missing costs based on matching asset codes and descriptions
+        function autoFillMissingCosts() {
+            let assets = loadAssetsFromStorage();
+
+            // Separate assets with and without costs
+            const withCost = assets.filter(a => (a.unitPrice && a.unitPrice > 0) || (a.totalPrice && a.totalPrice > 0));
+            const withoutCost = assets.filter(a => (!a.unitPrice || a.unitPrice <= 0) && (!a.totalPrice || a.totalPrice <= 0));
+
+            if (withoutCost.length === 0) {
+                alert('All assets already have costs assigned. No changes needed.');
+                return;
+            }
+
+            // Build lookup maps for matching
+            // 1. Exact asset code match (highest priority)
+            const exactCodeMap = {};
+            // 2. Base code match (strip trailing -01, -02 suffixes from expanded quantities)
+            const baseCodeMap = {};
+            // 3. Description match (fallback)
+            const descriptionMap = {};
+
+            withCost.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const desc = (a.description || '').trim().toLowerCase();
+                const price = parseFloat(a.totalPrice) || parseFloat(a.unitPrice) || 0;
+
+                if (code && price > 0) {
+                    // Store exact code -> price (keep the most recent / highest price)
+                    if (!exactCodeMap[code] || price > exactCodeMap[code]) {
+                        exactCodeMap[code] = price;
+                    }
+                    // Strip trailing numeric suffix for base code matching (e.g., MPH-MS-190-01 -> MPH-MS-190)
+                    const baseCode = code.replace(/-\d{1,3}$/, '');
+                    if (baseCode !== code) {
+                        if (!baseCodeMap[baseCode] || price > baseCodeMap[baseCode]) {
+                            baseCodeMap[baseCode] = price;
+                        }
+                    }
+                    // Also store as-is for base matching
+                    if (!baseCodeMap[code]) {
+                        baseCodeMap[code] = price;
+                    }
+                }
+                if (desc && price > 0) {
+                    if (!descriptionMap[desc] || price > descriptionMap[desc]) {
+                        descriptionMap[desc] = price;
+                    }
+                }
+            });
+
+            let updatedCount = 0;
+            let matchDetails = { exactCode: 0, baseCode: 0, description: 0 };
+
+            withoutCost.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const desc = (a.description || '').trim().toLowerCase();
+                const baseCode = code.replace(/-\d{1,3}$/, '');
+                let matchedPrice = 0;
+                let matchType = '';
+
+                // Priority 1: Exact asset code match
+                if (code && exactCodeMap[code]) {
+                    matchedPrice = exactCodeMap[code];
+                    matchType = 'exactCode';
+                }
+                // Priority 2: Base code match (for expanded quantity assets)
+                else if (code && baseCodeMap[baseCode]) {
+                    matchedPrice = baseCodeMap[baseCode];
+                    matchType = 'baseCode';
+                }
+                // Priority 3: Description match
+                else if (desc && descriptionMap[desc]) {
+                    matchedPrice = descriptionMap[desc];
+                    matchType = 'description';
+                }
+
+                if (matchedPrice > 0) {
+                    // Find and update the asset in the full array
+                    const target = assets.find(x => x.id === a.id);
+                    if (target) {
+                        target.unitPrice = matchedPrice;
+                        target.totalPrice = matchedPrice * (target.quantity || 1);
+                        // Auto-calculate salvage value
+                        target.salvageValue = calcSalvageValue(target.totalPrice, target.category || '');
+                        if (!target.depreciationMethod) target.depreciationMethod = 'straight';
+                        updatedCount++;
+                        matchDetails[matchType]++;
+                    }
+                }
+            });
+
+            if (updatedCount === 0) {
+                alert(`No matching costs found.\n\n${withoutCost.length} asset(s) have no cost, but no matching records with costs were found by asset code or description.`);
+                return;
+            }
+
+            // Show preview before applying
+            let summary = `Found costs for ${updatedCount} of ${withoutCost.length} assets without prices:\n\n`;
+            if (matchDetails.exactCode > 0) summary += `  \u2022 ${matchDetails.exactCode} matched by exact asset code\n`;
+            if (matchDetails.baseCode > 0) summary += `  \u2022 ${matchDetails.baseCode} matched by base asset code\n`;
+            if (matchDetails.description > 0) summary += `  \u2022 ${matchDetails.description} matched by description\n`;
+            summary += `\nDo you want to apply these cost updates?`;
+
+            if (!confirm(summary)) return;
+
+            saveAssetsToStorage(assets);
+
+            // Audit trail
+            assets.forEach(a => {
+                const code = (a.assetCode || '').trim().toUpperCase();
+                const baseCode = code.replace(/-\d{1,3}$/, '');
+                const hadMatch = (code && exactCodeMap[code]) || (code && baseCodeMap[baseCode]) ||
+                    ((a.description || '').trim().toLowerCase() && descriptionMap[(a.description || '').trim().toLowerCase()]);
+                // Only audit the ones we actually updated (those that previously had no cost)
+            });
+            addAuditEntry('BULK', 'Auto-Fill Costs', '', `Auto-filled costs for ${updatedCount} assets based on matching records`);
+
+            refreshAllViews();
+            alert(`Successfully updated costs for ${updatedCount} asset(s).\n\n${withoutCost.length - updatedCount} asset(s) still have no matching cost records.`);
+        }
+
         function loadAssetRegister() {
             try {
                 assetRegisterData = loadAssetsFromStorage();
@@ -25879,6 +26167,398 @@
                 console.error('Duplicate error:', error);
                 alert('Error duplicating assets: ' + error.message);
             }
+        }
+
+        // ============================================
+        // ASSET DELETION PAGE (Page 12)
+        // ============================================
+
+        let _delPageAssets = [];       // All assets loaded
+        let _delFilteredAssets = [];   // After filter
+        let _delSelectedIds = new Set();
+        let _delCurrentPage = 1;
+        const _delPerPage = 50;
+
+        function scanDeletionPage() {
+            _delPageAssets = loadAssetsFromStorage();
+            _delSelectedIds = new Set();
+            populateDeletionDropdowns();
+            applyDeletionFilter();
+        }
+
+        function populateDeletionDropdowns() {
+            const cats = new Set();
+            const depts = new Set();
+            _delPageAssets.forEach(a => {
+                if (a.category) cats.add(a.category);
+                if (a.department) depts.add(a.department);
+            });
+
+            const catSel = document.getElementById('delCategoryFilter');
+            if (catSel) {
+                catSel.innerHTML = '<option value="">-- All Categories --</option>' +
+                    [...cats].sort().map(c => `<option value="${c}">${c}</option>`).join('');
+            }
+
+            const deptSel = document.getElementById('delDeptFilter');
+            if (deptSel) {
+                deptSel.innerHTML = '<option value="">-- All Departments --</option>' +
+                    [...depts].sort().map(d => `<option value="${d}">${d}</option>`).join('');
+            }
+        }
+
+        function isEmptyAsset(asset) {
+            // An asset is "empty" if it has no meaningful data beyond an ID
+            const hasCode = asset.assetCode && asset.assetCode.trim();
+            const hasDesc = asset.description && asset.description.trim();
+            const hasPrice = (asset.unitPrice && asset.unitPrice > 0) || (asset.totalPrice && asset.totalPrice > 0);
+            const hasDept = asset.department && asset.department.trim();
+            const hasDate = asset.dateIn && asset.dateIn.trim();
+            const hasSupplier = asset.supplier && asset.supplier.trim();
+            const hasSerial = asset.serialModel && asset.serialModel.trim();
+            return !hasCode && !hasDesc && !hasPrice && !hasDept && !hasDate && !hasSupplier && !hasSerial;
+        }
+
+        function isSparseAsset(asset) {
+            // Count how many key fields are filled
+            let filled = 0;
+            if (asset.assetCode && asset.assetCode.trim()) filled++;
+            if (asset.description && asset.description.trim()) filled++;
+            if ((asset.unitPrice && asset.unitPrice > 0) || (asset.totalPrice && asset.totalPrice > 0)) filled++;
+            if (asset.department && asset.department.trim()) filled++;
+            if (asset.dateIn && asset.dateIn.trim()) filled++;
+            if (asset.supplier && asset.supplier.trim()) filled++;
+            if (asset.serialModel && asset.serialModel.trim()) filled++;
+            if (asset.category && asset.category.trim()) filled++;
+            // Sparse = 2 or fewer of 8 key fields filled
+            return filled <= 2 && !isEmptyAsset(asset);
+        }
+
+        function getFieldCompleteness(asset) {
+            const fields = [
+                { name: 'Asset Code', val: asset.assetCode },
+                { name: 'Description', val: asset.description },
+                { name: 'Price', val: (asset.unitPrice || asset.totalPrice) },
+                { name: 'Department', val: asset.department },
+                { name: 'Date', val: asset.dateIn },
+                { name: 'Supplier', val: asset.supplier },
+                { name: 'Serial/Model', val: asset.serialModel },
+                { name: 'Category', val: asset.category }
+            ];
+            let filled = 0;
+            fields.forEach(f => {
+                if (f.val && String(f.val).trim() && f.val !== 0) filled++;
+            });
+            return Math.round((filled / fields.length) * 100);
+        }
+
+        function toggleDeletionRange() {
+            const rangeType = document.getElementById('delRangeType').value;
+            document.getElementById('delRangeRowInputs').style.display = rangeType === 'row' ? 'flex' : 'none';
+            document.getElementById('delRangeDateInputs').style.display = rangeType === 'date' ? 'flex' : 'none';
+            document.getElementById('delRangeCatInputs').style.display = rangeType === 'category' ? 'flex' : 'none';
+            document.getElementById('delRangeDeptInputs').style.display = rangeType === 'department' ? 'flex' : 'none';
+            applyDeletionFilter();
+        }
+
+        function applyDeletionFilter() {
+            const filterType = document.getElementById('delFilterType').value;
+            const rangeType = document.getElementById('delRangeType').value;
+            const searchTerm = (document.getElementById('delSearchInput').value || '').toLowerCase().trim();
+
+            let assets = [..._delPageAssets];
+
+            // Apply range filter
+            if (rangeType === 'row') {
+                const from = parseInt(document.getElementById('delRowFrom').value) || 1;
+                const to = parseInt(document.getElementById('delRowTo').value) || assets.length;
+                assets = assets.slice(Math.max(0, from - 1), to);
+            } else if (rangeType === 'date') {
+                const dateFrom = document.getElementById('delDateFrom').value;
+                const dateTo = document.getElementById('delDateTo').value;
+                if (dateFrom || dateTo) {
+                    assets = assets.filter(a => {
+                        if (!a.dateIn) return false;
+                        const d = a.dateIn.replace(/\//g, '-');
+                        if (dateFrom && d < dateFrom) return false;
+                        if (dateTo && d > dateTo) return false;
+                        return true;
+                    });
+                }
+            } else if (rangeType === 'category') {
+                const cat = document.getElementById('delCategoryFilter').value;
+                if (cat) assets = assets.filter(a => a.category === cat);
+            } else if (rangeType === 'department') {
+                const dept = document.getElementById('delDeptFilter').value;
+                if (dept) assets = assets.filter(a => a.department === dept);
+            }
+
+            // Apply data quality filter
+            if (filterType === 'empty') {
+                assets = assets.filter(a => isEmptyAsset(a));
+            } else if (filterType === 'sparse') {
+                assets = assets.filter(a => isSparseAsset(a));
+            } else if (filterType === 'no-code') {
+                assets = assets.filter(a => !a.assetCode || !a.assetCode.trim());
+            } else if (filterType === 'no-desc') {
+                assets = assets.filter(a => !a.description || !a.description.trim());
+            } else if (filterType === 'no-price') {
+                assets = assets.filter(a => (!a.unitPrice || a.unitPrice <= 0) && (!a.totalPrice || a.totalPrice <= 0));
+            } else if (filterType === 'no-dept') {
+                assets = assets.filter(a => !a.department || !a.department.trim());
+            } else if (filterType === 'no-date') {
+                assets = assets.filter(a => !a.dateIn || !a.dateIn.trim());
+            }
+
+            // Apply search
+            if (searchTerm) {
+                assets = assets.filter(a => {
+                    const code = (a.assetCode || '').toLowerCase();
+                    const desc = (a.description || '').toLowerCase();
+                    const dept = (a.department || '').toLowerCase();
+                    const cat = (a.category || '').toLowerCase();
+                    return code.includes(searchTerm) || desc.includes(searchTerm) || dept.includes(searchTerm) || cat.includes(searchTerm);
+                });
+            }
+
+            _delFilteredAssets = assets;
+            _delCurrentPage = 1;
+
+            // Update stats
+            const allAssets = _delPageAssets;
+            const emptyCount = allAssets.filter(a => isEmptyAsset(a)).length;
+            const sparseCount = allAssets.filter(a => isSparseAsset(a)).length;
+
+            document.getElementById('delTotalCount').textContent = allAssets.length;
+            document.getElementById('delEmptyCount').textContent = emptyCount;
+            document.getElementById('delSparseCount').textContent = sparseCount;
+            updateDeletionSelectedCount();
+
+            // Show/hide action buttons
+            document.getElementById('delPageDeleteEmptyBtn').style.display = emptyCount > 0 ? 'inline-flex' : 'none';
+
+            renderDeletionTable();
+        }
+
+        function updateDeletionSelectedCount() {
+            document.getElementById('delSelectedCount').textContent = _delSelectedIds.size;
+            document.getElementById('delPageDeleteSelectedBtn').style.display = _delSelectedIds.size > 0 ? 'inline-flex' : 'none';
+        }
+
+        function renderDeletionTable() {
+            const container = document.getElementById('delResultsContainer');
+            if (_delFilteredAssets.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">&#10004;&#65039;</div>
+                    <div style="font-size: 1.1rem; font-weight: 600;">No matching records found</div>
+                    <div style="margin-top: 8px;">Try adjusting your filter or range settings.</div>
+                </div>`;
+                document.getElementById('delShowingCount').textContent = 'Showing 0 assets';
+                document.getElementById('delPageInfo').textContent = '';
+                document.getElementById('delPrevBtn').disabled = true;
+                document.getElementById('delNextBtn').disabled = true;
+                return;
+            }
+
+            const totalPages = Math.ceil(_delFilteredAssets.length / _delPerPage);
+            const start = (_delCurrentPage - 1) * _delPerPage;
+            const end = Math.min(start + _delPerPage, _delFilteredAssets.length);
+            const pageAssets = _delFilteredAssets.slice(start, end);
+
+            document.getElementById('delShowingCount').textContent = `Showing ${_delFilteredAssets.length} assets`;
+            document.getElementById('delPageInfo').textContent = `Page ${_delCurrentPage} of ${totalPages}`;
+            document.getElementById('delPrevBtn').disabled = _delCurrentPage <= 1;
+            document.getElementById('delNextBtn').disabled = _delCurrentPage >= totalPages;
+
+            // Check if all visible are selected
+            const allVisibleSelected = pageAssets.every(a => _delSelectedIds.has(a.id));
+            document.getElementById('delSelectAll').checked = allVisibleSelected && pageAssets.length > 0;
+
+            let html = `<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: var(--table-header-bg, #f8f9fa); border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 10px 8px; text-align: center; width: 40px;"></th>
+                        <th style="padding: 10px 8px; text-align: center; width: 40px;">#</th>
+                        <th style="padding: 10px 8px; text-align: left;">Asset Code</th>
+                        <th style="padding: 10px 8px; text-align: left;">Description</th>
+                        <th style="padding: 10px 8px; text-align: left;">Department</th>
+                        <th style="padding: 10px 8px; text-align: left;">Category</th>
+                        <th style="padding: 10px 8px; text-align: right;">Price</th>
+                        <th style="padding: 10px 8px; text-align: left;">Date</th>
+                        <th style="padding: 10px 8px; text-align: center;">Completeness</th>
+                        <th style="padding: 10px 8px; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            pageAssets.forEach((asset, idx) => {
+                const globalIdx = start + idx + 1;
+                const completeness = getFieldCompleteness(asset);
+                const isEmpty = isEmptyAsset(asset);
+                const isSparse = isSparseAsset(asset);
+                const isSelected = _delSelectedIds.has(asset.id);
+
+                let statusBadge = '';
+                let rowBg = '';
+                if (isEmpty) {
+                    statusBadge = '<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;">EMPTY</span>';
+                    rowBg = 'background: rgba(231, 76, 60, 0.06);';
+                } else if (isSparse) {
+                    statusBadge = '<span style="background: #e67e22; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;">SPARSE</span>';
+                    rowBg = 'background: rgba(230, 126, 34, 0.06);';
+                } else {
+                    statusBadge = '<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;">OK</span>';
+                }
+
+                if (isSelected) {
+                    rowBg = 'background: rgba(231, 76, 60, 0.12);';
+                }
+
+                // Completeness bar color
+                let barColor = '#27ae60';
+                if (completeness < 25) barColor = '#e74c3c';
+                else if (completeness < 50) barColor = '#e67e22';
+                else if (completeness < 75) barColor = '#f1c40f';
+
+                const price = asset.totalPrice || asset.unitPrice || 0;
+
+                html += `<tr style="border-bottom: 1px solid var(--border-color); ${rowBg}" id="del-row-${asset.id}">
+                    <td style="padding: 8px; text-align: center;">
+                        <input type="checkbox" class="del-row-cb" data-id="${asset.id}" ${isSelected ? 'checked' : ''} onchange="toggleDeletionRow(this)" style="width: 16px; height: 16px; cursor: pointer;">
+                    </td>
+                    <td style="padding: 8px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">${globalIdx}</td>
+                    <td style="padding: 8px; font-weight: 600; color: var(--text-primary);">${asset.assetCode || '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-primary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${asset.description || '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-secondary);">${asset.department || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-secondary);">${asset.category || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
+                    <td style="padding: 8px; text-align: right; color: var(--text-primary);">${price > 0 ? '$' + price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '<span style=\'color: #999;\'>--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-secondary);">${asset.dateIn || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
+                    <td style="padding: 8px; text-align: center;">
+                        <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+                            <div style="flex: 1; max-width: 60px; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden;">
+                                <div style="width: ${completeness}%; height: 100%; background: ${barColor}; border-radius: 3px;"></div>
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">${completeness}%</span>
+                        </div>
+                    </td>
+                    <td style="padding: 8px; text-align: center;">${statusBadge}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function toggleDeletionRow(cb) {
+            const id = cb.getAttribute('data-id');
+            if (cb.checked) {
+                _delSelectedIds.add(id);
+            } else {
+                _delSelectedIds.delete(id);
+            }
+            updateDeletionSelectedCount();
+            // Update row highlight
+            const row = document.getElementById('del-row-' + id);
+            if (row) {
+                if (cb.checked) {
+                    row.style.background = 'rgba(231, 76, 60, 0.12)';
+                } else {
+                    row.style.background = '';
+                }
+            }
+        }
+
+        function toggleDeletionSelectAll() {
+            const selectAll = document.getElementById('delSelectAll').checked;
+            const start = (_delCurrentPage - 1) * _delPerPage;
+            const end = Math.min(start + _delPerPage, _delFilteredAssets.length);
+            const pageAssets = _delFilteredAssets.slice(start, end);
+
+            pageAssets.forEach(a => {
+                if (selectAll) {
+                    _delSelectedIds.add(a.id);
+                } else {
+                    _delSelectedIds.delete(a.id);
+                }
+            });
+
+            updateDeletionSelectedCount();
+            renderDeletionTable();
+        }
+
+        function delPagePrev() {
+            if (_delCurrentPage > 1) {
+                _delCurrentPage--;
+                renderDeletionTable();
+            }
+        }
+
+        function delPageNext() {
+            const totalPages = Math.ceil(_delFilteredAssets.length / _delPerPage);
+            if (_delCurrentPage < totalPages) {
+                _delCurrentPage++;
+                renderDeletionTable();
+            }
+        }
+
+        function deletionPageDeleteSelected() {
+            if (_delSelectedIds.size === 0) {
+                alert('No assets selected. Use the checkboxes to select assets first.');
+                return;
+            }
+
+            const selectedAssets = _delPageAssets.filter(a => _delSelectedIds.has(a.id));
+            const assetList = selectedAssets.slice(0, 5).map(a => `  \u2022 ${a.assetCode || '(no code)'} - ${a.description || '(no description)'}`).join('\n');
+            const moreText = selectedAssets.length > 5 ? `\n  ...and ${selectedAssets.length - 5} more` : '';
+
+            if (!confirm(`Are you sure you want to delete ${selectedAssets.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will permanently remove them from ALL views (Dashboard, Board of Survey, and Asset Register).\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            let assets = loadAssetsFromStorage();
+            assets = assets.filter(a => !_delSelectedIds.has(a.id));
+            saveAssetsToStorage(assets);
+
+            trackDeletedAssetIds([..._delSelectedIds]);
+
+            selectedAssets.forEach(asset => {
+                removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                addAuditEntry(asset.assetCode || '(no code)', 'Asset Deleted', asset.department || '', 'Asset deleted from Deletion Page');
+            });
+
+            _delSelectedIds = new Set();
+            refreshAllViews();
+            scanDeletionPage();
+            alert(`${selectedAssets.length} asset(s) deleted successfully.`);
+        }
+
+        function deletionPageDeleteAllEmpty() {
+            const emptyAssets = _delPageAssets.filter(a => isEmptyAsset(a));
+            if (emptyAssets.length === 0) {
+                alert('No empty records found.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete ALL ${emptyAssets.length} empty record(s)?\n\nThese are records with no asset code, description, price, department, date, supplier, or serial number.\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            const idsToDelete = new Set(emptyAssets.map(a => a.id));
+            let assets = loadAssetsFromStorage();
+            assets = assets.filter(a => !idsToDelete.has(a.id));
+            saveAssetsToStorage(assets);
+
+            trackDeletedAssetIds([...idsToDelete]);
+
+            emptyAssets.forEach(asset => {
+                removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                addAuditEntry(asset.assetCode || '(empty record)', 'Asset Deleted', asset.department || '', 'Empty record deleted from Deletion Page (bulk)');
+            });
+
+            _delSelectedIds = new Set();
+            refreshAllViews();
+            scanDeletionPage();
+            alert(`${emptyAssets.length} empty record(s) deleted successfully.`);
         }
 
         // Central function to refresh all views after data changes
