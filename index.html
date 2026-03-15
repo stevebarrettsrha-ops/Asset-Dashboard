@@ -29231,6 +29231,12 @@
         // Normalize asset description for matching (expand abbreviations)
         function normalizeAssetDesc(desc) {
             var d = desc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // Detect "iron" used as a material (not appliance) and neutralize it
+            // Material context: iron + structural/container/fixture words
+            var ironMaterialWords = /\biron\b.*\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b|\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b.*\biron\b/;
+            if (ironMaterialWords.test(d)) {
+                d = d.replace(/\biron\b/g, 'metal');
+            }
             // Apply synonym substitutions
             for (var syn in catalogSynonyms) {
                 if (d.indexOf(syn) !== -1) {
