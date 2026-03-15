@@ -28470,6 +28470,7 @@
                 {name:'Drip Stand / Saline Stand',price:'J$7,600\u201315,200',src:'Market estimate'},
                 {name:'Examination / Consultation Table',price:'J$310,984',src:'\u2605 Register 2022\u201324'},
                 {name:'Stretcher (Hospital Patient)',price:'J$120,000\u2013250,000',src:'Market estimate'},
+                {name:'Transport Stretcher (Hospital)',price:'J$120,000\u2013250,000',src:'Market estimate'},
                 {name:'Patient Stretcher / Transfer Trolley',price:'J$120,000\u2013200,000',src:'Market estimate'},
                 {name:'Emergency Trolley / Gurney',price:'J$180,000\u2013280,000',src:'Market estimate'},
                 {name:'Trolley with Wheels (General Purpose)',price:'J$35,000\u201365,000',src:'Market estimate'},
@@ -28707,6 +28708,7 @@
                 {name:'Insect Killer / Bug Zapper (Electric)',price:'J$5,500\u201318,000',src:'Market estimate'},
                 {name:'Wringer Extractor (Electric)',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Linen Hamper / Bin (Linen)',price:'J$8,000\u201322,000',src:'Market estimate'},
+                {name:'Linen Bin Step-On (Iron / Metal)',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Mop Pan / Mop Wringer',price:'J$3,500\u20138,000',src:'Market estimate'}
             ]},
             {cat:'Climate Control & Electrical Systems', icon:'&#x2744;', life:15, items:[
@@ -29260,8 +29262,9 @@
             // Anaesthetic/anesthetic and analyzer/analyser spelling variants
             'anesthetic': 'anaesthetic', 'anesthesia': 'anaesthesia',
             'analyzer': 'analyser',
-            // Stretcher brand names
+            // Stretcher brand names and types
             'stryker': 'patient', 'sprint 100': 'patient', 'midmark': 'patient',
+            'transport stretcher': 'transport stretcher', 'transfer stretcher': 'transport stretcher',
             // Computer cart synonyms
             'computer cart': 'computer workstation', 'computer carts': 'computer workstation',
             'medical computer': 'computer workstation',
@@ -29443,7 +29446,7 @@
                 'drip','saline','ceiling','pedestal','wall','walk','chill','cold','hot','iv',
                 'oxygen','blood','pressure','dental','mortuary','autopsy','xray','ultrasound',
                 'infusion','dressing','treatment','patient','hospital','medical','industrial',
-                'commercial','clinical','waste','sharps','biohazard','laundry','linen',
+                'commercial','clinical','waste','sharps','biohazard','laundry','linen','garbage','trash',
                 'filing','storage','conference','reception','notice','water','power','lateral','horizontal',
                 'solar','battery','box','standing','desk','hanging','mounted',
                 'chattanooga','infinium','crash','emergency','privacy','overbed',
@@ -29451,7 +29454,8 @@
                 'dining','burner','domestic','anaesthetic','ironing','dry',
                 'food','meal','delivery','desktop','blood','gas','lead',
                 'wooden','coffee','bluetooth','floor','concrete','industrial',
-                'privacy','laminate','formica','theatre','planetary','sack'];
+                'privacy','laminate','formica','theatre','planetary','sack',
+                'transport','transfer','scoop','recovery','ambulance','foldable'];
 
             var bestMatch = null;
             var bestScore = 0;
@@ -29515,6 +29519,31 @@
                         score += matchedPrimary * 25;
                         // Moderate boost for secondary term matches
                         score += matchedSecondary * 10;
+
+                        // PENALTY for unmatched description words: every word matters
+                        // Prevents "Linen Bin" matching "Garbage Bin" just because "bin" matches
+                        var descMatchRatio = totalMatched / totalDescSig;
+                        if (descMatchRatio < 1.0) {
+                            score *= (0.3 + 0.7 * descMatchRatio);
+                        }
+
+                        // PENALTY for conflicting secondary terms between desc and item
+                        // e.g. desc has "linen" but item has "garbage" → strong mismatch signal
+                        var descSecTerms = descSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                        var itemSecTerms = itemSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                        if (descSecTerms.length > 0 && itemSecTerms.length > 0) {
+                            var secMatch = false;
+                            for (var st1 = 0; st1 < descSecTerms.length; st1++) {
+                                for (var st2 = 0; st2 < itemSecTerms.length; st2++) {
+                                    if (descSecTerms[st1] === itemSecTerms[st2]) { secMatch = true; break; }
+                                }
+                                if (secMatch) break;
+                            }
+                            if (!secMatch) {
+                                // Description and item have DIFFERENT secondary modifiers → likely different sub-type
+                                score *= 0.4;
+                            }
+                        }
                     }
 
                     // CRITICAL: Check primary noun alignment
