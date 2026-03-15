@@ -28638,6 +28638,7 @@
                 {name:'Drip Stand / Saline Stand',price:'J$7,600\u201315,200',src:'Market estimate'},
                 {name:'Examination / Consultation Table',price:'J$310,984',src:'\u2605 Register 2022\u201324'},
                 {name:'Stretcher (Hospital Patient)',price:'J$120,000\u2013250,000',src:'Market estimate'},
+                {name:'Transport Stretcher (Hospital)',price:'J$120,000\u2013250,000',src:'Market estimate'},
                 {name:'Patient Stretcher / Transfer Trolley',price:'J$120,000\u2013200,000',src:'Market estimate'},
                 {name:'Emergency Trolley / Gurney',price:'J$180,000\u2013280,000',src:'Market estimate'},
                 {name:'Trolley with Wheels (General Purpose)',price:'J$35,000\u201365,000',src:'Market estimate'},
@@ -28661,6 +28662,8 @@
                 {name:'Overbed Tray / Food Tray',price:'J$8,000\u201318,000',src:'Market estimate'},
                 {name:'Baby Cot / Crib (Hospital)',price:'J$45,000\u201395,000',src:'Market estimate'},
                 {name:'Bassinet (Hospital Grade)',price:'J$35,000\u201375,000',src:'Market estimate'},
+                {name:'Bassinet Basin (Acrylic Baby Sleeping Tub)',price:'J$4,000\u20138,000',src:'Market estimate'},
+                {name:'Bassinet Stand (Frame with Wheels)',price:'J$10,000\u201320,000',src:'Market estimate'},
                 {name:'Walker / Rollator (Metal)',price:'J$8,500\u201322,000',src:'Market estimate'},
                 {name:'Playpen (Hospital / Paediatric)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Bath (Baby / Infant, Mobile)',price:'J$22,000\u201345,000',src:'Market estimate'},
@@ -28873,6 +28876,7 @@
                 {name:'Insect Killer / Bug Zapper (Electric)',price:'J$5,500\u201318,000',src:'Market estimate'},
                 {name:'Wringer Extractor (Electric)',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Linen Hamper / Bin (Linen)',price:'J$8,000\u201322,000',src:'Market estimate'},
+                {name:'Linen Bin Step-On (Iron / Metal)',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Mop Pan / Mop Wringer',price:'J$3,500\u20138,000',src:'Market estimate'}
             ]},
             {cat:'Climate Control & Electrical Systems', icon:'&#x2744;', life:15, items:[
@@ -29426,8 +29430,9 @@
             // Anaesthetic/anesthetic and analyzer/analyser spelling variants
             'anesthetic': 'anaesthetic', 'anesthesia': 'anaesthesia',
             'analyzer': 'analyser',
-            // Stretcher brand names
+            // Stretcher brand names and types
             'stryker': 'patient', 'sprint 100': 'patient', 'midmark': 'patient',
+            'transfer stretcher': 'transport stretcher',
             // Computer cart synonyms
             'computer cart': 'computer workstation', 'computer carts': 'computer workstation',
             'medical computer': 'computer workstation',
@@ -29435,11 +29440,14 @@
             // Chair type normalization
             'stack chair': 'stacking chair', 'stacked chair': 'stacking chair',
             'reclinetr': 'recliner', 'reclinetr chair': 'recliner chair',
+            'reclining': 'recliner', 'reclining chair': 'recliner chair',
             'sofa chair': 'sofa', 'lounge chair': 'recliner',
-            // Basin/bassinet disambiguation
-            'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
-            'bassinet frame': 'bassinet', 'bassinett frame': 'bassinet',
-            'basinet frame': 'bassinet',
+            // Basin/bassinet disambiguation: bassinet basin = acrylic baby sleeping tub (NOT wash basin)
+            'bassinet basin': 'bassinet basin', 'bassinett basin': 'bassinet basin',
+            'basinet basin': 'bassinet basin',
+            'bassinet frame': 'bassinet stand', 'bassinett frame': 'bassinet stand',
+            'basinet frame': 'bassinet stand',
+            'bassinet stand': 'bassinet stand', 'bassinett stand': 'bassinet stand',
             // Stove/range - keep "stove" keyword for matching
             'range stove': 'range stove commercial',
             // Dining
@@ -29486,6 +29494,20 @@
 
         // Normalize asset description for matching (expand abbreviations)
         function normalizeAssetDesc(desc) {
+            // Pre-process: split on dashes/hyphens in original text BEFORE stripping non-alnum
+            // e.g. "Stretchers - IV Poles - Mattress" → take "Stretchers" only
+            // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
+            var dashParts = desc.split(/\s*[-\u2013\u2014]\s*/);
+            if (dashParts.length > 1) {
+                var firstLower = dashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                if (materialFrameRe.test(firstLower) && dashParts[1].trim().length > 2) {
+                    // First part is just material+structure, take the second part (actual item)
+                    desc = dashParts[1].trim();
+                } else if (dashParts[0].trim().length > 2) {
+                    desc = dashParts[0].trim();
+                }
+            }
             var d = desc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
             // Detect "iron" used as a material (not appliance) and neutralize it
             // Material context: iron + structural/container/fixture words
@@ -29506,12 +29528,7 @@
             d = d.replace(/\s+w\s+(?:mattress|keyboard|monitor|mouse|pole|poles|iv|stand|rail|rails|side|accessories|accessory)\b.*/g, '');
             // But keep "w drawer" → "with drawer" for table matching
             d = d.replace(/\bw\b\s+\bdrawer\b/g, 'drawer');
-            // Multi-item descriptions (separated by dashes or commas with spaces): prioritize first item
-            // e.g. "Stretchers - IV Poles - Mattress" → "Stretchers"
-            var dashParts = d.split(/\s+-\s+/);
-            if (dashParts.length > 1 && dashParts[0].trim().length > 2) {
-                d = dashParts[0].trim();
-            }
+            // (Dash-splitting now handled at top of function before non-alnum stripping)
             // Apply synonym substitutions
             for (var syn in catalogSynonyms) {
                 if (d.indexOf(syn) !== -1) {
@@ -29527,7 +29544,30 @@
         // Match an asset description to the best catalog item
         function matchAssetToCatalog(assetDesc, catalogLookup) {
             if (!assetDesc) return null;
-            var rawDesc = assetDesc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // Apply same critical pre-processing to rawDesc as normalizeAssetDesc:
+            // 1. Dash-split: take first part, unless it's a material/frame descriptor
+            var rawSrc = assetDesc;
+            var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
+            if (rawDashParts.length > 1) {
+                var rawFirstLower = rawDashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                if (materialFrameRe.test(rawFirstLower) && rawDashParts[1].trim().length > 2) {
+                    rawSrc = rawDashParts[1].trim();
+                } else if (rawDashParts[0].trim().length > 2) {
+                    rawSrc = rawDashParts[0].trim();
+                }
+            }
+            var rawDesc = rawSrc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // 2. Iron-as-material: remove "iron" when used as material (bath, gate, fence, etc.)
+            var ironCtx = /\biron\b.*\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b|\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b.*\biron\b/;
+            if (ironCtx.test(rawDesc)) {
+                rawDesc = rawDesc.replace(/\biron\b/g, 'metal');
+            }
+            // 3. Computer system: strip peripheral words so it matches the computer, not keyboard/monitor
+            if (/\bcomputer\b.*\b(system|cpu|server)\b|\b(system|cpu|server)\b.*\bcomputer\b/.test(rawDesc)) {
+                rawDesc = rawDesc.replace(/\bkeyboard\b/g, '').replace(/\bmonitor\b/g, '').replace(/\bmouse\b/g, '');
+                rawDesc = rawDesc.replace(/\s+/g, ' ').trim();
+            }
             var desc = normalizeAssetDesc(assetDesc);
             var descWords = desc.split(' ').filter(function(w) { return w.length > 2; });
             var rawWords = rawDesc.split(' ').filter(function(w) { return w.length > 2; });
@@ -29574,7 +29614,7 @@
                 'drip','saline','ceiling','pedestal','wall','walk','chill','cold','hot','iv',
                 'oxygen','blood','pressure','dental','mortuary','autopsy','xray','ultrasound',
                 'infusion','dressing','treatment','patient','hospital','medical','industrial',
-                'commercial','clinical','waste','sharps','biohazard','laundry','linen',
+                'commercial','clinical','waste','sharps','biohazard','laundry','linen','garbage','trash',
                 'filing','storage','conference','reception','notice','water','power','lateral','horizontal',
                 'solar','battery','box','standing','desk','hanging','mounted',
                 'chattanooga','infinium','crash','emergency','privacy','overbed',
@@ -29582,7 +29622,8 @@
                 'dining','burner','domestic','anaesthetic','ironing','dry',
                 'food','meal','delivery','desktop','blood','gas','lead',
                 'wooden','coffee','bluetooth','floor','concrete','industrial',
-                'privacy','laminate','formica','theatre','planetary','sack'];
+                'privacy','laminate','formica','theatre','planetary','sack',
+                'transport','transfer','scoop','recovery','ambulance','foldable'];
 
             var bestMatch = null;
             var bestScore = 0;
@@ -29592,63 +29633,91 @@
                 var itemSignificantWords = item.keywords.filter(function(w) { return catalogStopWords.indexOf(w) === -1; });
                 var score = 0;
 
-                // Exact substring match (highest priority)
-                if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
-                    score = 100;
-                } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
-                    score = 95;
-                } else {
-                    // Word overlap scoring using ONLY significant words (no stop words)
-                    var matchedPrimary = 0;
-                    var matchedSecondary = 0;
-                    var matchedOther = 0;
+                // === STEP 1: Always compute word-level matches (needed for penalties) ===
+                var matchedPrimary = 0;
+                var matchedSecondary = 0;
+                var matchedOther = 0;
 
-                    for (var w = 0; w < descSignificantWords.length; w++) {
-                        var word = descSignificantWords[w];
-                        for (var k = 0; k < itemSignificantWords.length; k++) {
-                            if (word === itemSignificantWords[k]) {
-                                if (primaryNouns.indexOf(word) !== -1) matchedPrimary++;
-                                else if (secondaryTerms.indexOf(word) !== -1) matchedSecondary++;
+                for (var w = 0; w < descSignificantWords.length; w++) {
+                    var word = descSignificantWords[w];
+                    for (var k = 0; k < itemSignificantWords.length; k++) {
+                        if (word === itemSignificantWords[k]) {
+                            if (primaryNouns.indexOf(word) !== -1) matchedPrimary++;
+                            else if (secondaryTerms.indexOf(word) !== -1) matchedSecondary++;
+                            else matchedOther++;
+                            break;
+                        }
+                    }
+                }
+                // Also try raw significant words if different
+                if (rawDesc !== desc) {
+                    for (var w2 = 0; w2 < rawSignificantWords.length; w2++) {
+                        var rw = rawSignificantWords[w2];
+                        var alreadyCounted = false;
+                        for (var dw = 0; dw < descSignificantWords.length; dw++) {
+                            if (rw === descSignificantWords[dw]) { alreadyCounted = true; break; }
+                        }
+                        if (alreadyCounted) continue;
+                        for (var k2 = 0; k2 < itemSignificantWords.length; k2++) {
+                            if (rw === itemSignificantWords[k2]) {
+                                if (primaryNouns.indexOf(rw) !== -1) matchedPrimary++;
+                                else if (secondaryTerms.indexOf(rw) !== -1) matchedSecondary++;
                                 else matchedOther++;
                                 break;
                             }
                         }
                     }
-                    // Also try raw significant words if different
-                    if (rawDesc !== desc) {
-                        for (var w2 = 0; w2 < rawSignificantWords.length; w2++) {
-                            var rw = rawSignificantWords[w2];
-                            var alreadyCounted = false;
-                            for (var dw = 0; dw < descSignificantWords.length; dw++) {
-                                if (rw === descSignificantWords[dw]) { alreadyCounted = true; break; }
+                }
+                var totalMatched = matchedPrimary + matchedSecondary + matchedOther;
+                var totalDescSig = Math.max(descSignificantWords.length, 1);
+                var totalItemSig = Math.max(itemSignificantWords.length, 1);
+
+                // === STEP 2: Determine base score ===
+                // Exact substring match (highest priority)
+                if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
+                    score = 500;
+                } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
+                    score = 450;
+                } else if (totalMatched > 0) {
+                    // Word overlap scoring using ONLY significant words (no stop words)
+                    var descCoverage = totalMatched / totalDescSig;
+                    var itemCoverage = totalMatched / totalItemSig;
+                    // Base score: weighted by coverage and match count
+                    score = (descCoverage + itemCoverage) * 50 * totalMatched;
+                    // Strong boost for primary noun matches
+                    score += matchedPrimary * 25;
+                    // Moderate boost for secondary term matches
+                    score += matchedSecondary * 10;
+                }
+
+                // === STEP 3: Apply penalties to ALL matches (including substring) ===
+                if (score > 0) {
+                    // PENALTY 1: Unmatched description words — every word matters
+                    // Prevents "Linen Bin" matching "Garbage Bin" just because "bin" matches
+                    var descMatchRatio = totalMatched / totalDescSig;
+                    if (descMatchRatio < 1.0) {
+                        score *= (0.3 + 0.7 * descMatchRatio);
+                    }
+
+                    // PENALTY 2: Conflicting secondary terms between desc and item
+                    // e.g. desc has "linen" but item has "garbage" → strong mismatch signal
+                    var descSecTerms = descSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                    var itemSecTerms = itemSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                    if (descSecTerms.length > 0 && itemSecTerms.length > 0) {
+                        var secMatch = false;
+                        for (var st1 = 0; st1 < descSecTerms.length; st1++) {
+                            for (var st2 = 0; st2 < itemSecTerms.length; st2++) {
+                                if (descSecTerms[st1] === itemSecTerms[st2]) { secMatch = true; break; }
                             }
-                            if (alreadyCounted) continue;
-                            for (var k2 = 0; k2 < itemSignificantWords.length; k2++) {
-                                if (rw === itemSignificantWords[k2]) {
-                                    if (primaryNouns.indexOf(rw) !== -1) matchedPrimary++;
-                                    else if (secondaryTerms.indexOf(rw) !== -1) matchedSecondary++;
-                                    else matchedOther++;
-                                    break;
-                                }
-                            }
+                            if (secMatch) break;
+                        }
+                        if (!secMatch) {
+                            // Description and item have DIFFERENT secondary modifiers → likely different sub-type
+                            score *= 0.4;
                         }
                     }
 
-                    var totalMatched = matchedPrimary + matchedSecondary + matchedOther;
-                    if (totalMatched > 0) {
-                        var totalDescSig = Math.max(descSignificantWords.length, 1);
-                        var totalItemSig = Math.max(itemSignificantWords.length, 1);
-                        var descCoverage = totalMatched / totalDescSig;
-                        var itemCoverage = totalMatched / totalItemSig;
-                        // Base score: weighted by coverage and match count
-                        score = (descCoverage + itemCoverage) * 50 * totalMatched;
-                        // Strong boost for primary noun matches
-                        score += matchedPrimary * 25;
-                        // Moderate boost for secondary term matches
-                        score += matchedSecondary * 10;
-                    }
-
-                    // CRITICAL: Check primary noun alignment
+                    // PENALTY 3: Primary noun alignment
                     var descNouns = descSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
                     var itemNouns = itemSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
 
@@ -29661,7 +29730,7 @@
                         ['cot','bed'],['crib','bed'],['bassinet','bed'],
                         ['fan','extinguisher'],['lamp','heater'],
                         ['cart','desk'],['workstation','desk'],
-                        ['basin','bassinet'],['basin','bed'],
+                        ['basin','bed'],
                         ['sofa','commode'],['recliner','commode'],
                         ['sofa','wheelchair'],['recliner','wheelchair'],
                         ['stove','table'],['range','table'],['cooker','table'],
@@ -29673,7 +29742,6 @@
                         var pA = conflictPairs[cp][0], pB = conflictPairs[cp][1];
                         var descHasA = descNouns.indexOf(pA) !== -1, descHasB = descNouns.indexOf(pB) !== -1;
                         var itemHasA = itemNouns.indexOf(pA) !== -1, itemHasB = itemNouns.indexOf(pB) !== -1;
-                        // Conflict: desc has one and item has the other (but not both)
                         if ((descHasA && itemHasB && !descHasB && !itemHasA) ||
                             (descHasB && itemHasA && !descHasA && !itemHasB)) {
                             hasConflict = true;
@@ -29685,24 +29753,24 @@
                     }
 
                     if (descNouns.length > 0 && itemNouns.length > 0) {
-                        var nounMatch = false;
+                        var nounMatchCount = 0;
                         for (var n1 = 0; n1 < descNouns.length; n1++) {
                             for (var n2 = 0; n2 < itemNouns.length; n2++) {
-                                if (descNouns[n1] === itemNouns[n2]) { nounMatch = true; break; }
+                                if (descNouns[n1] === itemNouns[n2]) { nounMatchCount++; break; }
                             }
-                            if (nounMatch) break;
                         }
-                        if (!nounMatch) {
+                        if (nounMatchCount === 0) {
                             score *= 0.1; // Nearly eliminate score for mismatched primary nouns
+                        } else if (nounMatchCount < descNouns.length) {
+                            score *= (nounMatchCount / descNouns.length);
                         }
                     } else if (descNouns.length > 0 && itemNouns.length === 0) {
-                        // Asset has a primary noun but catalog item doesn't have a matching category
                         score *= 0.4;
                     }
 
                     // Require at least one primary or secondary match (not just generic words)
                     if (matchedPrimary === 0 && matchedSecondary === 0) {
-                        score *= 0.15; // Nearly eliminate matches on only generic words
+                        score *= 0.15;
                     }
                 }
 
