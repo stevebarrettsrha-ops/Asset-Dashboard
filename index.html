@@ -8497,6 +8497,7 @@
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="autoFillMissingCosts()" style="background: linear-gradient(135deg, #e67e22, #d35400);">💲 Auto-Fill Missing Costs</button>
+                        <button class="btn monthly-view-btn" onclick="catalogAutoFillRegister()" style="background: linear-gradient(135deg, #16a085, #1abc9c);" title="Auto-fill Useful Life, Salvage Value, Depr. Method and missing prices from the Asset Cost Catalog">📋 Catalog Auto-Fill</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                     </div>
@@ -9115,6 +9116,7 @@
                     <button onclick="bulkSelectAll()" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #8e44ad; background: transparent; color: #8e44ad; cursor: pointer; font-size: 0.85rem;">Select All Visible</button>
                     <button onclick="bulkDeselectAll()" style="padding: 6px 14px; border-radius: 6px; border: 1px solid #95a5a6; background: transparent; color: #95a5a6; cursor: pointer; font-size: 0.85rem;">Deselect All</button>
                     <button onclick="syncBosAssets()" style="padding: 6px 14px; border-radius: 6px; border: none; background: linear-gradient(135deg, #2980b9, #3498db); color: white; cursor: pointer; font-size: 0.85rem; font-weight: 600;">🔄 Sync BOS Assets</button>
+                    <button onclick="catalogAutoFillBulk()" style="padding: 6px 14px; border-radius: 6px; border: none; background: linear-gradient(135deg, #16a085, #1abc9c); color: white; cursor: pointer; font-size: 0.85rem; font-weight: 600;" title="Auto-fill Unit Price, Total Price, Useful Life, Salvage Value, Depr. Method from Catalog">📋 Catalog Auto-Fill</button>
                     <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); margin-left: 8px;">
                         <input type="checkbox" id="bulkShowBosAssets" checked onchange="filterBulkAssets()" style="width: 16px; height: 16px; cursor: pointer;">
                         Show BOS Assets
@@ -9652,6 +9654,24 @@
                 <div style="flex: 1; min-width: 150px; padding: 14px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Search Results</div>
                     <div style="font-size: 1.6rem; font-weight: 700; color: #9b59b6;" id="catalogSearchCount">--</div>
+                </div>
+            </div>
+
+            <!-- Useful Life Reference Note -->
+            <div style="margin-bottom: 16px; padding: 14px 18px; background: linear-gradient(135deg, rgba(22,160,133,0.08), rgba(26,188,156,0.05)); border-radius: 10px; border: 1px solid rgba(22,160,133,0.2); border-left: 4px solid #16a085;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                    <div style="flex: 1; min-width: 280px;">
+                        <h4 style="margin: 0 0 6px; color: #16a085; font-size: 0.95rem;">Useful Life &amp; Depreciation Reference</h4>
+                        <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+                            Useful life estimates per category are based on <strong>AHA Estimated Useful Lives of Depreciable Hospital Assets</strong>,
+                            IRS MACRS recovery periods, and industry averages. Depreciation method: <strong>Straight Line (SL)</strong>.
+                            Salvage value calculated automatically by asset category percentage (5&ndash;15%).
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="catalogAutoFillRegister()" style="padding: 8px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, #16a085, #1abc9c); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">📋 Auto-Fill Asset Register</button>
+                        <button onclick="catalogAutoFillBulk()" style="padding: 8px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">📋 Auto-Fill Bulk Categories</button>
+                    </div>
                 </div>
             </div>
 
@@ -28398,7 +28418,7 @@
         };
 
         const catalogData = [
-            {cat:'Patient Care & Ward Equipment', icon:'&#x1F6CF;', items:[
+            {cat:'Patient Care & Ward Equipment', icon:'&#x1F6CF;', life:10, items:[
                 {name:'Hospital Bed (Manual, Standard)',price:'J$180,000\u2013250,000',src:'Market estimate'},
                 {name:'Hospital Bed (Semi-Electric)',price:'J$280,000\u2013380,000',src:'Register 2022\u201324'},
                 {name:'Hospital Bed (Full-Electric, ICU)',price:'J$450,000\u2013750,000',src:'Market estimate'},
@@ -28426,7 +28446,7 @@
                 {name:'Commode Chair (Mobile)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Traction Frame / Overhead Beam',price:'J$55,000\u2013110,000',src:'Market estimate'}
             ]},
-            {cat:'Clinical & Diagnostic Equipment', icon:'&#x1FA7A;', items:[
+            {cat:'Clinical & Diagnostic Equipment', icon:'&#x1FA7A;', life:7, items:[
                 {name:'Privacy Screen - Stainless Steel 3 Panel',price:'J$26,000\u201328,000',src:'\u2605 Medco Medical Supplies'},
                 {name:'Emergency Crash Cart (Red/Blue)',price:'J$184,000',src:'\u2605 Medco Medical Jul 2025'},
                 {name:'Stainless Steel Dressing Trolley (3 Tier)',price:'J$49,600',src:'\u2605 Medical Link Jul 2025'},
@@ -28452,7 +28472,7 @@
                 {name:'Treatment Trolley (Stainless Steel)',price:'J$45,000\u201380,000',src:'Market estimate'},
                 {name:'Portable X-Ray Machine',price:'J$1,500,000\u20134,000,000',src:'Market estimate'}
             ]},
-            {cat:'Furniture & Seating', icon:'&#x1FA91;', items:[
+            {cat:'Furniture & Seating', icon:'&#x1FA91;', life:10, items:[
                 {name:'Guest / Waiting Chair (Single)',price:'J$15,000',src:'\u2605 Donated May 2025'},
                 {name:'Stock Chair (Stacking)',price:'J$7,250',src:'\u2605 Donated Jul 2025'},
                 {name:'10-Attached (4-Chair Row) Stock Chairs',price:'J$10,073 per unit',src:'\u2605 Donated Sep 2025'},
@@ -28467,7 +28487,7 @@
                 {name:'Infusion / Treatment Chair (Reclining)',price:'J$120,000\u2013220,000',src:'Market estimate'},
                 {name:'Stool (Adjustable Height, Round)',price:'J$8,500\u201315,000',src:'Market estimate'}
             ]},
-            {cat:'Office, Admin & Storage Furniture', icon:'&#x1F5C4;', items:[
+            {cat:'Office, Admin & Storage Furniture', icon:'&#x1F5C4;', life:10, items:[
                 {name:'56" x 30" L-Shape Desk w/ 3-Drawer Pedestal',price:'J$78,900',src:'\u2605 Empire Stationery May 2025'},
                 {name:'Desk with Mobile Pedestal 64 x 30',price:'J$52,500',src:'\u2605 Register 2022\u201324'},
                 {name:'Standard Office Desk (Straight, 48")',price:'J$35,000\u201360,000',src:'Market estimate'},
@@ -28484,7 +28504,7 @@
                 {name:'Folding Table 29.6" x 20.6"',price:'J$9,600',src:'\u2605 Neveast Supplies Aug 2025'},
                 {name:'Safe (Fireproof, Medium)',price:'J$85,000\u2013160,000',src:'Market estimate'}
             ]},
-            {cat:'Dietary, Kitchen & Food Service', icon:'&#x1F37D;', items:[
+            {cat:'Dietary, Kitchen & Food Service', icon:'&#x1F37D;', life:12, items:[
                 {name:'Imperial Countertop Gas Stove 6-Burner 60"',price:'J$1,784,463',src:'\u2605 ATL Unbeatable May 2025'},
                 {name:'Equipment Stand / Stove Undershelf (SS)',price:'J$561,658',src:'\u2605 ATL Unbeatable May 2025'},
                 {name:'20 CuFt Frigidaire Refrigerator (FRT515)',price:'J$108,696',src:'\u2605 Fashion House Sep 2025'},
@@ -28501,7 +28521,7 @@
                 {name:'Stainless Steel Work Table (4ft)',price:'J$55,000\u201390,000',src:'Market estimate'},
                 {name:'Bain Marie / Steam Table (3-Pan)',price:'J$120,000\u2013200,000',src:'Market estimate'}
             ]},
-            {cat:'Laundry, Cleaning & Sanitation', icon:'&#x1F9F9;', items:[
+            {cat:'Laundry, Cleaning & Sanitation', icon:'&#x1F9F9;', life:10, items:[
                 {name:'Commercial Swivel Laundry Cart / Hamper',price:'J$69,980',src:'\u2605 Empire Rest. May 2025'},
                 {name:'Linen Cart (Enclosed)',price:'J$56,080',src:'\u2605 Shekinah Trading Aug 2025'},
                 {name:'Industrial Mop Bucket (with Wringer)',price:'J$18,900',src:'\u2605 People\'s Choice Aug 2025'},
@@ -28517,7 +28537,7 @@
                 {name:'Linen Trolley (Open Top)',price:'J$28,000\u201348,000',src:'Market estimate'},
                 {name:'Portable Hand Wash Station',price:'J$45,000\u201380,000',src:'Market estimate'}
             ]},
-            {cat:'Climate Control & Electrical Systems', icon:'&#x2744;', items:[
+            {cat:'Climate Control & Electrical Systems', icon:'&#x2744;', life:15, items:[
                 {name:'36,000 BTU Tropicool Inverter AC Wall Unit',price:'J$119,925',src:'\u2605 Tropicool Sep 2025'},
                 {name:'36,000 BTU Tropicool Inverter AC Evaporator',price:'J$64,575',src:'\u2605 Tropicool Sep 2025'},
                 {name:'18,000 BTU Inverter Air Conditioner',price:'J$85,000\u2013130,000',src:'Market estimate'},
@@ -28531,7 +28551,7 @@
                 {name:'Voltage Stabilizer / Regulator',price:'J$35,000\u201385,000',src:'Market estimate'},
                 {name:'Surge Protector (6-Outlet, Medical Grade)',price:'J$6,500\u201312,000',src:'Market estimate'}
             ]},
-            {cat:'Technology, IT & Communications', icon:'&#x1F4BB;', items:[
+            {cat:'Technology, IT & Communications', icon:'&#x1F4BB;', life:5, items:[
                 {name:'Samsung Tablet A9 5G 64GB',price:'J$55,000',src:'\u2605 KAZM Business Solutions Sep 2025'},
                 {name:'Desktop Computer (Core i5, 8GB RAM)',price:'J$95,000\u2013140,000',src:'Market estimate'},
                 {name:'Laptop Computer (Core i5, 8GB RAM)',price:'J$120,000\u2013180,000',src:'Market estimate'},
@@ -28545,7 +28565,7 @@
                 {name:'Projector (HDMI, 3500 Lumens)',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Smart TV (55", Android)',price:'J$95,000\u2013160,000',src:'Market estimate'}
             ]},
-            {cat:'Laboratory & Pathology', icon:'&#x1F52C;', items:[
+            {cat:'Laboratory & Pathology', icon:'&#x1F52C;', life:7, items:[
                 {name:'Autoclave (B-Class, 22L)',price:'J$350,000\u2013600,000',src:'Market estimate'},
                 {name:'Centrifuge (Benchtop, 5000 rpm)',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Refrigerator (Blood Bank Spec.)',price:'J$450,000\u2013800,000',src:'Market estimate'},
@@ -28557,7 +28577,7 @@
                 {name:'Biosafety Cabinet (Class II)',price:'J$950,000\u20132,000,000',src:'Market estimate'},
                 {name:'Drill (Maintenance / Orthopaedic)',price:'J$55,000',src:'\u2605 Register 2022\u201324'}
             ]},
-            {cat:'Operating Theatre & Surgical', icon:'&#x1F3E5;', items:[
+            {cat:'Operating Theatre & Surgical', icon:'&#x1F3E5;', life:10, items:[
                 {name:'Operating Table (Manual)',price:'J$850,000\u20131,500,000',src:'Market estimate'},
                 {name:'Operating Table (Electric)',price:'J$1,800,000\u20133,500,000',src:'Market estimate'},
                 {name:'Surgical Light (Single Dome, Ceiling)',price:'J$650,000\u20131,400,000',src:'Market estimate'},
@@ -28571,7 +28591,7 @@
                 {name:'Scrub Sink (SS, 2-Bay, Elbow Tap)',price:'J$180,000\u2013320,000',src:'Market estimate'},
                 {name:'Surgical Head Light (LED)',price:'J$95,000\u2013180,000',src:'Market estimate'}
             ]},
-            {cat:'Maternity & Obstetrics', icon:'&#x1F931;', items:[
+            {cat:'Maternity & Obstetrics', icon:'&#x1F931;', life:8, items:[
                 {name:'Neonatal Incubator (with Servo Control)',price:'J$1,200,000\u20132,800,000',src:'Market estimate'},
                 {name:'Radiant Warmer (Infant Resuscitaire)',price:'J$950,000\u20132,000,000',src:'Market estimate'},
                 {name:'Phototherapy Unit (Double Surface)',price:'J$380,000\u2013750,000',src:'Market estimate'},
@@ -28581,7 +28601,7 @@
                 {name:'Breast Pump (Electric, Dual)',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'Delivery Trolley (Fully Equipped)',price:'J$95,000\u2013180,000',src:'Market estimate'}
             ]},
-            {cat:'Physiotherapy & Rehabilitation', icon:'&#x1F9BE;', items:[
+            {cat:'Physiotherapy & Rehabilitation', icon:'&#x1F9BE;', life:8, items:[
                 {name:'Physiotherapy Plinth / Treatment Table',price:'J$180,000\u2013320,000',src:'Market estimate'},
                 {name:'Parallel Bars (Adjustable, 3m)',price:'J$280,000\u2013480,000',src:'Market estimate'},
                 {name:'Treadmill (Medical Grade)',price:'J$350,000\u2013750,000',src:'Market estimate'},
@@ -28593,7 +28613,7 @@
                 {name:'Exercise Mat (Physiotherapy)',price:'J$8,500\u201315,000',src:'Market estimate'},
                 {name:'Cervical Traction Unit',price:'J$45,000\u201385,000',src:'Market estimate'}
             ]},
-            {cat:'Security & Safety', icon:'&#x1F512;', items:[
+            {cat:'Security & Safety', icon:'&#x1F512;', life:10, items:[
                 {name:'CCTV Camera System (8-Channel)',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Access Control / Card Reader',price:'J$55,000\u2013120,000',src:'Market estimate'},
                 {name:'Metal Detector (Walk-Through)',price:'J$180,000\u2013380,000',src:'Market estimate'},
@@ -28605,7 +28625,7 @@
                 {name:'Emergency Lighting (Battery Backup)',price:'J$12,000\u201325,000',src:'Market estimate'},
                 {name:'Folding Table (Security Post)',price:'J$9,600',src:'\u2605 Neveast Supplies Aug 2025'}
             ]},
-            {cat:'Emergency & Accident Department', icon:'&#x1F691;', items:[
+            {cat:'Emergency & Accident Department', icon:'&#x1F691;', life:7, items:[
                 {name:'Emergency Crash Cart (Red/Blue)',price:'J$184,000',src:'\u2605 Medco Medical Jul 2025'},
                 {name:'Defibrillator / AED (Automated)',price:'J$450,000\u2013900,000',src:'Market estimate'},
                 {name:'Spinal Board / Backboard (Long)',price:'J$28,000\u201355,000',src:'Market estimate'},
@@ -28615,7 +28635,7 @@
                 {name:'Electric Cast Cutter (Plaster Saw)',price:'J$71,530',src:'\u2605 Shekinah Trading Jul 2025'},
                 {name:'Dressing Pack Trolley (SS, 3 Shelf)',price:'J$45,000\u201380,000',src:'Market estimate'}
             ]},
-            {cat:'Waste Management & Disposal', icon:'&#x267B;', items:[
+            {cat:'Waste Management & Disposal', icon:'&#x267B;', life:5, items:[
                 {name:'Clinical Waste Bin (Red, 30L Pedal)',price:'J$4,500\u20139,000',src:'Market estimate'},
                 {name:'Sharps Container (5L, Yellow)',price:'J$900\u20132,200',src:'Market estimate'},
                 {name:'Sharps Disposal Trolley (Mobile)',price:'J$18,000\u201335,000',src:'Market estimate'},
@@ -28624,7 +28644,7 @@
                 {name:'Needle Destroyer / Burner (Electric)',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'Outdoor Wheelie Bin (240L)',price:'J$8,500\u201315,000',src:'Market estimate'}
             ]},
-            {cat:'Grounds, Outdoor & Infrastructure', icon:'&#x1F33F;', items:[
+            {cat:'Grounds, Outdoor & Infrastructure', icon:'&#x1F33F;', life:10, items:[
                 {name:'Wheelchair Ramp (Portable, Aluminium)',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'Parking Barrier / Boom Gate',price:'J$180,000\u2013380,000',src:'Market estimate'},
                 {name:'Garden Bench (Outdoor, Steel)',price:'J$22,000\u201345,000',src:'Market estimate'},
@@ -28634,7 +28654,7 @@
                 {name:'Hand Truck / Sack Trolley',price:'J$8,500\u201316,000',src:'Market estimate'},
                 {name:'Drinking Fountain (Wall-Mount)',price:'J$55,000\u2013110,000',src:'Market estimate'}
             ]},
-            {cat:'Pharmacy & Drug Management', icon:'&#x1F48A;', items:[
+            {cat:'Pharmacy & Drug Management', icon:'&#x1F48A;', life:10, items:[
                 {name:'Cabinet, Narcotic (Lockable)',price:'J$35,000\u201365,000',src:'#704 \u00b7 Register 1997'},
                 {name:'Cabinet, Medicine (Wall Unit)',price:'J$22,000\u201345,000',src:'#565 \u00b7 Register 1997'},
                 {name:'Refrigerator, Drug Storage - Free Standing',price:'J$95,000\u2013160,000',src:'#1399 \u00b7 Register 1998'},
@@ -28645,7 +28665,7 @@
                 {name:'Tourniquet - Complete Set',price:'J$3,500\u20138,000',src:'#1435 \u00b7 Register 1998'},
                 {name:'Counter, Infusion - Flow Rate',price:'J$12,000\u201322,000',src:'#1356 \u00b7 Register 1998'}
             ]},
-            {cat:'Mortuary & Autopsy', icon:'&#x2620;', items:[
+            {cat:'Mortuary & Autopsy', icon:'&#x2620;', life:15, items:[
                 {name:'Trolley, Mortuary (Standard)',price:'J$120,000\u2013220,000',src:'#1442 \u00b7 Register 1998'},
                 {name:'Trolley, Mortuary - Elevating 2 Tier',price:'J$280,000\u2013480,000',src:'#1443 \u00b7 Register 1998'},
                 {name:'Table, Autopsy',price:'J$380,000\u2013650,000',src:'#1423 \u00b7 Register 1998'},
@@ -28655,7 +28675,7 @@
                 {name:'Refrigerator, Morgue - 9 Compartment',price:'J$1,800,000\u20133,500,000',src:'#1401 \u00b7 Register 1998'},
                 {name:'Set, Post Mortem',price:'J$180,000\u2013320,000',src:'#734 \u00b7 Register 1997'}
             ]},
-            {cat:'Radiology & X-Ray', icon:'&#x1F4E1;', items:[
+            {cat:'Radiology & X-Ray', icon:'&#x1F4E1;', life:8, items:[
                 {name:'System, X-ray - Radiographic',price:'J$2,500,000\u20136,000,000',src:'#1421 \u00b7 Register 1998'},
                 {name:'System, X-ray - Radiographic/Fluoroscopic',price:'J$5,000,000\u201312,000,000',src:'#1422 \u00b7 Register 1998'},
                 {name:'Table, X-ray',price:'J$850,000\u20131,800,000',src:'#669 \u00b7 Register 1997'},
@@ -28667,7 +28687,7 @@
                 {name:'Screen, Lead',price:'J$85,000\u2013160,000',src:'#644 \u00b7 Register 1997'},
                 {name:'Cassette, Film - X-ray',price:'J$8,500\u201316,000',src:'#566 \u00b7 Register 1997'}
             ]},
-            {cat:'Oxygen & Respiratory Therapy', icon:'&#x1FAC1;', items:[
+            {cat:'Oxygen & Respiratory Therapy', icon:'&#x1FAC1;', life:7, items:[
                 {name:'Concentrator, Oxygen (5 LPM)',price:'J$85,000\u2013150,000',src:'#444 \u00b7 Register 1998'},
                 {name:'Cylinder, Oxygen',price:'J$22,000\u201345,000',src:'#326 \u00b7 Register 1997'},
                 {name:'Cylinder, Nitrous Oxide',price:'J$18,000\u201335,000',src:'#327 \u00b7 Register 1997'},
@@ -28679,7 +28699,7 @@
                 {name:'Apparatus, Suction-Pipeline Vacuum',price:'J$35,000\u201365,000',src:'#1341 \u00b7 Register 1998'},
                 {name:'Bag, Baby Resuscitation',price:'J$5,500\u201312,000',src:'#1344 \u00b7 Register 1998'}
             ]},
-            {cat:'Scales, Measuring & Monitoring', icon:'&#x2696;', items:[
+            {cat:'Scales, Measuring & Monitoring', icon:'&#x2696;', life:7, items:[
                 {name:'Scale, Adult - Standing',price:'J$25,000\u201345,000',src:'#647 \u00b7 Register 1997'},
                 {name:'Scale, Baby',price:'J$18,000\u201335,000',src:'#645 \u00b7 Register 1997'},
                 {name:'Scale, Patient - W/Measuring Rod',price:'J$35,000\u201365,000',src:'#1408 \u00b7 Register 1998'},
@@ -28690,7 +28710,7 @@
                 {name:'Monitor, Patient - 2 Channel',price:'J$280,000\u2013550,000',src:'#1389 \u00b7 Register 1998'},
                 {name:'Monitor, Neonatal',price:'J$280,000\u2013550,000',src:'#1390 \u00b7 Register 1998'}
             ]},
-            {cat:'CSSD & Sterilization', icon:'&#x1F9EA;', items:[
+            {cat:'CSSD & Sterilization', icon:'&#x1F9EA;', life:10, items:[
                 {name:'Sterilizer, Counter Top',price:'J$280,000\u2013550,000',src:'#727 \u00b7 Register 1998'},
                 {name:'Sterilizer, Vacuum - Double Door',price:'J$850,000\u20131,800,000',src:'#728 \u00b7 Register 1998'},
                 {name:'Autoclave (Standard)',price:'J$350,000\u2013750,000',src:'#450 \u00b7 Register 1997'},
@@ -28698,7 +28718,7 @@
                 {name:'Trolley, Distribution - CSSD Collection',price:'J$55,000\u201395,000',src:'#1438 \u00b7 Register 1998'},
                 {name:'Sink, Scrub - Double Bay',price:'J$180,000\u2013320,000',src:'#724 \u00b7 Register 1998'}
             ]},
-            {cat:'Dental & Specialist', icon:'&#x1F9B7;', items:[
+            {cat:'Dental & Specialist', icon:'&#x1F9B7;', life:10, items:[
                 {name:'Chair, Dental',price:'J$850,000\u20132,000,000',src:'#559 \u00b7 Register 1997'},
                 {name:'Unit, X-ray - Dental',price:'J$650,000\u20131,500,000',src:'#690 \u00b7 Register 1997'},
                 {name:'Lamp, Dental',price:'J$180,000\u2013380,000',src:'#595 \u00b7 Register 1997'},
@@ -28707,7 +28727,7 @@
                 {name:'Set, Diagnostic',price:'J$28,000\u201355,000',src:'#732 \u00b7 Register 1997'},
                 {name:'Machine, Mammogram',price:'J$2,500,000\u20136,000,000',src:'#1494 \u00b7 Register 1998'}
             ]},
-            {cat:'Maintenance, Workshop & Grounds Tools', icon:'&#x1F6E0;', items:[
+            {cat:'Maintenance, Workshop & Grounds Tools', icon:'&#x1F6E0;', life:10, items:[
                 {name:'Work Bench - Wooden',price:'J$22,000\u201345,000',src:'#752 \u00b7 Register 1997'},
                 {name:'Ladder - Metal',price:'J$12,000\u201322,000',src:'#750 \u00b7 Register 1997'},
                 {name:'Compressor Unit (Air)',price:'J$120,000\u2013220,000',src:'#757 \u00b7 Register 1997'},
@@ -28801,7 +28821,7 @@
                 html += '<div class="catalog-cat-header">';
                 html += '<span class="catalog-cat-icon">' + cat.icon + '</span>';
                 html += '<div>' + cat.cat.replace(/</g,'&lt;');
-                html += '<span class="catalog-cat-count">' + cat.items.length + ' items</span>';
+                html += '<span class="catalog-cat-count">' + cat.items.length + ' items &middot; ' + (cat.life || '?') + ' yr useful life</span>';
                 html += '</div></div>';
                 html += '<div class="catalog-items-list" id="catList_' + c + '">';
 
@@ -28818,7 +28838,10 @@
                     html += '<span class="catalog-item-name">' + item.name.replace(/</g,'&lt;') + '</span>';
                     html += '<div class="catalog-item-src">' + (isConfirmed ? '<span style="color:#e67e22">\u2605</span> ' : '') + (item.src || '').replace(/</g,'&lt;') + '</div>';
                     html += '</div>';
+                    html += '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">';
+                    html += '<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">' + (item.life || cat.life || '?') + ' yr</span>';
                     html += '<div class="catalog-item-price">' + item.price.replace(/</g,'&lt;') + '</div>';
+                    html += '</div>';
                     html += '</div>';
                 }
 
@@ -28844,6 +28867,209 @@
             } else {
                 list.classList.add('expanded');
                 btn.innerHTML = 'Show less \u25B2';
+            }
+        }
+
+        // ============================================
+        // CATALOG AUTO-FILL: Fill missing asset data from catalog
+        // ============================================
+
+        // Parse a catalog price string like "J$180,000–250,000" and return the midpoint as a number
+        function parseCatalogPrice(priceStr) {
+            if (!priceStr) return 0;
+            // Remove "J$" prefix and commas
+            var clean = priceStr.replace(/J\$/g, '').replace(/,/g, '');
+            // Check for range (en-dash or hyphen between numbers)
+            var rangeMatch = clean.match(/([\d.]+)\s*[\u2013\-]\s*([\d.]+)/);
+            if (rangeMatch) {
+                var low = parseFloat(rangeMatch[1]);
+                var high = parseFloat(rangeMatch[2]);
+                // If high is smaller than low, it's probably an abbreviated range like "180,000–250,000"
+                if (high < low) high = high + Math.pow(10, Math.floor(Math.log10(low)));
+                return Math.round((low + high) / 2);
+            }
+            // Single value
+            var singleMatch = clean.match(/([\d.]+)/);
+            if (singleMatch) return Math.round(parseFloat(singleMatch[1]));
+            return 0;
+        }
+
+        // Build a flat lookup from catalog: array of {name, price (number), life, keywords}
+        function buildCatalogLookup() {
+            var lookup = [];
+            for (var c = 0; c < catalogData.length; c++) {
+                var cat = catalogData[c];
+                var catLife = cat.life || 7;
+                for (var i = 0; i < cat.items.length; i++) {
+                    var item = cat.items[i];
+                    var price = parseCatalogPrice(item.price);
+                    var life = item.life || catLife;
+                    // Build keyword set from item name
+                    var nameClean = item.name.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+                    var keywords = nameClean.split(' ').filter(function(w) { return w.length > 2; });
+                    lookup.push({
+                        name: item.name,
+                        nameLower: nameClean,
+                        price: price,
+                        life: life,
+                        catName: cat.cat,
+                        keywords: keywords
+                    });
+                }
+            }
+            return lookup;
+        }
+
+        // Match an asset description to the best catalog item
+        function matchAssetToCatalog(assetDesc, catalogLookup) {
+            if (!assetDesc) return null;
+            var desc = assetDesc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            var descWords = desc.split(' ').filter(function(w) { return w.length > 2; });
+            if (descWords.length === 0) return null;
+
+            var bestMatch = null;
+            var bestScore = 0;
+
+            for (var i = 0; i < catalogLookup.length; i++) {
+                var item = catalogLookup[i];
+                var score = 0;
+
+                // Exact substring match (highest priority)
+                if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
+                    score = 100;
+                } else {
+                    // Word overlap scoring
+                    var matchedWords = 0;
+                    for (var w = 0; w < descWords.length; w++) {
+                        for (var k = 0; k < item.keywords.length; k++) {
+                            if (descWords[w] === item.keywords[k]) {
+                                matchedWords++;
+                                break;
+                            }
+                        }
+                    }
+                    // Score based on proportion of matched words in both directions
+                    if (matchedWords > 0) {
+                        var descCoverage = matchedWords / descWords.length;
+                        var itemCoverage = matchedWords / item.keywords.length;
+                        score = (descCoverage + itemCoverage) * 50 * matchedWords;
+                    }
+                }
+
+                if (score > bestScore && score >= 25) {
+                    bestScore = score;
+                    bestMatch = item;
+                }
+            }
+
+            return bestMatch;
+        }
+
+        // Auto-fill assets from catalog data
+        // criteria: which assets to fill ('register' = assets with N/A depr, 'bulk' = assets with zero prices)
+        function catalogAutoFillAssets(criteria) {
+            var catalogLookup = buildCatalogLookup();
+            var assets = loadAssetsFromStorage();
+            var filled = 0;
+            var details = [];
+
+            assets.forEach(function(asset) {
+                var needsFill = false;
+                var desc = asset.description || asset.itemType || '';
+
+                if (criteria === 'register') {
+                    // Fill assets that have a value but missing depreciation data
+                    // Criteria: totalPrice > 0 but usefulLife missing, OR totalPrice === 0
+                    var hasPrice = (parseFloat(asset.totalPrice) || 0) > 0;
+                    var hasLife = (parseFloat(asset.usefulLife) || 0) > 0;
+                    var hasSalvage = (parseFloat(asset.salvageValue) || 0) > 0;
+                    needsFill = !hasLife || (!hasPrice);
+                } else if (criteria === 'bulk') {
+                    // Fill assets with zero prices and missing depreciation fields
+                    var unitP = parseFloat(asset.unitPrice) || 0;
+                    var totalP = parseFloat(asset.totalPrice) || 0;
+                    var life = parseFloat(asset.usefulLife) || 0;
+                    needsFill = unitP === 0 || totalP === 0 || life === 0;
+                }
+
+                if (!needsFill) return;
+
+                var match = matchAssetToCatalog(desc, catalogLookup);
+                if (!match) return;
+
+                var changed = [];
+
+                // Fill unit price if missing
+                if ((!asset.unitPrice || parseFloat(asset.unitPrice) === 0) && match.price > 0) {
+                    asset.unitPrice = match.price;
+                    asset.totalPrice = match.price * (asset.quantity || 1);
+                    changed.push('price=' + match.price);
+                }
+
+                // Fill total price if it's zero but unit price exists
+                if ((!asset.totalPrice || parseFloat(asset.totalPrice) === 0) && (parseFloat(asset.unitPrice) || 0) > 0) {
+                    asset.totalPrice = (parseFloat(asset.unitPrice)) * (asset.quantity || 1);
+                    changed.push('totalPrice=' + asset.totalPrice);
+                }
+
+                // Fill useful life
+                if (!asset.usefulLife || parseFloat(asset.usefulLife) === 0) {
+                    asset.usefulLife = match.life;
+                    changed.push('life=' + match.life + 'yr');
+                }
+
+                // Fill salvage value (auto-calc from price and category)
+                if ((!asset.salvageValue || parseFloat(asset.salvageValue) === 0) && (parseFloat(asset.totalPrice) || 0) > 0) {
+                    asset.salvageValue = calcSalvageValue(parseFloat(asset.totalPrice), asset.category || '');
+                    changed.push('salvage=' + asset.salvageValue);
+                }
+
+                // Fill depreciation method (always SL per user requirement)
+                if (!asset.depreciationMethod) {
+                    asset.depreciationMethod = 'straight';
+                    changed.push('method=SL');
+                }
+
+                if (changed.length > 0) {
+                    filled++;
+                    details.push((asset.assetCode || 'N/A') + ' (' + desc.substring(0, 30) + ') -> ' + match.name.substring(0, 35) + ' [' + changed.join(', ') + ']');
+                }
+            });
+
+            if (filled > 0) {
+                saveAssetsToStorage(assets);
+                addAuditEntry('CATALOG', 'Auto-Fill from Catalog', '-', 'Auto-filled ' + filled + ' assets with catalog pricing & depreciation data');
+                refreshAllViews();
+            }
+
+            return { filled: filled, details: details };
+        }
+
+        // UI handler for auto-fill button on Asset Register
+        function catalogAutoFillRegister() {
+            if (!confirm('Auto-fill missing depreciation data (Useful Life, Salvage Value, Depr. Method) and missing prices for Asset Register assets using the Catalog?\n\nThis will:\n- Match assets by description to catalog items\n- Fill Unit Price & Total Price where JMD 0.00\n- Set Useful Life from AHA/industry standards\n- Calculate Salvage Value by category %\n- Set Depreciation Method to Straight Line (SL)\n\nProceed?')) return;
+
+            var result = catalogAutoFillAssets('register');
+            if (result.filled === 0) {
+                alert('No matching catalog items found for assets with missing data.\n\nAll assets either already have complete depreciation data, or their descriptions could not be matched to catalog items.');
+            } else {
+                var preview = result.details.slice(0, 15).join('\n');
+                if (result.details.length > 15) preview += '\n... and ' + (result.details.length - 15) + ' more';
+                alert('Auto-filled ' + result.filled + ' asset(s) from catalog!\n\n' + preview);
+            }
+        }
+
+        // UI handler for auto-fill button on Bulk Categories
+        function catalogAutoFillBulk() {
+            if (!confirm('Auto-fill missing data for Bulk Categories assets using the Catalog?\n\nThis will fill:\n- Unit Price: JMD 0.00 -> catalog estimate\n- Total Price: JMD 0.00 -> catalog estimate x qty\n- Useful Life: - -> AHA/industry standard\n- Salvage Value: - -> auto-calc by category %\n- Depr. Method: - -> Straight Line (SL)\n\nProceed?')) return;
+
+            var result = catalogAutoFillAssets('bulk');
+            if (result.filled === 0) {
+                alert('No matching catalog items found for assets with missing data.\n\nAll assets either already have complete data, or their descriptions could not be matched to catalog items.');
+            } else {
+                var preview = result.details.slice(0, 15).join('\n');
+                if (result.details.length > 15) preview += '\n... and ' + (result.details.length - 15) + ' more';
+                alert('Auto-filled ' + result.filled + ' asset(s) from catalog!\n\n' + preview);
             }
         }
 
