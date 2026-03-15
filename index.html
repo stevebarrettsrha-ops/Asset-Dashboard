@@ -28654,10 +28654,20 @@
                 {name:'Commercial Blender (Heavy Duty)',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'Stainless Steel Work Table (4ft)',price:'J$55,000\u201390,000',src:'Market estimate'},
                 {name:'Bain Marie / Steam Table (3-Pan)',price:'J$120,000\u2013200,000',src:'Market estimate'},
+                {name:'Gas Stove (1-Burner, Domestic)',price:'J$8,000\u201318,000',src:'Market estimate'},
                 {name:'Gas Stove (2-Burner, Domestic)',price:'J$18,000\u201335,000',src:'Market estimate'},
+                {name:'Gas Stove / Range (3-Burner, Commercial)',price:'J$65,000\u2013150,000',src:'Market estimate'},
                 {name:'Gas Stove / Range (4-Burner, Commercial)',price:'J$120,000\u2013280,000',src:'Market estimate'},
                 {name:'Gas Stove / Range (6-Burner, Commercial)',price:'J$250,000\u2013550,000',src:'Market estimate'},
-                {name:'Electric Stove / Hot Plate',price:'J$8,000\u201322,000',src:'Market estimate'},
+                {name:'Gas Stove / Range (8-Burner, Commercial)',price:'J$450,000\u2013850,000',src:'Market estimate'},
+                {name:'Gas Stove / Range (10-Burner, Commercial)',price:'J$650,000\u20131,200,000',src:'Market estimate'},
+                {name:'Gas Stove / Range (12-Burner, Commercial)',price:'J$850,000\u20131,500,000',src:'Market estimate'},
+                {name:'Electric Stove (2-Burner)',price:'J$15,000\u201330,000',src:'Market estimate'},
+                {name:'Electric Stove (4-Burner)',price:'J$35,000\u201375,000',src:'Market estimate'},
+                {name:'Electric Stove (6-Burner, Commercial)',price:'J$120,000\u2013250,000',src:'Market estimate'},
+                {name:'Kerosene Stove (1-Burner)',price:'J$5,000\u201312,000',src:'Market estimate'},
+                {name:'Kerosene Stove (2-Burner)',price:'J$8,000\u201318,000',src:'Market estimate'},
+                {name:'Electric Hot Plate (1-2 Burner)',price:'J$8,000\u201322,000',src:'Market estimate'},
                 {name:'Commercial Planetary / Floor Mixer (20-40 Qt)',price:'J$250,000\u2013550,000',src:'Market estimate'},
                 {name:'Deep Fryer (Commercial)',price:'J$85,000\u2013180,000',src:'Market estimate'},
                 {name:'Pressure Cooker (Commercial)',price:'J$25,000\u201365,000',src:'Market estimate'},
@@ -29213,7 +29223,7 @@
                     var life = item.life || catLife;
                     // Build keyword set from item name
                     var nameClean = item.name.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-                    var keywords = nameClean.split(' ').filter(function(w) { return w.length > 2; });
+                    var keywords = nameClean.split(' ').filter(function(w) { return w.length > 2 || /^\d+$/.test(w); });
                     lookup.push({
                         name: item.name,
                         nameLower: nameClean,
@@ -29296,6 +29306,16 @@
             'concrete mixer': 'industrial mixer',
             // Speaker
             'speaker box': 'speaker',
+            // Number words → digits for burner/gallon matching
+            'one burner': '1 burner', 'two burner': '2 burner', 'three burner': '3 burner',
+            'four burner': '4 burner', 'five burner': '5 burner', 'six burner': '6 burner',
+            'seven burner': '7 burner', 'eight burner': '8 burner', 'ten burner': '10 burner',
+            'twelve burner': '12 burner',
+            'one gallon': '1 gallon', 'two gallon': '2 gallon', 'eight gallon': '8 gallon',
+            'stock range stove': 'gas stove range', 'stock range': 'gas stove range',
+            // Bassinet cart = bassinet stand/frame (the wheeled cart that holds the basin)
+            'bassinet cart': 'bassinet stand', 'baby bassinet cart': 'bassinet stand',
+            'bassinet with cart': 'bassinet stand', 'baby bassinet with cart': 'bassinet stand',
             // Medical/privacy screen
             'medical screen': 'privacy screen', 'bed screen': 'privacy screen',
             // Hand truck
@@ -29331,13 +29351,23 @@
             // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
             var dashParts = desc.split(/\s*[-\u2013\u2014]\s*/);
             if (dashParts.length > 1) {
-                var firstLower = dashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
-                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
-                if (materialFrameRe.test(firstLower) && dashParts[1].trim().length > 2) {
-                    // First part is just material+structure, take the second part (actual item)
-                    desc = dashParts[1].trim();
-                } else if (dashParts[0].trim().length > 2) {
-                    desc = dashParts[0].trim();
+                // Check if any later part contains a size/count qualifier — if so, join all parts
+                var hasQualifier = false;
+                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door)\b/i;
+                for (var dp = 1; dp < dashParts.length; dp++) {
+                    if (qualifierRe.test(dashParts[dp])) { hasQualifier = true; break; }
+                }
+                if (hasQualifier) {
+                    desc = dashParts.join(' ');
+                } else {
+                    var firstLower = dashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                    var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                    if (materialFrameRe.test(firstLower) && dashParts[1].trim().length > 2) {
+                        // First part is just material+structure, take the second part (actual item)
+                        desc = dashParts[1].trim();
+                    } else if (dashParts[0].trim().length > 2) {
+                        desc = dashParts[0].trim();
+                    }
                 }
             }
             var d = desc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -29381,12 +29411,21 @@
             var rawSrc = assetDesc;
             var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
             if (rawDashParts.length > 1) {
-                var rawFirstLower = rawDashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
-                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
-                if (materialFrameRe.test(rawFirstLower) && rawDashParts[1].trim().length > 2) {
-                    rawSrc = rawDashParts[1].trim();
-                } else if (rawDashParts[0].trim().length > 2) {
-                    rawSrc = rawDashParts[0].trim();
+                var hasQualifier = false;
+                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door)\b/i;
+                for (var dp = 1; dp < rawDashParts.length; dp++) {
+                    if (qualifierRe.test(rawDashParts[dp])) { hasQualifier = true; break; }
+                }
+                if (hasQualifier) {
+                    rawSrc = rawDashParts.join(' ');
+                } else {
+                    var rawFirstLower = rawDashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                    var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                    if (materialFrameRe.test(rawFirstLower) && rawDashParts[1].trim().length > 2) {
+                        rawSrc = rawDashParts[1].trim();
+                    } else if (rawDashParts[0].trim().length > 2) {
+                        rawSrc = rawDashParts[0].trim();
+                    }
                 }
             }
             var rawDesc = rawSrc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -29401,8 +29440,8 @@
                 rawDesc = rawDesc.replace(/\s+/g, ' ').trim();
             }
             var desc = normalizeAssetDesc(assetDesc);
-            var descWords = desc.split(' ').filter(function(w) { return w.length > 2; });
-            var rawWords = rawDesc.split(' ').filter(function(w) { return w.length > 2; });
+            var descWords = desc.split(' ').filter(function(w) { return w.length > 2 || /^\d+$/.test(w); });
+            var rawWords = rawDesc.split(' ').filter(function(w) { return w.length > 2 || /^\d+$/.test(w); });
             if (descWords.length === 0 && rawWords.length === 0) return null;
 
             // Filter out stop words from scoring (they cause false matches)
@@ -29455,7 +29494,8 @@
                 'food','meal','delivery','desktop','blood','gas','lead',
                 'wooden','coffee','bluetooth','floor','concrete','industrial',
                 'privacy','laminate','formica','theatre','planetary','sack',
-                'transport','transfer','scoop','recovery','ambulance','foldable'];
+                'transport','transfer','scoop','recovery','ambulance','foldable','gallon','step',
+                'kerosene','gas','countertop'];
 
             var bestMatch = null;
             var bestScore = 0;
@@ -29603,6 +29643,33 @@
                     // Require at least one primary or secondary match (not just generic words)
                     if (matchedPrimary === 0 && matchedSecondary === 0) {
                         score *= 0.15;
+                    }
+
+                    // PENALTY 5: Numeric qualifier mismatch (gallon, burner, litre, etc.)
+                    // When both desc and item contain numbers near qualifier words, they must match
+                    var numQualRe = /(\d+)\s*(?:gallon|gal|burner|litre|liter|cuft|qt)/g;
+                    var descNums = [], itemNums = [];
+                    var nm;
+                    while ((nm = numQualRe.exec(desc)) !== null) descNums.push(nm[1]);
+                    numQualRe.lastIndex = 0;
+                    while ((nm = numQualRe.exec(rawDesc)) !== null) {
+                        if (descNums.indexOf(nm[1]) === -1) descNums.push(nm[1]);
+                    }
+                    numQualRe.lastIndex = 0;
+                    while ((nm = numQualRe.exec(item.nameLower)) !== null) itemNums.push(nm[1]);
+                    if (descNums.length > 0 && itemNums.length > 0) {
+                        var numMatch = false;
+                        for (var dn = 0; dn < descNums.length; dn++) {
+                            for (var in2 = 0; in2 < itemNums.length; in2++) {
+                                if (descNums[dn] === itemNums[in2]) { numMatch = true; break; }
+                            }
+                            if (numMatch) break;
+                        }
+                        if (!numMatch) {
+                            score *= 0.1; // Heavy penalty: wrong size/count
+                        } else {
+                            score *= 1.3; // Boost for matching size/count
+                        }
                     }
                 }
 
