@@ -28493,6 +28493,8 @@
                 {name:'Overbed Tray / Food Tray',price:'J$8,000\u201318,000',src:'Market estimate'},
                 {name:'Baby Cot / Crib (Hospital)',price:'J$45,000\u201395,000',src:'Market estimate'},
                 {name:'Bassinet (Hospital Grade)',price:'J$35,000\u201375,000',src:'Market estimate'},
+                {name:'Bassinet Basin (Acrylic Baby Sleeping Tub)',price:'J$4,000\u20138,000',src:'Market estimate'},
+                {name:'Bassinet Stand (Frame with Wheels)',price:'J$10,000\u201320,000',src:'Market estimate'},
                 {name:'Walker / Rollator (Metal)',price:'J$8,500\u201322,000',src:'Market estimate'},
                 {name:'Playpen (Hospital / Paediatric)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Bath (Baby / Infant, Mobile)',price:'J$22,000\u201345,000',src:'Market estimate'},
@@ -29269,10 +29271,12 @@
             'reclinetr': 'recliner', 'reclinetr chair': 'recliner chair',
             'reclining': 'recliner', 'reclining chair': 'recliner chair',
             'sofa chair': 'sofa', 'lounge chair': 'recliner',
-            // Basin/bassinet disambiguation
-            'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
-            'bassinet frame': 'bassinet', 'bassinett frame': 'bassinet',
-            'basinet frame': 'bassinet',
+            // Basin/bassinet disambiguation: bassinet basin = acrylic baby sleeping tub (NOT wash basin)
+            'bassinet basin': 'bassinet basin', 'bassinett basin': 'bassinet basin',
+            'basinet basin': 'bassinet basin',
+            'bassinet frame': 'bassinet stand', 'bassinett frame': 'bassinet stand',
+            'basinet frame': 'bassinet stand',
+            'bassinet stand': 'bassinet stand', 'bassinett stand': 'bassinet stand',
             // Stove/range - keep "stove" keyword for matching
             'range stove': 'range stove commercial',
             // Dining
@@ -29526,7 +29530,7 @@
                         ['cot','bed'],['crib','bed'],['bassinet','bed'],
                         ['fan','extinguisher'],['lamp','heater'],
                         ['cart','desk'],['workstation','desk'],
-                        ['basin','bassinet'],['basin','bed'],
+                        ['basin','bed'],
                         ['sofa','commode'],['recliner','commode'],
                         ['sofa','wheelchair'],['recliner','wheelchair'],
                         ['stove','table'],['range','table'],['cooker','table'],
