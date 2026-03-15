@@ -28474,6 +28474,9 @@
                 {name:'Patient Stretcher / Transfer Trolley',price:'J$120,000\u2013200,000',src:'Market estimate'},
                 {name:'Emergency Trolley / Gurney',price:'J$180,000\u2013280,000',src:'Market estimate'},
                 {name:'Trolley with Wheels (General Purpose)',price:'J$35,000\u201365,000',src:'Market estimate'},
+                {name:'Trolley with Wheels (2 Compartment)',price:'J$50,000\u201385,000',src:'Market estimate'},
+                {name:'Trolley with Wheels (3 Compartment)',price:'J$65,000\u2013110,000',src:'Market estimate'},
+                {name:'Trolley with Wheels (4 Compartment)',price:'J$80,000\u2013130,000',src:'Market estimate'},
                 {name:'Wheelchair (Standard Foldable)',price:'J$25,000\u201345,000',src:'Market estimate'},
                 {name:'Wheelchair (Heavy Duty Bariatric)',price:'J$65,000\u2013110,000',src:'Market estimate'},
                 {name:'Wheelchair (Powered / Electric)',price:'J$180,000\u2013450,000',src:'Market estimate'},
@@ -28581,6 +28584,7 @@
                 {name:'Executive Chair (Standard)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
                 {name:'Executive Chairs - Black (Leather)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
                 {name:'Leather High-Back Executive Chair (Black)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
+                {name:'Guest Chair / 2-Seater Leather Chair',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'Visitor / Side Chair (Fabric)',price:'J$12,000\u201322,000',src:'Market estimate'},
                 {name:'Mid-Back Mesh Office Chair',price:'J$22,000\u201345,000',src:'Market estimate'},
                 {name:'High Back Task Chair (Ergonomic)',price:'J$48,000\u201385,000',src:'Market estimate'},
@@ -28603,6 +28607,7 @@
                 {name:'Desk Metal Frame w/Wooden Top',price:'J$35,000\u201355,000',src:'Market estimate'},
                 {name:'Metal Desk (Standard Office)',price:'J$30,000\u201350,000',src:'Market estimate'},
                 {name:'Standard Office Desk (Straight, 48")',price:'J$35,000\u201360,000',src:'Market estimate'},
+                {name:'Executive Desk',price:'J$65,000\u2013120,000',src:'Market estimate'},
                 {name:'Computer Desk (Small)',price:'J$22,000\u201338,000',src:'Market estimate'},
                 {name:'Reception Counter / Nurses Station Desk',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Conference Table (8-Seater)',price:'J$120,000\u2013220,000',src:'Market estimate'},
@@ -28618,6 +28623,7 @@
                 {name:'White Board / Notice Board (Small, Donated)',price:'J$3,940',src:'\u2605 Donated Jul 2025'},
                 {name:'Notice Board / White Board (Large, Wall Mount)',price:'J$12,000\u201328,000',src:'Market estimate'},
                 {name:'Heavy Duty Cross Cut Shredder - 16 Sheets',price:'J$138,000',src:'\u2605 Empire Stationery May 2025'},
+                {name:'6\' Large Folding Table (Fold-in-Half, Lifetime)',price:'J$31,500',src:'\u2605 Register 2022\u201324'},
                 {name:'Folding Table 29.6" x 20.6"',price:'J$9,600',src:'\u2605 Neveast Supplies Aug 2025'},
                 {name:'Dining Table (Standard, 4-6 Seater)',price:'J$35,000\u201375,000',src:'Market estimate'},
                 {name:'Coffee Table (Wooden / Laminate)',price:'J$15,000\u201335,000',src:'Market estimate'},
@@ -29330,13 +29336,26 @@
             'formica table': 'laminate table', 'formica': 'laminate',
             // Planetary mixer (commercial kitchen)
             'plenary floor mixer': 'planetary mixer', 'planetary mixer': 'commercial mixer',
-            'floor mixer': 'commercial mixer'
+            'floor mixer': 'commercial mixer',
+            // Compartment synonyms
+            'four compartments': '4 compartment', 'four compartment': '4 compartment',
+            'two compartments': '2 compartment', 'two compartment': '2 compartment',
+            'three compartments': '3 compartment', 'three compartment': '3 compartment',
+            'five compartments': '5 compartment', 'five compartment': '5 compartment',
+            'six compartments': '6 compartment', 'six compartment': '6 compartment',
+            // Folding table synonyms
+            'fold in half': 'folding', 'foldin half': 'folding', 'foldinhalf': 'folding',
+            // Guest/visitor chair synonyms
+            '2 seater leather chair': 'guest chair', '2 seater chair': 'guest chair',
+            'two seater leather chair': 'guest chair', 'two seater chair': 'guest chair',
+            // Lifetime brand — keep as keyword for matching against catalog items with Lifetime in the name
+            'lifetime brand': 'lifetime'
         };
 
         // Stop words: generic/common words that should NOT contribute to matching score
         // These cause false matches (e.g. "large" matching "Large 23 Gallon", "mobile" matching "Commode Chair Mobile")
         var catalogStopWords = [
-            'large', 'small', 'medium', 'big', 'mini', 'new', 'old', 'used',
+            'big', 'mini', 'new', 'old', 'used',
             'white', 'black', 'blue', 'red', 'grey', 'gray', 'green', 'beige', 'brown', 'dark', 'light',
             'mobile', 'portable', 'standard', 'heavy', 'duty', 'general', 'purpose',
             'model', 'type', 'unit', 'set', 'size', 'with', 'for', 'and', 'the',
@@ -29346,6 +29365,8 @@
 
         // Normalize asset description for matching (expand abbreviations)
         function normalizeAssetDesc(desc) {
+            // Pre-process compound hyphenated words before dash-splitting
+            desc = desc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
             // Pre-process: split on dashes/hyphens in original text BEFORE stripping non-alnum
             // e.g. "Stretchers - IV Poles - Mattress" → take "Stretchers" only
             // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
@@ -29353,7 +29374,7 @@
             if (dashParts.length > 1) {
                 // Check if any later part contains a size/count qualifier — if so, join all parts
                 var hasQualifier = false;
-                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door)\b/i;
+                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door|compartment|compartments)\b/i;
                 for (var dp = 1; dp < dashParts.length; dp++) {
                     if (qualifierRe.test(dashParts[dp])) { hasQualifier = true; break; }
                 }
@@ -29407,12 +29428,14 @@
         function matchAssetToCatalog(assetDesc, catalogLookup) {
             if (!assetDesc) return null;
             // Apply same critical pre-processing to rawDesc as normalizeAssetDesc:
+            // Pre-process compound hyphenated words before dash-splitting
+            assetDesc = assetDesc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
             // 1. Dash-split: take first part, unless it's a material/frame descriptor
             var rawSrc = assetDesc;
             var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
             if (rawDashParts.length > 1) {
                 var hasQualifier = false;
-                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door)\b/i;
+                var qualifierRe = /\b(gallon|gal|burner|litre|liter|inch|foot|feet|drawer|speed|panel|door|compartment|compartments)\b/i;
                 for (var dp = 1; dp < rawDashParts.length; dp++) {
                     if (qualifierRe.test(rawDashParts[dp])) { hasQualifier = true; break; }
                 }
@@ -29495,7 +29518,8 @@
                 'wooden','coffee','bluetooth','floor','concrete','industrial',
                 'privacy','laminate','formica','theatre','planetary','sack',
                 'transport','transfer','scoop','recovery','ambulance','foldable','gallon','step',
-                'kerosene','gas','countertop'];
+                'kerosene','gas','countertop',
+                'small','medium','large','compartment','guest'];
 
             var bestMatch = null;
             var bestScore = 0;
@@ -29647,7 +29671,7 @@
 
                     // PENALTY 5: Numeric qualifier mismatch (gallon, burner, litre, etc.)
                     // When both desc and item contain numbers near qualifier words, they must match
-                    var numQualRe = /(\d+)\s*(?:gallon|gal|burner|litre|liter|cuft|qt)/g;
+                    var numQualRe = /(\d+)\s*(?:gallon|gal|burner|litre|liter|cuft|qt|compartment)/g;
                     var descNums = [], itemNums = [];
                     var nm;
                     while ((nm = numQualRe.exec(desc)) !== null) descNums.push(nm[1]);
