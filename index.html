@@ -29264,7 +29264,7 @@
             'analyzer': 'analyser',
             // Stretcher brand names and types
             'stryker': 'patient', 'sprint 100': 'patient', 'midmark': 'patient',
-            'transport stretcher': 'transport stretcher', 'transfer stretcher': 'transport stretcher',
+            'transfer stretcher': 'transport stretcher',
             // Computer cart synonyms
             'computer cart': 'computer workstation', 'computer carts': 'computer workstation',
             'medical computer': 'computer workstation',
@@ -29465,88 +29465,91 @@
                 var itemSignificantWords = item.keywords.filter(function(w) { return catalogStopWords.indexOf(w) === -1; });
                 var score = 0;
 
-                // Exact substring match (highest priority - scores must exceed max word-overlap score)
-                if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
-                    score = 500;
-                } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
-                    score = 450;
-                } else {
-                    // Word overlap scoring using ONLY significant words (no stop words)
-                    var matchedPrimary = 0;
-                    var matchedSecondary = 0;
-                    var matchedOther = 0;
+                // === STEP 1: Always compute word-level matches (needed for penalties) ===
+                var matchedPrimary = 0;
+                var matchedSecondary = 0;
+                var matchedOther = 0;
 
-                    for (var w = 0; w < descSignificantWords.length; w++) {
-                        var word = descSignificantWords[w];
-                        for (var k = 0; k < itemSignificantWords.length; k++) {
-                            if (word === itemSignificantWords[k]) {
-                                if (primaryNouns.indexOf(word) !== -1) matchedPrimary++;
-                                else if (secondaryTerms.indexOf(word) !== -1) matchedSecondary++;
+                for (var w = 0; w < descSignificantWords.length; w++) {
+                    var word = descSignificantWords[w];
+                    for (var k = 0; k < itemSignificantWords.length; k++) {
+                        if (word === itemSignificantWords[k]) {
+                            if (primaryNouns.indexOf(word) !== -1) matchedPrimary++;
+                            else if (secondaryTerms.indexOf(word) !== -1) matchedSecondary++;
+                            else matchedOther++;
+                            break;
+                        }
+                    }
+                }
+                // Also try raw significant words if different
+                if (rawDesc !== desc) {
+                    for (var w2 = 0; w2 < rawSignificantWords.length; w2++) {
+                        var rw = rawSignificantWords[w2];
+                        var alreadyCounted = false;
+                        for (var dw = 0; dw < descSignificantWords.length; dw++) {
+                            if (rw === descSignificantWords[dw]) { alreadyCounted = true; break; }
+                        }
+                        if (alreadyCounted) continue;
+                        for (var k2 = 0; k2 < itemSignificantWords.length; k2++) {
+                            if (rw === itemSignificantWords[k2]) {
+                                if (primaryNouns.indexOf(rw) !== -1) matchedPrimary++;
+                                else if (secondaryTerms.indexOf(rw) !== -1) matchedSecondary++;
                                 else matchedOther++;
                                 break;
                             }
                         }
                     }
-                    // Also try raw significant words if different
-                    if (rawDesc !== desc) {
-                        for (var w2 = 0; w2 < rawSignificantWords.length; w2++) {
-                            var rw = rawSignificantWords[w2];
-                            var alreadyCounted = false;
-                            for (var dw = 0; dw < descSignificantWords.length; dw++) {
-                                if (rw === descSignificantWords[dw]) { alreadyCounted = true; break; }
+                }
+                var totalMatched = matchedPrimary + matchedSecondary + matchedOther;
+                var totalDescSig = Math.max(descSignificantWords.length, 1);
+                var totalItemSig = Math.max(itemSignificantWords.length, 1);
+
+                // === STEP 2: Determine base score ===
+                // Exact substring match (highest priority)
+                if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
+                    score = 500;
+                } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
+                    score = 450;
+                } else if (totalMatched > 0) {
+                    // Word overlap scoring using ONLY significant words (no stop words)
+                    var descCoverage = totalMatched / totalDescSig;
+                    var itemCoverage = totalMatched / totalItemSig;
+                    // Base score: weighted by coverage and match count
+                    score = (descCoverage + itemCoverage) * 50 * totalMatched;
+                    // Strong boost for primary noun matches
+                    score += matchedPrimary * 25;
+                    // Moderate boost for secondary term matches
+                    score += matchedSecondary * 10;
+                }
+
+                // === STEP 3: Apply penalties to ALL matches (including substring) ===
+                if (score > 0) {
+                    // PENALTY 1: Unmatched description words — every word matters
+                    // Prevents "Linen Bin" matching "Garbage Bin" just because "bin" matches
+                    var descMatchRatio = totalMatched / totalDescSig;
+                    if (descMatchRatio < 1.0) {
+                        score *= (0.3 + 0.7 * descMatchRatio);
+                    }
+
+                    // PENALTY 2: Conflicting secondary terms between desc and item
+                    // e.g. desc has "linen" but item has "garbage" → strong mismatch signal
+                    var descSecTerms = descSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                    var itemSecTerms = itemSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
+                    if (descSecTerms.length > 0 && itemSecTerms.length > 0) {
+                        var secMatch = false;
+                        for (var st1 = 0; st1 < descSecTerms.length; st1++) {
+                            for (var st2 = 0; st2 < itemSecTerms.length; st2++) {
+                                if (descSecTerms[st1] === itemSecTerms[st2]) { secMatch = true; break; }
                             }
-                            if (alreadyCounted) continue;
-                            for (var k2 = 0; k2 < itemSignificantWords.length; k2++) {
-                                if (rw === itemSignificantWords[k2]) {
-                                    if (primaryNouns.indexOf(rw) !== -1) matchedPrimary++;
-                                    else if (secondaryTerms.indexOf(rw) !== -1) matchedSecondary++;
-                                    else matchedOther++;
-                                    break;
-                                }
-                            }
+                            if (secMatch) break;
+                        }
+                        if (!secMatch) {
+                            // Description and item have DIFFERENT secondary modifiers → likely different sub-type
+                            score *= 0.4;
                         }
                     }
 
-                    var totalMatched = matchedPrimary + matchedSecondary + matchedOther;
-                    if (totalMatched > 0) {
-                        var totalDescSig = Math.max(descSignificantWords.length, 1);
-                        var totalItemSig = Math.max(itemSignificantWords.length, 1);
-                        var descCoverage = totalMatched / totalDescSig;
-                        var itemCoverage = totalMatched / totalItemSig;
-                        // Base score: weighted by coverage and match count
-                        score = (descCoverage + itemCoverage) * 50 * totalMatched;
-                        // Strong boost for primary noun matches
-                        score += matchedPrimary * 25;
-                        // Moderate boost for secondary term matches
-                        score += matchedSecondary * 10;
-
-                        // PENALTY for unmatched description words: every word matters
-                        // Prevents "Linen Bin" matching "Garbage Bin" just because "bin" matches
-                        var descMatchRatio = totalMatched / totalDescSig;
-                        if (descMatchRatio < 1.0) {
-                            score *= (0.3 + 0.7 * descMatchRatio);
-                        }
-
-                        // PENALTY for conflicting secondary terms between desc and item
-                        // e.g. desc has "linen" but item has "garbage" → strong mismatch signal
-                        var descSecTerms = descSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
-                        var itemSecTerms = itemSignificantWords.filter(function(w) { return secondaryTerms.indexOf(w) !== -1; });
-                        if (descSecTerms.length > 0 && itemSecTerms.length > 0) {
-                            var secMatch = false;
-                            for (var st1 = 0; st1 < descSecTerms.length; st1++) {
-                                for (var st2 = 0; st2 < itemSecTerms.length; st2++) {
-                                    if (descSecTerms[st1] === itemSecTerms[st2]) { secMatch = true; break; }
-                                }
-                                if (secMatch) break;
-                            }
-                            if (!secMatch) {
-                                // Description and item have DIFFERENT secondary modifiers → likely different sub-type
-                                score *= 0.4;
-                            }
-                        }
-                    }
-
-                    // CRITICAL: Check primary noun alignment
+                    // PENALTY 3: Primary noun alignment
                     var descNouns = descSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
                     var itemNouns = itemSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
 
@@ -29571,7 +29574,6 @@
                         var pA = conflictPairs[cp][0], pB = conflictPairs[cp][1];
                         var descHasA = descNouns.indexOf(pA) !== -1, descHasB = descNouns.indexOf(pB) !== -1;
                         var itemHasA = itemNouns.indexOf(pA) !== -1, itemHasB = itemNouns.indexOf(pB) !== -1;
-                        // Conflict: desc has one and item has the other (but not both)
                         if ((descHasA && itemHasB && !descHasB && !itemHasA) ||
                             (descHasB && itemHasA && !descHasA && !itemHasB)) {
                             hasConflict = true;
@@ -29592,18 +29594,15 @@
                         if (nounMatchCount === 0) {
                             score *= 0.1; // Nearly eliminate score for mismatched primary nouns
                         } else if (nounMatchCount < descNouns.length) {
-                            // Partial noun match: penalize proportionally for unmatched nouns
-                            // e.g. desc has "recliner" + "chair" but item only has "chair" → 50% penalty
                             score *= (nounMatchCount / descNouns.length);
                         }
                     } else if (descNouns.length > 0 && itemNouns.length === 0) {
-                        // Asset has a primary noun but catalog item doesn't have a matching category
                         score *= 0.4;
                     }
 
                     // Require at least one primary or secondary match (not just generic words)
                     if (matchedPrimary === 0 && matchedSecondary === 0) {
-                        score *= 0.15; // Nearly eliminate matches on only generic words
+                        score *= 0.15;
                     }
                 }
 
