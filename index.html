@@ -8496,7 +8496,6 @@
 
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
-                        <button class="btn monthly-view-btn" onclick="autoFillMissingCosts()" style="background: linear-gradient(135deg, #e67e22, #d35400);">💲 Auto-Fill Missing Costs</button>
                         <button class="btn monthly-view-btn" onclick="catalogAutoFillRegister()" style="background: linear-gradient(135deg, #16a085, #1abc9c);" title="Auto-fill Useful Life, Salvage Value, Depr. Method and missing prices from the Asset Cost Catalog">📋 Catalog Auto-Fill</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
@@ -9671,7 +9670,38 @@
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="catalogAutoFillRegister()" style="padding: 8px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, #16a085, #1abc9c); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">📋 Auto-Fill Asset Register</button>
                         <button onclick="catalogAutoFillBulk()" style="padding: 8px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">📋 Auto-Fill Bulk Categories</button>
+                        <button onclick="catalogPriceCorrection()" style="padding: 8px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">⚠️ Price Correction</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Price Correction Results Panel (hidden by default) -->
+            <div id="catalogPriceCorrectionPanel" style="display:none; margin-bottom: 20px; background: var(--bg-card); border: 1px solid #e74c3c; border-radius: 12px; overflow: hidden;">
+                <div style="padding: 14px 18px; background: linear-gradient(135deg, rgba(231,76,60,0.1), rgba(192,57,43,0.05)); border-bottom: 1px solid rgba(231,76,60,0.2); display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h4 style="margin:0; color:#e74c3c; font-size:0.95rem;">&#9888; Price Correction - Overpriced Assets Detected</h4>
+                        <p id="priceCorrectionSummary" style="margin:4px 0 0; font-size:0.82rem; color:var(--text-secondary);"></p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="applyPriceCorrections()" style="padding:6px 14px;border-radius:6px;border:none;background:linear-gradient(135deg,#27ae60,#219a52);color:white;cursor:pointer;font-weight:600;font-size:0.82rem;">&#10003; Apply Selected Corrections</button>
+                        <button onclick="document.getElementById('catalogPriceCorrectionPanel').style.display='none'" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-secondary);cursor:pointer;font-size:0.82rem;">Close</button>
+                    </div>
+                </div>
+                <div style="max-height:400px;overflow-y:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:rgba(231,76,60,0.05);position:sticky;top:0;">
+                                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);width:30px;"><input type="checkbox" id="priceCorrSelectAll" onchange="togglePriceCorrSelectAll(this)" checked></th>
+                                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">Asset Code</th>
+                                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">Description</th>
+                                <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border-color);">Current Price</th>
+                                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">Catalog Match</th>
+                                <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border-color);">Catalog Price</th>
+                                <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border-color);">Ratio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priceCorrectionBody"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -28470,27 +28500,44 @@
                 {name:'Oxygen Concentrator (5 LPM)',price:'J$85,000\u2013150,000',src:'Market estimate'},
                 {name:'Medicine Trolley (Lockable)',price:'J$55,000\u201395,000',src:'Market estimate'},
                 {name:'Treatment Trolley (Stainless Steel)',price:'J$45,000\u201380,000',src:'Market estimate'},
+                {name:'Examination Lamp / Light (Mobile, with Wheels)',price:'J$18,000\u201335,000',src:'Market estimate'},
+                {name:'Overbed Examination Lamp',price:'J$22,000\u201340,000',src:'Market estimate'},
                 {name:'Portable X-Ray Machine',price:'J$1,500,000\u20134,000,000',src:'Market estimate'}
             ]},
             {cat:'Furniture & Seating', icon:'&#x1FA91;', life:10, items:[
                 {name:'Guest / Waiting Chair (Single)',price:'J$15,000',src:'\u2605 Donated May 2025'},
                 {name:'Stock Chair (Stacking)',price:'J$7,250',src:'\u2605 Donated Jul 2025'},
+                {name:'Lifetime Stacking Chairs',price:'J$8,000\u201315,000',src:'Market estimate'},
+                {name:'Stacking Chair (Plastic Seat, Metal Frame)',price:'J$6,000\u201312,000',src:'Market estimate'},
                 {name:'10-Attached (4-Chair Row) Stock Chairs',price:'J$10,073 per unit',src:'\u2605 Donated Sep 2025'},
+                {name:'Task Chair With Arms',price:'J$15,000\u201325,000',src:'Market estimate'},
+                {name:'Task Chair Without Arms',price:'J$12,000\u201320,000',src:'Market estimate'},
+                {name:'Fabric Office Chair (High Back)',price:'J$25,000\u201345,000',src:'Market estimate'},
+                {name:'Fur Chair / Fabric Upholstered Chair (High Back)',price:'J$25,000\u201345,000',src:'Market estimate'},
+                {name:'Swivel Chair (Basic Office)',price:'J$12,000\u201322,000',src:'Market estimate'},
                 {name:'Executive High Back Leather Chrome Chair',price:'J$76,980',src:'\u2605 Empire Stationery May 2025'},
+                {name:'Executive Chair (Standard)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
+                {name:'Executive Chairs - Black (Leather)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
                 {name:'Leather High-Back Executive Chair (Black)',price:'J$33,956',src:'\u2605 Register 2022\u201324'},
                 {name:'Visitor / Side Chair (Fabric)',price:'J$12,000\u201322,000',src:'Market estimate'},
                 {name:'Mid-Back Mesh Office Chair',price:'J$22,000\u201345,000',src:'Market estimate'},
                 {name:'High Back Task Chair (Ergonomic)',price:'J$48,000\u201385,000',src:'Market estimate'},
+                {name:'Folding Chair (Metal)',price:'J$4,500\u20138,000',src:'Market estimate'},
+                {name:'Plastic Chair (Basic)',price:'J$3,500\u20136,500',src:'Market estimate'},
                 {name:'Nurses Station Chair (Stool, Adjustable)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Waiting Area Bench (3-Seater, Metal)',price:'J$28,000\u201348,000',src:'Market estimate'},
                 {name:'Recliner Chair (Patient Recovery)',price:'J$85,000\u2013150,000',src:'Market estimate'},
+                {name:'Hospital Recliner Chair',price:'J$95,000\u2013150,000',src:'Market estimate'},
                 {name:'Infusion / Treatment Chair (Reclining)',price:'J$120,000\u2013220,000',src:'Market estimate'},
                 {name:'Stool (Adjustable Height, Round)',price:'J$8,500\u201315,000',src:'Market estimate'}
             ]},
             {cat:'Office, Admin & Storage Furniture', icon:'&#x1F5C4;', life:10, items:[
                 {name:'56" x 30" L-Shape Desk w/ 3-Drawer Pedestal',price:'J$78,900',src:'\u2605 Empire Stationery May 2025'},
                 {name:'Desk with Mobile Pedestal 64 x 30',price:'J$52,500',src:'\u2605 Register 2022\u201324'},
+                {name:'Desk Metal Frame w/Wooden Top',price:'J$35,000\u201355,000',src:'Market estimate'},
+                {name:'Metal Desk (Standard Office)',price:'J$30,000\u201350,000',src:'Market estimate'},
                 {name:'Standard Office Desk (Straight, 48")',price:'J$35,000\u201360,000',src:'Market estimate'},
+                {name:'Computer Desk (Small)',price:'J$22,000\u201338,000',src:'Market estimate'},
                 {name:'Reception Counter / Nurses Station Desk',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Conference Table (8-Seater)',price:'J$120,000\u2013220,000',src:'Market estimate'},
                 {name:'4 Drawer Filing Cabinet - Light Grey',price:'J$30,000',src:'\u2605 Neveast Supplies Aug 2025'},
@@ -28498,6 +28545,7 @@
                 {name:'Locker (4 Door) - Light Grey',price:'J$21,912',src:'\u2605 Neveast Supplies Aug 2025'},
                 {name:'6 Door Staff Locker',price:'J$35,000\u201355,000',src:'Market estimate'},
                 {name:'Bookcase / Shelving Unit (5 Tier)',price:'J$22,000\u201338,000',src:'Market estimate'},
+                {name:'Metal Standing Shelf / Rack',price:'J$15,000\u201328,000',src:'Market estimate'},
                 {name:'Storage Cabinet (Steel, Lockable)',price:'J$35,000\u201365,000',src:'Market estimate'},
                 {name:'White Board / Notice Board',price:'J$3,940',src:'\u2605 Donated Jul 2025'},
                 {name:'Heavy Duty Cross Cut Shredder - 16 Sheets',price:'J$138,000',src:'\u2605 Empire Stationery May 2025'},
@@ -28514,7 +28562,10 @@
                 {name:'Panasonic 1.2 CuFt Inverter Microwave',price:'J$28,696',src:'\u2605 Fashion House Sep 2025'},
                 {name:'Samsung 1.1 CuFt Microwave Oven',price:'J$28,696',src:'\u2605 Fashion House Sep 2025'},
                 {name:'Hamilton Beach Electric Kettle 1.7L',price:'J$17,994',src:'\u2605 Empire Rest. Jul 2025'},
+                {name:'Under Counter Refrigerator (Small)',price:'J$25,000\u201340,000',src:'Market estimate'},
                 {name:'Free Standing Stainless Steel Sink',price:'J$176,000',src:'\u2605 Medco Medical May 2025'},
+                {name:'Single Sink (Basic, Wall-Mount)',price:'J$12,000\u201322,000',src:'Market estimate'},
+                {name:'Single Sink (Stainless Steel, Freestanding)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Commercial Dishwasher (Under-Counter)',price:'J$650,000\u20131,200,000',src:'Market estimate'},
                 {name:'Food Warming Trolley / Hot Box',price:'J$180,000\u2013320,000',src:'Market estimate'},
                 {name:'Commercial Blender (Heavy Duty)',price:'J$35,000\u201365,000',src:'Market estimate'},
@@ -28527,6 +28578,11 @@
                 {name:'Industrial Mop Bucket (with Wringer)',price:'J$18,900',src:'\u2605 People\'s Choice Aug 2025'},
                 {name:'Hand Towel Dispenser T850',price:'J$11,800',src:'\u2605 Bioden Chemicals Aug 2025'},
                 {name:'Soap Dispenser (Wall Mount, 500ml)',price:'J$3,500\u20136,500',src:'Market estimate'},
+                {name:'Garbage Bin Step-On (Small, 8 Gallon)',price:'J$2,500\u20135,000',src:'Market estimate'},
+                {name:'Garbage Bin Step-On (Medium, 13 Gallon)',price:'J$3,500\u20137,000',src:'Market estimate'},
+                {name:'Garbage Bin Step-On (Large, 23 Gallon)',price:'J$5,500\u201310,000',src:'Market estimate'},
+                {name:'Waste Basket / Trash Bin (Plastic, Office)',price:'J$800\u20132,500',src:'Market estimate'},
+                {name:'Recycling Bin (Indoor, Colour Coded)',price:'J$3,000\u20136,000',src:'Market estimate'},
                 {name:'Commercial Waste Bin (Pedal, 50L)',price:'J$5,000\u20139,500',src:'Market estimate'},
                 {name:'Housekeeping / Janitorial Cart (Full)',price:'J$35,000\u201355,000',src:'Market estimate'},
                 {name:'Industrial Vacuum Cleaner',price:'J$55,000\u2013110,000',src:'Market estimate'},
@@ -28637,6 +28693,9 @@
             ]},
             {cat:'Waste Management & Disposal', icon:'&#x267B;', life:5, items:[
                 {name:'Clinical Waste Bin (Red, 30L Pedal)',price:'J$4,500\u20139,000',src:'Market estimate'},
+                {name:'Garbage Bin (Step-On, Grey/Beige)',price:'J$2,500\u20135,000',src:'Market estimate'},
+                {name:'Garbage Bin (Pedal, Stainless Steel)',price:'J$4,000\u20138,000',src:'Market estimate'},
+                {name:'Trash Can / Waste Bin (Plastic, Office)',price:'J$800\u20132,500',src:'Market estimate'},
                 {name:'Sharps Container (5L, Yellow)',price:'J$900\u20132,200',src:'Market estimate'},
                 {name:'Sharps Disposal Trolley (Mobile)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Biohazard Waste Trolley (Sealed)',price:'J$35,000\u201365,000',src:'Market estimate'},
@@ -28829,6 +28888,10 @@
                     var item = cat.items[i];
                     var code = getCatalogCodeForItem(item.name);
                     var isConfirmed = item.src && item.src.indexOf('\u2605') !== -1;
+                    var customKey = 'catalogCustomPrice_' + cat.cat + '_' + i;
+                    var customPrice = localStorage.getItem(customKey);
+                    var displayPrice = customPrice || item.price;
+                    var isCustom = !!customPrice;
 
                     html += '<div class="catalog-item-row">';
                     html += '<div class="catalog-item-info">';
@@ -28838,9 +28901,16 @@
                     html += '<span class="catalog-item-name">' + item.name.replace(/</g,'&lt;') + '</span>';
                     html += '<div class="catalog-item-src">' + (isConfirmed ? '<span style="color:#e67e22">\u2605</span> ' : '') + (item.src || '').replace(/</g,'&lt;') + '</div>';
                     html += '</div>';
-                    html += '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">';
+                    html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
                     html += '<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">' + (item.life || cat.life || '?') + ' yr</span>';
-                    html += '<div class="catalog-item-price">' + item.price.replace(/</g,'&lt;') + '</div>';
+                    html += '<div class="catalog-item-price" id="catPrice_' + c + '_' + i + '" style="' + (isCustom ? 'border:1px solid #e67e22;background:rgba(230,126,34,0.08);' : '') + '">';
+                    html += displayPrice.replace(/</g,'&lt;');
+                    if (isCustom) html += ' <span style="font-size:0.6rem;color:#e67e22;">(custom)</span>';
+                    html += '</div>';
+                    html += '<button onclick="editCatalogPrice(' + c + ',' + i + ',\'' + cat.cat.replace(/'/g,"\\'") + '\')" style="background:none;border:none;cursor:pointer;padding:2px 4px;font-size:0.75rem;color:var(--text-secondary);opacity:0.6;" title="Edit price">&#9998;</button>';
+                    if (isCustom) {
+                        html += '<button onclick="resetCatalogPrice(' + c + ',' + i + ',\'' + cat.cat.replace(/'/g,"\\'") + '\')" style="background:none;border:none;cursor:pointer;padding:2px 4px;font-size:0.7rem;color:#e74c3c;opacity:0.7;" title="Reset to default">&#10005;</button>';
+                    }
                     html += '</div>';
                     html += '</div>';
                 }
@@ -28868,6 +28938,38 @@
                 list.classList.add('expanded');
                 btn.innerHTML = 'Show less \u25B2';
             }
+        }
+
+        // Edit a catalog item price (inline prompt)
+        function editCatalogPrice(catIdx, itemIdx, catName) {
+            var cat = catalogData[catIdx];
+            if (!cat) return;
+            var item = cat.items[itemIdx];
+            if (!item) return;
+            var customKey = 'catalogCustomPrice_' + catName + '_' + itemIdx;
+            var currentPrice = localStorage.getItem(customKey) || item.price;
+            var newPrice = prompt('Edit price for "' + item.name + '":\n\nCurrent: ' + currentPrice + '\nDefault: ' + item.price + '\n\nEnter new price (e.g. "J$25,000" or "J$15,000–30,000"):', currentPrice);
+            if (newPrice === null) return; // cancelled
+            newPrice = newPrice.trim();
+            if (!newPrice) {
+                alert('Price cannot be empty.');
+                return;
+            }
+            // Validate that it can be parsed
+            var parsed = parseCatalogPrice(newPrice);
+            if (parsed <= 0) {
+                alert('Invalid price format. Please use format like "J$25,000" or "J$15,000–30,000".');
+                return;
+            }
+            localStorage.setItem(customKey, newPrice);
+            renderCatalogPage();
+        }
+
+        // Reset a custom price to default
+        function resetCatalogPrice(catIdx, itemIdx, catName) {
+            var customKey = 'catalogCustomPrice_' + catName + '_' + itemIdx;
+            localStorage.removeItem(customKey);
+            renderCatalogPage();
         }
 
         // ============================================
@@ -28902,7 +29004,10 @@
                 var catLife = cat.life || 7;
                 for (var i = 0; i < cat.items.length; i++) {
                     var item = cat.items[i];
-                    var price = parseCatalogPrice(item.price);
+                    // Check for custom price override
+                    var customKey = 'catalogCustomPrice_' + cat.cat + '_' + i;
+                    var customPrice = localStorage.getItem(customKey);
+                    var price = parseCatalogPrice(customPrice || item.price);
                     var life = item.life || catLife;
                     // Build keyword set from item name
                     var nameClean = item.name.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -28920,12 +29025,40 @@
             return lookup;
         }
 
+        // Synonym/alias map for better matching of common asset descriptions
+        var catalogSynonyms = {
+            'fur': 'fabric', 'h back': 'high back', 'hback': 'high back',
+            'exec': 'executive', 'w arms': 'with arms', 'w wheels': 'with wheels',
+            'w wooden': 'wooden', 'ss': 'stainless steel', 'gal': 'gallon',
+            'step on': 'step-on', 'stepon': 'step-on', 'lt': 'light',
+            'exam': 'examination', 'hosp': 'hospital', 'med': 'medical',
+            'equip': 'equipment', 'furn': 'furniture', 'dept': 'department',
+            'adj': 'adjustable', 'elec': 'electric', 'port': 'portable',
+            'ref': 'refrigerator', 'frig': 'refrigerator', 'fridge': 'refrigerator',
+            'ac': 'air conditioner', 'a c': 'air conditioner', 'wh': 'wheelchair',
+            'iv': 'intravenous', 'bp': 'blood pressure', 'ecg': 'electrocardiogram'
+        };
+
+        // Normalize asset description for matching (expand abbreviations)
+        function normalizeAssetDesc(desc) {
+            var d = desc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // Apply synonym substitutions
+            for (var syn in catalogSynonyms) {
+                if (d.indexOf(syn) !== -1) {
+                    d = d.replace(new RegExp('\\b' + syn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), catalogSynonyms[syn]);
+                }
+            }
+            return d.replace(/\s+/g, ' ').trim();
+        }
+
         // Match an asset description to the best catalog item
         function matchAssetToCatalog(assetDesc, catalogLookup) {
             if (!assetDesc) return null;
-            var desc = assetDesc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            var rawDesc = assetDesc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            var desc = normalizeAssetDesc(assetDesc);
             var descWords = desc.split(' ').filter(function(w) { return w.length > 2; });
-            if (descWords.length === 0) return null;
+            var rawWords = rawDesc.split(' ').filter(function(w) { return w.length > 2; });
+            if (descWords.length === 0 && rawWords.length === 0) return null;
 
             var bestMatch = null;
             var bestScore = 0;
@@ -28935,24 +29068,67 @@
                 var score = 0;
 
                 // Exact substring match (highest priority)
-                if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
+                if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
                     score = 100;
+                } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
+                    score = 95;
                 } else {
-                    // Word overlap scoring
+                    // Word overlap scoring (try both raw and normalized words)
                     var matchedWords = 0;
+                    var significantMatches = 0;
+                    // Significant words that carry more weight
+                    var significantTerms = ['chair','desk','bed','table','bin','garbage','trash','shelf','cabinet',
+                        'refrigerator','freezer','sink','stool','lamp','monitor','cart','trolley','pump',
+                        'fan','printer','computer','locker','rack','stand','stretcher','wheelchair',
+                        'stacking','executive','task','recliner','folding','metal','plastic','fabric',
+                        'examination','surgical','operating','ventilator','autoclave','generator'];
+
                     for (var w = 0; w < descWords.length; w++) {
                         for (var k = 0; k < item.keywords.length; k++) {
                             if (descWords[w] === item.keywords[k]) {
                                 matchedWords++;
+                                if (significantTerms.indexOf(descWords[w]) !== -1) significantMatches++;
                                 break;
                             }
                         }
                     }
-                    // Score based on proportion of matched words in both directions
+                    // Also try rawWords if different
+                    if (rawDesc !== desc) {
+                        for (var w2 = 0; w2 < rawWords.length; w2++) {
+                            var alreadyCounted = false;
+                            for (var dw = 0; dw < descWords.length; dw++) {
+                                if (rawWords[w2] === descWords[dw]) { alreadyCounted = true; break; }
+                            }
+                            if (alreadyCounted) continue;
+                            for (var k2 = 0; k2 < item.keywords.length; k2++) {
+                                if (rawWords[w2] === item.keywords[k2]) {
+                                    matchedWords++;
+                                    if (significantTerms.indexOf(rawWords[w2]) !== -1) significantMatches++;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     if (matchedWords > 0) {
-                        var descCoverage = matchedWords / descWords.length;
-                        var itemCoverage = matchedWords / item.keywords.length;
+                        var descCoverage = matchedWords / Math.max(descWords.length, 1);
+                        var itemCoverage = matchedWords / Math.max(item.keywords.length, 1);
                         score = (descCoverage + itemCoverage) * 50 * matchedWords;
+                        // Boost for significant word matches
+                        if (significantMatches >= 1) score += significantMatches * 15;
+                        // Penalize if primary noun doesn't match (e.g. "chair" vs "desk")
+                        var descPrimaryNouns = descWords.filter(function(w) { return significantTerms.indexOf(w) !== -1; });
+                        var itemPrimaryNouns = item.keywords.filter(function(w) { return significantTerms.indexOf(w) !== -1; });
+                        if (descPrimaryNouns.length > 0 && itemPrimaryNouns.length > 0) {
+                            var nounMatch = false;
+                            for (var n1 = 0; n1 < descPrimaryNouns.length; n1++) {
+                                for (var n2 = 0; n2 < itemPrimaryNouns.length; n2++) {
+                                    if (descPrimaryNouns[n1] === itemPrimaryNouns[n2]) { nounMatch = true; break; }
+                                }
+                                if (nounMatch) break;
+                            }
+                            if (!nounMatch) score *= 0.3; // Heavy penalty for mismatched primary nouns
+                        }
                     }
                 }
 
@@ -29070,6 +29246,125 @@
                 var preview = result.details.slice(0, 15).join('\n');
                 if (result.details.length > 15) preview += '\n... and ' + (result.details.length - 15) + ' more';
                 alert('Auto-filled ' + result.filled + ' asset(s) from catalog!\n\n' + preview);
+            }
+        }
+
+        // ============================================
+        // PRICE CORRECTION: Detect and fix overpriced assets
+        // ============================================
+        var _priceCorrectionResults = [];
+
+        function catalogPriceCorrection() {
+            var catalogLookup = buildCatalogLookup();
+            var assets = loadAssetsFromStorage();
+            var overpriced = [];
+
+            assets.forEach(function(asset) {
+                var price = parseFloat(asset.unitPrice) || parseFloat(asset.totalPrice) || 0;
+                if (price <= 0) return; // skip zero-price assets
+
+                var desc = asset.description || asset.itemType || '';
+                if (!desc) return;
+
+                var match = matchAssetToCatalog(desc, catalogLookup);
+                if (!match || match.price <= 0) return;
+
+                // Flag if current price is more than 2.5x the catalog price
+                var ratio = price / match.price;
+                if (ratio > 2.5) {
+                    overpriced.push({
+                        id: asset.id,
+                        assetCode: asset.assetCode || 'N/A',
+                        description: desc,
+                        currentPrice: price,
+                        catalogMatch: match.name,
+                        catalogPrice: match.price,
+                        ratio: ratio,
+                        selected: true
+                    });
+                }
+            });
+
+            // Sort by ratio descending (most overpriced first)
+            overpriced.sort(function(a, b) { return b.ratio - a.ratio; });
+            _priceCorrectionResults = overpriced;
+
+            var panel = document.getElementById('catalogPriceCorrectionPanel');
+            var body = document.getElementById('priceCorrectionBody');
+            var summary = document.getElementById('priceCorrectionSummary');
+
+            if (overpriced.length === 0) {
+                alert('No significantly overpriced assets detected.\n\nAll asset prices are within 2.5x of their catalog reference price.');
+                if (panel) panel.style.display = 'none';
+                return;
+            }
+
+            if (summary) summary.textContent = overpriced.length + ' asset(s) have prices significantly higher than catalog reference (>2.5x). Review and select which to correct.';
+
+            var html = '';
+            for (var i = 0; i < overpriced.length; i++) {
+                var item = overpriced[i];
+                var ratioColor = item.ratio > 10 ? '#e74c3c' : item.ratio > 5 ? '#e67e22' : '#f39c12';
+                html += '<tr style="border-bottom:1px solid var(--border-color);">';
+                html += '<td style="padding:6px 10px;"><input type="checkbox" class="priceCorrCheck" data-idx="' + i + '" checked></td>';
+                html += '<td style="padding:6px 10px;color:#3498db;font-size:0.78rem;">' + item.assetCode.replace(/</g,'&lt;') + '</td>';
+                html += '<td style="padding:6px 10px;">' + item.description.substring(0, 40).replace(/</g,'&lt;') + (item.description.length > 40 ? '...' : '') + '</td>';
+                html += '<td style="padding:6px 10px;text-align:right;color:#e74c3c;font-weight:600;">JMD ' + formatCurrency(item.currentPrice) + '</td>';
+                html += '<td style="padding:6px 10px;font-size:0.78rem;">' + item.catalogMatch.substring(0, 35).replace(/</g,'&lt;') + '</td>';
+                html += '<td style="padding:6px 10px;text-align:right;color:#27ae60;font-weight:600;">JMD ' + formatCurrency(item.catalogPrice) + '</td>';
+                html += '<td style="padding:6px 10px;text-align:center;color:' + ratioColor + ';font-weight:700;">' + item.ratio.toFixed(1) + 'x</td>';
+                html += '</tr>';
+            }
+
+            if (body) body.innerHTML = html;
+            if (panel) panel.style.display = 'block';
+        }
+
+        function togglePriceCorrSelectAll(masterCb) {
+            var checkboxes = document.querySelectorAll('.priceCorrCheck');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = masterCb.checked;
+            }
+        }
+
+        function applyPriceCorrections() {
+            var checkboxes = document.querySelectorAll('.priceCorrCheck');
+            var selectedIds = [];
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked) {
+                    var idx = parseInt(checkboxes[i].getAttribute('data-idx'));
+                    if (_priceCorrectionResults[idx]) {
+                        selectedIds.push(_priceCorrectionResults[idx]);
+                    }
+                }
+            }
+
+            if (selectedIds.length === 0) {
+                alert('No assets selected for correction.');
+                return;
+            }
+
+            if (!confirm('Correct prices for ' + selectedIds.length + ' asset(s) to catalog reference prices?\n\nThis will update unitPrice, totalPrice, and recalculate salvage value.\n\nProceed?')) return;
+
+            var assets = loadAssetsFromStorage();
+            var updated = 0;
+
+            selectedIds.forEach(function(correction) {
+                var asset = assets.find(function(a) { return a.id === correction.id; });
+                if (asset) {
+                    asset.unitPrice = correction.catalogPrice;
+                    asset.totalPrice = correction.catalogPrice * (asset.quantity || 1);
+                    asset.salvageValue = calcSalvageValue(asset.totalPrice, asset.category || '');
+                    updated++;
+                }
+            });
+
+            if (updated > 0) {
+                saveAssetsToStorage(assets);
+                addAuditEntry('CATALOG', 'Price Correction', '-', 'Corrected prices for ' + updated + ' overpriced asset(s) using catalog reference');
+                refreshAllViews();
+                alert('Corrected prices for ' + updated + ' asset(s)!');
+                document.getElementById('catalogPriceCorrectionPanel').style.display = 'none';
             }
         }
 
