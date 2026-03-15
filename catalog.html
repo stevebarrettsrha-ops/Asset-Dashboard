@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Cost Reference Catalog - May Pen Hospital</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #0097A7;
+            --primary-dark: #00838F;
+            --primary-light: #00BCD4;
+            --bg-primary: #f5f7fa;
+            --bg-secondary: #e9ecef;
+            --bg-card: #ffffff;
+            --text-primary: #2C3E50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #2d4059;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* TOP NAV */
+        .top-nav {
+            background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+            color: white;
+            padding: 0 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 65px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-nav .nav-brand { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; }
+        .top-nav .nav-actions { display: flex; align-items: center; gap: 15px; }
+        .top-nav .nav-actions button {
+            background: rgba(255,255,255,0.2); border: none; color: white;
+            padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s;
+        }
+        .top-nav .nav-actions button:hover { background: rgba(255,255,255,0.3); }
+
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        /* LAYOUT */
+        .layout { display: flex; min-height: calc(100vh - 65px); }
+
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 20px 0;
+            transition: all 0.3s;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+        .sidebar-brand h2 { font-size: 18px; color: var(--primary); font-weight: 700; }
+        .sidebar-brand p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+        .sidebar-section { padding: 0 15px; margin-bottom: 25px; }
+        .sidebar-section-title {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-secondary); padding: 0 10px; margin-bottom: 10px; font-weight: 600;
+        }
+
+        .sidebar-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 8px; cursor: pointer; transition: all 0.2s;
+            color: var(--text-primary); font-size: 14px; font-weight: 500; text-decoration: none;
+        }
+        .sidebar-item:hover { background: var(--bg-secondary); }
+        .sidebar-item.active {
+            background: linear-gradient(135deg, rgba(0, 151, 167, 0.15), rgba(0, 131, 143, 0.15));
+            color: #0097A7; font-weight: 600;
+        }
+        .sidebar-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .sidebar-footer a {
+            color: var(--text-secondary); text-decoration: none; font-size: 13px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .sidebar-footer a:hover { color: var(--primary); }
+
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 999;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* MAIN CONTENT */
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; background: var(--bg-primary); }
+
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .page-header { margin-bottom: 25px; }
+        .page-header h1 { font-size: 26px; font-weight: 700; color: var(--text-primary); margin-bottom: 5px; }
+        .page-header p { color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
+        .page-header .badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 600; background: rgba(0,151,167,0.15); color: #0097A7; margin-top: 8px;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--bg-card); border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow); padding: 25px; margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+        .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-primary); }
+
+        /* INTRO CARD */
+        .intro-card {
+            background: linear-gradient(135deg, rgba(0,151,167,0.08), rgba(0,188,212,0.05));
+            border: 1px solid rgba(0,151,167,0.2);
+            border-radius: 12px;
+            padding: 20px 25px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+        .intro-card strong { color: var(--primary); }
+
+        /* STATS */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+
+        .stat-card {
+            background: var(--bg-card); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 20px var(--shadow); border-left: 4px solid; transition: all 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card.teal { border-color: #0097A7; }
+        .stat-card.blue { border-color: #3498db; }
+        .stat-card.green { border-color: #27ae60; }
+        .stat-card.orange { border-color: #f39c12; }
+        .stat-card.purple { border-color: #9b59b6; }
+
+        .stat-card .stat-value { font-size: 32px; font-weight: 700; color: var(--text-primary); }
+        .stat-card .stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 5px; }
+
+        /* CATEGORY GRID */
+        .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 25px; }
+
+        .cat-summary-card {
+            background: var(--bg-card); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 20px var(--shadow); transition: all 0.3s; cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+        .cat-summary-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+        .cat-summary-card .cat-icon { font-size: 28px; margin-bottom: 10px; }
+        .cat-summary-card .cat-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+        .cat-summary-card .cat-count { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+        .cat-summary-card .cat-link {
+            font-size: 13px; color: var(--primary); font-weight: 600; text-decoration: none;
+        }
+
+        /* SEARCH & FILTERS */
+        .search-bar {
+            display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .search-bar input {
+            flex: 1; min-width: 250px; padding: 12px 16px; border: 2px solid var(--border-color);
+            border-radius: 10px; font-size: 14px; background: var(--bg-card); color: var(--text-primary);
+            transition: all 0.3s;
+        }
+        .search-bar input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,151,167,0.1); }
+
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+        .filter-btn {
+            padding: 8px 16px; border: 2px solid var(--border-color); border-radius: 20px;
+            background: var(--bg-card); color: var(--text-secondary); font-size: 13px;
+            cursor: pointer; transition: all 0.3s; font-weight: 500;
+        }
+        .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .results-count { font-size: 14px; color: var(--text-secondary); margin-bottom: 15px; font-weight: 500; }
+
+        /* CATALOG CARDS */
+        .catalog-card {
+            background: var(--bg-card); border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow); margin-bottom: 25px;
+            overflow: hidden; transition: background 0.3s ease;
+        }
+        .catalog-card-header {
+            background: linear-gradient(135deg, #0097A7, #00838F);
+            color: white; padding: 15px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .catalog-card-header .cat-title { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+        .catalog-card-header .cat-badge {
+            background: rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+        }
+        .catalog-card-body { padding: 0; }
+
+        .catalog-item {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            padding: 12px 20px; border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+        .catalog-item:last-child { border-bottom: none; }
+        .catalog-item:hover { background: var(--bg-secondary); }
+
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+        .item-src { font-size: 12px; color: var(--text-secondary); }
+        .item-src .star { color: #f39c12; }
+        .item-code {
+            display: inline-block; background: rgba(0,151,167,0.1); color: #0097A7;
+            padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+            margin-right: 6px; font-family: 'Courier New', monospace;
+        }
+
+        .item-price {
+            font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700;
+            color: #0097A7; white-space: nowrap; text-align: right; min-width: 140px; padding-left: 15px;
+        }
+
+        .show-more-btn {
+            display: block; width: 100%; padding: 12px; background: var(--bg-secondary);
+            border: none; color: var(--primary); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .show-more-btn:hover { background: rgba(0,151,167,0.1); }
+
+        /* ASSET CODES TABLE */
+        .table-container { overflow-x: auto; border-radius: 10px; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: linear-gradient(135deg, #0097A7, #00838F); }
+        th { color: white; padding: 12px 15px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-primary); }
+        tr:hover { background: var(--bg-secondary); }
+        .code-cell { font-family: 'Courier New', monospace; font-weight: 600; color: var(--primary); }
+
+        /* DARK MODE TOGGLE */
+        .dark-toggle-sidebar {
+            display: flex; align-items: center; gap: 8px; padding: 10px 0;
+            cursor: pointer; font-size: 14px; color: var(--text-secondary);
+        }
+        .dark-toggle-sidebar:hover { color: var(--primary); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hamburger-btn { display: block; }
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 65px;
+                bottom: 0;
+                z-index: 1000;
+                transition: left 0.3s ease;
+                display: flex !important;
+            }
+            .sidebar.open { left: 0; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .cat-grid { grid-template-columns: 1fr; }
+            .catalog-item { flex-direction: column; gap: 6px; }
+            .item-price { text-align: left; min-width: auto; padding-left: 0; }
+            .main-content { padding: 15px; }
+        }
+
+        @media print {
+            .top-nav, .sidebar, .hamburger-btn, .sidebar-overlay, .search-bar, .filter-bar, .show-more-btn { display: none !important; }
+            .main-content { padding: 0; }
+            .catalog-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+        }
+
+        .letter-header {
+            padding: 10px 15px;
+            background: var(--bg-secondary);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            margin-top: 15px;
+        }
+        .letter-header:first-child { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <!-- TOP NAV -->
+    <nav class="top-nav">
+        <div style="display:flex;align-items:center;gap:15px;">
+            <button class="hamburger-btn" onclick="toggleSidebar()">&#9776;</button>
+            <div class="nav-brand">&#128218; Asset Cost Reference Catalog</div>
+        </div>
+        <div class="nav-actions">
+            <span style="font-size:14px;opacity:0.9;">May Pen Hospital</span>
+        </div>
+    </nav>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <h2>Asset Catalog</h2>
+                <p>May Pen Hospital</p>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Main</div>
+                <div class="sidebar-item active" data-page="overview" onclick="showPage('overview')">
+                    <span class="icon">&#128200;</span> Overview
+                </div>
+                <div class="sidebar-item" data-page="catalog" onclick="showPage('catalog')">
+                    <span class="icon">&#128214;</span> Full Catalog
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <div class="sidebar-item" data-page="codes" onclick="showPage('codes')">
+                    <span class="icon">&#128196;</span> Asset Codes
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="portal.html">&#8592; Back to Systems Portal</a>
+                <div class="dark-toggle-sidebar" onclick="toggleDarkMode()">
+                    <span id="darkIcon">&#127769;</span> <span id="darkLabel">Dark Mode</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- PAGE 1: OVERVIEW -->
+            <div class="page active" id="page-overview">
+                <div class="page-header">
+                    <h1>Hospital Asset Cost Reference Catalog</h1>
+                    <p>Comprehensive pricing reference from May Pen Hospital's Fixed Asset Register (2022-2025) and GOJ Asset ID Registers (1997-1998)</p>
+                    <span class="badge">Reference Document - Updated 2025</span>
+                </div>
+
+                <div class="intro-card">
+                    <strong>About this Catalog:</strong> All prices are listed in <strong>JMD (Jamaican Dollars)</strong>.
+                    Items marked with <strong style="color:#f39c12;">&#9733;</strong> have confirmed supplier pricing from quotations or purchase records.
+                    Other prices are market estimates based on regional healthcare procurement data.
+                    Prices include <strong>15% GCT</strong> unless otherwise noted.
+                </div>
+
+                <div class="stats-row" id="overviewStats"></div>
+
+                <h2 style="font-size:20px;font-weight:700;margin-bottom:15px;">Categories</h2>
+                <div class="cat-grid" id="catGrid"></div>
+            </div>
+
+            <!-- PAGE 2: FULL CATALOG -->
+            <div class="page" id="page-catalog">
+                <div class="page-header">
+                    <h1>Full Catalog</h1>
+                    <p>Browse all hospital asset pricing data</p>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="catalogSearch" placeholder="Search items by name, category, or source..." oninput="filterCatalog()">
+                </div>
+                <div class="filter-bar" id="filterBar"></div>
+                <div class="results-count" id="resultsCount"></div>
+                <div id="catalogContent"></div>
+            </div>
+
+            <!-- PAGE 3: ASSET CODES -->
+            <div class="page" id="page-codes">
+                <div class="page-header">
+                    <h1>GOJ Asset ID Codes</h1>
+                    <p>Standard asset classification codes from Government of Jamaica Asset ID Registers</p>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="codeSearch" placeholder="Search asset codes or descriptions..." oninput="filterCodes()">
+                </div>
+                <div class="results-count" id="codesCount"></div>
+                <div class="card">
+                    <div class="table-container" id="codesTable"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // ========== CATALOG DATA ==========
+    const catalog = [
+        {cat:'🛏️ Patient Care & Ward Equipment', items:[
+            {name:'Hospital Bed (Manual, Standard)',price:'J$180,000–250,000',src:'Market estimate'},
+            {name:'Hospital Bed (Semi-Electric)',price:'J$280,000–380,000',src:'Register 2022–24'},
+            {name:'Hospital Bed (Full-Electric, ICU)',price:'J$450,000–750,000',src:'Market estimate'},
+            {name:'Paediatric Cot / Crib (Metal)',price:'J$85,000–130,000',src:'Market estimate'},
+            {name:'Maternity / Labour Bed',price:'J$320,000–520,000',src:'Market estimate'},
+            {name:'Overbed Table (Plastic - White)',price:'J$46,453',src:'★ DT Synergy Apr 2025'},
+            {name:'Overbed Table (Gas Spring Height-Adjustable)',price:'J$22,000–28,000',src:'★ Register 2022–24'},
+            {name:'IV Stand (4-Leg, 2-Hook, Removable Top)',price:'J$7,600–15,200',src:'★ Register 2022–24'},
+            {name:'IV Pole (5-Leg, Telescopic)',price:'J$9,500–18,000',src:'Market estimate'},
+            {name:'Examination / Consultation Table',price:'J$310,984',src:'★ Register 2022–24'},
+            {name:'Patient Stretcher / Transfer Trolley',price:'J$120,000–200,000',src:'Market estimate'},
+            {name:'Emergency Trolley / Gurney',price:'J$180,000–280,000',src:'Market estimate'},
+            {name:'Wheelchair (Standard Foldable)',price:'J$25,000–45,000',src:'Market estimate'},
+            {name:'Wheelchair (Heavy Duty Bariatric)',price:'J$65,000–110,000',src:'Market estimate'},
+            {name:'Bedside Cabinet / Locker (Single)',price:'J$18,000–28,000',src:'Market estimate'},
+            {name:'Bedpan Washer / Sluice Unit',price:'J$280,000–480,000',src:'Market estimate'},
+            {name:'Patient Weighing Scale (Digital)',price:'J$25,000–55,000',src:'Market estimate'},
+            {name:'Infant / Baby Weighing Scale',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Walking Frame / Zimmer Frame',price:'J$4,500–9,000',src:'Market estimate'},
+            {name:'Crutches (Pair, Adjustable)',price:'J$3,500–7,000',src:'Market estimate'},
+            {name:'Patient Hoist / Lift (Electric)',price:'J$280,000–480,000',src:'Market estimate'},
+            {name:'Pressure Relief Mattress',price:'J$35,000–85,000',src:'Market estimate'},
+            {name:'Mattress (Standard Hospital)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Bed Side Rails (Pair)',price:'J$12,000–22,000',src:'Market estimate'},
+            {name:'Commode Chair (Mobile)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Traction Frame / Overhead Beam',price:'J$55,000–110,000',src:'Market estimate'}
+        ]},
+        {cat:'🩺 Clinical & Diagnostic Equipment', items:[
+            {name:'Privacy Screen - Stainless Steel 3 Panel',price:'J$26,000–28,000',src:'★ Medco Medical Supplies'},
+            {name:'Emergency Crash Cart (Red/Blue)',price:'J$184,000',src:'★ Medco Medical Jul 2025'},
+            {name:'Stainless Steel Dressing Trolley (3 Tier)',price:'J$49,600',src:'★ Medical Link Jul 2025'},
+            {name:'Electric Cast Cutter (Plaster Saw)',price:'J$71,530',src:'★ Shekinah Trading Jul 2025'},
+            {name:'Nebulizer / Compressor (S5000)',price:'J$8,500',src:'★ Donated Jul 2025'},
+            {name:'Nebulizer (Mesh, Portable)',price:'J$12,000–22,000',src:'Market estimate'},
+            {name:'Pulse Oximeter (Fingertip)',price:'J$3,500–6,000',src:'Market estimate'},
+            {name:'Pulse Oximeter (Bedside, Wrist)',price:'J$18,000–40,000',src:'Market estimate'},
+            {name:'Blood Pressure Monitor (Digital Arm)',price:'J$8,000–18,000',src:'Market estimate'},
+            {name:'Blood Pressure Monitor (Aneroid, Wall)',price:'J$5,500–12,000',src:'Market estimate'},
+            {name:'Stethoscope (Professional Dual-Head)',price:'J$4,500–12,000',src:'Market estimate'},
+            {name:'Stethoscope (Cardiology Grade)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Thermometer (Digital, Oral)',price:'J$1,800–4,500',src:'Market estimate'},
+            {name:'Thermometer (Infrared, Non-Contact)',price:'J$5,500–12,000',src:'Market estimate'},
+            {name:'Suction Machine (Portable)',price:'J$35,000–75,000',src:'Market estimate'},
+            {name:'Suction Machine (High Vacuum, Wall-Mount)',price:'J$120,000–200,000',src:'Market estimate'},
+            {name:'Infusion Pump (IV Syringe Driver)',price:'J$65,000–120,000',src:'Market estimate'},
+            {name:'ECG Machine (12-Lead, Portable)',price:'J$350,000–700,000',src:'Market estimate'},
+            {name:'Defibrillator / AED',price:'J$450,000–900,000',src:'Market estimate'},
+            {name:'Glucometer (Blood Glucose Monitor)',price:'J$6,500–15,000',src:'Market estimate'},
+            {name:'Ophthalmoscope / Otoscope Set',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Spirometer (Portable)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Foetal Doppler (Handheld)',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'CTG / Cardiotocograph Monitor',price:'J$380,000–700,000',src:'Market estimate'},
+            {name:'Ultrasound Machine (Portable)',price:'J$950,000–2,500,000',src:'Market estimate'},
+            {name:'Patient Monitor (Bedside Multi-Parameter)',price:'J$280,000–600,000',src:'Market estimate'},
+            {name:'Oxygen Concentrator (5 LPM)',price:'J$85,000–150,000',src:'Market estimate'},
+            {name:'Oxygen Cylinder (Portable, with Regulator)',price:'J$22,000–45,000',src:'Market estimate'},
+            {name:'Resuscitation / Ambu Bag (Adult)',price:'J$5,500–12,000',src:'Market estimate'},
+            {name:'Laryngoscope Set (Adult & Paediatric)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Medicine Trolley (Lockable)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Treatment Trolley (Stainless Steel)',price:'J$45,000–80,000',src:'Market estimate'},
+            {name:'Surgical Instrument Tray Set',price:'J$28,000–75,000',src:'Market estimate'},
+            {name:'Portable X-Ray Machine',price:'J$1,500,000–4,000,000',src:'Market estimate'}
+        ]},
+        {cat:'🪑 Furniture & Seating', items:[
+            {name:'Guest / Waiting Chair (Single)',price:'J$15,000',src:'★ Donated May 2025'},
+            {name:'Stock Chair (Stacking)',price:'J$7,250',src:'★ Donated Jul 2025'},
+            {name:'10-Attached (4-Chair Row) Stock Chairs',price:'J$10,073 per unit',src:'★ Donated Sep 2025'},
+            {name:'Executive High Back Leather Chrome Chair',price:'J$76,980',src:'★ Empire Stationery May 2025'},
+            {name:'Leather High-Back Executive Chair (Black)',price:'J$33,956',src:'★ Register 2022–24'},
+            {name:'U.M. C5 High Back All-Purpose Chair (Vinyl)',price:'J$35,850',src:'★ Register 2022–24'},
+            {name:'Visitor / Side Chair (Fabric)',price:'J$12,000–22,000',src:'Market estimate'},
+            {name:'Mid-Back Mesh Office Chair',price:'J$22,000–45,000',src:'Market estimate'},
+            {name:'High Back Task Chair (Ergonomic)',price:'J$48,000–85,000',src:'Market estimate'},
+            {name:'Nurses Station Chair (Stool, Adjustable)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Waiting Area Bench (3-Seater, Metal)',price:'J$28,000–48,000',src:'Market estimate'},
+            {name:'Waiting Area Bench (6-Seater, Padded)',price:'J$55,000–90,000',src:'Market estimate'},
+            {name:'Sofa / Loveseat (2-Seater, Vinyl)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Visitor Armchair (Reception)',price:'J$25,000–45,000',src:'Market estimate'},
+            {name:'Recliner Chair (Patient Recovery)',price:'J$85,000–150,000',src:'Market estimate'},
+            {name:'Infusion / Treatment Chair (Reclining)',price:'J$120,000–220,000',src:'Market estimate'},
+            {name:'Stool (Adjustable Height, Round)',price:'J$8,500–15,000',src:'Market estimate'},
+            {name:'Computer / Swivel Chair (Low-Back)',price:'J$18,000–32,000',src:'Market estimate'}
+        ]},
+        {cat:'🗄️ Office, Admin & Storage Furniture', items:[
+            {name:'56" x 30" L-Shape Desk w/ 3-Drawer Pedestal',price:'J$78,900',src:'★ Empire Stationery May 2025'},
+            {name:'Desk with Mobile Pedestal 64 x 30',price:'J$52,500',src:'★ Register 2022–24'},
+            {name:'Standard Office Desk (Straight, 48")',price:'J$35,000–60,000',src:'Market estimate'},
+            {name:'Computer / Workstation Desk',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Reception Counter / Nurses Station Desk',price:'J$180,000–350,000',src:'Market estimate'},
+            {name:'Conference Table (8-Seater)',price:'J$120,000–220,000',src:'Market estimate'},
+            {name:'Meeting Table (4-Seater)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'4 Drawer Filing Cabinet - Light Grey',price:'J$30,000',src:'★ Neveast Supplies Aug 2025'},
+            {name:'2 Drawer Filing Cabinet',price:'J$18,000–28,000',src:'Market estimate'},
+            {name:'Lateral Filing Cabinet (Wide, 4 Draw)',price:'J$55,000–90,000',src:'Market estimate'},
+            {name:'Locker (4 Door) - Light Grey',price:'J$21,912',src:'★ Neveast Supplies Aug 2025'},
+            {name:'4 Door Locker (Metal, Standard)',price:'J$22,450',src:'★ Register 2022–24'},
+            {name:'6 Door Staff Locker',price:'J$35,000–55,000',src:'Market estimate'},
+            {name:'12 Door Staff Locker (Combination)',price:'J$65,000–110,000',src:'Market estimate'},
+            {name:'Bookcase / Shelving Unit (5 Tier)',price:'J$22,000–38,000',src:'Market estimate'},
+            {name:'Metal Shelving Rack (Industrial)',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Storage Cabinet (Steel, Lockable)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'White Board / Notice Board',price:'J$3,940',src:'★ Donated Jul 2025'},
+            {name:'Magnetic Dry-Erase Board (Large)',price:'J$8,500–18,000',src:'Market estimate'},
+            {name:'Cork / Bulletin Board (Wall-Mount)',price:'J$3,500–7,500',src:'Market estimate'},
+            {name:'Heavy Duty Cross Cut Shredder - 16 Sheets',price:'J$138,000',src:'★ Empire Stationery May 2025'},
+            {name:'Paper Shredder (Strip Cut, Small Office)',price:'J$22,000–45,000',src:'Market estimate'},
+            {name:'Folding Table 29.6" x 20.6"',price:'J$9,600',src:'★ Neveast Supplies Aug 2025'},
+            {name:'Conference / Training Folding Table',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Safe (Fireproof, Medium)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'First Aid Cabinet (Wall-Mount)',price:'J$9,500–18,000',src:'Market estimate'}
+        ]},
+        {cat:'🍽️ Dietary, Kitchen & Food Service', items:[
+            {name:'Imperial Countertop Gas Stove 6-Burner 60"',price:'J$1,784,463',src:'★ ATL Unbeatable May 2025'},
+            {name:'Equipment Stand / Stove Undershelf (SS)',price:'J$561,658',src:'★ ATL Unbeatable May 2025'},
+            {name:'20 CuFt Frigidaire Refrigerator (FRT515)',price:'J$108,696',src:'★ Fashion House Sep 2025'},
+            {name:'Frigidaire 10 CuFt Refrigerator',price:'J$77,995',src:'★ Register 2022–24'},
+            {name:'Whirlpool 15 CuFt Upright Freezer',price:'J$110,995',src:'★ Register 2022–24'},
+            {name:'Chest Freezer (Commercial, 500L)',price:'J$145,000–220,000',src:'Market estimate'},
+            {name:'Panasonic 1.2 CuFt Inverter Microwave',price:'J$28,696',src:'★ Fashion House Sep 2025'},
+            {name:'Samsung 1.1 CuFt Microwave Oven',price:'J$28,696',src:'★ Fashion House Sep 2025'},
+            {name:'Commercial Microwave (1400W)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Hamilton Beach Electric Kettle 1.7L',price:'J$17,994',src:'★ Empire Rest. Jul 2025'},
+            {name:'Free Standing Stainless Steel Sink',price:'J$176,000',src:'★ Medco Medical May 2025'},
+            {name:'Double Stainless Steel Sink (Wall-Mount)',price:'J$95,000–160,000',src:'Market estimate'},
+            {name:'Commercial Dishwasher (Under-Counter)',price:'J$650,000–1,200,000',src:'Market estimate'},
+            {name:'Food Warming Trolley / Hot Box',price:'J$180,000–320,000',src:'Market estimate'},
+            {name:'Meal Tray Cart / Trolley (20-Tray)',price:'J$85,000–150,000',src:'Market estimate'},
+            {name:'Commercial Blender (Heavy Duty)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Food Processor (Commercial)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Rice Cooker (Large Capacity, 10L)',price:'J$25,000–45,000',src:'Market estimate'},
+            {name:'Stainless Steel Work Table (4ft)',price:'J$55,000–90,000',src:'Market estimate'},
+            {name:'Stainless Steel Wall Shelf',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Bain Marie / Steam Table (3-Pan)',price:'J$120,000–200,000',src:'Market estimate'},
+            {name:'Hand Sanitizer Station (Free-Standing)',price:'J$12,000–22,000',src:'Market estimate'}
+        ]},
+        {cat:'🧹 Laundry, Cleaning & Sanitation', items:[
+            {name:'Commercial Swivel Laundry Cart / Hamper',price:'J$69,980',src:'★ Empire Rest. May 2025'},
+            {name:'Linen Cart (Enclosed)',price:'J$56,080',src:'★ Shekinah Trading Aug 2025'},
+            {name:'Industrial Mop Bucket (with Wringer)',price:'J$18,900',src:'★ People\'s Choice Aug 2025'},
+            {name:'Hand Towel Dispenser T850',price:'J$11,800',src:'★ Bioden Chemicals Aug 2025'},
+            {name:'Soap Dispenser (Wall Mount, 500ml)',price:'J$3,500–6,500',src:'Market estimate'},
+            {name:'Soap Dispenser (Sensor, Touchless)',price:'J$8,500–16,000',src:'Market estimate'},
+            {name:'Commercial Waste Bin (Pedal, 50L)',price:'J$5,000–9,500',src:'Market estimate'},
+            {name:'Colour-Coded Clinical Waste Bin (30L)',price:'J$4,500–8,500',src:'Market estimate'},
+            {name:'Housekeeping / Janitorial Cart (Full)',price:'J$35,000–55,000',src:'Market estimate'},
+            {name:'Mop and Bucket Set (Colour-Coded)',price:'J$4,500–8,000',src:'Market estimate'},
+            {name:'Industrial Vacuum Cleaner',price:'J$55,000–110,000',src:'Market estimate'},
+            {name:'Floor Polisher / Scrubber (Electric)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Commercial Washing Machine (12 kg)',price:'J$280,000–480,000',src:'Market estimate'},
+            {name:'Commercial Dryer (12 kg, Gas)',price:'J$250,000–420,000',src:'Market estimate'},
+            {name:'Flatwork Ironer / Linen Press',price:'J$380,000–650,000',src:'Market estimate'},
+            {name:'Linen Trolley (Open Top)',price:'J$28,000–48,000',src:'Market estimate'},
+            {name:'Biohazard Waste Trolley (Sealed)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Portable Hand Wash Station',price:'J$45,000–80,000',src:'Market estimate'},
+            {name:'Paper Towel Dispenser (Folded)',price:'J$3,500–6,500',src:'Market estimate'},
+            {name:'Toilet Roll Holder (Industrial)',price:'J$1,500–3,500',src:'Market estimate'}
+        ]},
+        {cat:'❄️ Climate Control & Electrical Systems', items:[
+            {name:'36,000 BTU Tropicool Inverter AC Wall Unit',price:'J$119,925',src:'★ Tropicool Sep 2025'},
+            {name:'36,000 BTU Tropicool Inverter AC Evaporator',price:'J$64,575',src:'★ Tropicool Sep 2025'},
+            {name:'18,000 BTU Inverter Air Conditioner',price:'J$85,000–130,000',src:'Market estimate'},
+            {name:'24,000 BTU Split System Air Conditioner',price:'J$110,000–175,000',src:'Market estimate'},
+            {name:'Ceiling Cassette AC (36,000 BTU)',price:'J$180,000–280,000',src:'Market estimate'},
+            {name:'Portable Air Conditioner (12,000 BTU)',price:'J$65,000–110,000',src:'Market estimate'},
+            {name:'Ceiling Fan (Industrial / Hospital Grade)',price:'J$8,000–14,000',src:'Market estimate'},
+            {name:'Pedestal / Stand Fan (18")',price:'J$6,500–12,000',src:'Market estimate'},
+            {name:'Exhaust Fan (Commercial, Ductless)',price:'J$8,500–18,000',src:'Market estimate'},
+            {name:'Steam Generator 30kW',price:'J$5,977,532',src:'★ Register 2022–24'},
+            {name:'Steam Generator 50kW',price:'J$5,977,532',src:'★ Register 2022–24'},
+            {name:'Emergency Generator (Diesel, 20 kVA)',price:'J$1,800,000–3,200,000',src:'Market estimate'},
+            {name:'Emergency Generator (Diesel, 50 kVA)',price:'J$3,500,000–6,000,000',src:'Market estimate'},
+            {name:'UPS (1 kVA)',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'UPS (Server Room Grade, 10 kVA)',price:'J$280,000–550,000',src:'Market estimate'},
+            {name:'Automatic Transfer Switch (ATS)',price:'J$120,000–280,000',src:'Market estimate'},
+            {name:'Voltage Stabilizer / Regulator',price:'J$35,000–85,000',src:'Market estimate'},
+            {name:'Distribution Board / Circuit Breaker Panel',price:'J$55,000–120,000',src:'Market estimate'},
+            {name:'Extension Cable Reel (Heavy Duty, 30m)',price:'J$8,500–16,000',src:'Market estimate'},
+            {name:'Surge Protector (6-Outlet, Medical Grade)',price:'J$6,500–12,000',src:'Market estimate'}
+        ]},
+        {cat:'💻 Technology, IT & Communications', items:[
+            {name:'Samsung Tablet A9 5G 64GB',price:'J$55,000',src:'★ KAZM Business Solutions Sep 2025'},
+            {name:'Desktop Computer (Core i5, 8GB RAM)',price:'J$95,000–140,000',src:'Market estimate'},
+            {name:'Desktop Computer (Core i7, 16GB RAM)',price:'J$160,000–220,000',src:'Market estimate'},
+            {name:'Laptop Computer (Core i5, 8GB RAM)',price:'J$120,000–180,000',src:'Market estimate'},
+            {name:'Laptop Computer (Core i7, 16GB RAM)',price:'J$200,000–320,000',src:'Market estimate'},
+            {name:'All-in-One Printer / Scanner / Copier',price:'J$55,000–120,000',src:'Market estimate'},
+            {name:'Laser Printer (Mono, Network)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Laser Printer (Colour, A4)',price:'J$120,000–200,000',src:'Market estimate'},
+            {name:'Heavy Duty Photocopier (Digital)',price:'J$350,000–700,000',src:'Market estimate'},
+            {name:'Label / Barcode Printer',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'LCD Monitor (21" Full HD)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Monitor (24", IPS Panel)',price:'J$55,000–90,000',src:'Market estimate'},
+            {name:'Network Switch (24-Port, Managed)',price:'J$85,000–150,000',src:'Market estimate'},
+            {name:'Server (Tower, Entry Level)',price:'J$350,000–650,000',src:'Market estimate'},
+            {name:'CCTV System (8-Camera, DVR/NVR)',price:'J$180,000–350,000',src:'Market estimate'},
+            {name:'IP Camera (Indoor, 2MP)',price:'J$12,000–25,000',src:'Market estimate'},
+            {name:'Access Control System (Card Reader)',price:'J$85,000–180,000',src:'Market estimate'},
+            {name:'Nurse Call System (Wired, 10-Room)',price:'J$250,000–600,000',src:'Market estimate'},
+            {name:'Paging / Intercom System',price:'J$120,000–280,000',src:'Market estimate'},
+            {name:'PABX / PBX Telephone Exchange',price:'J$180,000–450,000',src:'Market estimate'},
+            {name:'Desk Telephone (Multi-Line)',price:'J$12,000–22,000',src:'Market estimate'},
+            {name:'Projector (HDMI, 3500 Lumens)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Smart TV (55", Android)',price:'J$95,000–160,000',src:'Market estimate'},
+            {name:'Walkie-Talkie / Two-Way Radio Set',price:'J$18,000–45,000',src:'Market estimate'}
+        ]},
+        {cat:'🔬 Laboratory & Pathology', items:[
+            {name:'Autoclave (B-Class, 22L)',price:'J$350,000–600,000',src:'Market estimate'},
+            {name:'Autoclave (Large Capacity, 80L)',price:'J$750,000–1,400,000',src:'Market estimate'},
+            {name:'Centrifuge (Benchtop, 5000 rpm)',price:'J$180,000–350,000',src:'Market estimate'},
+            {name:'Centrifuge (Microhaematocrit)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Refrigerator (Blood Bank Spec.)',price:'J$450,000–800,000',src:'Market estimate'},
+            {name:'Freezer (Lab Grade, -20 deg C)',price:'J$350,000–650,000',src:'Market estimate'},
+            {name:'Microscope (Binocular, Compound)',price:'J$95,000–200,000',src:'Market estimate'},
+            {name:'Microscope (Trinocular with Camera)',price:'J$280,000–550,000',src:'Market estimate'},
+            {name:'Haematology Analyser (3-Part)',price:'J$850,000–1,800,000',src:'Market estimate'},
+            {name:'Chemistry Analyser (Semi-Auto)',price:'J$650,000–1,400,000',src:'Market estimate'},
+            {name:'Urinalysis Machine (Semi-Auto)',price:'J$280,000–550,000',src:'Market estimate'},
+            {name:'Water Bath (Digital, 20L)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Incubator (Lab, 37 deg C)',price:'J$120,000–250,000',src:'Market estimate'},
+            {name:'Biosafety Cabinet (Class II)',price:'J$950,000–2,000,000',src:'Market estimate'},
+            {name:'Drill (Maintenance / Orthopaedic)',price:'J$55,000',src:'★ Register 2022–24'}
+        ]},
+        {cat:'🏥 Operating Theatre & Surgical', items:[
+            {name:'Operating Table (Manual)',price:'J$850,000–1,500,000',src:'Market estimate'},
+            {name:'Operating Table (Electric)',price:'J$1,800,000–3,500,000',src:'Market estimate'},
+            {name:'Surgical Light (Single Dome, Ceiling)',price:'J$650,000–1,400,000',src:'Market estimate'},
+            {name:'Surgical Light (Double Dome, Ceiling)',price:'J$1,200,000–2,500,000',src:'Market estimate'},
+            {name:'Portable Surgical Light (Halogen)',price:'J$180,000–380,000',src:'Market estimate'},
+            {name:'Anaesthesia Machine (Basic)',price:'J$2,500,000–5,000,000',src:'Market estimate'},
+            {name:'Diathermy / Electrosurgical Unit (ESU)',price:'J$380,000–850,000',src:'Market estimate'},
+            {name:'Ventilator (ICU / Theatre Grade)',price:'J$3,500,000–8,000,000',src:'Market estimate'},
+            {name:'Instrument Trolley (SS, 2 Tier)',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'Mayo Stand / Instrument Stand',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Kick Bucket (SS, with Pedal Stand)',price:'J$12,000–22,000',src:'Market estimate'},
+            {name:'Scrub Sink (SS, 2-Bay, Elbow Tap)',price:'J$180,000–320,000',src:'Market estimate'},
+            {name:'Patient Warming Blanket System',price:'J$280,000–550,000',src:'Market estimate'},
+            {name:'Surgical Head Light (LED)',price:'J$95,000–180,000',src:'Market estimate'}
+        ]},
+        {cat:'🤱 Maternity & Obstetrics', items:[
+            {name:'Labour / Birthing Bed (Electric)',price:'J$480,000–850,000',src:'Market estimate'},
+            {name:'Neonatal Incubator (with Servo Control)',price:'J$1,200,000–2,800,000',src:'Market estimate'},
+            {name:'Radiant Warmer (Infant Resuscitaire)',price:'J$950,000–2,000,000',src:'Market estimate'},
+            {name:'Phototherapy Unit (Double Surface)',price:'J$380,000–750,000',src:'Market estimate'},
+            {name:'CTG / Foetal Monitor',price:'J$380,000–700,000',src:'Market estimate'},
+            {name:'Foetal Doppler (Handheld)',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Baby Weighing Scale (Digital)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Infant Cot / Bassinet (Hospital Grade)',price:'J$55,000–95,000',src:'Market estimate'},
+            {name:'Breast Pump (Electric, Dual)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Delivery Trolley (Fully Equipped)',price:'J$95,000–180,000',src:'Market estimate'},
+            {name:'Placenta Bowl (SS, Large)',price:'J$4,500–9,000',src:'Market estimate'}
+        ]},
+        {cat:'🦾 Physiotherapy & Rehabilitation', items:[
+            {name:'Physiotherapy Plinth / Treatment Table',price:'J$180,000–320,000',src:'Market estimate'},
+            {name:'Parallel Bars (Adjustable, 3m)',price:'J$280,000–480,000',src:'Market estimate'},
+            {name:'Treadmill (Medical Grade)',price:'J$350,000–750,000',src:'Market estimate'},
+            {name:'Stationary Bicycle (Rehabilitation)',price:'J$180,000–350,000',src:'Market estimate'},
+            {name:'TENS Unit (Transcutaneous Electrical)',price:'J$35,000–75,000',src:'Market estimate'},
+            {name:'Ultrasound Therapy Unit',price:'J$120,000–250,000',src:'Market estimate'},
+            {name:'Shortwave Diathermy Unit',price:'J$280,000–550,000',src:'Market estimate'},
+            {name:'Hot Pack / Cold Pack Unit',price:'J$55,000–110,000',src:'Market estimate'},
+            {name:'Balance Board / Wobble Board',price:'J$8,500–18,000',src:'Market estimate'},
+            {name:'Weights Set (Dumbbells)',price:'J$15,000–35,000',src:'Market estimate'},
+            {name:'Resistance Bands Set',price:'J$3,500–8,000',src:'Market estimate'},
+            {name:'Exercise Mat (Physiotherapy)',price:'J$8,500–15,000',src:'Market estimate'},
+            {name:'Cervical Traction Unit',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'Pulley Therapy System (Wall-Mount)',price:'J$28,000–55,000',src:'Market estimate'}
+        ]},
+        {cat:'🔒 Security & Safety', items:[
+            {name:'CCTV Camera System (8-Channel)',price:'J$180,000–350,000',src:'Market estimate'},
+            {name:'CCTV Camera (IP, Outdoor 4MP)',price:'J$18,000–38,000',src:'Market estimate'},
+            {name:'Digital Video Recorder (16-Channel)',price:'J$85,000–160,000',src:'Market estimate'},
+            {name:'Access Control / Card Reader',price:'J$55,000–120,000',src:'Market estimate'},
+            {name:'Metal Detector (Walk-Through)',price:'J$180,000–380,000',src:'Market estimate'},
+            {name:'Metal Detector (Handheld Wand)',price:'J$12,000–25,000',src:'Market estimate'},
+            {name:'Security Guard Booth / Post',price:'J$85,000–180,000',src:'Market estimate'},
+            {name:'Fire Alarm Panel (Addressable)',price:'J$350,000–750,000',src:'Market estimate'},
+            {name:'Smoke / Heat Detector',price:'J$5,500–12,000',src:'Market estimate'},
+            {name:'Fire Extinguisher (CO2, 5 kg)',price:'J$9,500–16,000',src:'Market estimate'},
+            {name:'Fire Extinguisher (Dry Powder, 9 kg)',price:'J$8,500–14,000',src:'Market estimate'},
+            {name:'Fire Hose Reel Cabinet',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'Emergency Exit Sign (Illuminated)',price:'J$5,500–12,000',src:'Market estimate'},
+            {name:'Emergency Lighting (Battery Backup)',price:'J$12,000–25,000',src:'Market estimate'},
+            {name:'Panic Button / Duress Alarm',price:'J$18,000–38,000',src:'Market estimate'},
+            {name:'Barrier / Retractable Queue Belt',price:'J$8,500–16,000',src:'Market estimate'},
+            {name:'Folding Table (Security Post)',price:'J$9,600',src:'★ Neveast Supplies Aug 2025'}
+        ]},
+        {cat:'🚑 Emergency & Accident Department', items:[
+            {name:'Emergency Crash Cart (Red/Blue)',price:'J$184,000',src:'★ Medco Medical Jul 2025'},
+            {name:'Defibrillator / AED (Automated)',price:'J$450,000–900,000',src:'Market estimate'},
+            {name:'Emergency Trolley (Resus, Stocked)',price:'J$220,000–420,000',src:'Market estimate'},
+            {name:'Spinal Board / Backboard (Long)',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Scoop Stretcher',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'Trauma Bag / Emergency Kit',price:'J$55,000–110,000',src:'Market estimate'},
+            {name:'Neck Collar Set (Adult & Paediatric)',price:'J$8,500–18,000',src:'Market estimate'},
+            {name:'Stretcher (Ambulance Grade, Foldable)',price:'J$220,000–420,000',src:'Market estimate'},
+            {name:'Oxygen Kit (Portable, Bag + Cylinder)',price:'J$35,000–75,000',src:'Market estimate'},
+            {name:'Electric Cast Cutter (Plaster Saw)',price:'J$71,530',src:'★ Shekinah Trading Jul 2025'},
+            {name:'Plaster of Paris Table / Trolley',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Dressing Pack Trolley (SS, 3 Shelf)',price:'J$45,000–80,000',src:'Market estimate'},
+            {name:'Triage Tag / Colour-Code System',price:'J$3,500–8,000',src:'Market estimate'}
+        ]},
+        {cat:'♻️ Waste Management & Disposal', items:[
+            {name:'Clinical Waste Bin (Red, 30L Pedal)',price:'J$4,500–9,000',src:'Market estimate'},
+            {name:'Sharps Container (5L, Yellow)',price:'J$900–2,200',src:'Market estimate'},
+            {name:'Sharps Disposal Trolley (Mobile)',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Biohazard Waste Trolley (Sealed)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Cytotoxic Waste Container (Purple)',price:'J$2,500–5,500',src:'Market estimate'},
+            {name:'Waste Segregation Station (4-Stream)',price:'J$45,000–85,000',src:'Market estimate'},
+            {name:'Needle Destroyer / Burner (Electric)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Medical Waste Autoclave (Small)',price:'J$850,000–1,800,000',src:'Market estimate'},
+            {name:'Industrial Waste Compactor',price:'J$650,000–1,400,000',src:'Market estimate'},
+            {name:'Outdoor Wheelie Bin (240L)',price:'J$8,500–15,000',src:'Market estimate'},
+            {name:'Colour-Coded Mop Heads (Set of 4)',price:'J$3,500–6,500',src:'Market estimate'}
+        ]},
+        {cat:'🌿 Grounds, Outdoor & Infrastructure', items:[
+            {name:'Wheelchair Ramp (Portable, Aluminium)',price:'J$35,000–65,000',src:'Market estimate'},
+            {name:'Parking Barrier / Boom Gate',price:'J$180,000–380,000',src:'Market estimate'},
+            {name:'Garden Bench (Outdoor, Steel)',price:'J$22,000–45,000',src:'Market estimate'},
+            {name:'Outdoor Waste Bin (Wall-Mount)',price:'J$6,500–12,000',src:'Market estimate'},
+            {name:'Directional / Wayfinding Signage (Set)',price:'J$35,000–85,000',src:'Market estimate'},
+            {name:'Flag Pole (Aluminium, 20ft)',price:'J$28,000–55,000',src:'Market estimate'},
+            {name:'Lawn Mower (Electric / Gas)',price:'J$55,000–120,000',src:'Market estimate'},
+            {name:'Water Hose Reel (Commercial, 30m)',price:'J$8,500–16,000',src:'Market estimate'},
+            {name:'Platform Truck / Flat Trolley',price:'J$18,000–35,000',src:'Market estimate'},
+            {name:'Hand Truck / Sack Trolley',price:'J$8,500–16,000',src:'Market estimate'},
+            {name:'Drinking Fountain (Wall-Mount)',price:'J$55,000–110,000',src:'Market estimate'},
+            {name:'Speed Bump / Ramp (Car Park)',price:'J$4,500–9,000',src:'Market estimate'},
+            {name:'Bulletin Board (Outdoor, Lockable)',price:'J$22,000–45,000',src:'Market estimate'}
+        ]},
+        {cat:'💊 Pharmacy & Drug Management', items:[
+            {name:'Cabinet, Narcotic (Lockable)',price:'J$35,000–65,000',src:'#704 · Register 1997'},
+            {name:'Cabinet, Medicine (Wall Unit)',price:'J$22,000–45,000',src:'#565 · Register 1997'},
+            {name:'Cupboard, Drugs - Wall Mounted, Lockable',price:'J$18,000–35,000',src:'#1369 · Register 1998'},
+            {name:'Refrigerator, Drug Storage - Free Standing',price:'J$95,000–160,000',src:'#1399 · Register 1998'},
+            {name:'Refrigerator, Pharmaceutical - Double Door',price:'J$180,000–320,000',src:'#1400 · Register 1998'},
+            {name:'Safe, Drugs (Lockable Metal)',price:'J$45,000–85,000',src:'#1402 · Register 1998'},
+            {name:'Dispenser, Syringe (Wall Mount)',price:'J$8,500–15,000',src:'#1367 · Register 1998'},
+            {name:'Dispenser, Pharmacy Label (Electric)',price:'J$12,000–22,000',src:'#449 · Register 1998'},
+            {name:'Dispenser, Sterile Pack',price:'J$9,500–18,000',src:'#1368 · Register 1998'},
+            {name:'Dispenser, Scrub Solution (Wall Mount)',price:'J$5,500–9,500',src:'#1405 · Register 1998'},
+            {name:'Dispenser, Nail Brush (Wall Mount)',price:'J$3,500–6,500',src:'#1404 · Register 1998'},
+            {name:'Dispenser, Sanitizer',price:'J$5,500–11,000',src:'#347 · Register 1997'},
+            {name:'Wardbox, Dispensary',price:'J$22,000–45,000',src:'#1509 · Register 1998'},
+            {name:'Syringe (Various Sizes)',price:'J$500–3,500',src:'#742 · Register 1997'},
+            {name:'Tourniquet - Complete Set',price:'J$3,500–8,000',src:'#1435 · Register 1998'},
+            {name:'Tourniquet, Pneumatic',price:'J$18,000–38,000',src:'#628 · Register 1997'},
+            {name:'Timer, Interval - Alarmed',price:'J$8,500–16,000',src:'#1434 · Register 1998'},
+            {name:'Counter, Infusion - Flow Rate',price:'J$12,000–22,000',src:'#1356 · Register 1998'}
+        ]},
+        {cat:'☠️ Mortuary & Autopsy', items:[
+            {name:'Trolley, Mortuary (Standard)',price:'J$120,000–220,000',src:'#1442 · Register 1998'},
+            {name:'Trolley, Mortuary - Elevating 2 Tier W/Weighing',price:'J$280,000–480,000',src:'#1443 · Register 1998'},
+            {name:'Table, Autopsy',price:'J$380,000–650,000',src:'#1423 · Register 1998'},
+            {name:'Table, Autopsy - Dissecting Work',price:'J$280,000–480,000',src:'#1424 · Register 1998'},
+            {name:'Table, Body Viewing',price:'J$180,000–320,000',src:'#1425 · Register 1998'},
+            {name:'Scale, Autopsy',price:'J$85,000–160,000',src:'#1403 · Register 1998'},
+            {name:'Container, Mortuary Waste - Portable',price:'J$18,000–35,000',src:'#1365 · Register 1998'},
+            {name:'Refrigerator, Morgue - 4 Compartment',price:'J$850,000–1,500,000',src:'#1398 · Register 1998'},
+            {name:'Refrigerator, Morgue - 9 Compartment',price:'J$1,800,000–3,500,000',src:'#1401 · Register 1998'},
+            {name:'Room, Chill',price:'J$2,500,000–5,000,000',src:'#258 · Register 1998'},
+            {name:'Room, Cold (Walk-In)',price:'J$3,500,000–7,000,000',src:'#259 · Register 1998'},
+            {name:'Set, Post Mortem',price:'J$180,000–320,000',src:'#734 · Register 1997'},
+            {name:'Saw, Meat (Mortuary Use)',price:'J$28,000–55,000',src:'#995 · Register 1998'}
+        ]},
+        {cat:'📡 Radiology & X-Ray', items:[
+            {name:'System, X-ray - Radiographic',price:'J$2,500,000–6,000,000',src:'#1421 · Register 1998'},
+            {name:'System, X-ray - Radiographic/Fluoroscopic',price:'J$5,000,000–12,000,000',src:'#1422 · Register 1998'},
+            {name:'Unit, X-ray - Portable',price:'J$1,500,000–3,500,000',src:'#543 · Register 1997'},
+            {name:'Table, X-ray',price:'J$850,000–1,800,000',src:'#669 · Register 1997'},
+            {name:'Bed, X-ray',price:'J$450,000–900,000',src:'#555 · Register 1997'},
+            {name:'Panel, X-ray Control',price:'J$350,000–750,000',src:'#1511 · Register 1998'},
+            {name:'Tube Head, X-ray',price:'J$280,000–650,000',src:'#670 · Register 1997'},
+            {name:'Bucky, Wall - Vertical Angulating Sgl Plane',price:'J$380,000–750,000',src:'#683 · Register 1998'},
+            {name:'Processor, Film - Radiographic',price:'J$450,000–950,000',src:'#688 · Register 1998'},
+            {name:'Illuminator, X-ray - 2 Panel Surface Mount',price:'J$45,000–85,000',src:'#709 · Register 1998'},
+            {name:'Illuminator, X-ray - 3 Panel Surface Mount',price:'J$65,000–110,000',src:'#710 · Register 1998'},
+            {name:'Illuminator, X-ray - 4 Panel Surface Mount',price:'J$85,000–140,000',src:'#711 · Register 1998'},
+            {name:'Illuminator, X-ray - 6 Panel Surface Mount',price:'J$120,000–200,000',src:'#1381 · Register 1998'},
+            {name:'Cassette, Film - X-ray',price:'J$8,500–16,000',src:'#566 · Register 1997'},
+            {name:'Apron, Lead (Radiation Protection)',price:'J$18,000–38,000',src:'#694 · Register 1998'},
+            {name:'Gloves, Lead',price:'J$22,000–45,000',src:'#588 · Register 1998'},
+            {name:'Screen, Lead',price:'J$85,000–160,000',src:'#644 · Register 1997'},
+            {name:'Shelving, X-ray (Film Storage)',price:'J$35,000–65,000',src:'#714 · Register 1998'},
+            {name:'Bin, Storage - X-ray Film',price:'J$12,000–22,000',src:'#585 · Register 1998'},
+            {name:'Bin, Waste - X-ray Film',price:'J$8,500–15,000',src:'#586 · Register 1998'},
+            {name:'Marker, Actinic - X-ray',price:'J$3,500–6,500',src:'#626 · Register 1997'},
+            {name:'Blender, Barium',price:'J$25,000–45,000',src:'#587 · Register 1998'}
+        ]},
+        {cat:'🫁 Oxygen & Respiratory Therapy', items:[
+            {name:'Concentrator, Oxygen (5 LPM)',price:'J$85,000–150,000',src:'#444 · Register 1998'},
+            {name:'Cylinder, Oxygen',price:'J$22,000–45,000',src:'#326 · Register 1997'},
+            {name:'Cylinder, Nitrous Oxide',price:'J$18,000–35,000',src:'#327 · Register 1997'},
+            {name:'Cylinder, Gas (Medical)',price:'J$15,000–28,000',src:'#325 · Register 1997'},
+            {name:'Cylinder, Carbon Dioxide',price:'J$12,000–22,000',src:'#997 · Register 1998'},
+            {name:'Cylinder, Oxygen Flowmeter w/Regulator',price:'J$18,000–35,000',src:'#1366 · Register 1998'},
+            {name:'Flowmeter, Oxygen',price:'J$8,500–16,000',src:'#1374 · Register 1998'},
+            {name:'Flowmeter, Oxygen Pipeline w/Humidifier',price:'J$12,000–22,000',src:'#1375 · Register 1998'},
+            {name:'Cart, Oxygen With Regulator',price:'J$25,000–45,000',src:'#659 · Register 1997'},
+            {name:'Trolley, Cylinder',price:'J$18,000–35,000',src:'#777 · Register 1998'},
+            {name:'Tent, Oxygen',price:'J$22,000–45,000',src:'#539 · Register 1997'},
+            {name:'Tent, Aerosol/Mist',price:'J$18,000–35,000',src:'#538 · Register 1997'},
+            {name:'Crovpette, Oxygen',price:'J$15,000–28,000',src:'#1357 · Register 1998'},
+            {name:'Monitor, Oxygen - Hi/Lo Alarm',price:'J$35,000–65,000',src:'#679 · Register 1998'},
+            {name:'Ventilator (ICU)',price:'J$3,500,000–8,000,000',src:'#680 · Register 1997'},
+            {name:'Humidifier, Ventilator',price:'J$22,000–45,000',src:'#1380 · Register 1998'},
+            {name:'Respirator',price:'J$85,000–180,000',src:'#632 · Register 1997'},
+            {name:'Resuscitator',price:'J$28,000–55,000',src:'#633 · Register 1997'},
+            {name:'Unit, Breathing Therapy',price:'J$120,000–220,000',src:'#674 · Register 1997'},
+            {name:'Bag, Baby Resuscitation',price:'J$5,500–12,000',src:'#1344 · Register 1998'},
+            {name:'Bag, Paediatric Resuscitation',price:'J$5,500–12,000',src:'#1345 · Register 1998'},
+            {name:'Machine, Pulmo Aide',price:'J$45,000–85,000',src:'#611 · Register 1997'},
+            {name:'Nebulizer (Standard)',price:'J$8,500–18,000',src:'#620 · Register 1997'},
+            {name:'Nebulizer W/Stand',price:'J$18,000–35,000',src:'#1392 · Register 1998'},
+            {name:'Regulator, Vacuum',price:'J$12,000–22,000',src:'#1396 · Register 1998'},
+            {name:'Apparatus, Suction-Pipeline Vacuum Sgl Jar',price:'J$35,000–65,000',src:'#1341 · Register 1998'},
+            {name:'Apparatus, Suction-Pipeline Wall Mounted',price:'J$45,000–80,000',src:'#1342 · Register 1998'},
+            {name:'Aspirator - Low Volume, Drainage Mobile',price:'J$28,000–55,000',src:'#1343 · Register 1998'}
+        ]},
+        {cat:'⚖️ Scales, Measuring & Monitoring', items:[
+            {name:'Scale, Adult - Standing',price:'J$25,000–45,000',src:'#647 · Register 1997'},
+            {name:'Scale, Baby',price:'J$18,000–35,000',src:'#645 · Register 1997'},
+            {name:'Scale, Paediatric',price:'J$18,000–35,000',src:'#1407 · Register 1998'},
+            {name:'Scale, Patient - W/Measuring Rod',price:'J$35,000–65,000',src:'#1408 · Register 1998'},
+            {name:'Scale, Blood Loss',price:'J$22,000–45,000',src:'#1406 · Register 1998'},
+            {name:'Scale, Hanging',price:'J$12,000–22,000',src:'#382 · Register 1998'},
+            {name:'Scale, Heavy Duty (Platform)',price:'J$55,000–110,000',src:'#658 · Register 1997'},
+            {name:'Scale, Platform - Floor Recessed',price:'J$85,000–160,000',src:'#769 · Register 1998'},
+            {name:'Scale, Autopsy',price:'J$85,000–160,000',src:'#1403 · Register 1998'},
+            {name:'Scale, Workshop - Dietary Ingredients',price:'J$18,000–35,000',src:'#381 · Register 1998'},
+            {name:'Stadiometer (Height Measure)',price:'J$18,000–35,000',src:'#654 · Register 1998'},
+            {name:'Thermometer',price:'J$1,800–8,000',src:'#740 · Register 1998'},
+            {name:'Spirometer',price:'J$85,000–160,000',src:'#1472 · Register 1998'},
+            {name:'Vitalograph',price:'J$120,000–220,000',src:'#682 · Register 1997'},
+            {name:'Datascope, Passport (Vital Signs Monitor)',price:'J$280,000–550,000',src:'#1466 · Register 1998'},
+            {name:'Beam, Balance',price:'J$12,000–22,000',src:'#1475 · Register 1998'},
+            {name:'Balance, Analytical Measuring',price:'J$85,000–160,000',src:'#456 · Register 1998'},
+            {name:'Monitor, Blood Pressure - Auto Printer',price:'J$35,000–65,000',src:'#719 · Register 1998'},
+            {name:'Monitor, Patient - Sgl Channel w/Wall Mount',price:'J$180,000–350,000',src:'#718 · Register 1998'},
+            {name:'Monitor, Patient - 2 Channel',price:'J$280,000–550,000',src:'#1389 · Register 1998'},
+            {name:'Monitor, Neonatal',price:'J$280,000–550,000',src:'#1390 · Register 1998'},
+            {name:'Monitor, Trace - Physiological ECG/2 Pressure',price:'J$380,000–700,000',src:'#720 · Register 1998'}
+        ]},
+        {cat:'🧪 CSSD & Sterilization', items:[
+            {name:'Sterilizer, Counter Top',price:'J$280,000–550,000',src:'#727 · Register 1998'},
+            {name:'Sterilizer, Vacuum - Double Door',price:'J$850,000–1,800,000',src:'#728 · Register 1998'},
+            {name:'Cabinet, Sterilizer with Printer (Vacuum)',price:'J$950,000–2,000,000',src:'#729 · Register 1998'},
+            {name:'Autoclave (Standard)',price:'J$350,000–750,000',src:'#450 · Register 1997'},
+            {name:'Dynaclave',price:'J$450,000–900,000',src:'#476 · Register 1997'},
+            {name:'Cleanser, Ultrasonic',price:'J$85,000–160,000',src:'#1353 · Register 1998'},
+            {name:'Drum, Dressing (SS)',price:'J$18,000–35,000',src:'#570 · Register 1997'},
+            {name:'Dispenser, Sterile Pack',price:'J$9,500–18,000',src:'#1368 · Register 1998'},
+            {name:'Bin Used Items - CSSD',price:'J$8,500–15,000',src:'#1350 · Register 1998'},
+            {name:'Trolley, Distribution - CSSD Collection',price:'J$55,000–95,000',src:'#1438 · Register 1998'},
+            {name:'Rack, CSSD Paper - Mobile',price:'J$22,000–45,000',src:'#1397 · Register 1998'},
+            {name:'Sealer, Heat - Cabinet Mounted - Electric',price:'J$45,000–85,000',src:'#764 · Register 1998'},
+            {name:'Machine, Sealing - Rotary Heat',price:'J$55,000–110,000',src:'#1144 · Register 1998'},
+            {name:'Still, Glass - Double Distillation',price:'J$180,000–350,000',src:'#721 · Register 1998'},
+            {name:'Sink, Work - 4 Station',price:'J$280,000–480,000',src:'#726 · Register 1998'},
+            {name:'Sink, Scrub - Double Bay',price:'J$180,000–320,000',src:'#724 · Register 1998'},
+            {name:'Cabinet, Heated Lotions - Bench Mounted',price:'J$35,000–65,000',src:'#1360 · Register 1998'},
+            {name:'Cabinet, Storage - Flammable',price:'J$55,000–110,000',src:'#1361 · Register 1998'}
+        ]},
+        {cat:'🦷 Dental & Specialist', items:[
+            {name:'Chair, Dental',price:'J$850,000–2,000,000',src:'#559 · Register 1997'},
+            {name:'Unit, X-ray - Dental',price:'J$650,000–1,500,000',src:'#690 · Register 1997'},
+            {name:'Lamp, Dental',price:'J$180,000–380,000',src:'#595 · Register 1997'},
+            {name:'Amalgamator',price:'J$85,000–180,000',src:'#454 · Register 1997'},
+            {name:'Cavitron (Ultrasonic Scaler)',price:'J$280,000–550,000',src:'#576 · Register 1997'},
+            {name:'Dilator, Uterine',price:'J$18,000–35,000',src:'#573 · Register 1997'},
+            {name:'Speculum',price:'J$3,500–8,000',src:'#735 · Register 1997'},
+            {name:'Tenoculum, Uterine',price:'J$8,500–18,000',src:'#741 · Register 1997'},
+            {name:'Otoscope/Ophthalmoscope - Battery Powered',price:'J$35,000–65,000',src:'#1393 · Register 1998'},
+            {name:'Laryngoscope',price:'J$35,000–65,000',src:'#715 · Register 1997'},
+            {name:'Set, Auricular',price:'J$18,000–38,000',src:'#744 · Register 1997'},
+            {name:'Set, Diagnostic',price:'J$28,000–55,000',src:'#732 · Register 1997'},
+            {name:'Magnet, Eye - Hand Held',price:'J$25,000–48,000',src:'#717 · Register 1997'},
+            {name:'Machine, Mammogram',price:'J$2,500,000–6,000,000',src:'#1494 · Register 1998'},
+            {name:'Oblectran (Diathermy Chair)',price:'J$120,000–220,000',src:'#1485 · Register 1998'},
+            {name:'Podoscope',price:'J$45,000–85,000',src:'#1498 · Register 1998'}
+        ]},
+        {cat:'🍳 Institutional Kitchen - Specialist', items:[
+            {name:'Stove, Gas - Two (2) Burner',price:'J$18,000–32,000',src:'#300 · Register 1997'},
+            {name:'Stove, Gas - Three (3) Burner',price:'J$25,000–42,000',src:'#302 · Register 1997'},
+            {name:'Stove, Gas - Four (4) Burner',price:'J$35,000–65,000',src:'#304 · Register 1997'},
+            {name:'Stove, Gas - Six (6) Burner',price:'J$65,000–120,000',src:'#323 · Register 1997'},
+            {name:'Stove, Gas - Ten (10) Burner',price:'J$120,000–220,000',src:'#324 · Register 1997'},
+            {name:'Stove, Electric - Two (2) Burner',price:'J$18,000–32,000',src:'#301 · Register 1997'},
+            {name:'Stove, Electric - Four (4) Burner',price:'J$35,000–65,000',src:'#352 · Register 1997'},
+            {name:'Stove, Electric - Six (6) Burner',price:'J$65,000–120,000',src:'#355 · Register 1997'},
+            {name:'Range, Open 4 Burner',price:'J$55,000–95,000',src:'#252 · Register 1998'},
+            {name:'Range, Open 12 Burner',price:'J$220,000–420,000',src:'#253 · Register 1998'},
+            {name:'Range, Stock Pot',price:'J$85,000–160,000',src:'#993 · Register 1998'},
+            {name:'Fryer, Deep - Gas/Electric',price:'J$120,000–220,000',src:'#306 · Register 1997'},
+            {name:'Griddle',price:'J$65,000–120,000',src:'#367 · Register 1998'},
+            {name:'Skillet, Tilting (Commercial)',price:'J$280,000–550,000',src:'#383 · Register 1998'},
+            {name:'Boiler, Hot Water - 45 Litre Bench Mounted',price:'J$85,000–160,000',src:'#370 · Register 1998'},
+            {name:'Hotplate, Domestic - Double Burner',price:'J$12,000–22,000',src:'#397 · Register 1998'},
+            {name:'Machine, Ice - Counter Top',price:'J$120,000–220,000',src:'#991 · Register 1998'},
+            {name:'Machine, Ice - Cube, Floor Unit',price:'J$220,000–420,000',src:'#992 · Register 1998'},
+            {name:'Cart, Ice',price:'J$22,000–42,000',src:'#364 · Register 1998'},
+            {name:'Cooler, Food (Insulated)',price:'J$8,500–16,000',src:'#366 · Register 1998'},
+            {name:'Server, Hot Food (Bain Marie)',price:'J$55,000–110,000',src:'#368 · Register 1998'},
+            {name:'Server, Cold Food',price:'J$45,000–85,000',src:'#369 · Register 1998'},
+            {name:'Insert, Serving Tray',price:'J$3,500–7,000',src:'#263 · Register 1998'},
+            {name:'Tray, Serving',price:'J$2,500–5,500',src:'#387 · Register 1998'},
+            {name:'Cart, Gourmet',price:'J$35,000–65,000',src:'#349 · Register 1998'},
+            {name:'Cart, Beverage',price:'J$22,000–42,000',src:'#374 · Register 1998'},
+            {name:'Trolley, Catering Cups',price:'J$18,000–35,000',src:'#375 · Register 1998'},
+            {name:'Trolley, Catering Service',price:'J$25,000–48,000',src:'#378 · Register 1998'},
+            {name:"Block, Butcher's",price:'J$22,000–45,000',src:'#1352 · Register 1998'},
+            {name:'Saw, Meat',price:'J$28,000–55,000',src:'#995 · Register 1998'},
+            {name:'Cutter, Meat',price:'J$45,000–85,000',src:'#341 · Register 1997'},
+            {name:'Peeler, Potato (Commercial)',price:'J$55,000–110,000',src:'#340 · Register 1997'},
+            {name:'Juicer (Commercial)',price:'J$22,000–45,000',src:'#333 · Register 1997'},
+            {name:'Opener, Can - Wall Mounted',price:'J$5,500–10,000',src:'#372 · Register 1998'},
+            {name:'System, Tray Conveyor',price:'J$650,000–1,400,000',src:'#768 · Register 1998'}
+        ]},
+        {cat:'🖥️ Office Equipment & Stationery Machines', items:[
+            {name:'Computer (Desktop Terminal)',price:'J$95,000–140,000',src:'#405 · Register 1997'},
+            {name:'Calculator (Electronic)',price:'J$3,500–8,500',src:'#404 · Register 1997'},
+            {name:'Cash Register',price:'J$35,000–75,000',src:'#401 · Register 1997'},
+            {name:'Machine, Accounting',price:'J$45,000–95,000',src:'#400 · Register 1997'},
+            {name:'Machine, Adding',price:'J$18,000–35,000',src:'#402 · Register 1997'},
+            {name:'Copier, Photo',price:'J$120,000–250,000',src:'#414 · Register 1997'},
+            {name:'Copier, Photo - Special',price:'J$180,000–350,000',src:'#416 · Register 1997'},
+            {name:'Copier, Stencil',price:'J$45,000–85,000',src:'#427 · Register 1997'},
+            {name:'Printer, Stencil',price:'J$18,000–35,000',src:'#428 · Register 1997'},
+            {name:'Printer, Counter',price:'J$28,000–55,000',src:'#516 · Register 1998'},
+            {name:'Printer, Copy',price:'J$55,000–110,000',src:'#1091 · Register 1998'},
+            {name:'Printer, Cheque',price:'J$55,000–95,000',src:'#438 · Register 1997'},
+            {name:'Typewriter - Electric 18 inch',price:'J$18,000–35,000',src:'#420 · Register 1997'},
+            {name:'Typewriter - Electric 19 inch',price:'J$18,000–35,000',src:'#417 · Register 1997'},
+            {name:'Typewriter - Manual',price:'J$8,500–18,000',src:'#425 · Register 1997'},
+            {name:'Typewriter - Wheelwriter',price:'J$22,000–45,000',src:'#422 · Register 1997'},
+            {name:'Typewriter - Word Processor',price:'J$28,000–55,000',src:'#424 · Register 1997'},
+            {name:'Typewriter - Memory Writer',price:'J$28,000–55,000',src:'#426 · Register 1997'},
+            {name:'Machine, Binding - Electric',price:'J$22,000–45,000',src:'#431 · Register 1997'},
+            {name:'Binder, Electric',price:'J$18,000–35,000',src:'#441 · Register 1998'},
+            {name:'Machine, Duplicating',price:'J$35,000–75,000',src:'#412 · Register 1997'},
+            {name:'Machine, Numbering',price:'J$12,000–22,000',src:'#432 · Register 1997'},
+            {name:'Machine, Transparency',price:'J$18,000–38,000',src:'#436 · Register 1997'},
+            {name:'Machine, Shredding',price:'J$22,000–55,000',src:'#434 · Register 1997'},
+            {name:'Cutter, Paper (Guillotine)',price:'J$18,000–38,000',src:'#429 · Register 1997'},
+            {name:'Cutter, Paper',price:'J$8,500–18,000',src:'#808 · Register 1997'},
+            {name:'Punch, 3 Hole',price:'J$3,500–7,000',src:'#413 · Register 1997'},
+            {name:'Perforator',price:'J$3,500–7,000',src:'#800 · Register 1997'},
+            {name:'Stapler, Strong Arm',price:'J$3,500–7,000',src:'#295 · Register 1997'},
+            {name:'Stapler, Electric',price:'J$8,500–18,000',src:'#296 · Register 1997'},
+            {name:'Stapler, Heavy Duty / Staple Gun',price:'J$5,500–12,000',src:'#299 · Register 1997'},
+            {name:'Sharpener, Pencil',price:'J$1,500–4,500',src:'#409 · Register 1997'},
+            {name:'Sharpener, Pencil - Electric',price:'J$5,500–12,000',src:'#415 · Register 1997'},
+            {name:'Seal, Authenticity',price:'J$3,500–8,500',src:'#435 · Register 1997'},
+            {name:'Datashield',price:'J$8,500–18,000',src:'#423 · Register 1997'},
+            {name:'Microfiche Reader',price:'J$22,000–45,000',src:'#433 · Register 1997'},
+            {name:'Folder, Mechanical',price:'J$18,000–35,000',src:'#801 · Register 1997'},
+            {name:'Platemaker',price:'J$55,000–110,000',src:'#803 · Register 1997'},
+            {name:'Press, Printing',price:'J$85,000–160,000',src:'#802 · Register 1997'},
+            {name:'Drill, Paper',price:'J$8,500–16,000',src:'#804 · Register 1997'},
+            {name:'Stitcher, Wire (Booklet)',price:'J$12,000–25,000',src:'#807 · Register 1997'},
+            {name:'Tray, Document - Plastic',price:'J$1,500–4,000',src:'#172 · Register 1997'},
+            {name:'Tray, Document - Wire/Wooden',price:'J$2,500–6,500',src:'#173 · Register 1997'},
+            {name:'Rack, Filing - Metal',price:'J$18,000–35,000',src:'#630 · Register 1997'},
+            {name:'Cash Pan',price:'J$2,500–5,500',src:'#403 · Register 1997'},
+            {name:'Vault',price:'J$120,000–280,000',src:'#398 · Register 1997'},
+            {name:'Cheque Singer',price:'J$18,000–38,000',src:'#406 · Register 1997'},
+            {name:'Clock, Electric/Battery',price:'J$3,500–8,500',src:'#155 · Register 1997'}
+        ]},
+        {cat:'👩‍👧 Paediatric & Nursery Items', items:[
+            {name:'Playpen',price:'J$12,000–22,000',src:'#220 · Register 1997'},
+            {name:"Cot, Children's",price:'J$45,000–85,000',src:'#221 · Register 1997'},
+            {name:'Bed, Circle',price:'J$120,000–220,000',src:'#553 · Register 1997'},
+            {name:'Potty, Infant',price:'J$2,500–5,500',src:'#264 · Register 1998'},
+            {name:'Chair, Child',price:'J$8,500–18,000',src:'#249 · Register 1998'},
+            {name:'Chair, Rocking',price:'J$18,000–38,000',src:'#248 · Register 1998'},
+            {name:'Bath, Baby',price:'J$5,500–12,000',src:'#224 · Register 1997'},
+            {name:'Bath, Infant - Mobile',price:'J$8,500–18,000',src:'#247 · Register 1998'},
+            {name:'Bassinet',price:'J$22,000–45,000',src:'#550 · Register 1997'},
+            {name:'Bassinet, Designer with Cover',price:'J$35,000–65,000',src:'#1351 · Register 1998'},
+            {name:'Resuscitation Crib',price:'J$55,000–110,000',src:'#1358 · Register 1998'},
+            {name:'Incubator, Neonate - Basic',price:'J$950,000–2,000,000',src:'#1382 · Register 1998'},
+            {name:'Radiant Warmer',price:'J$950,000–2,000,000',src:'#1471 · Register 1998'},
+            {name:'Monitor, Neonatal',price:'J$280,000–550,000',src:'#1390 · Register 1998'},
+            {name:'Bag, Baby Resuscitation',price:'J$5,500–12,000',src:'#1344 · Register 1998'},
+            {name:'Bag, Paediatric Resuscitation',price:'J$5,500–12,000',src:'#1345 · Register 1998'}
+        ]}
+    ];
+
+    // ========== ASSET CODES (DEDUPLICATED) ==========
+    const assetCodes = {
+        '552':'Bed, Hospital','554':'Bed, Surgical/Operating','551':'Bed, Obstetric/Labour',
+        '557':"Bed, Children's",'109':'Bed, Folding','1476':'Bed, Lumbar Traction',
+        '1477':'Bed, Mobilization','1478':'Bed, Neuro CVA','555':'Bed, Xray',
+        '671':'Table, Overbed','212':'Table, Bedside/Night','1416':'Stand, I.V. - Mobile',
+        '640':'Stand, Saline (Drip)','745':'Stand, Infusion','232':'Table, Examination',
+        '556':'Bed, Examination','641':'Stretcher','1420':'Stretcher, Transport W/IV Pole',
+        '747':'Stretcher, W/IV Pole/Side Rails','146':'Chair, Wheel',
+        '144':'Chair, Wheel - Adult w/I.V Pole','154':'Chair, Wheel - Child - Folding',
+        '182':'Locker, Bedside - Metal/Wooden','1376':'Hoist, Patient - Mobile',
+        '188':'Mattress','550':'Bassinet','1351':'Bassinet, Designer with Cover',
+        '636':'Stand, Bed','247':'Bath, Infant-Mobile','660':'Cart, Emergency Crash',
+        '613':'Monitor, Defibrillator','668':'Machine, ECG','684':'Electrocardiagraph, 3 Channel',
+        '603':'Machine, Cardiac ECG','612':'Machine, ECG with Defibrillator',
+        '1388':'Monitor ECG - Portable','620':'Nebulizer','1392':'Nebulizer W/Stand',
+        '731':'Pulse Oximeter','462':'Baumanometer',
+        '1410':'Sphygmomanometer, Mercurial - Adult','1411':'Sphygmomanometer, Paediatric',
+        '1412':'Sphygmomanometer, Wall Mounted','654':'Sphygnomanometer','737':'Stethoscope',
+        '642':'Stethoscope, Foetal','740':'Thermometer','608':'Machine, Suction',
+        '697':'Aspirator','1341':'Apparatus, Suction-Pipeline Vacuum',
+        '1342':'Apparatus, Suction-Pipeline Wall Mounted','1395':'Pump, Infusion',
+        '563':'Controller, Infusion','1356':'Counter, Infusion - Flow Rate',
+        '725':'Ophthalmoscope','1393':'Otoscope/Ophthalmoscope','663':'Trolley, Dressing',
+        '1439':'Trolley, Instrument - Small Dressing','1440':'Trolley, Instrument - Medium Dressing',
+        '662':'Trolley, Medicine/Drug','1441':'Trolley, Medicine - Basic W/Securing Device',
+        '657':'Trolley, Instrument','673':'Tray, Instrument',
+        '133':'Chair, Executive - Metal/Upholstered','130':'Chair, Conference',
+        '134':'Chair, Typist','135':'Chair, Upholstered/Metal With Arm',
+        '138':'Chair, Straight - Metal','139':'Chair, Plastic','140':'Chair, Straight - Wooden',
+        '141':'Chair, Patio','142':'Chair, Swivel - Wooden With Arm','143':'Chair, Antique - Wooden',
+        '145':'Chair, Danish','147':'Chair, Artist - Swivel','152':'Chair, Lounge',
+        '242':'Chair, Blood Drawing','249':'Chair, Child','1485':'Chair, Shortwave Diathermy',
+        '1486':'Chair, Whirlpool Treatment','250':'Bench - Seat, 2 Person',
+        '251':'Bench - Seat, 4 Person','196':'Settee - Danish','197':'Settee - Assorted',
+        '162':'Desk, Executive - Wooden/Metal','160':'Desk, Single - Wooden/Metal',
+        '165':'Desk, Typist - Junior','166':'Desk, Typist - Senior','243':'Credenza',
+        '236':'Station, Executive Secretary','234':'Work Station',
+        '119':'Cabinet, Filing - Four (4) Drawer','121':'Cabinet, Filing - Two (2) Drawer',
+        '127':'Cabinet, Filing - Three (3) Drawer','120':'Cabinet, Filing - Five (5) Drawer',
+        '125':'Cabinet, Filing - Seven (7) Drawer','122':'Cabinet, Filing - Wooden',
+        '118':'Cabinet, Filing - Security 4 Drawers','126':'Cabinet, Filing - Security 2 Drawers',
+        '128':'Cabinet, Fireproof','115':'Cabinet, Card - Single Drawer',
+        '116':'Cabinet, Card - Two (2) Drawer','117':'Cabinet, Card - Four (4) Drawer',
+        '275':'Locker, Clothes - Single','180':'Locker, Metal','181':'Locker, Wooden',
+        '183':'Locker, Multi-tier 5 Compartment','100':'Bookcase - Metal/Wooden',
+        '104':'Bookshelf','386':'Shelving, Wire','385':'Shelving, Single Side - Free Standing',
+        '902':'Cabinet, Storage','178':'Drawer, Pedestal','185':'Board, Notice',
+        '1000':'Board, Flip Chart','434':'Machine, Shredding','1001':'Wardrobe',
+        '252':'Range, Open 4 Burner','253':'Range, Open 12 Burner',
+        '304':'Stove, Gas - Four (4) Burner','323':'Stove, Gas - Six (6) Burner',
+        '324':'Stove, Gas - Ten (10) Burner','300':'Stove, Gas - Two (2) Burner',
+        '302':'Stove, Gas - Three (3) Burner','352':'Stove, Electric - Four (4) Burner',
+        '355':'Stove, Electric - Six (6) Burner','301':'Stove, Electric - Two (2) Burner',
+        '187':'Oven, Microwave','373':'Oven, Convention','339':'Oven, Gas',
+        '194':'Refrigerator, 20 Cuft.','191':'Refrigerator, 15 Cuft.',
+        '190':'Refrigerator, 12 Cuft.','310':'Freezer, Deep','395':'Freezer, Deep - Chest',
+        '396':'Freezer, Upright - 49 Cu. Ft.','307':'Blender','344':'Processor, Food',
+        '308':'Mixer, Food - Electric','309':'Kettle, Electric','303':'Kettle, Steam/Steamer',
+        '365':'Sink, Commercial','384':'Sink, Pot Washing - 3 Bowl W/Drainer',
+        '361':'Cart, Food Delivery','362':'Transporter, Food - Mobile','366':'Cooler, Food',
+        '368':'Server, Hot Food','369':'Server, Cold Food','374':'Cart, Beverage',
+        '363':'Station, Beverage','306':'Fryer, Deep - Gas/Electric','383':'Skillet, Tilting',
+        '367':'Griddle','349':'Cart, Gourmet','364':'Cart, Ice',
+        '314':'Machine, Washing - Clothes','311':'Machine, Drying - Clothes',
+        '334':'Ironer, Flat Work','317':'Iron, Clothes - Electric',
+        '770':'Wringer, Extractor - Electric','261':'Hamper, Linen-Round','255':'Hamper, Trash',
+        '257':'Trolley, Linen - Single','672':'Trolley, Linen','558':'Bin, Linen',
+        '357':'Dispenser, Soap','103':'Bin, Paper Towel - Wall Mounted',
+        '108':'Bin, Paper Towel - Floor/Wall','1492':'Holder, Sharps','1349':'Bucket, Kick About',
+        '760':'Mop Pan','399':'Wringer, Mop','149':'Air Conditioner',
+        '174':'Fan, Electric 12"','175':'Fan, Desk/Standing - Electric','176':'Fan, Box - Electric',
+        '177':'Fan, Ceiling','186':'Heater, Water','370':'Boiler, Hot Water - 45L Bench Mounted',
+        '756':'Generator','762':'Power Supply','763':'Regulator, Current','767':'Stabilizer',
+        '766':'Transformer','761':'Surge Protector','997':'Cylinder, Carbon Dioxide',
+        '326':'Cylinder, Oxygen','327':'Cylinder, Nitrous Oxide','325':'Cylinder, Gas',
+        '1366':'Cylinder, Oxygen Flowmeter w/Regulator','1374':'Flowmeter, Oxygen',
+        '1375':'Flowmeter, Oxygen Pipeline w/Humidifier','444':'Concentrator, Oxygen',
+        '1357':'Crovpette, Oxygen','659':'Cart, Oxygen With Regulator',
+        '539':'Tent, Oxygen','679':'Monitor, Oxygen Hi/Lo Alarm',
+        '405':'Computer','440':'Computer, Laptop','446':'Keyboard, Computer',
+        '448':'Stand, Computer','447':'Speaker, Computer','445':'Modem, Computer',
+        '442':'Hub, Internet','407':'Printer','437':'Printer, Laser',
+        '418':'Scanner','291':'Projector','283':'Projector, Overhead','284':'Projector, Slide',
+        '292':'Television','277':'System, Public Address','999':'System, Paging',
+        '430':'Machine, Fax','393':'Camera, Video',
+        '450':'Autoclave','729':'Cabinet, Sterilizer with Printer (Vacuum)',
+        '727':'Sterilizer, Counter Top','728':'Sterilizer, Vacuum - Double Door',
+        '471':'Centrifuge','577':'Fridge, Blood','463':'Bank, Blood','508':'Microscope',
+        '1148':'Machine, Haematology','616':'Machine, Ultra Sound','453':'Analyser',
+        '451':'Analyser, Blood Gas','1467':'Analyser, Acid Base','452':'Analyser, Chloride',
+        '627':'Billirubinometer','475':'Distiller, Water','505':'Meter, PH',
+        '590':'Incubator','489':'Incubator, Carbon Dioxide','545':'Water Bath - Electric',
+        '496':'Cabinet, Laminar Flow','483':'Hood, Biological Container',
+        '1377':'Hood, Fume Extract','1378':'Hood, Laminar Flow - Counter Top',
+        '511':'Microtome','467':'Cyrostat','523':'Rotator, Clinical',
+        '665':'Table, Operating','1431':'Table, Surgical - Manual, Minor',
+        '664':'Table, Anaesthetic','600':'Machine, Anaesthetic',
+        '1383':'Lamp, Operating - Ceiling Mounted w/Satellite',
+        '1384':'Lamp, Operating - Mobile','1387':'Light Surgical - Minor Dual Head',
+        '676':'Unit, Electro Surgical','604':'Machine, Diathermy','680':'Ventilator',
+        '723':'Sink, Clinical - Flushing Rim','724':'Sink, Scrub - Double Bay',
+        '1429':'Table, Instrument','1428':'Table, Instrument - Dressing',
+        '639':'Stand, Mayo','743':'Set, Surgical Instrument',
+        '1426':'Table, Delivery/OB','1382':'Incubator, Neonate, Basic','1471':'Warmer, Radiant',
+        '618':'Monitor, Foetal','1390':'Monitor, Neonatal','224':'Bath, Baby',
+        '1358':'Crib, Resuscitation','560':'Crib','1344':'Bag, Baby Resuscitation',
+        '1345':'Bag, Paediatric Resuscitation',
+        '1456':'Bars, Parallel','1457':'Bars, Wall','1479':'Bars, Grab',
+        '1505':'Treadmill','226':'Bicycle, Exercise',
+        '1433':'Table, Treatment - Physiotherapy','1432':'Table, Treatment - W/Storage',
+        '1454':'Stimulator, Ultrasonic','1510':'Lamp, Physiotherapy','1391':'Mat, Exercise',
+        '1370':'Exerciser, Chest Pulley','1371':'Exerciser, Finger Extension',
+        '1372':'Exerciser, Overhead Pulley - Wall Mounted',
+        '1373':'Exerciser, Shoulder Abduction Ladder',
+        '1480':'Bell, Dumb','1455':'Ball, Medicine','1487':'Club, Exercise','1499':'Pulley',
+        '1500':'Sticks, Exercise','1459':'Hydrocollator','1504':'Traction, Cervical',
+        '1502':'Straps, Traction','1495':'Machine, Traction','1461':'Rollator',
+        '666':'Stick, Walking - Adult Adjustable','687':'Walker, Help - Metal',
+        '1354':'Crutch, Axilla - Adult Adjustable','1355':'Crutch, Axilla - Child Adjustable',
+        '569':'Crutch, Arm - Adult','568':'Crutch, Arm - Child',
+        '1503':'Table, Tilt','1465':'Wedge','1507':'Wheel, Shoulder',
+        '1508':'Roller, Wrist','1481':'Bench, Quad','1483':'Board, Balance','1460':'Pedals',
+        '576':'Extinguisher, Fire','863':'Hose, Fire',
+        '1436':'Trolley, Accident and Emergency - Patient','1363':'Cart, Cast',
+        '1427':'Table, Fracture - Portable','579':'Cutter, Cast',
+        '1435':'Tourniquet - Complete','628':'Tourniquet, Pneumatic',
+        '1442':'Trolley, Mortuary','1443':'Trolley, Mortuary - Elevating 2 Tier W/Weighing',
+        '1423':'Table, Autopsy','1424':'Table, Autopsy - Dissecting Work',
+        '1425':'Table, Body Viewing','1403':'Scale, Autopsy',
+        '1365':'Container, Mortuary Waste - Portable',
+        '1398':'Refrigerator, Morgue - 4 Compartment','1401':'Refrigerator, Morgue - 9 Compartment',
+        '258':'Room, Chill','259':'Room, Cold',
+        '1421':'System, X-ray - Radiographic','1422':'System, X-ray - Radiographic/Fluoroscopic',
+        '669':'Table, X-ray','683':'Bucky, Wall - Vertical Angulating Sgl Plane',
+        '1511':'Panel, X-ray Control','709':'Illuminator, X-ray - 2 Panel Surface Mount',
+        '710':'Illuminator, X-ray - 3 Panel Surface Mount',
+        '711':'Illuminator, X-ray - 4 Panel Surface Mount',
+        '1381':'Illuminator, X-ray - 6 Panel Surface Mount',
+        '688':'Processor, Film - Radiographic','670':'Tube Head, X-ray',
+        '694':'Apron, Lead','588':'Gloves, Lead','644':'Screen, Lead',
+        '585':'Bin, Storage - X-ray Film','566':'Cassette, Film - X-ray',
+        '704':'Cabinet, Narcotic','565':'Cabinet, Medicine',
+        '1399':'Refrigerator, Drug Storage - Free Standing',
+        '1400':'Refrigerator, Pharmaceutical - Double Door',
+        '1367':'Dispenser, Syringe','449':'Dispenser, Pharmacy Label',
+        '1368':'Dispenser, Sterile Pack','1402':'Safe, Drugs','742':'Syringe',
+        '851':'Mower, Lawn','779':'Truck, Platform','778':'Truck, Hand - Lightweight, Hi-Lift',
+        '776':'Lifter, Pallet','749':'Wheel Barrow',
+        '1482':'Bed, Wooden','1475':'Beam, Balance','530':'Stool - Auto Adjustable',
+        '164':'Stool, Bar - Fibre Glass','1418':'Stool, Examination - W/Back and Casters',
+        '528':'Stool, Lab - Mobile W/Back and Casters','532':'Stool, Revolving - Adjustable Height',
+        '1417':"Stool, Anaesthetist's W/Posture Back",'198':'Stool - Wooden',
+        '199':'Stool - Metal','200':'Stool - Upholstered with Back Rest',
+        '650':'Stool, Foot','643':'Stand, Foot',
+        '647':'Scale, Adult - Standing','645':'Scale, Baby','1407':'Scale, Paediatric',
+        '1408':'Scale, Patient - W/Measuring Rod','1406':'Scale, Blood Loss',
+        '382':'Scale, Hanging','769':'Scale, Platform - Floor Recessed',
+        '381':'Scale, Workshop - Dietary Ingredients',
+        '1353':'Cleanser, Ultrasonic','719':'Monitor, Blood Pressure - Auto Printer',
+        '500':'Machine, Blood Pressure - Portable',
+        '718':'Monitor, Patient - Sgl Channel w/Wall Mount',
+        '1389':'Monitor, Patient - 2 Channel',
+        '720':'Monitor, Trace - Physiological ECG/2 Pressure',
+        '1472':'Spirometer','1409':'Slab, Ointment - Heated',
+        '1413':'Stand, Basin - Single','1414':'Stand, Basin - Double','1415':'Stand, Basin - Large',
+        '1463':'Stand, Cerebral Palsy','1464':'Steps','1488':'Couch, Massage Treatment',
+        '1494':'Machine, Mammogram','1497':'Unit, Massage - Vibromaster',
+        '1496':'Machine, Transcutaneous','1493':'Kneeboard','1498':'Podoscope',
+        '1506':'Vasotrain','1509':'Wardbox, Dispensary',
+        '777':'Trolley, Cylinder','1438':'Trolley, Distribution - CSSD Collection',
+        '1350':'Bin Used Items - CSSD','1397':'Rack, CSSD Paper - Mobile',
+        '267':'Rack, Bedpan','268':'Rack, Chart - 20 Capacity','269':'Rack, Chart - 40 Capacity',
+        '693':'Rack, Glove - Multiple Apron','276':'Rack, Metal Pan - 4 tier, Mobile',
+        '266':'Rack, Storage - Free Standing','244':'Rack, Wooden/Metal',
+        '237':'Rack, Luggage','246':'Cubicle, Curtain Track',
+        '1364':'Cart, Utility - 3 Shelves',
+        '1473':'Trolley, Bath','1437':'Trolley, Concealment',
+        '101':'Bin, Storage - Ingredients','102':'Bin, Disposal - Food Mobile',
+        '105':'Bench, Wooden - With Back Rest','106':'Bench, Wooden - Without Back Rest',
+        '107':'Bench, Plastic - With Back Rest','110':'Bed, Divan - Single',
+        '111':'Bed, Divan - Double','112':'Bin, Dust - Plastic/Metal','113':'Bin, Step-on',
+        '114':'Trolley, Card','123':'Cabinet, Chart','124':'Cabinet, Liquor',
+        '129':'Cabinet, Card - Eleven (11) Drawer','131':'Chair, Bucket',
+        '132':'Couch, Upholstered','136':'Chair, Metal With Wood',
+        '137':'Chair, Straight - Upholstered/Metal','148':'Cooler, Water',
+        '150':'Cupboard, Metal','151':'Cupboard, Wooden','153':'Cupboard, Glass',
+        '155':'Clock, Electric/Battery','156':'Cupboard, Linen',
+        '157':'Cabinet, Card - Eight (8) Drawer','158':'Console, Patient Service',
+        '159':'Cabinet, Key - Metal/Wooden','167':'Desk, Class Room',
+        '168':'Chair, Lecture - Metal With Wood','169':'Chalk Board',
+        '170':'Dip, Standing - Wooden','171':'Dip, Table - Wooden',
+        '172':'Tray, Document - Plastic','173':'Tray, Document - Wire/Wooden',
+        '184':'Mirror (Standing)','189':'Refrigerator, Under Counter 3-6 Cuft.',
+        '192':'Refrigerator, 9/10 Cuft.','193':'Refrigerator, 5-8 Cuft.',
+        '195':'Stand, Television','201':'Table, Single Legged',
+        '202':'Suite, Danish - Two Chairs One Settee',
+        '203':'Suite, Living Room - Five Pieces','205':'Stand, Telephone',
+        '206':'Ash Tray','207':'Table, Coffee','208':'Table - Wooden',
+        '210':'Table, Conference - Folding','211':'Table, Formica',
+        '213':'Vanity (Dresser) - Wooden','214':'Table, Patio',
+        '215':'Shelf, Medical Records - Wooden with Doors',
+        '216':'Shelf, Medical Records - Wooden Without Doors',
+        '217':'Shelf, Medical Records - Metal with Doors',
+        '218':'Shelf, Medical Records - Metal Without Doors',
+        '219':'Shelf, on Wheels','220':'Playpen','221':"Cot, Children's",
+        '222':'Chest of Drawers','223':'Buffet - Wooden/Glass','225':'Press, Wooden',
+        '227':'Couch, Treatment - Plinth','228':'Hassock','229':'Cushion',
+        '230':'Table, Packing - Wooden','231':'Table, Metal','233':'Table, Drawing',
+        '235':'Stand, Wooden/Metal','239':'Flashlight','240':'Glass, Measuring',
+        '241':'Painting, Wall','245':'Pot, Clay','248':'Chair, Rocking',
+        '260':'Machine, Surging','262':'Holder, Sack - Free Standing',
+        '263':'Insert, Serving Tray','264':'Potty, Infant','265':'Press, General Utility',
+        '270':'Lamp, Bedside','271':'Lamp, Spirit','272':'Lamp, Desk',
+        '273':'Lamp, Emergency - Fluorescent','274':'Lamp, Kerosene (Oil)',
+        '278':'Radio, Communication - Mobile','279':'Recorder, Tape - Reel to Reel',
+        '280':'Megaphone','281':'Projector, Film 16 MM','282':'Projector, Film 20 MM',
+        '285':'Table, Projector','286':'Tripod','287':'Screen, Film',
+        '288':'Recorder, Video Cassette','289':'Lectern','290':'Easel',
+        '294':'Piano','295':'Stapler, Strong Arm','296':'Stapler, Electric',
+        '297':'Radio, Communication - Portable','298':'Recorder, Tape',
+        '299':'Stapler, Heavy Duty/Staple Gun','305':'Hot Plate',
+        '312':'Machine, Wringer','313':'Machine, Sewing - Electric',
+        '315':'Board, Ironing','316':'Polisher, Electric','318':'Pan, Washing',
+        '319':'Oven, Electric','320':'Percolator - Electric','321':'Cleaner, Vacuum',
+        '322':'Igloo','328':'Dryer, Hair','329':'Dryer, Hand - Electric',
+        '330':'Dining Set - Wooden','331':'Cabinet, Household',
+        '332':'Bin, Storage - Plastic/Metal','335':'Icebox','336':'Ice Maker',
+        '337':'Cooler, Electric','338':'Cooker, Pressure','342':'Strainer - Metal',
+        '343':'Toaster - Electric','345':'Pot, Steam','346':'Washer, Dish',
+        '347':'Dispenser, Sanitizer','348':'Thermos',
+        '350':'Stove, Kerosene - One (1) Burner','351':'Stove, Kerosene - Two (2) Burner',
+        '353':'Sharpener, Knife - Electric','354':'Sharpener, Knife - Manual',
+        '356':'Stove, Electric - Three (3) Burner','358':'Dispenser, Paper',
+        '359':'Lifter, Dish','371':'Insect Killer - Wall Mounted',
+        '375':'Trolley, Catering Cups','377':'Refrigerator - 17.7 Cu ft.',
+        '378':'Receptacle, Trash - Large, Mobile','379':'Receptacle, Trash',
+        '380':'Starter, Tray - W/Dish Lifter','388':'Table, Linen Inspection',
+        '390':'Lantern, Oil','391':'Warmer, Food','392':'Swyngomatic',
+        '394':'Tripod, Video Camera','398':'Vault',
+        '400':'Machine, Accounting','401':'Cash Register','402':'Machine, Adding',
+        '403':'Cash Pan','404':'Calculator','406':'Cheque Singer',
+        '408':'Charger, Radio','409':'Sharpener, Pencil',
+        '410':'Data Processing Auto Equipment','411':'Films',
+        '412':'Machine, Duplicating','413':'Punch, 3 Hole','414':'Copier, Photo',
+        '415':'Sharpener, Pencil - Electric','416':'Copier, Photo - Special',
+        '417':'Typewriter - Electric 19 inch','420':'Typewriter - Electric 18 inch',
+        '422':'Typewriter - Wheelwriter','423':'Datashield',
+        '424':'Typewriter - Word Processor','425':'Typewriter - Manual',
+        '426':'Typewriter - Memory Writer','427':'Copier, Stencil',
+        '428':'Printer, Stencil','429':'Cutter, Paper (Guillotine)',
+        '431':'Machine, Binding - Electric','432':'Machine, Numbering',
+        '433':'Microfiche','435':'Seal, Authenticity','436':'Machine, Transparency',
+        '438':'Printer, Cheque','441':'Binder, Electric',
+        '454':'Amalgamator','455':'Cabinet, Biological',
+        '456':'Balance, Analytical Measuring','457':'Bed, Delivery',
+        '458':'Box, Typing R.H.','459':'Camera, Auto','460':'Bacti Cinerator',
+        '461':'Bath, Flotation - Electric','464':'Bilirubinometer',
+        '465':'Bunsen Burner','466':'Cabinet, Instrument',
+        '468':'Cytospin - Electric','470':'Camera, X-ray','474':'Dessicator',
+        '477':'Dispenser, Dilator - Electric','478':'Diluter',
+        '479':'Dryer, Slide','480':'Fibrometer','481':'Centre, Embedding',
+        '482':'Care Centre, Intensive - Infant','484':'Holder, Test Tube',
+        '485':'Haemoglobinmeter','486':'Healing Block','487':'Inspissator',
+        '488':'Ioniser','490':'Emerald','495':'Light Unit, Dark Room',
+        '501':'Machine, Blood Test','503':'Machine, Electrolite Analyser',
+        '506':'Mixer, Medicine','507':'Mixer, Blood','509':'Microplate Reader',
+        '510':'Oven, Hot Air','516':'Printer, Counter',
+        '518':'Rack, Staining - Metal','519':'Paraffin Block Drawers - Plastic',
+        '520':'Pitcher, Paraffin','521':'Rack, X-ray','522':'Rack, Chart',
+        '524':'Shaker, Specimen','525':'Sterilizer',
+        '527':'Machine, Slide Staining','531':'Trolley, Laboratory',
+        '534':'Stirrer, Magnetic','540':'Still, Steam',
+        '541':'Viewer, Agglutination','542':'View Box, X-ray',
+        '553':'Bed, Circle','559':'Chair, Dental','561':'Couch, Examination',
+        '562':'Controller, X-ray','564':'Conditioner, Glove','570':'Drum, Dressing',
+        '571':'Dryer, Film - X-ray','572':'Docket Case - Wooden',
+        '573':'Dilator, Uterine','574':'Extractor','575':'Fan, Heater - X-ray',
+        '578':'Forceps','580':'Gallipot','581':'Holder, Swab',
+        '582':'Holder, Film X-ray','583':'Holder, Cassette',
+        '584':'Hammer, Percussion','589':'Incinerator','591':'Illuminator, X-ray',
+        '592':'Lamp, Halogen','593':'Lamp, Infra-Red','594':'Lamp, Ultra Violet',
+        '595':'Lamp, Dental','596':'Lamp, Examination - Standing','597':'Lamp, Heat',
+        '598':'Lamp, Operating','599':'Light, Examination - Ceiling Mounted',
+        '601':'Machine, Asthmatic','602':'Machine, Autocrit PCV',
+        '605':'Machine, Electrosurgical','606':'Machine, Kleet',
+        '607':'Machine, Slow Piece','609':'Machine, Automatic Film Processor (X-ray)',
+        '610':'Machine, Fogging','617':'Unit, Manual Processing - X-ray',
+        '619':'Monitor, Cardiac - Electric','621':'Ergometer',
+        '622':'Photometer, Flame','623':'Photometer, Spectro',
+        '624':'Porringer','625':'Processor','626':'Marker, Actinic - X-ray',
+        '629':'Rotator','630':'Rack, Filing - Metal','631':'Rack, Swab Count',
+        '646':'Steamer','648':'Scale, Table - Hanging/Counter','649':'Screen, Bed',
+        '651':'Sonalator, Medco','652':'Screen, X-ray View',
+        '653':'Scale - Weight Balanced','655':'Trolley, General',
+        '656':'Sphygnomanometer, Mercurial - Wall Mounted','661':'Trolley, Food',
+        '667':'Hatch, Film','674':'Unit, Breathing Therapy','675':'Unit, Filing',
+        '677':'Unit, Intensive Care','681':'Vibrator, Percussion/Mechanical',
+        '682':'Vitalograph','685':'Table, Work - Instrument Processing',
+        '686':'Set, Pads - Foam Positioning','690':'Unit, X-ray - Dental',
+        '695':'Agilator','696':'Auroscope',
+        '698':'Aspirator, Pipeline Mobile - H Vac Sgl Jar',
+        '699':'Bath, Wax','700':'Counter, Blood Cell - Electric','701':'Calscope',
+        '702':'Clock, Elapsed Time - With Control and Reset',
+        '705':'Dinamap','706':'Dish, Kidney','707':'Diaphanoscope','708':'Densimeter',
+        '712':'Illuminator, X-ray Film - Spot Darkroom Light',
+        '715':'Laryngoscope','716':'Table, Preparation and Packing',
+        '717':'Magnet, Eye - Hand Held','730':'Pan, Bed','732':'Set, Diagnostic',
+        '733':'Screen, Projector','734':'Set, Post Mortem','735':'Speculum',
+        '736':'Scissors','738':'Skeleton','739':'Syringe, Ear',
+        '741':'Tenoculum, Uterine','744':'Set, Auricular','748':'Warmer, Blood',
+        '750':'Ladder - Metal','751':'Ladder - Wooden','752':'Work Bench - Wooden',
+        '753':'Boiler','754':'Bucket - Plastic','755':'Bucket - Galvanized',
+        '757':'Compressor Unit','758':'Battery, Rechargeable','759':'Compressor, Air',
+        '765':'Tank, Storage','775':'Trolley, Truck (Hand Truck)',
+        '787':'Screwdriver, Phillips','800':'Perforator','801':'Folder, Mechanical',
+        '802':'Press, Printing','803':'Platemaker','804':'Drill, Paper',
+        '805':'Table, Light','806':'Camera, Dark Room','807':'Stitcher, Wire',
+        '808':'Cutter, Paper','850':'Fork, Agricultural','852':'Clamp, Vice',
+        '853':'Hose, Garden','854':'Shear, Hedge','855':'Shovel','856':'Stone, Grind',
+        '857':'Scoop - Metal','858':'Funnel - Enamel/Metal','859':'Funnel - Gas',
+        '860':'Hammer, Ball Pein','861':'Rake, Agricultural','865':'Knife, Swivel',
+        '866':'Level, Spirit','870':'Pliers, Bind Beak','871':'Pliers, Channel Lock',
+        '872':'Pliers, Combination','873':'Punch, Masonry','875':'Saw, Hack',
+        '876':'Saw, Tenon','877':'Screwdriver, Flat Point','879':'Set, Spanner',
+        '880':'Set, Socket','881':'Cutter, Side','885':'Trowel, Masonry',
+        '890':'Wrench, Pipe','901':'Board, Drawing','903':'Hamper, Linen',
+        '994':'Epidiascope','998':'Radio, AM/FM','1002':'Opener, Tin',
+        '1091':'Printer, Copy','1141':'Mill, Ointment','1142':'Mixer, Ointment',
+        '1143':'Machine, Liquid Packaging',
+        '1145':'Machine, Tube Closing and Folding','1147':'Stirrer - Direct Drive',
+        '1149':'Mixer, Vortex','1150':'Onyx','1151':'Rack, Pipette',
+        '1348':'Bottle, Urine - Polypropylene','1362':'Cupboard, Urine Test - Wall Mounted',
+        '1369':'Exerciser, Complete Jet','1379':'Hose, Gas - Ceiling Drip',
+        '1385':'Light Examination - Ceiling Mounted',
+        '1386':'Light Examination - Mobile w/Cool Spot',
+        '1404':'Dispenser, Nail Brush','1405':'Dispenser, Scrub Solution',
+        '1419':'Stretcher, Recovery','1462':'Rolls','1466':'Datascope, Passport',
+        '1468':'Connector, Camera OTV','1469':'Dryer, Tube','1470':'Pan, Scrub',
+        '1484':'Bowl, Emesis','1489':'Footrest - Metal',
+        '1490':'Footrest, Shortwave Diathermy','1491':'Hand Grip'
+    };
+
+    // ========== CODE MATCHING ==========
+    function getCodeForItem(itemName) {
+        // Try to match catalog item name to GOJ asset code by partial name matching
+        var n = itemName.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+        // Also check the src field for #code references
+        var bestCode = null;
+        var bestScore = 0;
+        for (var code in assetCodes) {
+            var desc = assetCodes[code].toLowerCase().replace(/[^a-z0-9 ]/g, '');
+            var descFirst = desc.split(',')[0].trim();
+            var nameFirst = n.split('(')[0].trim();
+            // Exact first-word match
+            if (nameFirst === descFirst || n.includes(descFirst) || desc.includes(nameFirst)) {
+                var score = descFirst.length;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestCode = code;
+                }
+            }
+        }
+        return bestScore >= 3 ? bestCode : null;
+    }
+    function getCodeFromSrc(src) {
+        // Extract asset code from source string like "#704 · Register 1997"
+        var m = src.match(/#(\d+)/);
+        return m ? m[1] : null;
+    }
+
+    // ========== STATE ==========
+    let activeFilter = 'All';
+    let catalogSearchTerm = '';
+    let expandedCategories = {};
+
+    // ========== PAGE NAVIGATION ==========
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        const page = document.getElementById('page-' + pageId);
+        if (page) page.classList.add('active');
+        const sideItem = document.querySelector('.sidebar-item[data-page="' + pageId + '"]');
+        if (sideItem) sideItem.classList.add('active');
+        // Close mobile sidebar
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('active');
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('darkIcon').textContent = isDark ? '\u2600\uFE0F' : '\u{1F319}';
+        document.getElementById('darkLabel').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+        localStorage.setItem('catalog-dark-mode', isDark);
+    }
+
+    // ========== OVERVIEW PAGE ==========
+    function renderOverview() {
+        const totalItems = catalog.reduce((sum, c) => sum + c.items.length, 0);
+        const totalCats = catalog.length;
+        const confirmed = catalog.reduce((sum, c) => sum + c.items.filter(i => i.src.startsWith('\u2605')).length, 0);
+        const market = catalog.reduce((sum, c) => sum + c.items.filter(i => i.src.startsWith('Market')).length, 0);
+
+        document.getElementById('overviewStats').innerHTML =
+            '<div class="stat-card teal"><div class="stat-value">' + totalItems + '</div><div class="stat-label">Total Catalog Items</div></div>' +
+            '<div class="stat-card blue"><div class="stat-value">' + totalCats + '</div><div class="stat-label">Categories</div></div>' +
+            '<div class="stat-card green"><div class="stat-value">' + confirmed + '</div><div class="stat-label">Confirmed Prices \u2605</div></div>' +
+            '<div class="stat-card orange"><div class="stat-value">' + market + '</div><div class="stat-label">Market Estimates</div></div>';
+
+        let gridHtml = '';
+        catalog.forEach(function(c, idx) {
+            const icon = c.cat.split(' ')[0];
+            const name = c.cat.replace(/^[^\s]+\s/, '');
+            gridHtml += '<div class="cat-summary-card" onclick="showPage(\'catalog\'); filterByCategory(\'' + name.replace(/'/g, "\\'") + '\')">' +
+                '<div class="cat-icon">' + icon + '</div>' +
+                '<div class="cat-name">' + name + '</div>' +
+                '<div class="cat-count">' + c.items.length + ' items</div>' +
+                '<span class="cat-link">View Items \u2192</span>' +
+                '</div>';
+        });
+        document.getElementById('catGrid').innerHTML = gridHtml;
+    }
+
+    // ========== CATALOG PAGE ==========
+    function renderFilterBar() {
+        let html = '<button class="filter-btn' + (activeFilter === 'All' ? ' active' : '') + '" onclick="setFilter(\'All\')">All</button>';
+        catalog.forEach(function(c) {
+            const name = c.cat.replace(/^[^\s]+\s/, '');
+            html += '<button class="filter-btn' + (activeFilter === name ? ' active' : '') + '" onclick="setFilter(\'' + name.replace(/'/g, "\\'") + '\')">' + c.cat.split(' ')[0] + ' ' + name + '</button>';
+        });
+        document.getElementById('filterBar').innerHTML = html;
+    }
+
+    function setFilter(f) {
+        activeFilter = f;
+        renderFilterBar();
+        renderCatalog();
+    }
+
+    function filterByCategory(catName) {
+        activeFilter = catName;
+        catalogSearchTerm = '';
+        document.getElementById('catalogSearch').value = '';
+        renderFilterBar();
+        renderCatalog();
+    }
+
+    function filterCatalog() {
+        catalogSearchTerm = document.getElementById('catalogSearch').value.toLowerCase();
+        renderCatalog();
+    }
+
+    function renderCatalog() {
+        const search = catalogSearchTerm;
+        let html = '';
+        let totalShown = 0;
+
+        catalog.forEach(function(c, catIdx) {
+            const catName = c.cat.replace(/^[^\s]+\s/, '');
+            const icon = c.cat.split(' ')[0];
+
+            if (activeFilter !== 'All' && activeFilter !== catName) return;
+
+            const filtered = c.items.filter(function(item) {
+                if (!search) return true;
+                return item.name.toLowerCase().includes(search) ||
+                       catName.toLowerCase().includes(search) ||
+                       item.src.toLowerCase().includes(search);
+            });
+
+            if (filtered.length === 0) return;
+            totalShown += filtered.length;
+
+            const isExpanded = expandedCategories[catIdx];
+            const displayItems = isExpanded ? filtered : filtered.slice(0, 10);
+            const hasMore = filtered.length > 10 && !isExpanded;
+
+            html += '<div class="catalog-card">' +
+                '<div class="catalog-card-header">' +
+                '<div class="cat-title">' + icon + ' ' + catName + '</div>' +
+                '<div class="cat-badge">' + filtered.length + ' items</div>' +
+                '</div><div class="catalog-card-body">';
+
+            displayItems.forEach(function(item) {
+                const code = getCodeFromSrc(item.src) || getCodeForItem(item.name);
+                const codeHtml = code ? '<span class="item-code">#' + code + '</span>' : '';
+                const starHtml = item.src.startsWith('\u2605') ? '<span class="star">\u2605</span> ' : '';
+
+                html += '<div class="catalog-item">' +
+                    '<div class="item-info">' +
+                    '<div class="item-name">' + codeHtml + item.name + '</div>' +
+                    '<div class="item-src">' + starHtml + item.src + '</div>' +
+                    '</div>' +
+                    '<div class="item-price">' + item.price + '</div>' +
+                    '</div>';
+            });
+
+            if (hasMore) {
+                html += '<button class="show-more-btn" onclick="expandCategory(' + catIdx + ')">Show all ' + filtered.length + ' items (' + (filtered.length - 10) + ' more) \u2193</button>';
+            } else if (filtered.length > 10 && isExpanded) {
+                html += '<button class="show-more-btn" onclick="collapseCategory(' + catIdx + ')">Show less \u2191</button>';
+            }
+
+            html += '</div></div>';
+        });
+
+        document.getElementById('catalogContent').innerHTML = html;
+        document.getElementById('resultsCount').textContent = totalShown + ' items found';
+    }
+
+    function expandCategory(idx) {
+        expandedCategories[idx] = true;
+        renderCatalog();
+    }
+
+    function collapseCategory(idx) {
+        expandedCategories[idx] = false;
+        renderCatalog();
+    }
+
+    // ========== ASSET CODES PAGE ==========
+    function renderCodes() {
+        filterCodes();
+    }
+
+    function filterCodes() {
+        const search = (document.getElementById('codeSearch').value || '').toLowerCase();
+        const entries = Object.entries(assetCodes).filter(function(entry) {
+            if (!search) return true;
+            return entry[0].includes(search) || entry[1].toLowerCase().includes(search);
+        });
+
+        entries.sort(function(a, b) { return parseInt(a[0]) - parseInt(b[0]); });
+
+        let html = '<table><thead><tr><th style="width:100px;">Code #</th><th>Description</th></tr></thead><tbody>';
+        let currentGroup = '';
+
+        entries.forEach(function(entry) {
+            const group = entry[1].split(' - ')[0];
+            if (group !== currentGroup) {
+                currentGroup = group;
+                html += '<tr><td colspan="2" class="letter-header" style="padding:10px 15px;background:var(--bg-secondary);font-weight:700;color:var(--primary);border-bottom:2px solid var(--primary);">' + group + '</td></tr>';
+            }
+            html += '<tr><td class="code-cell">' + entry[0] + '</td><td>' + entry[1] + '</td></tr>';
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('codesTable').innerHTML = html;
+        document.getElementById('codesCount').textContent = entries.length + ' codes found';
+    }
+
+    // ========== INIT ==========
+    function init() {
+        // Restore dark mode
+        if (localStorage.getItem('catalog-dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('darkIcon').textContent = '\u2600\uFE0F';
+            document.getElementById('darkLabel').textContent = 'Light Mode';
+        }
+
+        renderOverview();
+        renderFilterBar();
+        renderCatalog();
+        renderCodes();
+    }
+
+    init();
+    </script>
+</body>
+</html>
