@@ -29204,7 +29204,17 @@
             'invertor': 'inverter', 'invertors': 'inverter',
             'walked in': 'walk-in', 'walk in': 'walk-in',
             'chill room': 'cold room', 'hydrocollator': 'hydrocollator',
-            'capnograph': 'capnograph'
+            'capnograph': 'capnograph',
+            // Compound words that registers often split into two words
+            'wheel chair': 'wheelchair', 'wheel chairs': 'wheelchair',
+            'wheel barrow': 'wheelbarrow', 'bed pan': 'bedpan', 'bed pans': 'bedpan',
+            'book shelf': 'bookshelf', 'book case': 'bookcase',
+            'type writer': 'typewriter', 'step stool': 'stepstool',
+            'bed side': 'bedside', 'over bed': 'overbed',
+            'commode chair': 'commode', 'commode mobile': 'commode',
+            // Register reversed-format entries (e.g. "Chair, Wheel" → "chair wheel")
+            'chair wheel': 'wheelchair', 'chair wheels': 'wheelchair',
+            'pan bed': 'bedpan', 'washer dish': 'dishwasher', 'dish washer': 'dishwasher'
         };
 
         // Stop words: generic/common words that should NOT contribute to matching score
@@ -29268,7 +29278,9 @@
                 'cytospin','rotator','shaker','vortex','dessicator','serofuge',
                 'bassinet','playpen','rollator','croupette','tent',
                 'treadmill','bicycle','pedals','exerciser',
-                'boiler','transformer','wringer'];
+                'boiler','transformer','wringer',
+                'commode','bedpan','wheelbarrow','bookshelf','bookcase','stepstool',
+                'overbed','bedside','typewriter'];
 
             // Secondary descriptors: important modifiers that help narrow down matches
             var secondaryTerms = ['stand','examination','surgical','operating','executive','task',
@@ -29349,6 +29361,31 @@
                     // CRITICAL: Check primary noun alignment
                     var descNouns = descSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
                     var itemNouns = itemSignificantWords.filter(function(w) { return primaryNouns.indexOf(w) !== -1; });
+
+                    // Conflict pairs: items that should NEVER match each other despite shared words
+                    var conflictPairs = [
+                        ['commode','wheelchair'],['commode','stretcher'],['commode','walker'],
+                        ['wheelchair','stretcher'],['wheelchair','trolley'],
+                        ['bed','desk'],['bed','chair'],
+                        ['chair','stretcher'],['stool','desk'],
+                        ['cot','bed'],['crib','bed'],['bassinet','bed'],
+                        ['fan','extinguisher'],['lamp','heater']
+                    ];
+                    var hasConflict = false;
+                    for (var cp = 0; cp < conflictPairs.length; cp++) {
+                        var pA = conflictPairs[cp][0], pB = conflictPairs[cp][1];
+                        var descHasA = descNouns.indexOf(pA) !== -1, descHasB = descNouns.indexOf(pB) !== -1;
+                        var itemHasA = itemNouns.indexOf(pA) !== -1, itemHasB = itemNouns.indexOf(pB) !== -1;
+                        // Conflict: desc has one and item has the other (but not both)
+                        if ((descHasA && itemHasB && !descHasB && !itemHasA) ||
+                            (descHasB && itemHasA && !descHasA && !itemHasB)) {
+                            hasConflict = true;
+                            break;
+                        }
+                    }
+                    if (hasConflict) {
+                        score = 0; // Completely block conflicting item type matches
+                    }
 
                     if (descNouns.length > 0 && itemNouns.length > 0) {
                         var nounMatch = false;
