@@ -28506,6 +28506,7 @@
                 {name:'Blue Examination Lamp (LED, Surgical Grade)',price:'J$180,000\u2013350,000',src:'Market estimate'},
                 {name:'Examination Light (Ceiling Mount)',price:'J$250,000\u2013500,000',src:'Market estimate'},
                 {name:'Privacy Screen - Stainless Steel 3 Panel',price:'J$26,000\u201328,000',src:'\u2605 Medco Medical Supplies'},
+                {name:'Medical Privacy Screen (Fabric / Curtain)',price:'J$18,000\u201335,000',src:'Market estimate'},
                 {name:'Emergency Crash Cart (Red/Blue)',price:'J$184,000',src:'\u2605 Medco Medical Jul 2025'},
                 {name:'Stainless Steel Dressing Trolley (3 Tier)',price:'J$49,600',src:'\u2605 Medical Link Jul 2025'},
                 {name:'Electric Cast Cutter (Plaster Saw)',price:'J$71,530',src:'\u2605 Shekinah Trading Jul 2025'},
@@ -28533,6 +28534,7 @@
                 {name:'Examination Lamp (Ceiling Mounted)',price:'J$55,000\u2013120,000',src:'Market estimate'},
                 {name:'Overbed Examination Lamp',price:'J$22,000\u201340,000',src:'Market estimate'},
                 {name:'Examination Stool (with Back and Casters)',price:'J$12,000\u201325,000',src:'Market estimate'},
+                {name:'Operating Theatre Stool (Stainless Steel)',price:'J$22,000\u201345,000',src:'Market estimate'},
                 {name:'Examination Couch / Bed',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Portable X-Ray Machine',price:'J$1,500,000\u20134,000,000',src:'Market estimate'},
                 {name:'Sphygmomanometer (Mercurial, Wall Mount)',price:'J$12,000\u201325,000',src:'Market estimate'},
@@ -28579,6 +28581,7 @@
                 {name:'Visitor / Side Chair (Fabric)',price:'J$12,000\u201322,000',src:'Market estimate'},
                 {name:'Mid-Back Mesh Office Chair',price:'J$22,000\u201345,000',src:'Market estimate'},
                 {name:'High Back Task Chair (Ergonomic)',price:'J$48,000\u201385,000',src:'Market estimate'},
+                {name:'Metal Chair (Upholstered / Standard)',price:'J$8,000\u201318,000',src:'Market estimate'},
                 {name:'Folding Chair (Metal)',price:'J$4,500\u20138,000',src:'Market estimate'},
                 {name:'Stacking Chair (Metal/Plastic)',price:'J$5,000\u201312,000',src:'Market estimate'},
                 {name:'Recliner Chair (Vinyl / Clinical)',price:'J$65,000\u2013120,000',src:'Market estimate'},
@@ -28615,6 +28618,7 @@
                 {name:'Dining Table (Standard, 4-6 Seater)',price:'J$35,000\u201375,000',src:'Market estimate'},
                 {name:'Coffee Table (Wooden / Laminate)',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Wooden Table (General Purpose)',price:'J$18,000\u201345,000',src:'Market estimate'},
+                {name:'Laminate / Formica Table',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Safe (Fireproof, Medium)',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Clock (Electric / Battery, Wall)',price:'J$2,500\u20138,000',src:'Market estimate'},
                 {name:'Mirror (Standing / Wall)',price:'J$5,000\u201318,000',src:'Market estimate'},
@@ -28648,6 +28652,7 @@
                 {name:'Gas Stove / Range (4-Burner, Commercial)',price:'J$120,000\u2013280,000',src:'Market estimate'},
                 {name:'Gas Stove / Range (6-Burner, Commercial)',price:'J$250,000\u2013550,000',src:'Market estimate'},
                 {name:'Electric Stove / Hot Plate',price:'J$8,000\u201322,000',src:'Market estimate'},
+                {name:'Commercial Planetary / Floor Mixer (20-40 Qt)',price:'J$250,000\u2013550,000',src:'Market estimate'},
                 {name:'Deep Fryer (Commercial)',price:'J$85,000\u2013180,000',src:'Market estimate'},
                 {name:'Pressure Cooker (Commercial)',price:'J$25,000\u201365,000',src:'Market estimate'},
                 {name:'Food Processor / Mixer',price:'J$18,000\u201345,000',src:'Market estimate'},
@@ -28674,6 +28679,7 @@
                 {name:'Hand Towel Dispenser T850',price:'J$11,800',src:'\u2605 Bioden Chemicals Aug 2025'},
                 {name:'Soap Dispenser (Wall Mount, 500ml)',price:'J$3,500\u20136,500',src:'Market estimate'},
                 {name:'Garbage Bin Step-On (Small, 8 Gallon)',price:'J$2,500\u20135,000',src:'Market estimate'},
+                {name:'Garbage Bin Step-On (12 Gallon)',price:'J$3,500\u20136,500',src:'Market estimate'},
                 {name:'Garbage Bin Step-On (Medium, 13 Gallon)',price:'J$3,500\u20137,000',src:'Market estimate'},
                 {name:'Garbage Bin Step-On (18 Gallon)',price:'J$4,500\u20138,500',src:'Market estimate'},
                 {name:'Garbage Bin Step-On (Large, 23 Gallon)',price:'J$5,500\u201310,000',src:'Market estimate'},
@@ -29260,8 +29266,8 @@
             'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
             'bassinet frame': 'bassinet', 'bassinett frame': 'bassinet',
             'basinet frame': 'bassinet',
-            // Stove/range
-            'range stove': 'range cooker', 'burner range': 'burner commercial range',
+            // Stove/range - keep "stove" keyword for matching
+            'range stove': 'range stove commercial',
             // Dining
             'dining table': 'dining table',
             // Computer brand names → desktop computer
@@ -29273,9 +29279,18 @@
             'mealdelivery': 'food delivery', 'food delivery cart': 'food trolley',
             'delivery cart': 'food trolley',
             // Industrial equipment
-            'floor mixer': 'industrial mixer', 'concrete mixer': 'industrial mixer',
+            'concrete mixer': 'industrial mixer',
             // Speaker
-            'speaker box': 'speaker'
+            'speaker box': 'speaker',
+            // Medical/privacy screen
+            'medical screen': 'privacy screen', 'bed screen': 'privacy screen',
+            // Hand truck
+            'hand truck': 'sack trolley', 'folding hand truck': 'sack trolley',
+            // Table materials
+            'formica table': 'laminate table', 'formica': 'laminate',
+            // Planetary mixer (commercial kitchen)
+            'plenary floor mixer': 'planetary mixer', 'planetary mixer': 'commercial mixer',
+            'floor mixer': 'commercial mixer'
         };
 
         // Stop words: generic/common words that should NOT contribute to matching score
@@ -29384,7 +29399,8 @@
                 'warming','cooling','heating','suction','traction','physiotherapy',
                 'dining','burner','domestic','anaesthetic','ironing','dry',
                 'food','meal','delivery','desktop','blood','gas','lead',
-                'wooden','coffee','bluetooth','floor','concrete','industrial'];
+                'wooden','coffee','bluetooth','floor','concrete','industrial',
+                'privacy','laminate','formica','theatre','planetary','sack'];
 
             var bestMatch = null;
             var bestScore = 0;
