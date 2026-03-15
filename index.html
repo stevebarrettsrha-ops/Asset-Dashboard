@@ -14973,6 +14973,13 @@
                         assetData.salvageValue = calcSalvageValue(assetData.totalPrice || assetData.unitPrice || 0, assetData.category || '');
                     }
 
+                    // Mark price as user-confirmed if user changed the price
+                    if (costChanged || (currentEditingAsset.unitPrice || 0) !== (assetData.unitPrice || 0)) {
+                        assetData.priceConfirmed = true;
+                    } else {
+                        assetData.priceConfirmed = currentEditingAsset.priceConfirmed || false;
+                    }
+
                     assets[index] = assetData;
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
 
@@ -27492,6 +27499,7 @@
                 if (bulkSelectedIds.has(a.id)) {
                     a.unitPrice = price;
                     a.totalPrice = price * (a.quantity || 1);
+                    a.priceConfirmed = true;
                     updated++;
                 }
             });
@@ -29326,6 +29334,9 @@
             assets.forEach(function(asset) {
                 var price = parseFloat(asset.unitPrice) || parseFloat(asset.totalPrice) || 0;
                 if (price <= 0) return; // skip zero-price assets
+
+                // Skip prices confirmed or manually entered by user
+                if (asset.priceConfirmed) return;
 
                 var desc = asset.description || asset.itemType || '';
                 if (!desc) return;
