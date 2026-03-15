@@ -28620,6 +28620,7 @@
                 {name:'Wooden Table (General Purpose)',price:'J$18,000\u201345,000',src:'Market estimate'},
                 {name:'Laminate / Formica Table',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Side Table / End Table',price:'J$8,000\u201322,000',src:'Market estimate'},
+                {name:'Table with Drawer (Office / Utility)',price:'J$18,000\u201338,000',src:'Market estimate'},
                 {name:'Safe (Fireproof, Medium)',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Clock (Electric / Battery, Wall)',price:'J$2,500\u20138,000',src:'Market estimate'},
                 {name:'Mirror (Standing / Wall)',price:'J$5,000\u201318,000',src:'Market estimate'},
@@ -29262,7 +29263,7 @@
             // Chair type normalization
             'stack chair': 'stacking chair', 'stacked chair': 'stacking chair',
             'reclinetr': 'recliner', 'reclinetr chair': 'recliner chair',
-            'sofa chair': 'sofa',
+            'sofa chair': 'sofa', 'lounge chair': 'recliner',
             // Basin/bassinet disambiguation
             'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
             'bassinet frame': 'bassinet', 'bassinett frame': 'bassinet',
@@ -29325,6 +29326,8 @@
             // Strip accessory/addon text after "w/", "with", or "and" when preceded by a primary item
             // e.g. "Hospital Beds (Semi Electric) w/ Mattress" → keep only "Hospital Beds Semi Electric"
             d = d.replace(/\s+w\s+(?:mattress|keyboard|monitor|mouse|pole|poles|iv|stand|rail|rails|side|accessories|accessory)\b.*/g, '');
+            // But keep "w drawer" → "with drawer" for table matching
+            d = d.replace(/\bw\b\s+\bdrawer\b/g, 'drawer');
             // Multi-item descriptions (separated by dashes or commas with spaces): prioritize first item
             // e.g. "Stretchers - IV Poles - Mattress" → "Stretchers"
             var dashParts = d.split(/\s+-\s+/);
