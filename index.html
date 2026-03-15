@@ -29120,6 +29120,21 @@
                 {name:'Monitor, Patient - 2 Channel',price:'J$280,000\u2013550,000',src:'#1389 \u00b7 Register 1998'},
                 {name:'Monitor, Neonatal',price:'J$280,000\u2013550,000',src:'#1390 \u00b7 Register 1998'}
             ]},
+            {cat:'Patient Monitors', icon:'&#x1F4DF;', life:7, items:[
+                {name:'Patient Monitor (Bedside Multi-Parameter)',price:'J$280,000\u2013600,000',src:'Market estimate'},
+                {name:'Patient Monitor (Touch Screen)',price:'J$350,000\u2013750,000',src:'Market estimate'},
+                {name:'Monitor, Patient - Sgl Channel w/Wall Mount',price:'J$180,000\u2013380,000',src:'#718 \u00b7 Register 1998'},
+                {name:'Monitor, Patient - 2 Channel',price:'J$280,000\u2013550,000',src:'#1389 \u00b7 Register 1998'},
+                {name:'Monitor, Neonatal',price:'J$280,000\u2013550,000',src:'#1390 \u00b7 Register 1998'},
+                {name:'Monitor, ECG - Portable, Battery Operated',price:'J$250,000\u2013500,000',src:'#1388 \u00b7 Register 1998'},
+                {name:'Monitor, Cardiac - Electric',price:'J$280,000\u2013550,000',src:'#619 \u00b7 Register 1997'},
+                {name:'Monitor, Foetal',price:'J$380,000\u2013700,000',src:'#618 \u00b7 Register 1997'},
+                {name:'Monitor, Defibrillator',price:'J$450,000\u2013900,000',src:'#613 \u00b7 Register 1998'},
+                {name:'Monitor, Oxygen - Hi/Lo Alarm',price:'J$180,000\u2013380,000',src:'#679 \u00b7 Register 1998'},
+                {name:'Monitor, Trace - Physiological ECG/2 Pressure',price:'J$350,000\u2013750,000',src:'#720 \u00b7 Register 1998'},
+                {name:'Dinamap / Vital Signs Monitor',price:'J$180,000\u2013380,000',src:'Market estimate'},
+                {name:'Monitor, Blood Pressure - Auto Printer',price:'J$35,000\u201365,000',src:'#719 \u00b7 Register 1998'}
+            ]},
             {cat:'CSSD & Sterilization', icon:'&#x1F9EA;', life:10, items:[
                 {name:'Sterilizer, Counter Top',price:'J$280,000\u2013550,000',src:'#727 \u00b7 Register 1998'},
                 {name:'Sterilizer, Vacuum - Double Door',price:'J$850,000\u20131,800,000',src:'#728 \u00b7 Register 1998'},
@@ -29471,6 +29486,10 @@
             'bassinet with cart': 'bassinet stand', 'baby bassinet with cart': 'bassinet stand',
             // Medical/privacy screen
             'medical screen': 'privacy screen', 'bed screen': 'privacy screen',
+            // Touch Screen Patient Monitor — keep "patient monitor" as primary identity
+            'touch screen patient monitor': 'patient monitor touch screen',
+            'touchscreen patient monitor': 'patient monitor touch screen',
+            'touch screen monitor': 'patient monitor touch screen',
             // Hand truck
             'hand truck': 'sack trolley', 'folding hand truck': 'sack trolley',
             // Lateral / Horizontal filing cabinet synonyms
@@ -29514,6 +29533,11 @@
         function normalizeAssetDesc(desc) {
             // Pre-process compound hyphenated words before dash-splitting
             desc = desc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
+            // Pre-process: if description contains "patient monitor" anywhere, keep the full text
+            // (prevents dash-split from losing the primary identity, e.g. "Touch Screen - Patient Monitor")
+            if (/patient\s+monitor/i.test(desc)) {
+                desc = desc.replace(/\s*[-\u2013\u2014]\s*/g, ' ');
+            }
             // Pre-process: split on dashes/hyphens in original text BEFORE stripping non-alnum
             // e.g. "Stretchers - IV Poles - Mattress" → take "Stretchers" only
             // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
@@ -29577,6 +29601,10 @@
             // Apply same critical pre-processing to rawDesc as normalizeAssetDesc:
             // Pre-process compound hyphenated words before dash-splitting
             assetDesc = assetDesc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
+            // Pre-process: if description contains "patient monitor" anywhere, keep full text
+            if (/patient\s+monitor/i.test(assetDesc)) {
+                assetDesc = assetDesc.replace(/\s*[-\u2013\u2014]\s*/g, ' ');
+            }
             // 1. Dash-split: take first part, unless it's a material/frame descriptor
             var rawSrc = assetDesc;
             var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
@@ -29778,7 +29806,8 @@
                         ['sofa','wheelchair'],['recliner','wheelchair'],
                         ['stove','table'],['range','table'],['cooker','table'],
                         ['skip','bin'],['basin','bin'],['basin','cabinet'],
-                        ['speaker','fan'],['mixer','processor']
+                        ['speaker','fan'],['mixer','processor'],
+                        ['monitor','screen'],['bin','stool'],['stool','bin']
                     ];
                     var hasConflict = false;
                     for (var cp = 0; cp < conflictPairs.length; cp++) {
