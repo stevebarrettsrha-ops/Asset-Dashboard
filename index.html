@@ -8392,6 +8392,7 @@
                         <button class="btn monthly-view-btn" onclick="autoFillMissingCosts()" style="background: linear-gradient(135deg, #e67e22, #d35400);">💲 Auto-Fill Missing Costs</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
+                        <button class="btn monthly-view-btn" onclick="removeEmptyAssetsFromRegister()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Remove Empty Assets</button>
                     </div>
                 </div>
             </div>
@@ -25987,6 +25988,61 @@
 
             refreshAllViews();
             alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
+        }
+
+        // Remove empty/dead asset rows from Asset Register
+        function removeEmptyAssetsFromRegister() {
+            const allAssets = loadAssetsFromStorage();
+
+            // Find dead rows: assets with no meaningful data in key fields.
+            // An asset is considered "dead" if it lacks ALL of: description, price > 0,
+            // department, date, supplier, and serial/model.
+            // Assets that have real data but only need a code are preserved.
+            const deadAssets = allAssets.filter(asset => {
+                const hasDesc = asset.description && asset.description.trim();
+                const hasPrice = (asset.unitPrice && parseFloat(asset.unitPrice) > 0) || (asset.totalPrice && parseFloat(asset.totalPrice) > 0);
+                const hasDept = asset.department && asset.department.trim();
+                const hasDate = asset.dateIn && asset.dateIn.trim();
+                const hasSupplier = asset.supplier && asset.supplier.trim() && asset.supplier.trim() !== 'N/A';
+                const hasSerial = asset.serialModel && asset.serialModel.trim() && asset.serialModel.trim() !== 'N/A';
+
+                // If it has any meaningful data beyond defaults, keep it
+                if (hasDesc || hasPrice || hasDept || hasDate || hasSupplier || hasSerial) {
+                    return false;
+                }
+                // This row has no meaningful data — it's a dead row
+                return true;
+            });
+
+            if (deadAssets.length === 0) {
+                alert('No empty asset records found. All assets have meaningful data.');
+                return;
+            }
+
+            if (!confirm(
+                `Found ${deadAssets.length} empty/dead asset record(s) with no description, price, department, date, supplier, or serial number.\n\n` +
+                `These appear to be empty rows from imports with no useful data.\n` +
+                `Assets that have real data but only need a code will be preserved.\n\n` +
+                `Delete all ${deadAssets.length} empty record(s)?\n\nThis action cannot be undone.`
+            )) {
+                return;
+            }
+
+            const idsToDelete = new Set(deadAssets.map(a => a.id));
+            const remaining = allAssets.filter(a => !idsToDelete.has(a.id));
+            saveAssetsToStorage(remaining);
+
+            // Track deleted IDs so cloud sync won't re-add them
+            trackDeletedAssetIds([...idsToDelete]);
+
+            // Add audit entries
+            deadAssets.forEach(asset => {
+                removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                addAuditEntry(asset.assetCode || '(empty record)', 'Asset Deleted', asset.department || '', 'Empty/dead asset removed from Asset Register');
+            });
+
+            refreshAllViews();
+            alert(`✅ ${deadAssets.length} empty asset record(s) removed successfully.`);
         }
 
         // ============================================
