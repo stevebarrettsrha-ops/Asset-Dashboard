@@ -28607,11 +28607,14 @@
                 {name:'Bookcase / Shelving Unit (5 Tier)',price:'J$22,000\u201338,000',src:'Market estimate'},
                 {name:'Metal Standing Shelf / Rack',price:'J$15,000\u201328,000',src:'Market estimate'},
                 {name:'Storage Cabinet (Steel, Lockable)',price:'J$35,000\u201365,000',src:'Market estimate'},
+                {name:'Storage Unit / Shelving (Multi-Compartment)',price:'J$45,000\u201395,000',src:'Market estimate'},
                 {name:'White Board / Notice Board (Small, Donated)',price:'J$3,940',src:'\u2605 Donated Jul 2025'},
                 {name:'Notice Board / White Board (Large, Wall Mount)',price:'J$12,000\u201328,000',src:'Market estimate'},
                 {name:'Heavy Duty Cross Cut Shredder - 16 Sheets',price:'J$138,000',src:'\u2605 Empire Stationery May 2025'},
                 {name:'Folding Table 29.6" x 20.6"',price:'J$9,600',src:'\u2605 Neveast Supplies Aug 2025'},
                 {name:'Dining Table (Standard, 4-6 Seater)',price:'J$35,000\u201375,000',src:'Market estimate'},
+                {name:'Coffee Table (Wooden / Laminate)',price:'J$15,000\u201335,000',src:'Market estimate'},
+                {name:'Wooden Table (General Purpose)',price:'J$18,000\u201345,000',src:'Market estimate'},
                 {name:'Safe (Fireproof, Medium)',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Clock (Electric / Battery, Wall)',price:'J$2,500\u20138,000',src:'Market estimate'},
                 {name:'Mirror (Standing / Wall)',price:'J$5,000\u201318,000',src:'Market estimate'},
@@ -28741,6 +28744,7 @@
                 {name:'Radio (AM/FM, Communication)',price:'J$8,500\u201322,000',src:'Market estimate'},
                 {name:'Walkie Talkie / Two-Way Radio',price:'J$12,000\u201335,000',src:'Market estimate'},
                 {name:'Public Address / Paging System',price:'J$85,000\u2013220,000',src:'Market estimate'},
+                {name:'Bluetooth Speaker / Speaker Box',price:'J$5,000\u201318,000',src:'Market estimate'},
                 {name:'Scanner (Document, Flatbed)',price:'J$35,000\u201375,000',src:'Market estimate'},
                 {name:'Keyboard (Computer)',price:'J$3,500\u20138,000',src:'Market estimate'},
                 {name:'Modem / Router (Network)',price:'J$8,000\u201322,000',src:'Market estimate'},
@@ -28964,6 +28968,7 @@
                 {name:'Wrench, Pipe',price:'J$5,500\u201312,000',src:'#890 \u00b7 Register 1997'},
                 {name:'Mower, Lawn',price:'J$55,000\u2013120,000',src:'#851 \u00b7 Register 1997'},
                 {name:'Wheel Barrow',price:'J$12,000\u201322,000',src:'#749 \u00b7 Register 1997'},
+                {name:'Industrial Floor Mixer / Concrete Mixer',price:'J$85,000\u2013180,000',src:'Market estimate'},
                 {name:'Pallet Lifter / Jack',price:'J$55,000\u2013120,000',src:'Market estimate'},
                 {name:'Vice / Clamp (Workshop)',price:'J$8,500\u201322,000',src:'Market estimate'},
                 {name:'Hammer (Ball Pein)',price:'J$2,500\u20136,000',src:'Market estimate'},
@@ -29253,6 +29258,8 @@
             'sofa chair': 'sofa',
             // Basin/bassinet disambiguation
             'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
+            'bassinet frame': 'bassinet', 'bassinett frame': 'bassinet',
+            'basinet frame': 'bassinet',
             // Stove/range
             'range stove': 'range cooker', 'burner range': 'burner commercial range',
             // Dining
@@ -29264,7 +29271,11 @@
             // Food/meal trolley
             'food trolley': 'food trolley', 'meal trolley': 'food trolley',
             'mealdelivery': 'food delivery', 'food delivery cart': 'food trolley',
-            'delivery cart': 'food trolley'
+            'delivery cart': 'food trolley',
+            // Industrial equipment
+            'floor mixer': 'industrial mixer', 'concrete mixer': 'industrial mixer',
+            // Speaker
+            'speaker box': 'speaker'
         };
 
         // Stop words: generic/common words that should NOT contribute to matching score
@@ -29357,7 +29368,8 @@
                 'boiler','transformer','wringer',
                 'commode','bedpan','wheelbarrow','bookshelf','bookcase','stepstool',
                 'overbed','bedside','typewriter','workstation','basin','sofa',
-                'recliner','stove','range','cooker','analyser','analyzer'];
+                'recliner','stove','range','cooker','analyser','analyzer',
+                'speaker','mixer'];
 
             // Secondary descriptors: important modifiers that help narrow down matches
             var secondaryTerms = ['stand','examination','surgical','operating','executive','task',
@@ -29371,7 +29383,8 @@
                 'chattanooga','infinium','crash','emergency','privacy','overbed',
                 'warming','cooling','heating','suction','traction','physiotherapy',
                 'dining','burner','domestic','anaesthetic','ironing','dry',
-                'food','meal','delivery','desktop','blood','gas','lead'];
+                'food','meal','delivery','desktop','blood','gas','lead',
+                'wooden','coffee','bluetooth','floor','concrete','industrial'];
 
             var bestMatch = null;
             var bestScore = 0;
@@ -29454,7 +29467,8 @@
                         ['sofa','commode'],['recliner','commode'],
                         ['sofa','wheelchair'],['recliner','wheelchair'],
                         ['stove','table'],['range','table'],['cooker','table'],
-                        ['basin','bin'],['basin','cabinet']
+                        ['basin','bin'],['basin','cabinet'],
+                        ['speaker','fan'],['mixer','processor']
                     ];
                     var hasConflict = false;
                     for (var cp = 0; cp < conflictPairs.length; cp++) {
