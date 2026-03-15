@@ -25994,25 +25994,28 @@
         function removeEmptyAssetsFromRegister() {
             const allAssets = loadAssetsFromStorage();
 
-            // Find dead rows: assets with no meaningful data in key fields.
-            // An asset is considered "dead" if it lacks ALL of: description, price > 0,
-            // department, date, supplier, and serial/model.
-            // Assets that have real data but only need a code are preserved.
-            const deadAssets = allAssets.filter(asset => {
-                const hasDesc = asset.description && asset.description.trim();
-                const hasPrice = (asset.unitPrice && parseFloat(asset.unitPrice) > 0) || (asset.totalPrice && parseFloat(asset.totalPrice) > 0);
-                const hasDept = asset.department && asset.department.trim();
-                const hasDate = asset.dateIn && asset.dateIn.trim();
-                const hasSupplier = asset.supplier && asset.supplier.trim() && asset.supplier.trim() !== 'N/A';
-                const hasSerial = asset.serialModel && asset.serialModel.trim() && asset.serialModel.trim() !== 'N/A';
+            // Find dead rows matching the exact pattern of empty imports:
+            // Asset Code: -Data needed-, Date In: -Data needed-, Description: -Data needed-,
+            // Department: -Data needed-, Supplier/Donor: N/A, Serial/Model: N/A
+            const isDeadRow = (asset) => {
+                const code = (asset.assetCode || '').trim();
+                const dateIn = (asset.dateIn || '').trim();
+                const desc = (asset.description || '').trim();
+                const dept = (asset.department || '').trim();
+                const supplier = (asset.supplier || '').trim();
+                const serial = (asset.serialModel || '').trim();
 
-                // If it has any meaningful data beyond defaults, keep it
-                if (hasDesc || hasPrice || hasDept || hasDate || hasSupplier || hasSerial) {
-                    return false;
-                }
-                // This row has no meaningful data — it's a dead row
-                return true;
-            });
+                const codeEmpty = !code || code === '-Data needed-';
+                const dateEmpty = !dateIn || dateIn === '-Data needed-';
+                const descEmpty = !desc || desc === '-Data needed-';
+                const deptEmpty = !dept || dept === '-Data needed-';
+                const supplierEmpty = !supplier || supplier === 'N/A' || supplier === '-Data needed-';
+                const serialEmpty = !serial || serial === 'N/A' || serial === '-Data needed-';
+
+                return codeEmpty && dateEmpty && descEmpty && deptEmpty && supplierEmpty && serialEmpty;
+            };
+
+            const deadAssets = allAssets.filter(isDeadRow);
 
             if (deadAssets.length === 0) {
                 alert('No empty asset records found. All assets have meaningful data.');
@@ -26020,10 +26023,15 @@
             }
 
             if (!confirm(
-                `Found ${deadAssets.length} empty/dead asset record(s) with no description, price, department, date, supplier, or serial number.\n\n` +
-                `These appear to be empty rows from imports with no useful data.\n` +
-                `Assets that have real data but only need a code will be preserved.\n\n` +
-                `Delete all ${deadAssets.length} empty record(s)?\n\nThis action cannot be undone.`
+                `Found ${deadAssets.length} empty/dead asset record(s) matching:\n\n` +
+                `  • Asset Code: -Data needed- or empty\n` +
+                `  • Date In: -Data needed- or empty\n` +
+                `  • Description: -Data needed- or empty\n` +
+                `  • Department: -Data needed- or empty\n` +
+                `  • Supplier/Donor: N/A or empty\n` +
+                `  • Serial/Model: N/A or empty\n\n` +
+                `Assets with real data in any of these fields will be preserved.\n\n` +
+                `Delete all ${deadAssets.length} empty record(s)? This action cannot be undone.`
             )) {
                 return;
             }
