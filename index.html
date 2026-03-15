@@ -28619,6 +28619,7 @@
                 {name:'Coffee Table (Wooden / Laminate)',price:'J$15,000\u201335,000',src:'Market estimate'},
                 {name:'Wooden Table (General Purpose)',price:'J$18,000\u201345,000',src:'Market estimate'},
                 {name:'Laminate / Formica Table',price:'J$15,000\u201335,000',src:'Market estimate'},
+                {name:'Side Table / End Table',price:'J$8,000\u201322,000',src:'Market estimate'},
                 {name:'Safe (Fireproof, Medium)',price:'J$85,000\u2013160,000',src:'Market estimate'},
                 {name:'Clock (Electric / Battery, Wall)',price:'J$2,500\u20138,000',src:'Market estimate'},
                 {name:'Mirror (Standing / Wall)',price:'J$5,000\u201318,000',src:'Market estimate'},
@@ -29338,7 +29339,7 @@
             }
             // Basic plural normalization: strip trailing 's' for common asset words
             d = d.replace(/\b(stretcher|mattress|pole|chair|desk|bed|table|monitor|printer|computer|cabinet|locker|trolley|shelf|fan|pump|tank|scanner|copier|bin|stove|sink|lamp|analyzer|analyser)s\b/g, '$1');
-            d = d.replace(/\bshelves\b/g, 'shelf');
+            d = d.replace(/\bshelves\b/g, 'shelf').replace(/\bshelve\b/g, 'shelf');
             return d.replace(/\s+/g, ' ').trim();
         }
 
