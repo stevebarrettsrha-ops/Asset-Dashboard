@@ -38,6 +38,29 @@
             --text-secondary: #7f8c8d;
             --border-color: #e0e0e0;
             --table-hover: #f8f9fa;
+
+            /* Modal styling variables */
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --font-mono: 'Courier New', monospace;
+            --info: #3498db;
+            --info-bg: rgba(52, 152, 219, 0.1);
+            --info-border: rgba(52, 152, 219, 0.3);
+            --success: #27ae60;
+            --success-bg: rgba(39, 174, 96, 0.1);
+            --warning: #f39c12;
+            --warning-bg: rgba(243, 156, 18, 0.1);
+            --warning-border: rgba(243, 156, 18, 0.3);
+            --danger: #e74c3c;
+            --accent: #667eea;
+            --bg-hover: rgba(0,0,0,0.05);
+            --text-muted: #95a5a6;
         }
 
         body.dark-mode {
@@ -49,6 +72,10 @@
             --border-color: #2d4059;
             --table-hover: #16213e;
             --shadow: rgba(0, 0, 0, 0.3);
+            --info-bg: rgba(52, 152, 219, 0.15);
+            --success-bg: rgba(39, 174, 96, 0.15);
+            --warning-bg: rgba(243, 156, 18, 0.15);
+            --bg-hover: rgba(255,255,255,0.05);
         }
 
         body {
@@ -235,10 +262,10 @@
             height: 7px;
             border-radius: 50%;
             background: #2ECC71;
-            animation: pulse 2s infinite;
+            animation: pulse-dot 2s infinite;
         }
 
-        @keyframes pulse {
+        @keyframes pulse-dot {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
@@ -467,14 +494,14 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            animation: pulse-status 2s infinite;
         }
 
         .status-indicator.connected { background: #58D68D; }
         .status-indicator.error { background: #ff4444; }
         .status-indicator.loading { background: #ffa500; }
 
-        @keyframes pulse {
+        @keyframes pulse-status {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
@@ -700,10 +727,10 @@
         }
 
         .qr-section {
-            animation: fadeIn 0.3s ease;
+            animation: fadeInSlide 0.3s ease;
         }
 
-        @keyframes fadeIn {
+        @keyframes fadeInSlide {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
@@ -837,10 +864,10 @@
             padding: 25px;
             margin-top: 20px;
             text-align: center;
-            animation: slideUp 0.3s ease;
+            animation: slideUpScan 0.3s ease;
         }
 
-        @keyframes slideUp {
+        @keyframes slideUpScan {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
@@ -878,7 +905,7 @@
         }
 
         #scanResultContent {
-            background: white;
+            background: var(--bg-card);
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -892,7 +919,7 @@
 
         #scanResultContent .asset-info-item {
             padding: 10px;
-            background: #f8f9fa;
+            background: var(--table-hover);
             border-radius: 6px;
         }
 
@@ -902,14 +929,14 @@
 
         #scanResultContent .asset-info-label {
             font-size: 0.85em;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 4px;
             font-weight: 600;
         }
 
         #scanResultContent .asset-info-value {
             font-size: 1.05em;
-            color: #333;
+            color: var(--text-primary);
             font-weight: 500;
         }
 
@@ -1911,7 +1938,7 @@
             }
 
             /* Google auth modals */
-            .google-auth-modal .modal-content {
+            .google-auth-modal .cloud-modal-content {
                 max-width: 100% !important;
                 margin: 0;
                 border-radius: 0;
@@ -2174,10 +2201,10 @@
         }
 
         .sync-btn.syncing {
-            animation: pulse 1s infinite;
+            animation: pulse-sync 1s infinite;
         }
 
-        @keyframes pulse {
+        @keyframes pulse-sync {
             0% { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
@@ -2314,7 +2341,7 @@
         }
 
         .public-asset-body {
-            background: white;
+            background: var(--bg-card);
             padding: 25px;
             border-radius: 0 0 12px 12px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
@@ -2328,7 +2355,7 @@
 
         .asset-info-item {
             padding: 12px;
-            background: #f8f9fa;
+            background: var(--table-hover);
             border-radius: 8px;
             border-left: 4px solid #FF6B35;
         }
@@ -2339,7 +2366,7 @@
 
         .asset-info-label {
             font-size: 0.8em;
-            color: #666;
+            color: var(--text-secondary);
             text-transform: uppercase;
             margin-bottom: 5px;
         }
@@ -2347,7 +2374,7 @@
         .asset-info-value {
             font-size: 1.1em;
             font-weight: 600;
-            color: #2C3E50;
+            color: var(--text-primary);
         }
 
         .asset-info-value.highlight {
@@ -2358,7 +2385,7 @@
         .public-asset-footer {
             text-align: center;
             padding: 20px;
-            color: #666;
+            color: var(--text-secondary);
             font-size: 0.85em;
         }
 
@@ -3344,7 +3371,7 @@
 
         .cloud-status-dot.syncing {
             background: #ffd43b;
-            animation: pulse 1s infinite;
+            animation: pulse-sync 1s infinite;
         }
 
         .cloud-dropdown-menu {
@@ -3433,13 +3460,8 @@
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
         /* Modal styles for cloud/2FA */
-        .modal-content {
+        .cloud-modal-content {
             background: var(--bg-card);
             border-radius: 16px;
             max-width: 500px;
@@ -3448,7 +3470,7 @@
             overflow-y: auto;
         }
 
-        .modal-header {
+        .cloud-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -3456,7 +3478,7 @@
             border-bottom: 1px solid var(--border-color);
         }
 
-        .modal-header h2 {
+        .cloud-modal-header h2 {
             margin: 0;
             color: var(--text-primary);
             font-size: 1.3rem;
@@ -3486,52 +3508,20 @@
             color: white;
         }
 
-        .btn-danger {
+        .cloud-btn-danger {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
             color: white;
         }
 
-        .btn-primary {
+        .cloud-btn-primary {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
         }
 
-        .btn-secondary {
+        .cloud-btn-secondary {
             background: var(--bg-secondary);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
-        }
-
-        /* CSS Variables for modal styling */
-        :root {
-            --space-2: 8px;
-            --space-3: 12px;
-            --space-4: 16px;
-            --space-5: 20px;
-            --space-6: 24px;
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --font-mono: 'Courier New', monospace;
-            --info: #3498db;
-            --info-bg: rgba(52, 152, 219, 0.1);
-            --info-border: rgba(52, 152, 219, 0.3);
-            --success: #27ae60;
-            --success-bg: rgba(39, 174, 96, 0.1);
-            --warning: #f39c12;
-            --warning-bg: rgba(243, 156, 18, 0.1);
-            --warning-border: rgba(243, 156, 18, 0.3);
-            --danger: #e74c3c;
-            --accent: #667eea;
-            --bg-hover: rgba(0,0,0,0.05);
-            --text-muted: #95a5a6;
-        }
-
-        body.dark-mode {
-            --info-bg: rgba(52, 152, 219, 0.15);
-            --success-bg: rgba(39, 174, 96, 0.15);
-            --warning-bg: rgba(243, 156, 18, 0.15);
-            --bg-hover: rgba(255,255,255,0.05);
         }
 
         /* Backup file browser styles */
@@ -6388,8 +6378,8 @@
 
     <!-- 2FA SETUP MODAL -->
     <div id="twofaSetupModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 500px;">
+            <div class="cloud-modal-header">
                 <h2>🔐 Enable Two-Factor Authentication</h2>
                 <button class="close-btn" onclick="closeTwoFASetup()">&times;</button>
             </div>
@@ -6417,7 +6407,7 @@
                 </div>
 
                 <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button class="btn btn-secondary" onclick="closeTwoFASetup()" style="flex: 1;">Cancel</button>
+                    <button class="btn cloud-btn-secondary" onclick="closeTwoFASetup()" style="flex: 1;">Cancel</button>
                     <button class="btn btn-success" onclick="confirmTwoFASetup()" style="flex: 1;">Enable 2FA</button>
                 </div>
             </div>
@@ -6426,8 +6416,8 @@
 
     <!-- 2FA BACKUP CODES MODAL -->
     <div id="twofaBackupModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 500px;">
+            <div class="cloud-modal-header">
                 <h2>🔑 Backup Codes</h2>
                 <button class="close-btn" onclick="closeBackupCodesModal()">&times;</button>
             </div>
@@ -6442,10 +6432,10 @@
                 <div class="twofa-backup-codes" id="twofaBackupCodes"></div>
 
                 <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button class="btn btn-secondary" onclick="copyBackupCodes()" style="flex: 1;">
+                    <button class="btn cloud-btn-secondary" onclick="copyBackupCodes()" style="flex: 1;">
                         📋 Copy Codes
                     </button>
-                    <button class="btn btn-primary" onclick="closeBackupCodesModal()" style="flex: 1;">
+                    <button class="btn cloud-btn-primary" onclick="closeBackupCodesModal()" style="flex: 1;">
                         Done
                     </button>
                 </div>
@@ -6455,8 +6445,8 @@
 
     <!-- 2FA DISABLE MODAL -->
     <div id="twofaDisableModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 400px;">
+            <div class="cloud-modal-header">
                 <h2>🔓 Disable 2FA</h2>
                 <button class="close-btn" onclick="closeTwoFADisable()">&times;</button>
             </div>
@@ -6470,8 +6460,8 @@
                        maxlength="6" placeholder="000000" pattern="[0-9]{6}" inputmode="numeric">
 
                 <div style="display: flex; gap: 15px; margin-top: 25px;">
-                    <button class="btn btn-secondary" onclick="closeTwoFADisable()" style="flex: 1;">Cancel</button>
-                    <button class="btn btn-danger" onclick="confirmTwoFADisable()" style="flex: 1;">Disable 2FA</button>
+                    <button class="btn cloud-btn-secondary" onclick="closeTwoFADisable()" style="flex: 1;">Cancel</button>
+                    <button class="btn cloud-btn-danger" onclick="confirmTwoFADisable()" style="flex: 1;">Disable 2FA</button>
                 </div>
             </div>
         </div>
@@ -6479,8 +6469,8 @@
 
     <!-- SETTINGS MODAL -->
     <div id="settingsModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 800px; max-height: 90vh;">
+            <div class="cloud-modal-header">
                 <h2>⚙️ Settings</h2>
                 <button class="close-btn" onclick="closeSettings()">&times;</button>
             </div>
@@ -6519,8 +6509,8 @@
 
     <!-- CHANGE PASSWORD MODAL -->
     <div id="changePasswordModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 400px;">
+            <div class="cloud-modal-header">
                 <h2>🔑 Change Password</h2>
                 <button class="close-btn" onclick="closeChangePasswordModal()">&times;</button>
             </div>
@@ -6539,8 +6529,8 @@
                     </div>
 
                     <div style="display: flex; gap: 15px; margin-top: 25px;">
-                        <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()" style="flex: 1;">Cancel</button>
-                        <button type="submit" class="btn btn-primary" style="flex: 1;">Change Password</button>
+                        <button type="button" class="btn cloud-btn-secondary" onclick="closeChangePasswordModal()" style="flex: 1;">Cancel</button>
+                        <button type="submit" class="btn cloud-btn-primary" style="flex: 1;">Change Password</button>
                     </div>
                 </form>
             </div>
@@ -6549,8 +6539,8 @@
 
     <!-- FORCED PASSWORD CHANGE MODAL (on login) -->
     <div id="forcedPasswordChangeModal" class="google-auth-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
+        <div class="cloud-modal-content" style="max-width: 400px;">
+            <div class="cloud-modal-header">
                 <h2>🔑 Password Change Required</h2>
             </div>
             <div style="padding: 25px;">
@@ -6572,7 +6562,7 @@
                         <input type="password" id="forcedConfirmPassword" class="login-input" placeholder="Confirm new password" required style="width: 100%;">
                     </div>
 
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Change Password & Continue</button>
+                    <button type="submit" class="btn cloud-btn-primary" style="width: 100%;">Change Password & Continue</button>
                 </form>
             </div>
         </div>
@@ -9985,12 +9975,39 @@
 
         const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
 
+        // Password hashing utility using Web Crypto API (SHA-256)
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password + 'AssetDashboard_Salt_2024');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Migrate plaintext passwords to hashed passwords (one-time migration)
+        async function migrateLocalUserPasswords() {
+            let migrated = false;
+            for (let i = 0; i < localUsers.length; i++) {
+                if (localUsers[i].password && !localUsers[i].passwordHash) {
+                    localUsers[i].passwordHash = await hashPassword(localUsers[i].password);
+                    delete localUsers[i].password;
+                    migrated = true;
+                }
+            }
+            if (migrated) {
+                localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+                console.log('Migrated local user passwords to hashed format');
+            }
+        }
+
         let currentUser = null;
         let credentialsData = null;
         let pendingTwoFAUser = null;
 
         // Local users storage (for users created by admin)
-        let localUsers = JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]');
+        let localUsers;
+        try { localUsers = JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]'); }
+        catch (e) { console.error('Corrupt localUsers data:', e); localUsers = []; }
 
         // Track selected assets for merge
         let selectedForMerge = [];
@@ -9999,7 +10016,9 @@
         let mergeAnalysis = null;
 
         // Local storage for 2FA settings (since we can't write to Google Sheets)
-        let localUserSettings = JSON.parse(localStorage.getItem('assetDashboardUserSettings') || '{}');
+        let localUserSettings;
+        try { localUserSettings = JSON.parse(localStorage.getItem('assetDashboardUserSettings') || '{}'); }
+        catch (e) { console.error('Corrupt user settings data:', e); localUserSettings = {}; }
 
         function saveLocalUserSettings() {
             localStorage.setItem('assetDashboardUserSettings', JSON.stringify(localUserSettings));
@@ -10014,13 +10033,14 @@
             saveLocalUserSettings();
         }
 
-        function parseCredentialsFromRows(data) {
+        async function parseCredentialsFromRows(data) {
             const parsed = {};
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
                 if (row[0]) {
+                    const rawPassword = row[1] ? row[1].toString() : '';
                     parsed[row[0].toString().toLowerCase()] = {
-                        password: row[1] ? row[1].toString() : '',
+                        passwordHash: await hashPassword(rawPassword),
                         displayName: row[2] ? row[2].toString() : row[0].toString(),
                         role: row[3] ? row[3].toString() : 'User',
                         email: row[4] ? row[4].toString() : '',
@@ -10043,6 +10063,14 @@
 
         function loadCachedCredentials() {
             try {
+                // Expire cached credentials after 24 hours
+                const cachedTime = localStorage.getItem('assetDashboardCachedCredentialsTime');
+                if (cachedTime && (Date.now() - parseInt(cachedTime)) > 24 * 60 * 60 * 1000) {
+                    localStorage.removeItem('assetDashboardCachedCredentials');
+                    localStorage.removeItem('assetDashboardCachedCredentialsTime');
+                    console.log('Cached credentials expired, cleared');
+                    return null;
+                }
                 const cached = localStorage.getItem('assetDashboardCachedCredentials');
                 if (cached) {
                     return JSON.parse(cached);
@@ -10066,7 +10094,7 @@
                         const workbook = XLSX.read(csvText, { type: 'string' });
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                         const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                        credentialsData = parseCredentialsFromRows(data);
+                        credentialsData = await parseCredentialsFromRows(data);
                         cacheCredentials(credentialsData);
                         console.log('Credentials loaded successfully via direct Google Sheets endpoint');
                         return true;
@@ -10099,7 +10127,7 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-                credentialsData = parseCredentialsFromRows(data);
+                credentialsData = await parseCredentialsFromRows(data);
                 cacheCredentials(credentialsData);
                 console.log('Credentials loaded successfully from Google Sheets via proxy');
                 return true;
@@ -10138,8 +10166,9 @@
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('loginError');
 
-            // First, check local users
-            const localUser = localUsers.find(u => u.username.toLowerCase() === username && u.password === password);
+            // First, check local users (compare hashed passwords)
+            const hashedInput = await hashPassword(password);
+            const localUser = localUsers.find(u => u.username.toLowerCase() === username && u.passwordHash === hashedInput);
 
             if (localUser) {
                 // Local user found and password matches
@@ -10186,7 +10215,7 @@
 
             const user = credentialsData[username];
 
-            if (user && user.password === password) {
+            if (user && user.passwordHash === hashedInput) {
                 // Build full user object with 2FA settings from local storage
                 const twoFASettings = getUserTwoFASettings(username);
                 const fullUser = {
@@ -10294,14 +10323,15 @@
 
             } catch (error) {
                 console.error('Error during login transition:', error);
-                alert('Login successful but error loading dashboard: ' + error.message);
+                alert('Login error: ' + error.message + '. Returning to login screen.');
+                handleLogout();
             }
         }
 
         function updateUserInterface() {
             const userHTML = `
-                <span>👤 ${currentUser.displayName}</span>
-                <span style="opacity: 0.8;">(${currentUser.role})</span>
+                <span>👤 ${escapeHtml(currentUser.displayName)}</span>
+                <span style="opacity: 0.8;">(${escapeHtml(currentUser.role)})</span>
                 <button class="logout-btn" onclick="handleLogout()">Logout</button>
             `;
 
@@ -10356,8 +10386,10 @@
                 currentUser = null;
                 pendingTwoFAUser = null;
                 document.getElementById('dashboardContainer').style.display = 'none';
-                document.getElementById('nightModeBtn').style.display = 'none';
-                document.getElementById('exportBtn').style.display = 'none';
+                const nightBtn = document.getElementById('nightModeBtn');
+                if (nightBtn) nightBtn.style.display = 'none';
+                const exportBtn = document.getElementById('exportBtn');
+                if (exportBtn) exportBtn.style.display = 'none';
                 document.getElementById('loginPage').style.display = 'flex';
                 document.getElementById('loginForm').reset();
                 document.getElementById('loginError').style.display = 'none';
@@ -10386,9 +10418,11 @@
         // Generate a random base32 secret for TOTP
         function generateTOTPSecret() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            const array = new Uint32Array(32);
+            crypto.getRandomValues(array);
             let secret = '';
             for (let i = 0; i < 32; i++) {
-                secret += chars.charAt(Math.floor(Math.random() * chars.length));
+                secret += chars.charAt(array[i] % chars.length);
             }
             return secret;
         }
@@ -10443,9 +10477,11 @@
             const codes = [];
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             for (let i = 0; i < 8; i++) {
+                const array = new Uint32Array(8);
+                crypto.getRandomValues(array);
                 let code = '';
                 for (let j = 0; j < 8; j++) {
-                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                    code += chars.charAt(array[j] % chars.length);
                 }
                 codes.push({ code: code, used: false });
             }
@@ -10540,7 +10576,7 @@
             const codes = pendingBackupCodes || (currentUser && currentUser.backupCodes) || [];
 
             container.innerHTML = codes.map(bc => `
-                <div class="twofa-backup-code ${bc.used ? 'used' : ''}">${bc.code}</div>
+                <div class="twofa-backup-code ${bc.used ? 'used' : ''}">${escapeHtml(bc.code)}</div>
             `).join('');
 
             document.getElementById('twofaBackupModal').style.display = 'flex';
@@ -10805,8 +10841,14 @@
                 return;
             }
 
-            const asset1 = filteredData[selectedForMerge[0]];
-            const asset2 = filteredData[selectedForMerge[1]];
+            const asset1 = allAssetsData.find(a => a.id === selectedForMerge[0]) || filteredData.find(a => a.id === selectedForMerge[0]);
+            const asset2 = allAssetsData.find(a => a.id === selectedForMerge[1]) || filteredData.find(a => a.id === selectedForMerge[1]);
+
+            if (!asset1 || !asset2) {
+                alert('Selected assets no longer exist. Please try again.');
+                selectedForMerge = [];
+                return;
+            }
 
             const fields = [
                 { key: 'assetCode', label: 'Asset Code' },
@@ -10882,10 +10924,14 @@
                 return;
             }
 
-            const idx1 = selectedForMerge[0];
-            const idx2 = selectedForMerge[1];
-            const asset1 = filteredData[idx1];
-            const asset2 = filteredData[idx2];
+            const asset1 = allAssetsData.find(a => a.id === selectedForMerge[0]) || filteredData.find(a => a.id === selectedForMerge[0]);
+            const asset2 = allAssetsData.find(a => a.id === selectedForMerge[1]) || filteredData.find(a => a.id === selectedForMerge[1]);
+
+            if (!asset1 || !asset2) {
+                alert('Selected assets no longer exist. Please try again.');
+                selectedForMerge = [];
+                return;
+            }
 
             const mergedAsset = { ...asset1 };
 
@@ -10918,7 +10964,7 @@
             indicesToRemove.forEach(idx => assets.splice(idx, 1));
 
             // Update the id of the merged asset
-            mergedAsset.id = Date.now().toString();
+            mergedAsset.id = generateAssetId();
             assets.push(mergedAsset);
 
             // Save and refresh
@@ -11380,7 +11426,7 @@
             CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
             FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
             BACKUP_FILE_NAME: 'ASSET_DASHBOARD_BACKUP.json',
-            SCOPES: 'https://www.googleapis.com/auth/drive'
+            SCOPES: 'https://www.googleapis.com/auth/drive.file'
         };
 
         // Cloud sync state
@@ -11395,12 +11441,13 @@
         // Auto-sync state
         let autoSyncInterval = null;
         let autoSyncInProgress = false;
-        const AUTO_SYNC_INTERVAL_MS = 5000;
+        const AUTO_SYNC_INTERVAL_MS = 120000; // 2 minutes
+        let dataIsDirty = false;
 
         // Initialize cloud sync from localStorage
         function initializeCloudSync() {
-            const savedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
-            const savedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+            const savedToken = sessionStorage.getItem('assetDashboardGoogleAccessToken');
+            const savedExpiry = sessionStorage.getItem('assetDashboardGoogleTokenExpiry');
             const savedLastSync = localStorage.getItem('assetDashboardLastSyncTime');
             const savedFileId = localStorage.getItem('assetDashboardCloudFileId');
 
@@ -11472,6 +11519,7 @@
             menu.classList.toggle('show');
 
             setTimeout(() => {
+                document.removeEventListener('click', closeCloudMenuOnClickOutside);
                 document.addEventListener('click', closeCloudMenuOnClickOutside);
             }, 0);
         }
@@ -11510,8 +11558,8 @@
         function showGoogleAuthModal() {
             const modalHTML = `
                 <div id="googleAuthModal" class="google-auth-modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 560px;">
-                        <div class="modal-header">
+                    <div class="cloud-modal-content" style="max-width: 560px;">
+                        <div class="cloud-modal-header">
                             <h2>☁️ Connect to Google Drive</h2>
                             <button class="close-btn" onclick="closeGoogleAuthModal()">&times;</button>
                         </div>
@@ -11544,7 +11592,7 @@
                                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
                                     If the popup doesn't work, use OAuth Playground to get a token manually.
                                 </p>
-                                <button class="btn btn-secondary" onclick="showManualTokenForm()" id="showManualTokenBtn" style="width: 100%;">
+                                <button class="btn cloud-btn-secondary" onclick="showManualTokenForm()" id="showManualTokenBtn" style="width: 100%;">
                                     Use Manual Method
                                 </button>
 
@@ -11577,13 +11625,15 @@
                             </div>
 
                             <div style="margin-top: 20px; text-align: center;">
-                                <button class="btn btn-secondary" onclick="closeGoogleAuthModal()">Cancel</button>
+                                <button class="btn cloud-btn-secondary" onclick="closeGoogleAuthModal()">Cancel</button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
 
+            const existing = document.getElementById('googleAuthModal');
+            if (existing) existing.remove();
             document.body.insertAdjacentHTML('beforeend', modalHTML);
         }
 
@@ -11645,8 +11695,8 @@
 
                 const expiry = new Date();
                 expiry.setHours(expiry.getHours() + 1);
-                localStorage.setItem('assetDashboardGoogleAccessToken', token);
-                localStorage.setItem('assetDashboardGoogleTokenExpiry', expiry.toISOString());
+                sessionStorage.setItem('assetDashboardGoogleAccessToken', token);
+                sessionStorage.setItem('assetDashboardGoogleTokenExpiry', expiry.toISOString());
 
                 closeGoogleAuthModal();
                 updateCloudUI(true);
@@ -11668,8 +11718,8 @@
 
             const expiry = new Date();
             expiry.setSeconds(expiry.getSeconds() + (tokenResponse.expires_in || 3600));
-            localStorage.setItem('assetDashboardGoogleAccessToken', googleAccessToken);
-            localStorage.setItem('assetDashboardGoogleTokenExpiry', expiry.toISOString());
+            sessionStorage.setItem('assetDashboardGoogleAccessToken', googleAccessToken);
+            sessionStorage.setItem('assetDashboardGoogleTokenExpiry', expiry.toISOString());
 
             updateCloudUI(true);
             await findExistingBackupFile();
@@ -11703,6 +11753,8 @@
         async function performAutoSync() {
             if (autoSyncInProgress) return;
             if (!isCloudConnected || !googleAccessToken) return;
+            if (!dataIsDirty) return; // Skip sync if no local changes
+            dataIsDirty = false;
 
             autoSyncInProgress = true;
 
@@ -11747,7 +11799,7 @@
 
                 // Step 3: Upload merged local data to cloud
                 const backupData = {
-                    version: '1.3',
+                    version: '1.4',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -11761,7 +11813,8 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
-                        localUserSettings: localUserSettings
+                        localUserSettings: localUserSettings,
+                        localUsers: localUsers // Backup local users (passwords are hashed)
                     }
                 };
 
@@ -11861,8 +11914,9 @@
                     saveAssetsToStorage(localAssets);
                     allAssetsData = localAssets;
                     sortByDateDescending(allAssetsData);
-                    filteredData = allAssetsData;
-                    if (typeof displayCurrentPage === 'function') displayCurrentPage();
+                    filteredData = allAssetsData.slice(); // Copy to avoid filter overwrite
+                    if (typeof applyCurrentFilters === 'function') applyCurrentFilters();
+                    else if (typeof displayCurrentPage === 'function') displayCurrentPage();
                     dataChanged = true;
                 }
             }
@@ -11988,6 +12042,45 @@
                 }
             }
 
+            // Merge local users from cloud backup (password recovery from Google Drive)
+            if (cloudDataObj.localUsers && cloudDataObj.localUsers.length > 0) {
+                const localUserIds = new Set(localUsers.map(u => u.id).filter(Boolean));
+                const localUsernames = new Set(localUsers.map(u => u.username.toLowerCase()));
+                let added = 0;
+                cloudDataObj.localUsers.forEach(cloudUser => {
+                    // Only add users that don't exist locally (by ID or username)
+                    if (cloudUser.id && !localUserIds.has(cloudUser.id) && !localUsernames.has(cloudUser.username.toLowerCase())) {
+                        // Only accept hashed passwords from cloud
+                        if (cloudUser.passwordHash) {
+                            localUsers.push(cloudUser);
+                            localUserIds.add(cloudUser.id);
+                            localUsernames.add(cloudUser.username.toLowerCase());
+                            added++;
+                        }
+                    }
+                });
+                if (added > 0) {
+                    localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+                    dataChanged = true;
+                    console.log(`[CloudSync] Restored ${added} user account(s) from cloud backup`);
+                }
+            }
+
+            // Merge local user settings (2FA etc) from cloud
+            if (cloudDataObj.localUserSettings) {
+                let settingsChanged = false;
+                Object.keys(cloudDataObj.localUserSettings).forEach(key => {
+                    if (!localUserSettings[key]) {
+                        localUserSettings[key] = cloudDataObj.localUserSettings[key];
+                        settingsChanged = true;
+                    }
+                });
+                if (settingsChanged) {
+                    saveLocalUserSettings();
+                    dataChanged = true;
+                }
+            }
+
             return dataChanged;
         }
 
@@ -12040,8 +12133,8 @@
 
             const modalHTML = `
                 <div id="forcedSyncModal" class="google-auth-modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 450px;">
-                        <div class="modal-header">
+                    <div class="cloud-modal-content" style="max-width: 450px;">
+                        <div class="cloud-modal-header">
                             <h2>✅ Connected to Google Drive!</h2>
                         </div>
                         <div style="padding: 20px;">
@@ -12060,16 +12153,16 @@
                                     </span>
                                 </div>
                                 <div style="display: flex; gap: 12px;">
-                                    <button class="btn btn-secondary" onclick="closeForcedSyncModal()" style="flex: 1;">Skip</button>
-                                    <button class="btn btn-primary" onclick="performForcedSyncAfterConnect()" style="flex: 1;">🔄 Sync Now</button>
+                                    <button class="btn cloud-btn-secondary" onclick="closeForcedSyncModal()" style="flex: 1;">Skip</button>
+                                    <button class="btn cloud-btn-primary" onclick="performForcedSyncAfterConnect()" style="flex: 1;">🔄 Sync Now</button>
                                 </div>
                             ` : `
                                 <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">
                                     No existing backup found. Would you like to save your current data to the cloud?
                                 </p>
                                 <div style="display: flex; gap: 12px;">
-                                    <button class="btn btn-secondary" onclick="closeForcedSyncModal()" style="flex: 1;">Skip</button>
-                                    <button class="btn btn-primary" onclick="performForcedSaveAfterConnect()" style="flex: 1;">💾 Save to Cloud</button>
+                                    <button class="btn cloud-btn-secondary" onclick="closeForcedSyncModal()" style="flex: 1;">Skip</button>
+                                    <button class="btn cloud-btn-primary" onclick="performForcedSaveAfterConnect()" style="flex: 1;">💾 Save to Cloud</button>
                                 </div>
                             `}
                         </div>
@@ -12110,7 +12203,7 @@
 
             try {
                 const backupData = {
-                    version: '1.3',
+                    version: '1.4',
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
@@ -12124,7 +12217,8 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
-                        localUserSettings: localUserSettings
+                        localUserSettings: localUserSettings,
+                        localUsers: localUsers // Backup local users (passwords are hashed)
                     }
                 };
 
@@ -12400,8 +12494,8 @@
 
             const modalHTML = `
                 <div id="fileBrowserModal" class="google-auth-modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 600px; max-height: 80vh;">
-                        <div class="modal-header">
+                    <div class="cloud-modal-content" style="max-width: 600px; max-height: 80vh;">
+                        <div class="cloud-modal-header">
                             <h2>📁 Browse Backup Files</h2>
                             <button class="close-btn" onclick="closeFileBrowserModal()">&times;</button>
                         </div>
@@ -12583,8 +12677,8 @@
 
             const modalHTML = `
                 <div id="connectCloudOnLoginModal" class="google-auth-modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 450px;">
-                        <div class="modal-header">
+                    <div class="cloud-modal-content" style="max-width: 450px;">
+                        <div class="cloud-modal-header">
                             <h2>☁️ Connect to Cloud Storage?</h2>
                             <button class="close-btn" onclick="closeConnectCloudOnLoginModal(false)">&times;</button>
                         </div>
@@ -12604,8 +12698,8 @@
                                 </ul>
                             </div>
                             <div style="display: flex; gap: 12px;">
-                                <button class="btn btn-secondary" onclick="closeConnectCloudOnLoginModal(false)" style="flex: 1;">Skip</button>
-                                <button class="btn btn-primary" onclick="closeConnectCloudOnLoginModal(true)" style="flex: 1;">☁️ Connect Now</button>
+                                <button class="btn cloud-btn-secondary" onclick="closeConnectCloudOnLoginModal(false)" style="flex: 1;">Skip</button>
+                                <button class="btn cloud-btn-primary" onclick="closeConnectCloudOnLoginModal(true)" style="flex: 1;">☁️ Connect Now</button>
                             </div>
                         </div>
                     </div>
@@ -12627,8 +12721,8 @@
 
             const modalHTML = `
                 <div id="syncOnLoginModal" class="google-auth-modal" style="display: flex;">
-                    <div class="modal-content" style="max-width: 450px;">
-                        <div class="modal-header">
+                    <div class="cloud-modal-content" style="max-width: 450px;">
+                        <div class="cloud-modal-header">
                             <h2>☁️ Sync from Cloud?</h2>
                             <button class="close-btn" onclick="closeSyncOnLoginModal(false)">&times;</button>
                         </div>
@@ -12646,8 +12740,8 @@
                                 </span>
                             </div>
                             <div style="display: flex; gap: 12px;">
-                                <button class="btn btn-secondary" onclick="closeSyncOnLoginModal(false)" style="flex: 1;">Skip</button>
-                                <button class="btn btn-primary" onclick="closeSyncOnLoginModal(true)" style="flex: 1;">🔄 Sync Now</button>
+                                <button class="btn cloud-btn-secondary" onclick="closeSyncOnLoginModal(false)" style="flex: 1;">Skip</button>
+                                <button class="btn cloud-btn-primary" onclick="closeSyncOnLoginModal(true)" style="flex: 1;">🔄 Sync Now</button>
                             </div>
                         </div>
                     </div>
@@ -12895,13 +12989,13 @@
                         <p style="margin-top: 4px; font-size: 0.9rem; color: var(--text-secondary);">Backup codes remaining: ${unusedCodes}/8</p>
                     </div>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                        <button class="btn btn-secondary" onclick="showBackupCodes()" style="padding: 10px 16px;">
+                        <button class="btn cloud-btn-secondary" onclick="showBackupCodes()" style="padding: 10px 16px;">
                             🔑 View Backup Codes
                         </button>
                         <button class="btn btn-warning" onclick="regenerateBackupCodes()" style="padding: 10px 16px;">
                             🔄 Regenerate Codes
                         </button>
-                        <button class="btn btn-danger" onclick="openTwoFADisable()" style="padding: 10px 16px;">
+                        <button class="btn cloud-btn-danger" onclick="openTwoFADisable()" style="padding: 10px 16px;">
                             🔓 Disable 2FA
                         </button>
                     </div>
@@ -12946,11 +13040,11 @@
                         <div class="user-row-number">${index + 1}</div>
                         <div class="user-row-field">
                             <label>Username ${isUserAdmin ? '<span class="admin-badge">ADMIN</span>' : ''}</label>
-                            <input type="text" class="inline-input" value="${user.username}" data-field="username" ${isAdmin ? '' : 'disabled'}>
+                            <input type="text" class="inline-input" value="${escapeHtml(user.username)}" data-field="username" ${isAdmin ? '' : 'disabled'}>
                         </div>
                         <div class="user-row-field">
                             <label>Display Name</label>
-                            <input type="text" class="inline-input" value="${user.displayName}" data-field="displayName" ${isAdmin ? '' : 'disabled'}>
+                            <input type="text" class="inline-input" value="${escapeHtml(user.displayName)}" data-field="displayName" ${isAdmin ? '' : 'disabled'}>
                         </div>
                         <div class="user-row-field">
                             <label>Password</label>
@@ -13125,13 +13219,13 @@
         }
 
         // Save all inline users
-        function saveAllInlineUsers() {
+        async function saveAllInlineUsers() {
             const rows = document.querySelectorAll('.inline-user-row');
             let hasErrors = false;
             let savedCount = 0;
             let updatedCount = 0;
 
-            rows.forEach(row => {
+            for (const row of rows) {
                 const userId = row.dataset.userId;
                 const isNew = userId.startsWith('new_');
 
@@ -13161,12 +13255,12 @@
                         return;
                     }
 
-                    // Create new user
+                    // Create new user with hashed password
                     const newUser = {
                         id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                         username: username,
                         displayName: displayName,
-                        password: password,
+                        passwordHash: await hashPassword(password),
                         role: role,
                         requirePasswordChange: false,
                         createdAt: new Date().toISOString()
@@ -13184,14 +13278,15 @@
 
                         // Only update password if changed (not the placeholder)
                         if (password && password !== '********') {
-                            localUsers[userIndex].password = password;
+                            localUsers[userIndex].passwordHash = await hashPassword(password);
+                            delete localUsers[userIndex].password; // Remove any legacy plaintext
                         }
                         updatedCount++;
                     }
                 }
 
                 row.style.border = '';
-            });
+            }
 
             if (!hasErrors) {
                 localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
@@ -13224,7 +13319,7 @@
         }
 
         // Submit password change
-        function submitPasswordChange(event) {
+        async function submitPasswordChange(event) {
             event.preventDefault();
 
             const userId = document.getElementById('changePasswordUserId').value;
@@ -13243,7 +13338,8 @@
 
             const userIndex = localUsers.findIndex(u => u.id === userId);
             if (userIndex !== -1) {
-                localUsers[userIndex].password = newPassword;
+                localUsers[userIndex].passwordHash = await hashPassword(newPassword);
+                delete localUsers[userIndex].password; // Remove legacy plaintext
                 localUsers[userIndex].requirePasswordChange = false;
                 saveLocalUsers();
             }
@@ -13260,7 +13356,7 @@
             document.getElementById('forcedPasswordChangeModal').style.display = 'flex';
         }
 
-        function submitForcedPasswordChange(event) {
+        async function submitForcedPasswordChange(event) {
             event.preventDefault();
 
             const newPassword = document.getElementById('forcedNewPassword').value;
@@ -13280,7 +13376,8 @@
             if (currentUser && currentUser.source === 'local') {
                 const userIndex = localUsers.findIndex(u => u.id === currentUser.id);
                 if (userIndex !== -1) {
-                    localUsers[userIndex].password = newPassword;
+                    localUsers[userIndex].passwordHash = await hashPassword(newPassword);
+                    delete localUsers[userIndex].password; // Remove legacy plaintext
                     localUsers[userIndex].requirePasswordChange = false;
                     saveLocalUsers();
                     currentUser.requirePasswordChange = false;
@@ -14442,6 +14539,7 @@
 
         // Save assets to IndexedDB (via in-memory cache)
         function saveAssetsToStorage(assets) {
+            if (typeof dataIsDirty !== "undefined") dataIsDirty = true;
             try {
                 _dbSet(STORAGE_KEY, assets);
                 return true;
@@ -14494,7 +14592,7 @@
             let assetValue = value || 0;
             let assetDepartment = department || '';
 
-            if (!assetDescription || !assetValue) {
+            if (!assetDescription || (assetValue === undefined || assetValue === null)) {
                 const assets = loadAssetsFromStorage();
                 const matchingAsset = assets.find(a => a.assetCode === assetCode);
                 if (matchingAsset) {
@@ -14542,12 +14640,6 @@
                 const assetsSaved = saveAssetsToStorage(allAssets);
                 const auditSaved = saveAuditToStorage(auditRecords);
                 saveDepartments(departments);
-
-                // Save warranty overrides
-                const warrantyOverrides = localStorage.getItem('warrantyOverrides');
-                if (warrantyOverrides) {
-                    localStorage.setItem('warrantyOverrides', warrantyOverrides);
-                }
 
                 if (assetsSaved && auditSaved) {
                     updateStatus('connected', 'All data saved successfully!');
@@ -14705,7 +14797,7 @@
                     if (record.assetCode === 'SYSTEM') return true;
                     if (assetCodes.has(record.assetCode)) return true;
                     if (record.action.includes('Deleted')) return true; // Keep delete records
-                    return true; // Keep all for history
+                    return false; // Remove orphaned records
                 });
 
                 // ====== FIX 5: Validate audit record timestamps ======
@@ -15042,7 +15134,7 @@
 
         // Auto-calculate total price
         // Start IndexedDB initialization as early as possible
-        const _idbInitPromise = _initializeIDB();
+        const _idbInitPromise = _initializeIDB().catch(err => console.warn('IndexedDB init failed:', err));
 
         document.addEventListener('DOMContentLoaded', function() {
             const quantityInput = document.getElementById('quantity');
@@ -15219,7 +15311,7 @@
                             // Portal footer
                             const portalFooter = document.querySelector('.portal-footer-text p');
                             if (portalFooter) {
-                                portalFooter.innerHTML = '&copy; 2025 ' + hospitalName + ' &mdash; ' + (orgName || 'Southern Regional Health Authority') + ' &mdash; Government of Jamaica';
+                                portalFooter.innerHTML = '&copy; ' + new Date().getFullYear() + ' ' + escapeHtml(hospitalName) + ' &mdash; ' + (orgName || 'Southern Regional Health Authority') + ' &mdash; Government of Jamaica';
                             }
                         }
 
@@ -16192,7 +16284,7 @@
                 const userInfo5 = document.getElementById('userInfo5');
                 if (userInfo5 && currentUser) {
                     userInfo5.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16207,7 +16299,7 @@
                 const userInfo6 = document.getElementById('userInfo6');
                 if (userInfo6 && currentUser) {
                     userInfo6.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16219,7 +16311,7 @@
                 const userInfo7 = document.getElementById('userInfo7');
                 if (userInfo7 && currentUser) {
                     userInfo7.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16231,7 +16323,7 @@
                 const userInfo8 = document.getElementById('userInfo8');
                 if (userInfo8 && currentUser) {
                     userInfo8.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16243,7 +16335,7 @@
                 const userInfo9 = document.getElementById('userInfo9');
                 if (userInfo9 && currentUser) {
                     userInfo9.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16255,7 +16347,7 @@
                 const userInfo10 = document.getElementById('userInfo10');
                 if (userInfo10 && currentUser) {
                     userInfo10.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16267,7 +16359,7 @@
                 const userInfo11 = document.getElementById('userInfo11');
                 if (userInfo11 && currentUser) {
                     userInfo11.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16279,7 +16371,7 @@
                 const userInfo12 = document.getElementById('userInfo12');
                 if (userInfo12 && currentUser) {
                     userInfo12.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -16291,7 +16383,7 @@
                 const userInfo13 = document.getElementById('userInfo13');
                 if (userInfo13 && currentUser) {
                     userInfo13.innerHTML = `
-                        <span>👤 ${currentUser.displayName || currentUser.username}</span>
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
                         <button class="logout-btn" onclick="handleLogout()">Logout</button>
                     `;
                 }
@@ -18047,14 +18139,14 @@
                         <div class="invoice-item-info">
                             <span class="invoice-item-icon">${icon}</span>
                             <div class="invoice-item-details">
-                                <h4>${invoice.name}</h4>
+                                <h4>${escapeHtml(invoice.name)}</h4>
                                 <span>${date}</span>
                             </div>
                             <span class="invoice-status-badge uploaded">Uploaded</span>
                         </div>
                         <div class="invoice-item-actions">
                             <button class="invoice-item-btn view" onclick="viewInvoice('${invoice.webViewLink || invoice.id}')">👁️ View</button>
-                            <button class="invoice-item-btn delete" onclick="deleteInvoice('${invoice.id}', '${invoice.name}')">🗑️ Delete</button>
+                            <button class="invoice-item-btn delete" onclick="deleteInvoice('${escapeHtml(invoice.id)}', '${escapeHtml(invoice.name)}')">🗑️ Delete</button>
                         </div>
                     </div>
                 `;
@@ -18269,13 +18361,13 @@
 
                 // Show edit button only for Admin users
                 const adminButton = (currentUser && currentUser.role === 'Admin') ? `
-                    <button class="search-btn" style="padding: 5px 15px; font-size: 0.85em; background: #007bff; margin-top: 5px;" onclick="editWarranty('${asset.assetCode}')">✏️ Edit Warranty</button>
+                    <button class="search-btn" style="padding: 5px 15px; font-size: 0.85em; background: #007bff; margin-top: 5px;" onclick="editWarranty('${escapeHtml(asset.assetCode)}')">✏️ Edit Warranty</button>
                 ` : '';
 
                 html += `
                     <div class="warranty-item">
                         <div>
-                            <strong>${asset.description} - ${asset.assetCode}</strong><br>
+                            <strong>${escapeHtml(asset.description)} - ${escapeHtml(asset.assetCode)}</strong><br>
                             <small>Purchase Date: ${normalizeDateToDisplay(asset.dateIn)} | Warranty expires: ${warrantyEndDate.toLocaleDateString()}</small><br>
                             <small>Department/Location: <strong>${assetLocation}</strong> | Value: JMD ${formatCurrency(asset.totalPrice)}</small><br>
                             <small>${daysRemaining > 0 ? daysRemaining + ' days remaining' : Math.abs(daysRemaining) + ' days expired'}</small>
@@ -18591,6 +18683,7 @@
             const qrImageData = qrCanvas.toDataURL('image/png');
 
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(`
                 <html>
                 <head>
@@ -18732,6 +18825,7 @@
             });
 
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(`
                 <html>
                 <head>
@@ -19210,13 +19304,13 @@
                     const rowBg = index % 2 === 0 ? 'var(--bg-card)' : 'var(--table-hover)';
                     html += `
                         <tr style="background: ${rowBg}; transition: background 0.3s;" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='${rowBg}'">
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);"><strong>${asset.assetCode}</strong></td>
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.description}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);"><strong>${escapeHtml(asset.assetCode)}</strong></td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${escapeHtml(asset.description)}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color); text-align: right; font-weight: 600;">JMD ${formatCurrency(asset.totalPrice)}</td>
-                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${asset.department || 'N/A'}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${escapeHtml(asset.department || 'N/A')}</td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">
                                 <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.85em; ${asset.source === 'Purchased' ? 'background: rgba(46, 204, 113, 0.1); color: #27AE60;' : 'background: rgba(52, 152, 219, 0.1); color: #2980B9;'}">
-                                    ${asset.source}
+                                    ${escapeHtml(asset.source)}
                                 </span>
                             </td>
                             <td style="padding: 10px; border-bottom: 1px solid var(--border-color);">${normalizeDateToDisplay(asset.dateIn)}</td>
@@ -19343,6 +19437,7 @@
 
             // Create PDF report in new window
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(`
                 <html>
                 <head>
@@ -19668,6 +19763,7 @@
                         <tbody>
             `;
 
+            const _auditAssetCache = loadAssetsFromStorage(); // Load once outside loop
             auditRecords.forEach(record => {
                 const recordJson = JSON.stringify(record).replace(/"/g, '&quot;');
 
@@ -19677,7 +19773,7 @@
                 let department = record.department || '';
 
                 if (!description || !value) {
-                    const assets = loadAssetsFromStorage();
+                    const assets = _auditAssetCache;
                     const matchingAsset = assets.find(a => a.assetCode === record.assetCode);
                     if (matchingAsset) {
                         description = description || matchingAsset.description || '';
@@ -19940,7 +20036,7 @@
                     entry.description,
                     entry.action,
                     entry.user,
-                    entry.location || '',
+                    entry.department || '',
                     entry.notes || '',
                     entry.value || 0
                 ]);
@@ -19981,6 +20077,7 @@
             }
             
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(`
                 <html>
                 <head>
@@ -20030,12 +20127,12 @@
             filteredData.slice(0, 50).forEach(item => {
                 tableRows += `
                     <tr>
-                        <td>${item.assetCode}</td>
-                        <td>${item.dateIn}</td>
-                        <td>${item.description}</td>
-                        <td>${item.category}</td>
+                        <td>${escapeHtml(item.assetCode)}</td>
+                        <td>${escapeHtml(item.dateIn)}</td>
+                        <td>${escapeHtml(item.description)}</td>
+                        <td>${escapeHtml(item.category)}</td>
                         <td>JMD ${formatCurrency(item.totalPrice)}</td>
-                        <td>${item.source}</td>
+                        <td>${escapeHtml(item.source)}</td>
                     </tr>
                 `;
             });
@@ -20081,13 +20178,13 @@
                 
                 tableRows += `
                     <tr>
-                        <td>${asset.assetCode}</td>
-                        <td>${asset.description}</td>
+                        <td>${escapeHtml(asset.assetCode)}</td>
+                        <td>${escapeHtml(asset.description)}</td>
                         <td>${normalizeDateToDisplay(asset.dateIn)}</td>
                         <td>${warrantyEndDate.toLocaleDateString()}</td>
                         <td>${status}</td>
                         <td>${daysRemaining > 0 ? daysRemaining + ' days' : Math.abs(daysRemaining) + ' days expired'}</td>
-                        <td>${asset.department || 'N/A'}</td>
+                        <td>${escapeHtml(asset.department || 'N/A')}</td>
                         <td>JMD ${formatCurrency(asset.totalPrice)}</td>
                     </tr>
                 `;
@@ -20178,13 +20275,13 @@
 
                 tableRows += `
                     <tr>
-                        <td>${timestamp}</td>
-                        <td>${assetCode}</td>
-                        <td>${description || 'N/A'}</td>
-                        <td>${action}</td>
-                        <td>${user}</td>
-                        <td>${department || 'N/A'}</td>
-                        <td>${notes}</td>
+                        <td>${escapeHtml(timestamp)}</td>
+                        <td>${escapeHtml(assetCode)}</td>
+                        <td>${escapeHtml(description || 'N/A')}</td>
+                        <td>${escapeHtml(action)}</td>
+                        <td>${escapeHtml(user)}</td>
+                        <td>${escapeHtml(department || 'N/A')}</td>
+                        <td>${escapeHtml(notes)}</td>
                         <td>JMD ${valueDisplay}</td>
                     </tr>
                 `;
@@ -20482,14 +20579,14 @@
                     };
                     
                     items.push(item);
-                    stats.totalItems++;
+                    stats.totalItems += quantity;
                     stats.totalValue += totalPrice;
                     
                     if (isMedical) {
-                        stats.medicalEquipment++;
+                        stats.medicalEquipment += quantity;
                         stats.medicalValue += totalPrice;
                     } else {
-                        stats.furniture++;
+                        stats.furniture += quantity;
                         stats.furnitureValue += totalPrice;
                     }
                 }
@@ -20884,10 +20981,10 @@
                 results.slice(0, 10).forEach(item => {
                     html += `
                         <div class="search-result-item">
-                            <div class="result-code">${item.assetCode}</div>
-                            <div class="result-description">${item.description}</div>
+                            <div class="result-code">${escapeHtml(item.assetCode)}</div>
+                            <div class="result-description">${escapeHtml(item.description)}</div>
                             <div class="result-details">
-                                <span>${item.supplier} • ${item.source}</span>
+                                <span>${escapeHtml(item.supplier)} • ${escapeHtml(item.source)}</span>
                                 <span class="result-price">JMD ${formatCurrency(item.totalPrice)}</span>
                             </div>
                         </div>
@@ -20956,6 +21053,7 @@
 
             // Create report in new window (similar to other printReport function)
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             if (!printWindow) {
                 alert('Unable to open PDF window. Please allow popups for this site and try again.');
                 return;
@@ -21345,7 +21443,7 @@
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
-            return div.innerHTML;
+            return div.innerHTML.replace(/'/g, '&#39;');
         }
 
         function updateStatus(status, message) {
@@ -22059,10 +22157,9 @@
                 const parts = dateStr.split(/[\/\-]/);
                 if (parts.length >= 2) {
                     let month = parseInt(parts[1]);
-                    // Handle DD/MM/YYYY format
-                    if (parts[0].length <= 2 && parts[2] && parts[2].length === 4) {
-                        month = parseInt(parts[1]);
-                    }
+                    // Handle DD/MM/YYYY format (month is in position 1)
+                    // For YYYY-MM-DD format, month is also in position 1
+                    // No special handling needed as both use parts[1]
                     const monthAbbrs = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
                     if (month >= 1 && month <= 12) {
                         return monthAbbrs[month - 1];
@@ -24017,10 +24114,11 @@
                 `Reason: ${record.reason}, Method: ${record.method}`,
                 currentUser ? currentUser.username : 'Unknown');
 
+            const wasEditing = !!currentEditingDisposal;
             closeDisposalModal();
             loadDisposalRecords();
             refreshDependentViews();
-            alert(currentEditingDisposal ? 'Disposal record updated successfully!' : 'Disposal record added successfully!');
+            alert(wasEditing ? 'Disposal record updated successfully!' : 'Disposal record added successfully!');
         }
 
         // Edit disposal record
@@ -24642,6 +24740,7 @@
             `;
 
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(printContent);
             printWindow.document.close();
         }
@@ -25807,7 +25906,7 @@
             const select = document.getElementById('categoryReportFilter');
             if (!select) return;
             select.innerHTML = '<option value="">All Categories</option>' +
-                categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
         }
 
         // Update register statistics
@@ -26529,13 +26628,13 @@
             const catSel = document.getElementById('delCategoryFilter');
             if (catSel) {
                 catSel.innerHTML = '<option value="">-- All Categories --</option>' +
-                    [...cats].sort().map(c => `<option value="${c}">${c}</option>`).join('');
+                    [...cats].sort().map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
             }
 
             const deptSel = document.getElementById('delDeptFilter');
             if (deptSel) {
                 deptSel.innerHTML = '<option value="">-- All Departments --</option>' +
-                    [...depts].sort().map(d => `<option value="${d}">${d}</option>`).join('');
+                    [...depts].sort().map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
             }
         }
 
@@ -26759,10 +26858,10 @@
                         <input type="checkbox" class="del-row-cb" data-id="${asset.id}" ${isSelected ? 'checked' : ''} onchange="toggleDeletionRow(this)" style="width: 16px; height: 16px; cursor: pointer;">
                     </td>
                     <td style="padding: 8px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">${globalIdx}</td>
-                    <td style="padding: 8px; font-weight: 600; color: var(--text-primary);">${asset.assetCode || '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
-                    <td style="padding: 8px; color: var(--text-primary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${asset.description || '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
-                    <td style="padding: 8px; color: var(--text-secondary);">${asset.department || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
-                    <td style="padding: 8px; color: var(--text-secondary);">${asset.category || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
+                    <td style="padding: 8px; font-weight: 600; color: var(--text-primary);">${asset.assetCode ? escapeHtml(asset.assetCode) : '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-primary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${asset.description ? escapeHtml(asset.description) : '<span style=\'color: #e74c3c; font-style: italic;\'>--none--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-secondary);">${asset.department ? escapeHtml(asset.department) : '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
+                    <td style="padding: 8px; color: var(--text-secondary);">${asset.category ? escapeHtml(asset.category) : '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
                     <td style="padding: 8px; text-align: right; color: var(--text-primary);">${price > 0 ? '$' + price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '<span style=\'color: #999;\'>--</span>'}</td>
                     <td style="padding: 8px; color: var(--text-secondary);">${asset.dateIn || '<span style=\'color: #999; font-style: italic;\'>--</span>'}</td>
                     <td style="padding: 8px; text-align: center;">
@@ -26999,20 +27098,20 @@
                 return `
                     <tr${isDisposed ? ' class="disposed-row"' : ''}>
                         <td>${index + 1}</td>
-                        <td class="${isDisposed ? 'disposed-asset-code' : ''}">${asset.assetCode}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
+                        <td class="${isDisposed ? 'disposed-asset-code' : ''}">${escapeHtml(asset.assetCode)}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
                         <td>${normalizeDateToDisplay(asset.dateIn) || 'N/A'}</td>
-                        <td>${asset.description || 'N/A'}</td>
-                        <td>${asset.department || 'N/A'}</td>
-                        <td>${asset.category || 'N/A'}</td>
-                        <td>${asset.supplier || 'N/A'}</td>
-                        <td>${asset.source || 'N/A'}</td>
-                        <td>${asset.serialModel || 'N/A'}</td>
+                        <td>${escapeHtml(asset.description || 'N/A')}</td>
+                        <td>${escapeHtml(asset.department || 'N/A')}</td>
+                        <td>${escapeHtml(asset.category || 'N/A')}</td>
+                        <td>${escapeHtml(asset.supplier || 'N/A')}</td>
+                        <td>${escapeHtml(asset.source || 'N/A')}</td>
+                        <td>${escapeHtml(asset.serialModel || 'N/A')}</td>
                         <td style="text-align: center;">${asset.quantity || 1}</td>
                         <td style="text-align: right;">JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
                         <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.annual) : '-'}</td>
                         <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.monthly) : '-'}</td>
                         <td style="text-align: right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.bookValue) : '-'}</td>
-                        <td>${asset.comment || '-'}</td>
+                        <td>${escapeHtml(asset.comment || '-')}</td>
                         <td>${isDisposed ? (disposalInfo ? disposalInfo.reason : 'Yes') : '-'}</td>
                     </tr>
                 `;
@@ -27022,7 +27121,7 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Fixed Asset Register - ${hospitalName}</title>
+                    <title>Fixed Asset Register - ${escapeHtml(hospitalName)}</title>
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body {
@@ -27155,7 +27254,7 @@
                 <body>
                     <div class="header">
                         <h1>FIXED ASSET REGISTER</h1>
-                        <h2>${hospitalName}</h2>
+                        <h2>${escapeHtml(hospitalName)}</h2>
                         <p>Generated on: ${new Date().toLocaleString()}</p>
                     </div>
 
@@ -27214,7 +27313,7 @@
                     </table>
 
                     <div class="footer">
-                        <p>Fixed Asset Management System - ${hospitalName}</p>
+                        <p>Fixed Asset Management System - ${escapeHtml(hospitalName)}</p>
                         <p>This is a computer-generated document. No signature required.</p>
                     </div>
 
@@ -27226,6 +27325,7 @@
             `;
 
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(printContent);
             printWindow.document.close();
         }
@@ -27264,19 +27364,19 @@
 
             if (catSelect) {
                 catSelect.innerHTML = '<option value="">All Categories</option>' +
-                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                    categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
             }
             if (deptSelect) {
                 deptSelect.innerHTML = '<option value="">All Departments</option>' +
-                    departments.map(d => `<option value="${d}">${d}</option>`).join('');
+                    departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
             }
             if (bulkCatSelect) {
                 bulkCatSelect.innerHTML = '<option value="">Select Category</option>' +
-                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                    categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
             }
             if (bulkDeptSelect) {
                 bulkDeptSelect.innerHTML = '<option value="">Select Department</option>' +
-                    allDepartments.map(d => `<option value="${d}">${d}</option>`).join('');
+                    allDepartments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
             }
         }
 
@@ -27933,13 +28033,13 @@
                         <td style="padding:8px; text-align:center;">
                             <input type="radio" name="dupPrimary_${gi}" value="${a.id}" ${ai === 0 ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
                         </td>
-                        <td style="padding:8px; font-weight:${ai === 0 ? '600' : '400'};">${a.assetCode || 'N/A'}${ai === 0 ? ' <span style="background:#27ae60;color:white;padding:1px 6px;border-radius:8px;font-size:0.7rem;">Primary</span>' : ''}</td>
-                        <td style="padding:8px;">${a.description || 'N/A'}</td>
-                        <td style="padding:8px;">${a.department || 'N/A'}</td>
-                        <td style="padding:8px;">${a.category || 'N/A'}</td>
+                        <td style="padding:8px; font-weight:${ai === 0 ? '600' : '400'};">${escapeHtml(a.assetCode || 'N/A')}${ai === 0 ? ' <span style="background:#27ae60;color:white;padding:1px 6px;border-radius:8px;font-size:0.7rem;">Primary</span>' : ''}</td>
+                        <td style="padding:8px;">${escapeHtml(a.description || 'N/A')}</td>
+                        <td style="padding:8px;">${escapeHtml(a.department || 'N/A')}</td>
+                        <td style="padding:8px;">${escapeHtml(a.category || 'N/A')}</td>
                         <td style="padding:8px; text-align:right;">JMD ${formatCurrency(parseFloat(a.totalPrice) || 0)}</td>
-                        <td style="padding:8px;">${a.serialModel || '-'}</td>
-                        <td style="padding:8px;">${a.source || 'N/A'}</td>
+                        <td style="padding:8px;">${escapeHtml(a.serialModel || '-')}</td>
+                        <td style="padding:8px;">${escapeHtml(a.source || 'N/A')}</td>
                         <td style="padding:8px; text-align:center; white-space:nowrap;">
                             <button onclick="editDuplicateAsset('${a.id}')" style="padding:4px 10px; border:1px solid #3498db; background:transparent; color:#3498db; border-radius:4px; cursor:pointer; font-size:0.8rem; margin-right:4px;" title="Edit this asset">✏️</button>
                             <button onclick="deleteSingleDuplicate('${a.id}', ${gi})" style="padding:4px 10px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:4px; cursor:pointer; font-size:0.8rem;" title="Delete this asset">🗑️</button>
@@ -28010,11 +28110,11 @@
             secondaries.forEach(sec => {
                 if (!primary.serialModel && sec.serialModel) primary.serialModel = sec.serialModel;
                 if (!primary.supplier && sec.supplier) primary.supplier = sec.supplier;
-                if ((!primary.totalPrice || primary.totalPrice === 0) && sec.totalPrice) {
+                if ((primary.totalPrice === undefined || primary.totalPrice === null || parseFloat(primary.totalPrice) === 0) && sec.totalPrice) {
                     primary.totalPrice = sec.totalPrice;
                     primary.unitPrice = sec.unitPrice || sec.totalPrice;
                 }
-                if ((!primary.unitPrice || primary.unitPrice === 0) && sec.unitPrice) primary.unitPrice = sec.unitPrice;
+                if ((primary.unitPrice === undefined || primary.unitPrice === null || parseFloat(primary.unitPrice) === 0) && sec.unitPrice) primary.unitPrice = sec.unitPrice;
                 if (!primary.category && sec.category) primary.category = sec.category;
                 if (!primary.department && sec.department) primary.department = sec.department;
                 if (!primary.comment && sec.comment) primary.comment = sec.comment;
@@ -28047,6 +28147,7 @@
             addAuditEntry(primary.assetCode, 'Merge', primary.department || '-', `Merged ${secondaries.length} duplicate(s) into this asset`);
 
             alert(`✅ Merged ${secondaries.length} duplicate(s) into ${primary.assetCode}!`);
+            refreshAllViews();
             scanForDuplicates();
         }
 
@@ -28063,6 +28164,7 @@
             const primary = group.assets.find(a => a.id === primaryId);
             addAuditEntry(primary ? primary.assetCode : 'BULK', 'Duplicate Cleanup', '-', `Deleted ${others.length} duplicate(s)`);
             alert(`✅ Deleted ${others.length} duplicate(s)!`);
+            refreshAllViews();
             scanForDuplicates();
         }
 
@@ -28087,6 +28189,7 @@
             performBulkDelete([asset]);
             addAuditEntry(asset.assetCode, 'Duplicate Deleted', asset.department || '-', 'Removed duplicate asset');
             alert(`✅ Asset ${asset.assetCode} deleted!`);
+            refreshAllViews();
             scanForDuplicates();
         }
 
@@ -28171,13 +28274,13 @@
                     const depr = calcAssetDepreciation(asset, registerDeprMethodOverride);
                     return `<tr${isDisposed ? ' class="disposed-row"' : ''}>
                         <td>${i + 1}</td>
-                        <td class="${isDisposed ? 'disposed-asset-code' : ''}">${asset.assetCode}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
+                        <td class="${isDisposed ? 'disposed-asset-code' : ''}">${escapeHtml(asset.assetCode)}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
                         <td>${normalizeDateToDisplay(asset.dateIn) || 'N/A'}</td>
-                        <td>${asset.description || 'N/A'}</td>
-                        <td>${asset.department || 'N/A'}</td>
-                        <td>${asset.supplier || 'N/A'}</td>
-                        <td>${asset.source || 'N/A'}</td>
-                        <td>${asset.serialModel || 'N/A'}</td>
+                        <td>${escapeHtml(asset.description || 'N/A')}</td>
+                        <td>${escapeHtml(asset.department || 'N/A')}</td>
+                        <td>${escapeHtml(asset.supplier || 'N/A')}</td>
+                        <td>${escapeHtml(asset.source || 'N/A')}</td>
+                        <td>${escapeHtml(asset.serialModel || 'N/A')}</td>
                         <td style="text-align:center;">${asset.quantity || 1}</td>
                         <td style="text-align:right;">JMD ${formatCurrency(parseFloat(asset.totalPrice) || 0)}</td>
                         <td style="text-align:right;">${depr.hasData ? 'JMD ' + formatCurrency(depr.annual) : '-'}</td>
@@ -28188,7 +28291,7 @@
                 return `
                     <div class="category-page">
                         <div class="category-header">
-                            <h2>${cat}</h2>
+                            <h2>${escapeHtml(cat)}</h2>
                             <div class="category-summary">
                                 <span><strong>Assets:</strong> ${totalAssets}</span>
                                 <span><strong>Total Value:</strong> JMD ${formatCurrency(totalValue)}</span>
@@ -28265,8 +28368,8 @@
             <body>
                 <div class="report-header">
                     <h1>FIXED ASSET REGISTER - CATEGORY REPORT</h1>
-                    <h2>${hospitalName}</h2>
-                    <p>Generated on: ${new Date().toLocaleString()}${categoryFilter ? ' | Category: ' + categoryFilter : ' | All Categories'}</p>
+                    <h2>${escapeHtml(hospitalName)}</h2>
+                    <p>Generated on: ${new Date().toLocaleString()}${categoryFilter ? ' | Category: ' + escapeHtml(categoryFilter) : ' | All Categories'}</p>
                 </div>
                 <div class="grand-summary">
                     <span><strong>Total Categories:</strong> ${sortedCategories.length}</span>
@@ -28275,7 +28378,7 @@
                 </div>
                 ${categoryPages}
                 <div class="report-footer">
-                    <p>Fixed Asset Management System - ${hospitalName}</p>
+                    <p>Fixed Asset Management System - ${escapeHtml(hospitalName)}</p>
                     <p>This is a computer-generated document. No signature required.</p>
                 </div>
                 <script>window.onload = function() { window.print(); };<\/script>
@@ -28283,6 +28386,7 @@
             </html>`;
 
             const printWindow = window.open('', '_blank');
+            if (!printWindow) { alert('Unable to open print window. Please allow popups for this site.'); return; }
             printWindow.document.write(printContent);
             printWindow.document.close();
         }
@@ -29214,7 +29318,7 @@
                 var low = parseFloat(rangeMatch[1]);
                 var high = parseFloat(rangeMatch[2]);
                 // If high is smaller than low, it's probably an abbreviated range like "180,000–250,000"
-                if (high < low) high = high + Math.pow(10, Math.floor(Math.log10(low)));
+                if (high < low && low > 0) high = high + Math.pow(10, Math.floor(Math.log10(low)));
                 return Math.round((low + high) / 2);
             }
             // Single value
@@ -29677,28 +29781,35 @@
         }
 
         window.addEventListener('DOMContentLoaded', async function() {
-            // Initialize exclude disposed toggle state
-            document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => {
-                cb.checked = excludeDisposedAssets;
-            });
-
-            // Initialize import dropzone
-            initImportDropzone();
-            setDynamicCopyrightYear();
-
-            // Initialize Google Drive Import Dashboard
-            initGDriveImport();
-
-            // Check if page was opened via QR code scan (asset parameter in URL)
-            checkForAssetParameter();
-
-            // Preload credentials from Google Sheets
-            console.log('Preloading credentials...');
             try {
-                await loadCredentials();
-                console.log('Credentials preloaded successfully');
-            } catch (error) {
-                console.error('Failed to preload credentials:', error);
+                // Initialize exclude disposed toggle state
+                document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => {
+                    cb.checked = excludeDisposedAssets;
+                });
+
+                // Initialize import dropzone
+                initImportDropzone();
+                setDynamicCopyrightYear();
+
+                // Initialize Google Drive Import Dashboard
+                initGDriveImport();
+
+                // Check if page was opened via QR code scan (asset parameter in URL)
+                checkForAssetParameter();
+
+                // Migrate any plaintext passwords to hashed format
+                await migrateLocalUserPasswords();
+
+                // Preload credentials from Google Sheets
+                console.log('Preloading credentials...');
+                try {
+                    await loadCredentials();
+                    console.log('Credentials preloaded successfully');
+                } catch (error) {
+                    console.error('Failed to preload credentials:', error);
+                }
+            } catch (initError) {
+                console.error('Error during app initialization:', initError);
             }
         });
     </script>
