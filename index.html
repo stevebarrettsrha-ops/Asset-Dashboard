@@ -29267,6 +29267,7 @@
             // Chair type normalization
             'stack chair': 'stacking chair', 'stacked chair': 'stacking chair',
             'reclinetr': 'recliner', 'reclinetr chair': 'recliner chair',
+            'reclining': 'recliner', 'reclining chair': 'recliner chair',
             'sofa chair': 'sofa', 'lounge chair': 'recliner',
             // Basin/bassinet disambiguation
             'bassinet basin': 'wash basin', 'bassinett basin': 'wash basin',
@@ -29318,6 +29319,20 @@
 
         // Normalize asset description for matching (expand abbreviations)
         function normalizeAssetDesc(desc) {
+            // Pre-process: split on dashes/hyphens in original text BEFORE stripping non-alnum
+            // e.g. "Stretchers - IV Poles - Mattress" → take "Stretchers" only
+            // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
+            var dashParts = desc.split(/\s*[-\u2013\u2014]\s*/);
+            if (dashParts.length > 1) {
+                var firstLower = dashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                if (materialFrameRe.test(firstLower) && dashParts[1].trim().length > 2) {
+                    // First part is just material+structure, take the second part (actual item)
+                    desc = dashParts[1].trim();
+                } else if (dashParts[0].trim().length > 2) {
+                    desc = dashParts[0].trim();
+                }
+            }
             var d = desc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
             // Detect "iron" used as a material (not appliance) and neutralize it
             // Material context: iron + structural/container/fixture words
@@ -29338,12 +29353,7 @@
             d = d.replace(/\s+w\s+(?:mattress|keyboard|monitor|mouse|pole|poles|iv|stand|rail|rails|side|accessories|accessory)\b.*/g, '');
             // But keep "w drawer" → "with drawer" for table matching
             d = d.replace(/\bw\b\s+\bdrawer\b/g, 'drawer');
-            // Multi-item descriptions (separated by dashes or commas with spaces): prioritize first item
-            // e.g. "Stretchers - IV Poles - Mattress" → "Stretchers"
-            var dashParts = d.split(/\s+-\s+/);
-            if (dashParts.length > 1 && dashParts[0].trim().length > 2) {
-                d = dashParts[0].trim();
-            }
+            // (Dash-splitting now handled at top of function before non-alnum stripping)
             // Apply synonym substitutions
             for (var syn in catalogSynonyms) {
                 if (d.indexOf(syn) !== -1) {
@@ -29359,7 +29369,30 @@
         // Match an asset description to the best catalog item
         function matchAssetToCatalog(assetDesc, catalogLookup) {
             if (!assetDesc) return null;
-            var rawDesc = assetDesc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // Apply same critical pre-processing to rawDesc as normalizeAssetDesc:
+            // 1. Dash-split: take first part, unless it's a material/frame descriptor
+            var rawSrc = assetDesc;
+            var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
+            if (rawDashParts.length > 1) {
+                var rawFirstLower = rawDashParts[0].toLowerCase().replace(/[^a-z ]/g, '').trim();
+                var materialFrameRe = /^(iron|metal|steel|wood|wooden|plastic|aluminum|aluminium|chrome|stainless|brass|copper|galvanized)\s+(frame|base|stand|body|mount|leg|bracket|support|top|panel)$/;
+                if (materialFrameRe.test(rawFirstLower) && rawDashParts[1].trim().length > 2) {
+                    rawSrc = rawDashParts[1].trim();
+                } else if (rawDashParts[0].trim().length > 2) {
+                    rawSrc = rawDashParts[0].trim();
+                }
+            }
+            var rawDesc = rawSrc.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+            // 2. Iron-as-material: remove "iron" when used as material (bath, gate, fence, etc.)
+            var ironCtx = /\biron\b.*\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b|\b(bath|tank|gate|fence|pipe|rail|railing|bar|rod|beam|grill|grate|frame|base|plate|post|column|panel|chest|box|safe|water|cast|wrought|galvanized|old)\b.*\biron\b/;
+            if (ironCtx.test(rawDesc)) {
+                rawDesc = rawDesc.replace(/\biron\b/g, 'metal');
+            }
+            // 3. Computer system: strip peripheral words so it matches the computer, not keyboard/monitor
+            if (/\bcomputer\b.*\b(system|cpu|server)\b|\b(system|cpu|server)\b.*\bcomputer\b/.test(rawDesc)) {
+                rawDesc = rawDesc.replace(/\bkeyboard\b/g, '').replace(/\bmonitor\b/g, '').replace(/\bmouse\b/g, '');
+                rawDesc = rawDesc.replace(/\s+/g, ' ').trim();
+            }
             var desc = normalizeAssetDesc(assetDesc);
             var descWords = desc.split(' ').filter(function(w) { return w.length > 2; });
             var rawWords = rawDesc.split(' ').filter(function(w) { return w.length > 2; });
@@ -29424,11 +29457,11 @@
                 var itemSignificantWords = item.keywords.filter(function(w) { return catalogStopWords.indexOf(w) === -1; });
                 var score = 0;
 
-                // Exact substring match (highest priority)
+                // Exact substring match (highest priority - scores must exceed max word-overlap score)
                 if (item.nameLower.indexOf(rawDesc) !== -1 || rawDesc.indexOf(item.nameLower) !== -1) {
-                    score = 100;
+                    score = 500;
                 } else if (item.nameLower.indexOf(desc) !== -1 || desc.indexOf(item.nameLower) !== -1) {
-                    score = 95;
+                    score = 450;
                 } else {
                     // Word overlap scoring using ONLY significant words (no stop words)
                     var matchedPrimary = 0;
@@ -29517,15 +29550,18 @@
                     }
 
                     if (descNouns.length > 0 && itemNouns.length > 0) {
-                        var nounMatch = false;
+                        var nounMatchCount = 0;
                         for (var n1 = 0; n1 < descNouns.length; n1++) {
                             for (var n2 = 0; n2 < itemNouns.length; n2++) {
-                                if (descNouns[n1] === itemNouns[n2]) { nounMatch = true; break; }
+                                if (descNouns[n1] === itemNouns[n2]) { nounMatchCount++; break; }
                             }
-                            if (nounMatch) break;
                         }
-                        if (!nounMatch) {
+                        if (nounMatchCount === 0) {
                             score *= 0.1; // Nearly eliminate score for mismatched primary nouns
+                        } else if (nounMatchCount < descNouns.length) {
+                            // Partial noun match: penalize proportionally for unmatched nouns
+                            // e.g. desc has "recliner" + "chair" but item only has "chair" → 50% penalty
+                            score *= (nounMatchCount / descNouns.length);
                         }
                     } else if (descNouns.length > 0 && itemNouns.length === 0) {
                         // Asset has a primary noun but catalog item doesn't have a matching category
