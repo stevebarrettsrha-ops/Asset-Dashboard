@@ -27147,6 +27147,13 @@
                     try { scanForDuplicates(); } catch(e) { console.error('Error refreshing duplicates:', e); }
                 }
             }
+            // Refresh Asset Code Parser if active
+            if (typeof scanMultiCodeAssets === 'function') {
+                const page14 = document.getElementById('page14');
+                if (page14 && page14.classList.contains('active')) {
+                    try { scanMultiCodeAssets(); } catch(e) { console.error('Error refreshing asset code parser:', e); }
+                }
+            }
         }
 
         // Export asset register
@@ -30490,6 +30497,11 @@
 
             saveAssetsToStorage(assets);
 
+            // Track deleted IDs to prevent cloud sync re-adding them
+            if (typeof trackDeletedAssetIds === 'function') {
+                trackDeletedAssetIds([...idsToRemove]);
+            }
+
             // Refresh views
             if (typeof refreshAllViews === 'function') {
                 refreshAllViews();
@@ -30531,6 +30543,11 @@
 
             assets = assets.filter(a => !idsToRemove.has(a.id));
             saveAssetsToStorage(assets);
+
+            // Track deleted IDs to prevent cloud sync re-adding them
+            if (typeof trackDeletedAssetIds === 'function') {
+                trackDeletedAssetIds([...idsToRemove]);
+            }
 
             if (typeof refreshAllViews === 'function') {
                 refreshAllViews();
