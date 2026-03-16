@@ -22689,8 +22689,8 @@
                     progressFill.style.width = '0%';
                 }, 1000);
 
-                // Reload main dashboard data
-                loadData();
+                // Reload all views for consistency across pages
+                refreshAllViews();
 
             } catch (error) {
                 console.error('Import error:', error);
@@ -23769,9 +23769,9 @@
                     </p>
                 `;
 
-                // Reload main dashboard data
-                if (typeof loadData === 'function') {
-                    loadData();
+                // Reload all views for consistency across pages
+                if (typeof refreshAllViews === 'function') {
+                    refreshAllViews();
                 }
 
                 // Update import history display
@@ -25854,9 +25854,8 @@
                 successMsg += `<br><br><span style="font-size: 0.9rem; opacity: 0.8;">All views (Dashboard, Asset Register, Board of Survey) are now updated and consistent.</span>`;
                 document.getElementById('bosPageSuccessDetails').innerHTML = successMsg;
 
-                // Refresh all views
-                loadDisposalRecords();
-                loadData();
+                // Refresh all views for consistency across pages
+                refreshAllViews();
 
             } catch (error) {
                 console.error('BOS import error:', error);
