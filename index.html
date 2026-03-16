@@ -9755,6 +9755,7 @@
                 <div class="page-action-bar">
                     <button class="btn monthly-view-btn" onclick="scanMultiCodeAssets()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">&#128260; Scan for Multi-Code Assets</button>
                     <button class="btn monthly-view-btn" onclick="applyMultiCodeSplit()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">&#9989; Apply Selected Splits</button>
+                    <button class="btn monthly-view-btn" onclick="deleteSelectedMultiCodeAssets()" style="background: linear-gradient(135deg, #c0392b, #e74c3c);">&#128465; Delete Selected Originals</button>
                 </div>
             </div>
         </div>
@@ -30497,6 +30498,47 @@
             alert(`Split complete!\n• Removed ${toSplit.length} multi-code asset(s)\n• Created ${newAssets.length} new individual asset rows`);
 
             // Re-scan to update the page
+            scanMultiCodeAssets();
+        }
+
+        function deleteSelectedMultiCodeAssets() {
+            if (parserSelectedIds.size === 0) {
+                alert('No assets selected. Please select at least one multi-code asset to delete.');
+                return;
+            }
+
+            const toDelete = parserMultiCodeAssets.filter(item => parserSelectedIds.has(item.original.id));
+
+            const assetSummary = toDelete.map(item => {
+                const code = item.original.assetCode || 'Unknown';
+                const truncated = code.length > 80 ? code.substring(0, 80) + '...' : code;
+                return '• ' + truncated;
+            }).join('\n');
+
+            const confirmMsg = `WARNING: This will permanently DELETE ${toDelete.length} multi-code asset row(s) without splitting them.\n\nAssets to delete:\n${assetSummary}\n\nUse this after you have already split the ones you need, to clean up the remaining duplicates.\n\nThis cannot be undone. Proceed?`;
+            if (!confirm(confirmMsg)) return;
+
+            let assets = loadAssetsFromStorage();
+            const idsToRemove = new Set(toDelete.map(item => item.original.id));
+
+            // Audit each deletion
+            toDelete.forEach(item => {
+                const orig = item.original;
+                if (typeof addAuditEntry === 'function') {
+                    addAuditEntry(orig.assetCode, 'Delete', orig.department, `Deleted multi-code asset (had ${item.codes.length} codes, ${item.departments.length} departments)`);
+                }
+            });
+
+            assets = assets.filter(a => !idsToRemove.has(a.id));
+            saveAssetsToStorage(assets);
+
+            if (typeof refreshAllViews === 'function') {
+                refreshAllViews();
+            }
+
+            alert(`Deleted ${toDelete.length} multi-code asset row(s).`);
+
+            // Re-scan
             scanMultiCodeAssets();
         }
 
