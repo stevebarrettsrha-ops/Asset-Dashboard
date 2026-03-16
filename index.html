@@ -1605,6 +1605,26 @@
             color: var(--dark-orange);
         }
 
+        .item-type-badge.appliance {
+            background: rgba(52, 152, 219, 0.1);
+            color: #1a5276;
+        }
+
+        .item-type-badge.office-furniture {
+            background: rgba(155, 89, 182, 0.1);
+            color: #6c3483;
+        }
+
+        .item-type-badge.industrial-medical {
+            background: rgba(26, 188, 156, 0.1);
+            color: #0e6655;
+        }
+
+        .item-type-badge.category-other {
+            background: rgba(149, 165, 166, 0.15);
+            color: #566573;
+        }
+
         .monthly-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -13791,6 +13811,38 @@
         // ============================================
         // CATEGORY-BASED SALVAGE VALUE PERCENTAGES
         // ============================================
+        // Category display configuration: badge CSS class, short label, and chart color
+        const CATEGORY_DISPLAY = {
+            'Medical Equipment':            { cssClass: 'medical',             label: 'Medical',              color: '#2ECC71' },
+            'Industrial Medical Equipment': { cssClass: 'industrial-medical',  label: 'Industrial Medical',   color: '#1ABC9C' },
+            'Furniture & Appliances':       { cssClass: 'furniture',           label: 'Furniture & Appl.',    color: '#FF6B35' },
+            'Furniture':                    { cssClass: 'furniture',           label: 'Furniture',            color: '#E67E22' },
+            'Appliance':                    { cssClass: 'appliance',          label: 'Appliance',            color: '#3498DB' },
+            'Office Furniture':             { cssClass: 'office-furniture',    label: 'Office Furniture',     color: '#9B59B6' },
+            'Electronics':                  { cssClass: 'appliance',          label: 'Electronics',          color: '#2980B9' },
+            'Electronical Device':          { cssClass: 'appliance',          label: 'Elec. Device',         color: '#2471A3' },
+            'Equipment':                    { cssClass: 'industrial-medical',  label: 'Equipment',            color: '#16A085' },
+            'Industrial Equipment':         { cssClass: 'industrial-medical',  label: 'Industrial Equip.',    color: '#148F77' },
+            'Office Equipment':             { cssClass: 'office-furniture',    label: 'Office Equipment',     color: '#8E44AD' }
+        };
+
+        // Fallback colors for categories not in the map above
+        const FALLBACK_CATEGORY_COLORS = ['#F39C12', '#E74C3C', '#1ABC9C', '#34495E', '#D35400', '#7D3C98', '#2E86C1', '#28B463'];
+
+        function getCategoryDisplay(category) {
+            if (CATEGORY_DISPLAY[category]) return CATEGORY_DISPLAY[category];
+            // Generate a consistent fallback
+            let hash = 0;
+            for (let i = 0; i < category.length; i++) hash = ((hash << 5) - hash) + category.charCodeAt(i);
+            const colorIdx = Math.abs(hash) % FALLBACK_CATEGORY_COLORS.length;
+            return { cssClass: 'category-other', label: category.length > 20 ? category.substring(0, 18) + '…' : category, color: FALLBACK_CATEGORY_COLORS[colorIdx] };
+        }
+
+        function getCategoryBadgeHtml(category) {
+            const display = getCategoryDisplay(category || 'Unknown');
+            return `<span class="item-type-badge ${display.cssClass}">${escapeHtml(display.label)}</span>`;
+        }
+
         // Maps each category to a default salvage value as a percentage of cost.
         // Used for auto-calculation; users can still override manually.
         const SALVAGE_PERCENT_BY_CATEGORY = {
@@ -20443,19 +20495,20 @@
 
         function generateValuationReport() {
             const totalValue = (purchasedData.totals?.totalValue || 0) + (donatedData.totals?.totalValue || 0);
-            const medicalValue = (purchasedData.totals?.medicalValue || 0) + (donatedData.totals?.medicalValue || 0);
-            const furnitureValue = (purchasedData.totals?.furnitureValue || 0) + (donatedData.totals?.furnitureValue || 0);
+            const mergedCats = getMergedCategoryStats();
+            const sortedCats = Object.entries(mergedCats).sort((a, b) => b[1].value - a[1].value);
 
-            // Calculate percentages with division by zero protection
-            const medicalPercent = totalValue > 0 ? ((medicalValue/totalValue)*100).toFixed(1) : '0.0';
-            const furniturePercent = totalValue > 0 ? ((furnitureValue/totalValue)*100).toFixed(1) : '0.0';
+            let categoryRows = '';
+            sortedCats.forEach(([cat, stats]) => {
+                const percent = totalValue > 0 ? ((stats.value / totalValue) * 100).toFixed(1) : '0.0';
+                categoryRows += `<tr><td>${escapeHtml(cat)}</td><td>${formatCurrency(stats.value)}</td><td>${percent}%</td></tr>`;
+            });
 
             return `
                 <h3>Asset Valuation Report</h3>
                 <table>
                     <tr><th>Category</th><th>Value (JMD)</th><th>Percentage</th></tr>
-                    <tr><td>Medical Equipment</td><td>${formatCurrency(medicalValue)}</td><td>${medicalPercent}%</td></tr>
-                    <tr><td>Furniture & Appliances</td><td>${formatCurrency(furnitureValue)}</td><td>${furniturePercent}%</td></tr>
+                    ${categoryRows}
                     <tr><th>Total</th><th>${formatCurrency(totalValue)}</th><th>100%</th></tr>
                 </table>
             `;
@@ -20562,13 +20615,13 @@
                 });
 
                 // Process assets into the expected format
-                purchasedData = { allItems: [], monthly: {}, totals: { totalValue: 0, totalItems: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
-                donatedData = { allItems: [], monthly: {}, totals: { totalValue: 0, totalItems: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
+                purchasedData = { allItems: [], monthly: {}, totals: { totalValue: 0, totalItems: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0, categoryStats: {} } };
+                donatedData = { allItems: [], monthly: {}, totals: { totalValue: 0, totalItems: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0, categoryStats: {} } };
 
                 // Initialize monthly data for all months
                 months.forEach(month => {
-                    purchasedData.monthly[month] = { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
-                    donatedData.monthly[month] = { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
+                    purchasedData.monthly[month] = { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0, categoryStats: {} } };
+                    donatedData.monthly[month] = { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0, categoryStats: {} } };
                 });
 
                 // Categorize assets by source
@@ -20579,19 +20632,28 @@
                     // Add to all items
                     dataStore.allItems.push(asset);
 
+                    const assetCategory = asset.category || 'Medical Equipment';
+
                     // Add to monthly data
                     if (dataStore.monthly[asset.month]) {
+                        const mStats = dataStore.monthly[asset.month].stats;
                         dataStore.monthly[asset.month].items.push(asset);
-                        dataStore.monthly[asset.month].stats.totalItems += asset.quantity;
-                        dataStore.monthly[asset.month].stats.totalValue += asset.totalPrice;
+                        mStats.totalItems += asset.quantity;
+                        mStats.totalValue += asset.totalPrice;
 
                         if (isMedical) {
-                            dataStore.monthly[asset.month].stats.medicalEquipment += asset.quantity;
-                            dataStore.monthly[asset.month].stats.medicalValue += asset.totalPrice;
+                            mStats.medicalEquipment += asset.quantity;
+                            mStats.medicalValue += asset.totalPrice;
                         } else {
-                            dataStore.monthly[asset.month].stats.furniture += asset.quantity;
-                            dataStore.monthly[asset.month].stats.furnitureValue += asset.totalPrice;
+                            mStats.furniture += asset.quantity;
+                            mStats.furnitureValue += asset.totalPrice;
                         }
+
+                        // Per-category stats
+                        if (!mStats.categoryStats) mStats.categoryStats = {};
+                        if (!mStats.categoryStats[assetCategory]) mStats.categoryStats[assetCategory] = { count: 0, value: 0 };
+                        mStats.categoryStats[assetCategory].count += asset.quantity;
+                        mStats.categoryStats[assetCategory].value += asset.totalPrice;
                     }
 
                     // Update totals
@@ -20605,6 +20667,12 @@
                         dataStore.totals.furniture += asset.quantity;
                         dataStore.totals.furnitureValue += asset.totalPrice;
                     }
+
+                    // Per-category totals
+                    if (!dataStore.totals.categoryStats) dataStore.totals.categoryStats = {};
+                    if (!dataStore.totals.categoryStats[assetCategory]) dataStore.totals.categoryStats[assetCategory] = { count: 0, value: 0 };
+                    dataStore.totals.categoryStats[assetCategory].count += asset.quantity;
+                    dataStore.totals.categoryStats[assetCategory].value += asset.totalPrice;
                 });
 
                 combineAndDisplayData();
@@ -20694,7 +20762,8 @@
                     medicalEquipment: 0,
                     medicalValue: 0,
                     furniture: 0,
-                    furnitureValue: 0
+                    furnitureValue: 0,
+                    categoryStats: {}
                 }
             };
             
@@ -20717,9 +20786,20 @@
                     processedData.totals.medicalValue += monthData.stats.medicalValue;
                     processedData.totals.furniture += monthData.stats.furniture;
                     processedData.totals.furnitureValue += monthData.stats.furnitureValue;
+
+                    // Merge per-category stats
+                    if (monthData.stats.categoryStats) {
+                        Object.entries(monthData.stats.categoryStats).forEach(([cat, s]) => {
+                            if (!processedData.totals.categoryStats[cat]) {
+                                processedData.totals.categoryStats[cat] = { count: 0, value: 0 };
+                            }
+                            processedData.totals.categoryStats[cat].count += s.count;
+                            processedData.totals.categoryStats[cat].value += s.value;
+                        });
+                    }
                 }
             });
-            
+
             return processedData;
         }
 
@@ -20734,9 +20814,9 @@
             }
             
             if (headerRowIndex === -1) {
-                return { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0 } };
+                return { items: [], stats: { totalItems: 0, totalValue: 0, medicalEquipment: 0, medicalValue: 0, furniture: 0, furnitureValue: 0, categoryStats: {} } };
             }
-            
+
             const items = [];
             let stats = {
                 totalItems: 0,
@@ -20744,7 +20824,8 @@
                 medicalEquipment: 0,
                 medicalValue: 0,
                 furniture: 0,
-                furnitureValue: 0
+                furnitureValue: 0,
+                categoryStats: {}
             };
             
             for (let i = headerRowIndex + 1; i < rawData.length; i++) {
@@ -20754,8 +20835,10 @@
                     const unitPrice = parseFloat(String(row[9] || '0').replace(/,/g, '')) || 0;
                     const quantity = parseInt(row[2]) || 1;
                     
-                    const itemType = row[6] ? row[6].toString() : '';
+                    const itemType = row[6] ? row[6].toString().trim() : '';
                     const isMedical = itemType.toLowerCase().includes('medical');
+                    // Determine the actual category from the item type column
+                    const actualCategory = determineSpreadsheetCategory(itemType);
                     
                     let assetCode = String(row[0]).trim();
                     
@@ -20799,7 +20882,7 @@
                         description: String(row[3] || '').trim(),
                         supplier: String(row[4] || '').trim(),
                         itemType: String(row[5] || sourceType).trim(),
-                        category: isMedical ? 'Medical Equipment' : 'Furniture & Appliances',
+                        category: actualCategory,
                         serialModel: String(row[7] || '').trim(),
                         unitPrice: unitPrice,
                         totalPrice: totalPrice,
@@ -20818,6 +20901,13 @@
                         stats.furniture += quantity;
                         stats.furnitureValue += totalPrice;
                     }
+
+                    // Track per-category stats
+                    if (!stats.categoryStats[actualCategory]) {
+                        stats.categoryStats[actualCategory] = { count: 0, value: 0 };
+                    }
+                    stats.categoryStats[actualCategory].count += quantity;
+                    stats.categoryStats[actualCategory].value += totalPrice;
                 }
             }
             
@@ -20885,16 +20975,45 @@
             displayTable();
         }
 
+        // Merge categoryStats from purchased and donated data
+        function getMergedCategoryStats() {
+            const merged = {};
+            [purchasedData.totals?.categoryStats, donatedData.totals?.categoryStats].forEach(cs => {
+                if (!cs) return;
+                Object.entries(cs).forEach(([cat, s]) => {
+                    if (!merged[cat]) merged[cat] = { count: 0, value: 0 };
+                    merged[cat].count += s.count;
+                    merged[cat].value += s.value;
+                });
+            });
+            return merged;
+        }
+
         function updateKPICards() {
             const kpiSection = document.getElementById('kpiSection');
-            
+
             const totalItems = (purchasedData.totals?.totalItems || 0) + (donatedData.totals?.totalItems || 0);
             const totalValue = (purchasedData.totals?.totalValue || 0) + (donatedData.totals?.totalValue || 0);
-            const medicalItems = (purchasedData.totals?.medicalEquipment || 0) + (donatedData.totals?.medicalEquipment || 0);
-            const medicalValue = (purchasedData.totals?.medicalValue || 0) + (donatedData.totals?.medicalValue || 0);
-            const furnitureItems = (purchasedData.totals?.furniture || 0) + (donatedData.totals?.furniture || 0);
-            const furnitureValue = (purchasedData.totals?.furnitureValue || 0) + (donatedData.totals?.furnitureValue || 0);
-            
+
+            // Build dynamic category KPI cards
+            const mergedCats = getMergedCategoryStats();
+            // Sort categories by count descending
+            const sortedCats = Object.entries(mergedCats).sort((a, b) => b[1].count - a[1].count);
+
+            const kpiColors = ['green', 'orange', 'green', 'orange', 'green', 'orange'];
+            let categoryCardsHtml = '';
+            sortedCats.forEach(([cat, stats], idx) => {
+                const colorClass = kpiColors[idx % kpiColors.length];
+                const safeId = 'kpiCat' + idx;
+                categoryCardsHtml += `
+                    <div class="kpi-card ${colorClass}">
+                        <div class="kpi-label">${escapeHtml(cat)}</div>
+                        <div class="kpi-value ${colorClass}" id="${safeId}Items">0</div>
+                        <div class="kpi-subtitle" id="${safeId}Value">Value: JMD 0.00</div>
+                    </div>
+                `;
+            });
+
             kpiSection.innerHTML = `
                 <div class="kpi-card green">
                     <div class="kpi-label">Total Assets</div>
@@ -20908,17 +21027,7 @@
                     <div class="kpi-subtitle">Combined asset value</div>
                 </div>
 
-                <div class="kpi-card green">
-                    <div class="kpi-label">Medical Equipment</div>
-                    <div class="kpi-value green" id="kpiMedicalItems">0</div>
-                    <div class="kpi-subtitle" id="kpiMedicalValue">Value: JMD 0.00</div>
-                </div>
-
-                <div class="kpi-card orange">
-                    <div class="kpi-label">Furniture & Appliances</div>
-                    <div class="kpi-value orange" id="kpiFurnitureItems">0</div>
-                    <div class="kpi-subtitle" id="kpiFurnitureValue">Value: JMD 0.00</div>
-                </div>
+                ${categoryCardsHtml}
 
                 <div class="kpi-card green">
                     <div class="kpi-label">Purchased Assets</div>
@@ -20936,10 +21045,11 @@
             // Animate KPI numbers counting up
             animateCountUp(document.getElementById('kpiTotalItems'), totalItems);
             animateCountUp(document.getElementById('kpiTotalValue'), totalValue, { prefix: 'JMD ', isCurrency: true });
-            animateCountUp(document.getElementById('kpiMedicalItems'), medicalItems);
-            animateCountUp(document.getElementById('kpiMedicalValue'), medicalValue, { prefix: 'Value: JMD ', isCurrency: true });
-            animateCountUp(document.getElementById('kpiFurnitureItems'), furnitureItems);
-            animateCountUp(document.getElementById('kpiFurnitureValue'), furnitureValue, { prefix: 'Value: JMD ', isCurrency: true });
+            sortedCats.forEach(([cat, stats], idx) => {
+                const safeId = 'kpiCat' + idx;
+                animateCountUp(document.getElementById(safeId + 'Items'), stats.count);
+                animateCountUp(document.getElementById(safeId + 'Value'), stats.value, { prefix: 'Value: JMD ', isCurrency: true });
+            });
             animateCountUp(document.getElementById('kpiPurchasedItems'), purchasedData.totals?.totalItems || 0);
             animateCountUp(document.getElementById('kpiPurchasedValue'), purchasedData.totals?.totalValue || 0, { prefix: 'Value: JMD ', isCurrency: true });
             animateCountUp(document.getElementById('kpiDonatedItems'), donatedData.totals?.totalItems || 0);
@@ -20963,10 +21073,10 @@
             distributionChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Medical Equipment', 'Furniture & Appliances'],
+                    labels: [],
                     datasets: [{
-                        data: [0, 0],
-                        backgroundColor: ['#2ECC71', '#FF6B35'],
+                        data: [],
+                        backgroundColor: [],
                         borderWidth: 0
                     }]
                 },
@@ -21080,10 +21190,12 @@
         }
 
         function updateCharts() {
-            const medicalCount = (purchasedData.totals?.medicalEquipment || 0) + (donatedData.totals?.medicalEquipment || 0);
-            const furnitureCount = (purchasedData.totals?.furniture || 0) + (donatedData.totals?.furniture || 0);
-            
-            distributionChart.data.datasets[0].data = [medicalCount, furnitureCount];
+            // Dynamic category distribution chart
+            const mergedCats = getMergedCategoryStats();
+            const sortedCats = Object.entries(mergedCats).sort((a, b) => b[1].count - a[1].count);
+            distributionChart.data.labels = sortedCats.map(([cat]) => cat);
+            distributionChart.data.datasets[0].data = sortedCats.map(([, s]) => s.count);
+            distributionChart.data.datasets[0].backgroundColor = sortedCats.map(([cat]) => getCategoryDisplay(cat).color);
             distributionChart.update();
             
             const purchasedMonthlyValues = months.map(month => 
@@ -21134,9 +21246,7 @@
             `;
 
             filteredData.forEach((item, index) => {
-                const categoryBadge = item.category === 'Medical Equipment'
-                    ? '<span class="item-type-badge medical">Medical</span>'
-                    : '<span class="item-type-badge furniture">Furniture</span>';
+                const categoryBadge = getCategoryBadgeHtml(item.category);
 
                 const isSelected = selectedForMerge.includes(index);
 
@@ -21422,14 +21532,19 @@
                                 <div class="summary-label">Total Value</div>
                                 <div class="summary-value">JMD ${formatCurrency(purchasedStats.totalValue + donatedStats.totalValue)}</div>
                             </div>
-                            <div class="summary-item">
-                                <div class="summary-label">Medical Equipment</div>
-                                <div class="summary-value">${purchasedStats.medicalEquipment + donatedStats.medicalEquipment}</div>
-                            </div>
-                            <div class="summary-item">
-                                <div class="summary-label">Furniture & Appliances</div>
-                                <div class="summary-value">${purchasedStats.furniture + donatedStats.furniture}</div>
-                            </div>
+                            ${(() => {
+                                const printCatStats = {};
+                                [purchasedData.monthly?.[month]?.stats?.categoryStats, donatedData.monthly?.[month]?.stats?.categoryStats].forEach(cs => {
+                                    if (!cs) return;
+                                    Object.entries(cs).forEach(([cat, s]) => {
+                                        if (!printCatStats[cat]) printCatStats[cat] = { count: 0 };
+                                        printCatStats[cat].count += s.count;
+                                    });
+                                });
+                                return Object.entries(printCatStats).sort((a, b) => b[1].count - a[1].count).map(([cat, s]) =>
+                                    `<div class="summary-item"><div class="summary-label">${cat}</div><div class="summary-value">${s.count}</div></div>`
+                                ).join('');
+                            })()}
                             <div class="summary-item">
                                 <div class="summary-label">Purchased</div>
                                 <div class="summary-value" style="color: #2ECC71;">${purchasedStats.totalItems}</div>
@@ -21497,6 +21612,27 @@
                 // Determine the actual year for the month (JAN, FEB, MAR are next year)
                 const actualYear = ['JAN', 'FEB', 'MAR'].includes(month) ? currentFiscalYear + 1 : currentFiscalYear;
 
+                // Build per-category stats for this month
+                const monthCatStats = {};
+                [purchasedData.monthly?.[month]?.stats?.categoryStats, donatedData.monthly?.[month]?.stats?.categoryStats].forEach(cs => {
+                    if (!cs) return;
+                    Object.entries(cs).forEach(([cat, s]) => {
+                        if (!monthCatStats[cat]) monthCatStats[cat] = { count: 0 };
+                        monthCatStats[cat].count += s.count;
+                    });
+                });
+                const sortedMonthCats = Object.entries(monthCatStats).sort((a, b) => b[1].count - a[1].count);
+                let categoryStatsHtml = '';
+                sortedMonthCats.forEach(([cat, s]) => {
+                    const display = getCategoryDisplay(cat);
+                    categoryStatsHtml += `
+                        <div class="month-stat">
+                            <div class="month-stat-label">${escapeHtml(display.label)}</div>
+                            <div class="month-stat-value" style="font-size: 1.2em;">${s.count}</div>
+                        </div>
+                    `;
+                });
+
                 html += `
                     <div class="month-card ${hasData ? 'has-data' : ''}">
                         <div class="month-header">
@@ -21520,14 +21656,7 @@
                                 <div class="month-stat-label">Donated</div>
                                 <div class="month-stat-value" style="color: var(--primary-orange);">${donatedStats.totalItems}</div>
                             </div>
-                            <div class="month-stat">
-                                <div class="month-stat-label">Medical</div>
-                                <div class="month-stat-value" style="font-size: 1.2em;">${purchasedStats.medicalEquipment + donatedStats.medicalEquipment}</div>
-                            </div>
-                            <div class="month-stat">
-                                <div class="month-stat-label">Furniture</div>
-                                <div class="month-stat-value" style="font-size: 1.2em;">${purchasedStats.furniture + donatedStats.furniture}</div>
-                            </div>
+                            ${categoryStatsHtml}
                         </div>
                     </div>
                 `;
@@ -22449,16 +22578,45 @@
             return 'Purchased';
         }
 
-        // Normalize category value
+        // Determine category from spreadsheet item type column
+        function determineSpreadsheetCategory(itemType) {
+            if (!itemType) return 'Medical Equipment';
+            const val = String(itemType).toLowerCase().trim();
+            if (val.includes('industrial') && val.includes('medical')) return 'Industrial Medical Equipment';
+            if (val.includes('medical')) return 'Medical Equipment';
+            if (val.includes('office') && val.includes('furniture')) return 'Office Furniture';
+            if (val.includes('office') && val.includes('equipment')) return 'Office Equipment';
+            if (val.includes('industrial') && val.includes('equipment')) return 'Industrial Equipment';
+            if (val.includes('electronic')) return 'Electronics';
+            if (val.includes('appliance')) return 'Appliance';
+            if (val.includes('furniture')) return 'Furniture';
+            if (val.includes('equipment')) return 'Equipment';
+            // Check if it matches any known category name exactly (case-insensitive)
+            const categories = loadCategories();
+            const match = categories.find(c => c.toLowerCase() === val);
+            if (match) return match;
+            return 'Furniture & Appliances';
+        }
+
+        // Normalize category value - preserves known categories instead of forcing binary
         function normalizeCategory(value) {
             if (!value) return 'Medical Equipment';
 
-            const normalizedValue = String(value).toLowerCase().trim();
+            const trimmed = String(value).trim();
+            // If the value matches a known category exactly, keep it
+            const categories = loadCategories();
+            const match = categories.find(c => c.toLowerCase() === trimmed.toLowerCase());
+            if (match) return match;
 
-            if (normalizedValue.includes('furniture') || normalizedValue.includes('appliance') ||
-                normalizedValue.includes('office') || normalizedValue.includes('equipment') === false) {
-                return 'Furniture & Appliances';
-            }
+            // Fall back to keyword matching
+            const normalizedValue = trimmed.toLowerCase();
+            if (normalizedValue.includes('industrial') && normalizedValue.includes('medical')) return 'Industrial Medical Equipment';
+            if (normalizedValue.includes('medical')) return 'Medical Equipment';
+            if (normalizedValue.includes('office') && normalizedValue.includes('furniture')) return 'Office Furniture';
+            if (normalizedValue.includes('appliance')) return 'Appliance';
+            if (normalizedValue.includes('furniture')) return 'Furniture';
+            if (normalizedValue.includes('electronic')) return 'Electronics';
+            if (normalizedValue.includes('equipment')) return 'Equipment';
 
             return 'Medical Equipment';
         }
@@ -25938,7 +26096,7 @@
                         const unitValue = shouldExpand ? (p.originalValue || 0) / qty : (p.originalValue || 0);
 
                         // Create new asset in inventory
-                        const _bosCategory = p.category || 'Furniture & Appliances';
+                        const _bosCategory = p.category || determineSpreadsheetCategory(p.description || '');
                         const newAsset = {
                             id: generateAssetId(),
                             assetCode: expandedAssetCode,
@@ -26485,9 +26643,7 @@
                 `;
             } else {
                 tbody.innerHTML = pageData.map(asset => {
-                    const categoryBadge = asset.category === 'Medical Equipment'
-                        ? '<span class="item-type-badge medical">Medical</span>'
-                        : '<span class="item-type-badge furniture">Furniture</span>';
+                    const categoryBadge = getCategoryBadgeHtml(asset.category);
 
                     // Check if asset is disposed
                     const disposed = isAssetDisposed(asset.assetCode);
@@ -27796,7 +27952,7 @@
                     }
 
                     const unitValue = d.originalValue || 0;
-                    const category = 'Furniture & Appliances';
+                    const category = determineSpreadsheetCategory(d.assetDescription || '');
 
                     const newAsset = {
                         id: generateAssetId(),
