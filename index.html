@@ -26843,12 +26843,19 @@
             try {
                 const assets = loadAssetsFromStorage();
                 const existingCodes = new Set(assets.map(a => a.assetCode?.toLowerCase()));
-                const newAssets = [];
                 const newAuditEntries = [];
                 const timestamp = new Date().toISOString();
                 const userName = currentUser ? currentUser.displayName : 'Unknown';
+                let totalCreated = 0;
 
-                duplicateTargetAssets.forEach(source => {
+                // Process sources in reverse order so insertion indices stay valid
+                const sourcesWithIndices = duplicateTargetAssets.map(source => ({
+                    source,
+                    index: assets.findIndex(a => a.id === source.id)
+                })).sort((a, b) => b.index - a.index);
+
+                sourcesWithIndices.forEach(({ source, index: sourceIdx }) => {
+                    const copiesForThis = [];
                     for (let i = 1; i <= count; i++) {
                         let newCode = source.assetCode;
                         if (autoNewCodes) {
@@ -26885,7 +26892,7 @@
                             comment: ''
                         };
 
-                        newAssets.push(newAsset);
+                        copiesForThis.push(newAsset);
                         existingCodes.add(newCode.toLowerCase());
 
                         newAuditEntries.push({
@@ -26900,10 +26907,15 @@
                             user: userName
                         });
                     }
-                });
+                    totalCreated += copiesForThis.length;
 
-                // Save all new assets in a single write
-                assets.push(...newAssets);
+                    // Insert copies right after the source asset
+                    if (sourceIdx !== -1) {
+                        assets.splice(sourceIdx + 1, 0, ...copiesForThis);
+                    } else {
+                        assets.push(...copiesForThis);
+                    }
+                });
                 const saved = saveAssetsToStorage(assets);
                 if (!saved) {
                     throw new Error('Failed to save. Storage may be full.');
@@ -26918,7 +26930,7 @@
                 clearRegisterSelection();
                 refreshAllViews();
 
-                alert(`Successfully created ${newAssets.length} duplicate asset${newAssets.length !== 1 ? 's' : ''}.`);
+                alert(`Successfully created ${totalCreated} duplicate asset${totalCreated !== 1 ? 's' : ''}.`);
 
             } catch (error) {
                 console.error('Duplicate error:', error);
