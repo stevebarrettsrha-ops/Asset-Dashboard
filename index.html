@@ -15271,8 +15271,6 @@
                 // Update existing asset
                 const index = assets.findIndex(a => a.id === currentEditingAsset.id);
                 if (index !== -1) {
-                    assetData.quantity = 1; // Enforce qty=1 on edit
-
                     // If category changed and salvage wasn't manually overridden, recalculate
                     const categoryChanged = currentEditingAsset.category !== assetData.category;
                     const costChanged = (currentEditingAsset.totalPrice || 0) !== (assetData.totalPrice || 0);
