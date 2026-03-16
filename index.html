@@ -415,7 +415,7 @@
 
         .page {
             display: none;
-            overflow-x: hidden;
+            overflow-x: clip;
         }
 
         .page.active {
@@ -429,7 +429,9 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px var(--shadow);
             margin-bottom: 30px;
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 100;
             overflow: visible;
         }
 
@@ -1775,11 +1777,11 @@
             .dashboard-container {
                 padding: 10px;
                 max-width: 100%;
-                overflow-x: hidden;
+                overflow-x: clip;
             }
 
             .page {
-                overflow-x: hidden;
+                overflow-x: clip;
             }
 
             /* Header responsive adjustments */
@@ -1787,7 +1789,7 @@
                 padding: 15px;
                 margin-bottom: 15px;
                 border-radius: 10px;
-                overflow: hidden;
+                overflow: visible;
             }
 
             .dashboard-title {
@@ -5990,7 +5992,7 @@
             margin-left: 270px;
             width: calc(100% - 270px);
             max-width: 100%;
-            overflow-x: hidden;
+            overflow-x: clip;
             box-sizing: border-box;
             transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
