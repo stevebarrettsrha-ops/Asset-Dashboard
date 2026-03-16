@@ -30469,6 +30469,71 @@
         let parserMultiCodeAssets = [];
         let parserSelectedIds = new Set();
 
+        // Expand a single asset code that contains a range like MPH/AE/139/90-94/2024
+        // Returns an array of individual codes, or the original code in an array if no range detected
+        function expandAssetCodeRange(code) {
+            code = code.trim();
+            if (!code) return [];
+
+            // Pattern: PREFIX/NUMBERS_START-END/SUFFIX
+            // e.g. MPH/OPD/139/47-50/2024 → MPH/OPD/139/47/2024 .. MPH/OPD/139/50/2024
+            // Look for a segment that is purely "digits-digits" (a number range)
+            const parts = code.split('/');
+            let rangePartIdx = -1;
+            let startNum = -1;
+            let endNum = -1;
+
+            for (let i = 0; i < parts.length; i++) {
+                const match = parts[i].match(/^(\d+)\s*-\s*(\d+)$/);
+                if (match) {
+                    const a = parseInt(match[1], 10);
+                    const b = parseInt(match[2], 10);
+                    if (b >= a && (b - a) < 500) { // sanity check: max 500 range expansion
+                        rangePartIdx = i;
+                        startNum = a;
+                        endNum = b;
+                        break; // use the first range segment found
+                    }
+                }
+            }
+
+            if (rangePartIdx === -1) {
+                return [code]; // no range found
+            }
+
+            const expanded = [];
+            const padLen = parts[rangePartIdx].match(/^(\d+)/)[1].length; // preserve leading zeros
+            for (let n = startNum; n <= endNum; n++) {
+                const newParts = [...parts];
+                newParts[rangePartIdx] = String(n).padStart(padLen, '0');
+                expanded.push(newParts.join('/'));
+            }
+            return expanded;
+        }
+
+        // Split a multi-code string into individual asset codes
+        // Handles comma separation, newline separation, and range expansion
+        function parseAssetCodes(codeStr) {
+            if (!codeStr || !codeStr.trim()) return [];
+
+            // Split on commas and newlines
+            const rawCodes = codeStr.split(/[,\n\r]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+            // Expand any ranges within individual codes
+            const expanded = [];
+            rawCodes.forEach(code => {
+                expandAssetCodeRange(code).forEach(c => expanded.push(c));
+            });
+
+            return expanded;
+        }
+
+        // Split a multi-department string into individual departments
+        function parseDepartments(deptStr) {
+            if (!deptStr || !deptStr.trim()) return [];
+            return deptStr.split(/[,\n\r]+/).map(s => s.trim()).filter(s => s.length > 0);
+        }
+
         function scanMultiCodeAssets() {
             const assets = loadAssetsFromStorage();
             const totalScanned = assets.length;
@@ -30480,10 +30545,10 @@
                 const codeStr = (asset.assetCode || '').trim();
                 const deptStr = (asset.department || '').trim();
 
-                // Detect multiple asset codes separated by commas
-                const codes = codeStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                // Detect multiple departments separated by commas
-                const depts = deptStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                // Parse and expand asset codes (handles commas, newlines, and ranges)
+                const codes = parseAssetCodes(codeStr);
+                // Parse departments (handles commas and newlines)
+                const depts = parseDepartments(deptStr);
 
                 // Only flag if there are multiple codes OR multiple departments
                 if (codes.length > 1 || depts.length > 1) {
@@ -30671,11 +30736,11 @@
                     newAsset.id = generateAssetId();
                     newAsset.assetCode = row.assetCode;
                     newAsset.department = row.department;
-                    // Keep quantity as 1 for each split row
-                    newAsset.quantity = orig.quantity || 1;
-                    // Recalculate total price based on unit price and quantity
+                    // Each split row is a single item
+                    newAsset.quantity = 1;
+                    // Total price = unit price for a single item
                     if (newAsset.unitPrice != null) {
-                        newAsset.totalPrice = newAsset.unitPrice * (newAsset.quantity || 1);
+                        newAsset.totalPrice = newAsset.unitPrice;
                     }
                     newAssets.push(newAsset);
                 });
