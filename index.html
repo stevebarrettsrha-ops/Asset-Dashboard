@@ -11098,7 +11098,7 @@
             saveAuditToStorage(auditRecords);
 
             selectedForMerge = [];
-            loadData();
+            refreshAllViews();
             closeMergeModal();
 
             alert(`Assets merged successfully!\n\nMerged asset: ${mergedAsset.assetCode}\nTotal Value: JMD ${formatCurrency(mergedAsset.totalPrice)}`);
@@ -11511,8 +11511,8 @@
             localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
             updateLastSyncDisplay();
 
-            // Reload data
-            loadData();
+            // Refresh all views so changes appear everywhere
+            refreshAllViews();
 
             closeSmartMergeModal();
 
@@ -12191,6 +12191,11 @@
                     saveLocalUserSettings();
                     dataChanged = true;
                 }
+            }
+
+            // Refresh all views if any data changed
+            if (dataChanged) {
+                refreshAllViews();
             }
 
             return dataChanged;
@@ -14933,8 +14938,8 @@
                 // Add sync audit entry
                 addAuditEntry('SYSTEM', 'Data Sync', 'All', `Sync completed: ${fixedCount} issues fixed`);
 
-                // Reload the UI
-                loadData();
+                // Refresh all views so fixes appear everywhere
+                refreshAllViews();
 
                 // Show results
                 setTimeout(() => {
@@ -15828,7 +15833,7 @@
 
                             saveAssetsToStorage(importedAssets);
                             addAuditEntry('SYSTEM', 'Data Import', 'All Departments', `Imported ${importedAssets.length} assets`);
-                            loadData();
+                            refreshAllViews();
                             alert('✅ Data imported successfully!');
                         }
                     } catch (error) {
@@ -24535,6 +24540,7 @@
 
                 if (changed) {
                     saveAssetsToStorage(assets);
+                    refreshAllViews();
                 }
             }
         }
@@ -26241,6 +26247,10 @@
                 if (regAsset) regAsset.comment = comment;
                 const filtAsset = filteredRegisterData.find(a => a.id === assetId);
                 if (filtAsset) filtAsset.comment = comment;
+                // Update Dashboard and other views so comment change is visible everywhere
+                if (typeof loadData === 'function') {
+                    try { loadData(); } catch(e) {}
+                }
             }
         }
 
