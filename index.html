@@ -15234,6 +15234,9 @@
             assets = assets.filter(a => a.id !== currentEditingAsset.id);
             saveAssetsToStorage(assets);
 
+            // Track deleted ID so cloud sync won't re-add it
+            trackDeletedAssetIds([currentEditingAsset.id]);
+
             // Remove matching disposal records from Board of Survey
             removeDisposalRecordsForAsset(currentEditingAsset.assetCode, currentEditingAsset.id);
 
@@ -27149,6 +27152,20 @@
                     try { scanForDuplicates(); } catch(e) { console.error('Error refreshing duplicates:', e); }
                 }
             }
+            // Refresh Asset Deletion page if active
+            if (typeof scanDeletionPage === 'function') {
+                const page12 = document.getElementById('page12');
+                if (page12 && page12.classList.contains('active')) {
+                    try { scanDeletionPage(); } catch(e) { console.error('Error refreshing asset deletion:', e); }
+                }
+            }
+            // Refresh Asset Cost Catalog if active
+            if (typeof renderCatalogPage === 'function') {
+                const page13 = document.getElementById('page13');
+                if (page13 && page13.classList.contains('active')) {
+                    try { renderCatalogPage(); } catch(e) { console.error('Error refreshing cost catalog:', e); }
+                }
+            }
             // Refresh Asset Code Parser if active
             if (typeof scanMultiCodeAssets === 'function') {
                 const page14 = document.getElementById('page14');
@@ -30491,6 +30508,10 @@
                 if (typeof addAuditEntry === 'function') {
                     addAuditEntry(orig.assetCode, 'Split', orig.department, `Split multi-code asset into ${item.splitRows.length} individual rows: ${item.splitRows.map(r => r.assetCode).join(', ')}`);
                 }
+                // Clean up disposal records for the original asset being replaced
+                if (typeof removeDisposalRecordsForAsset === 'function') {
+                    removeDisposalRecordsForAsset(orig.assetCode, orig.id);
+                }
             });
 
             // Remove originals and add new split assets
@@ -30535,11 +30556,14 @@
             let assets = loadAssetsFromStorage();
             const idsToRemove = new Set(toDelete.map(item => item.original.id));
 
-            // Audit each deletion
+            // Audit each deletion and clean up disposal records
             toDelete.forEach(item => {
                 const orig = item.original;
                 if (typeof addAuditEntry === 'function') {
                     addAuditEntry(orig.assetCode, 'Delete', orig.department, `Deleted multi-code asset (had ${item.codes.length} codes, ${item.departments.length} departments)`);
+                }
+                if (typeof removeDisposalRecordsForAsset === 'function') {
+                    removeDisposalRecordsForAsset(orig.assetCode, orig.id);
                 }
             });
 
