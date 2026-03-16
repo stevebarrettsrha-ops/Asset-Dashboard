@@ -6975,6 +6975,11 @@
                 <span class="sidebar-nav-text">Asset Cost Catalog</span>
             </button>
 
+            <button class="sidebar-nav-item" data-page="14" data-tooltip="Asset Code Parser" onclick="sidebarNavigate(14)">
+                <span class="sidebar-nav-icon">&#9986;</span>
+                <span class="sidebar-nav-text">Asset Code Parser</span>
+            </button>
+
             <div class="sidebar-section-label">Import</div>
             <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
                 <span class="sidebar-nav-icon">&#x1F4E4;</span>
@@ -9707,6 +9712,109 @@
 
     </div>
 
+    <!-- ============================================ -->
+    <!-- PAGE 14: ASSET CODE PARSER                   -->
+    <!-- ============================================ -->
+    <div class="page" id="page14">
+        <div class="header" style="background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Asset Code Parser</h1>
+                        <div class="dashboard-subtitle">Split Multi-Code Assets into Individual Rows</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">&#9729;&#65039;</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>&#9729;&#65039; Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>&#128279;</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>&#128190;</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>&#128260;</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>&#128256;</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>&#128193;</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>&#128268;</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-info" id="userInfo14"></div>
+                    </div>
+                </div>
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="scanMultiCodeAssets()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">&#128260; Scan for Multi-Code Assets</button>
+                    <button class="btn monthly-view-btn" onclick="applyMultiCodeSplit()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">&#9989; Apply Selected Splits</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px; max-width: 1600px; margin: 0 auto;">
+            <!-- Stats -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Multi-Code Assets Found</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #8e44ad;" id="parserMultiCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Individual Rows After Split</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #2ecc71;" id="parserSplitCount">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets Scanned</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="parserTotalScanned">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Selected for Split</div>
+                    <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="parserSelectedCount">0</div>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div style="padding: 16px 20px; background: linear-gradient(135deg, rgba(142,68,173,0.1), rgba(155,89,182,0.05)); border: 1px solid rgba(142,68,173,0.3); border-radius: 10px; margin-bottom: 20px;">
+                <div style="font-weight: 600; color: #8e44ad; margin-bottom: 6px;">&#9432; How This Works</div>
+                <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">
+                    This tool detects assets that have <strong>multiple asset codes</strong> and/or <strong>multiple departments</strong> packed into a single row
+                    (separated by commas). It splits them into <strong>individual rows</strong>, each with its own asset code and matching department,
+                    while keeping all other fields (description, unit price, supplier, etc.) the same. Select the assets you want to split
+                    and click <strong>"Apply Selected Splits"</strong> to create the new rows and remove the original combined row.
+                </div>
+            </div>
+
+            <!-- Select All -->
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px; padding: 12px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+                    <input type="checkbox" id="parserSelectAll" onchange="toggleParserSelectAll(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
+                    Select All
+                </label>
+                <span style="font-size: 0.85rem; color: var(--text-secondary);" id="parserSelectionInfo"></span>
+            </div>
+
+            <!-- Results container -->
+            <div id="parserResultsContainer">
+                <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">&#128270;</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Click "Scan for Multi-Code Assets" to begin</div>
+                    <div style="font-size: 0.9rem;">This will search your assets for rows containing multiple asset codes or departments that need splitting.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear14"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
     <!-- Add Asset Code Modal (Admin Only) -->
     <div class="asset-code-modal" id="addAssetCodeModal">
         <div class="asset-code-modal-content">
@@ -9957,7 +10065,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -16388,6 +16496,18 @@
                     `;
                 }
                 renderCatalogPage();
+            }
+
+            // Handle Asset Code Parser page
+            if (pageNum === 14) {
+                const userInfo14 = document.getElementById('userInfo14');
+                if (userInfo14 && currentUser) {
+                    userInfo14.innerHTML = `
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                scanMultiCodeAssets();
             }
         }
 
@@ -30137,6 +30257,249 @@
                 console.error('Error during app initialization:', initError);
             }
         });
+
+        // ============================================
+        // ASSET CODE PARSER - PAGE 14
+        // Split multi-code assets into individual rows
+        // ============================================
+
+        let parserMultiCodeAssets = [];
+        let parserSelectedIds = new Set();
+
+        function scanMultiCodeAssets() {
+            const assets = loadAssetsFromStorage();
+            const totalScanned = assets.length;
+            parserMultiCodeAssets = [];
+            parserSelectedIds = new Set();
+            let totalSplitRows = 0;
+
+            assets.forEach(asset => {
+                const codeStr = (asset.assetCode || '').trim();
+                const deptStr = (asset.department || '').trim();
+
+                // Detect multiple asset codes separated by commas
+                const codes = codeStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                // Detect multiple departments separated by commas
+                const depts = deptStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+                // Only flag if there are multiple codes OR multiple departments
+                if (codes.length > 1 || depts.length > 1) {
+                    // Determine how many rows this will split into (max of codes and depts)
+                    const splitCount = Math.max(codes.length, depts.length);
+                    const splitRows = [];
+                    for (let i = 0; i < splitCount; i++) {
+                        splitRows.push({
+                            assetCode: codes[i] || codes[codes.length - 1],
+                            department: depts[i] || depts[depts.length - 1]
+                        });
+                    }
+                    parserMultiCodeAssets.push({
+                        original: asset,
+                        codes: codes,
+                        departments: depts,
+                        splitRows: splitRows
+                    });
+                    totalSplitRows += splitCount;
+                }
+            });
+
+            // Update stats
+            document.getElementById('parserMultiCount').textContent = parserMultiCodeAssets.length;
+            document.getElementById('parserSplitCount').textContent = totalSplitRows;
+            document.getElementById('parserTotalScanned').textContent = totalScanned;
+            document.getElementById('parserSelectedCount').textContent = '0';
+            document.getElementById('parserSelectAll').checked = false;
+            updateParserSelectionInfo();
+
+            renderParserResults();
+        }
+
+        function renderParserResults() {
+            const container = document.getElementById('parserResultsContainer');
+
+            if (parserMultiCodeAssets.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">&#10004;&#65039;</div>
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">No Multi-Code Assets Found</div>
+                        <div style="font-size: 0.9rem;">All assets have single asset codes and departments. No splitting needed.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            parserMultiCodeAssets.forEach((item, index) => {
+                const asset = item.original;
+                const isSelected = parserSelectedIds.has(asset.id);
+                const borderColor = isSelected ? '#8e44ad' : 'var(--border-color)';
+                const bgHighlight = isSelected ? 'rgba(142,68,173,0.05)' : 'var(--card-bg)';
+
+                html += `
+                <div style="margin-bottom: 20px; border: 2px solid ${borderColor}; border-radius: 12px; overflow: hidden; background: ${bgHighlight}; transition: all 0.2s;">
+                    <!-- Original Asset Header -->
+                    <div style="padding: 14px 18px; background: linear-gradient(135deg, rgba(142,68,173,0.12), rgba(155,89,182,0.06)); display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--border-color);">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleParserSelect('${asset.id}')" style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; color: #8e44ad; font-size: 0.95rem; margin-bottom: 4px;">Original Asset (will be replaced)</div>
+                            <div style="font-size: 0.82rem; color: var(--text-secondary); word-break: break-all;">
+                                <strong>Asset Code:</strong> ${escapeHtml(asset.assetCode || '')}
+                            </div>
+                            <div style="font-size: 0.82rem; color: var(--text-secondary); word-break: break-all;">
+                                <strong>Department:</strong> ${escapeHtml(asset.department || '')}
+                            </div>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0;">
+                            <div style="font-size: 0.78rem; color: var(--text-secondary);">Splits into</div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: #2ecc71;">${item.splitRows.length} rows</div>
+                        </div>
+                    </div>
+
+                    <!-- Shared Fields -->
+                    <div style="padding: 10px 18px; background: var(--card-bg); border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary);">
+                            <span><strong>Description:</strong> ${escapeHtml(asset.description || 'N/A')}</span>
+                            <span><strong>Date:</strong> ${escapeHtml(asset.dateIn || 'N/A')}</span>
+                            <span><strong>Supplier:</strong> ${escapeHtml(asset.supplier || 'N/A')}</span>
+                            <span><strong>Item Type:</strong> ${escapeHtml(asset.itemType || 'N/A')}</span>
+                            <span><strong>Category:</strong> ${escapeHtml(asset.category || 'N/A')}</span>
+                            <span><strong>Unit Price:</strong> ${asset.unitPrice != null ? 'JMD ' + formatCurrency(asset.unitPrice) : 'N/A'}</span>
+                            <span><strong>Source:</strong> ${escapeHtml(asset.source || 'N/A')}</span>
+                        </div>
+                    </div>
+
+                    <!-- Split Preview Table -->
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: rgba(142,68,173,0.08);">
+                                    <th style="padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color);">#</th>
+                                    <th style="padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color);">New Asset Code</th>
+                                    <th style="padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color);">Department</th>
+                                    <th style="padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color);">Description</th>
+                                    <th style="padding: 10px 14px; text-align: right; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color);">Unit Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                item.splitRows.forEach((row, rowIdx) => {
+                    html += `
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 10px 14px; color: var(--text-secondary);">${rowIdx + 1}</td>
+                                    <td style="padding: 10px 14px; color: #2ecc71; font-weight: 600;">${escapeHtml(row.assetCode)}</td>
+                                    <td style="padding: 10px 14px; color: var(--text-primary);">${escapeHtml(row.department)}</td>
+                                    <td style="padding: 10px 14px; color: var(--text-secondary);">${escapeHtml(asset.description || 'N/A')}</td>
+                                    <td style="padding: 10px 14px; text-align: right; color: var(--text-primary);">${asset.unitPrice != null ? 'JMD ' + formatCurrency(asset.unitPrice) : 'N/A'}</td>
+                                </tr>`;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleParserSelect(assetId) {
+            if (parserSelectedIds.has(assetId)) {
+                parserSelectedIds.delete(assetId);
+            } else {
+                parserSelectedIds.add(assetId);
+            }
+            document.getElementById('parserSelectedCount').textContent = parserSelectedIds.size;
+            document.getElementById('parserSelectAll').checked = parserSelectedIds.size === parserMultiCodeAssets.length && parserMultiCodeAssets.length > 0;
+            updateParserSelectionInfo();
+            renderParserResults();
+        }
+
+        function toggleParserSelectAll(checked) {
+            parserSelectedIds = new Set();
+            if (checked) {
+                parserMultiCodeAssets.forEach(item => {
+                    parserSelectedIds.add(item.original.id);
+                });
+            }
+            document.getElementById('parserSelectedCount').textContent = parserSelectedIds.size;
+            updateParserSelectionInfo();
+            renderParserResults();
+        }
+
+        function updateParserSelectionInfo() {
+            const info = document.getElementById('parserSelectionInfo');
+            if (parserSelectedIds.size === 0) {
+                info.textContent = 'No assets selected for splitting';
+            } else {
+                let totalNewRows = 0;
+                parserMultiCodeAssets.forEach(item => {
+                    if (parserSelectedIds.has(item.original.id)) {
+                        totalNewRows += item.splitRows.length;
+                    }
+                });
+                info.textContent = `${parserSelectedIds.size} asset(s) selected → will create ${totalNewRows} new rows`;
+            }
+        }
+
+        function applyMultiCodeSplit() {
+            if (parserSelectedIds.size === 0) {
+                alert('No assets selected. Please select at least one multi-code asset to split.');
+                return;
+            }
+
+            // Get the items to split
+            const toSplit = parserMultiCodeAssets.filter(item => parserSelectedIds.has(item.original.id));
+            let totalNewRows = 0;
+            toSplit.forEach(item => totalNewRows += item.splitRows.length);
+
+            const confirmMsg = `This will:\n• Remove ${toSplit.length} original multi-code asset(s)\n• Create ${totalNewRows} new individual asset rows\n\nEach new row will keep the same description, unit price, supplier, category, and other fields from the original.\n\nProceed?`;
+            if (!confirm(confirmMsg)) return;
+
+            let assets = loadAssetsFromStorage();
+            const idsToRemove = new Set(toSplit.map(item => item.original.id));
+
+            // Create new split assets
+            const newAssets = [];
+            toSplit.forEach(item => {
+                const orig = item.original;
+                item.splitRows.forEach(row => {
+                    const newAsset = Object.assign({}, orig);
+                    newAsset.id = generateAssetId();
+                    newAsset.assetCode = row.assetCode;
+                    newAsset.department = row.department;
+                    // Keep quantity as 1 for each split row
+                    newAsset.quantity = orig.quantity || 1;
+                    // Recalculate total price based on unit price and quantity
+                    if (newAsset.unitPrice != null) {
+                        newAsset.totalPrice = newAsset.unitPrice * (newAsset.quantity || 1);
+                    }
+                    newAssets.push(newAsset);
+                });
+
+                // Add audit entry for the split
+                if (typeof addAuditEntry === 'function') {
+                    addAuditEntry(orig.assetCode, 'Split', orig.department, `Split multi-code asset into ${item.splitRows.length} individual rows: ${item.splitRows.map(r => r.assetCode).join(', ')}`);
+                }
+            });
+
+            // Remove originals and add new split assets
+            assets = assets.filter(a => !idsToRemove.has(a.id));
+            assets = assets.concat(newAssets);
+
+            saveAssetsToStorage(assets);
+
+            // Refresh views
+            if (typeof refreshAllViews === 'function') {
+                refreshAllViews();
+            }
+
+            alert(`Split complete!\n• Removed ${toSplit.length} multi-code asset(s)\n• Created ${newAssets.length} new individual asset rows`);
+
+            // Re-scan to update the page
+            scanMultiCodeAssets();
+        }
+
     </script>
 </body>
 </html>
