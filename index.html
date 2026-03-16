@@ -1962,8 +1962,8 @@
             margin: 2% auto;
             padding: 0;
             border-radius: 12px;
-            width: 90%;
-            max-width: 900px;
+            width: 92%;
+            max-width: 1050px;
             max-height: 90vh;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             animation: slideDown 0.3s ease;
@@ -2019,16 +2019,19 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
             padding: 30px;
             overflow-y: auto;
+            overflow-x: hidden;
             flex: 1;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
+            overflow: visible;
+            min-width: 0;
         }
 
         .form-group label {
@@ -25921,12 +25924,54 @@
             alert(`Successfully updated costs for ${updatedCount} asset(s).\n\n${withoutCost.length - updatedCount} asset(s) still have no matching cost records.`);
         }
 
-        function loadAssetRegister() {
+        function loadAssetRegister(preservePage) {
             try {
                 assetRegisterData = loadAssetsFromStorage();
                 sortByDateDescending(assetRegisterData);
                 filteredRegisterData = [...assetRegisterData];
-                registerCurrentPage = 1;
+
+                // Re-apply current filters so filteredRegisterData stays consistent
+                const searchInput = document.getElementById('registerSearchInput');
+                const categoryFilter = document.getElementById('registerCategoryFilter');
+                const sourceFilter = document.getElementById('registerSourceFilter');
+                const departmentFilter = document.getElementById('registerDepartmentFilter');
+                const hasFilters = (searchInput && searchInput.value) ||
+                    (categoryFilter && categoryFilter.value) ||
+                    (sourceFilter && sourceFilter.value) ||
+                    (departmentFilter && departmentFilter.value) ||
+                    excludeDisposedAssets;
+
+                if (hasFilters) {
+                    const searchTerm = (searchInput ? searchInput.value : '').toLowerCase();
+                    const catVal = categoryFilter ? categoryFilter.value : '';
+                    const srcVal = sourceFilter ? sourceFilter.value : '';
+                    const deptVal = departmentFilter ? departmentFilter.value : '';
+                    const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
+
+                    filteredRegisterData = assetRegisterData.filter(asset => {
+                        const matchesSearch = !searchTerm ||
+                            asset.assetCode.toLowerCase().includes(searchTerm) ||
+                            (asset.description && asset.description.toLowerCase().includes(searchTerm)) ||
+                            (asset.supplier && asset.supplier.toLowerCase().includes(searchTerm)) ||
+                            (asset.department && asset.department.toLowerCase().includes(searchTerm));
+                        const matchesCategory = !catVal || asset.category === catVal;
+                        const matchesSource = !srcVal || asset.source === srcVal;
+                        const matchesDepartment = !deptVal || asset.department === deptVal;
+                        const matchesDisposal = !disposedCodes || !disposedCodes.has(asset.assetCode);
+                        return matchesSearch && matchesCategory && matchesSource && matchesDepartment && matchesDisposal;
+                    });
+                    sortByDateDescending(filteredRegisterData);
+                }
+
+                if (preservePage) {
+                    // Clamp current page to valid range after data changes
+                    const totalPages = Math.ceil(filteredRegisterData.length / REGISTER_PAGE_SIZE) || 1;
+                    if (registerCurrentPage > totalPages) {
+                        registerCurrentPage = totalPages;
+                    }
+                } else {
+                    registerCurrentPage = 1;
+                }
 
                 updateRegisterStats();
                 populateRegisterDepartmentFilter();
@@ -26991,9 +27036,9 @@
             if (typeof displayMonthlyBreakdown === 'function') {
                 try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
             }
-            // Refresh Asset Register
+            // Refresh Asset Register (preserve current page)
             if (typeof loadAssetRegister === 'function') {
-                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+                try { loadAssetRegister(true); } catch(e) { console.error('Error refreshing asset register:', e); }
             }
             // Refresh Board of Survey
             if (typeof loadDisposalRecords === 'function') {
