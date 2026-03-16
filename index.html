@@ -1989,8 +1989,8 @@
             margin: 2% auto;
             padding: 0;
             border-radius: 12px;
-            width: 90%;
-            max-width: 900px;
+            width: 92%;
+            max-width: 1050px;
             max-height: 90vh;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             animation: slideDown 0.3s ease;
@@ -2046,16 +2046,19 @@
 
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
             padding: 30px;
             overflow-y: auto;
+            overflow-x: hidden;
             flex: 1;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
+            overflow: visible;
+            min-width: 0;
         }
 
         .form-group label {
@@ -11101,6 +11104,87 @@
             alert(`Assets merged successfully!\n\nMerged asset: ${mergedAsset.assetCode}\nTotal Value: JMD ${formatCurrency(mergedAsset.totalPrice)}`);
         }
 
+        // Normalize a string for robust comparison: lowercase, collapse whitespace, strip punctuation
+        function normalizeForMatch(str) {
+            if (!str) return '';
+            return str.toLowerCase().trim()
+                .replace(/\s+/g, ' ')           // collapse multiple spaces
+                .replace(/[^\w\s]/g, '')         // strip punctuation (hyphens, slashes, etc.)
+                .trim();
+        }
+
+        // Calculate similarity ratio between two strings (0 to 1) using Dice coefficient on bigrams
+        function stringSimilarity(a, b) {
+            if (!a || !b) return 0;
+            const s1 = normalizeForMatch(a);
+            const s2 = normalizeForMatch(b);
+            if (s1 === s2) return 1;
+            if (s1.length < 2 || s2.length < 2) return 0;
+
+            const bigrams1 = new Map();
+            for (let i = 0; i < s1.length - 1; i++) {
+                const bigram = s1.substring(i, i + 2);
+                bigrams1.set(bigram, (bigrams1.get(bigram) || 0) + 1);
+            }
+
+            let intersectionSize = 0;
+            for (let i = 0; i < s2.length - 1; i++) {
+                const bigram = s2.substring(i, i + 2);
+                const count = bigrams1.get(bigram) || 0;
+                if (count > 0) {
+                    bigrams1.set(bigram, count - 1);
+                    intersectionSize++;
+                }
+            }
+
+            return (2.0 * intersectionSize) / ((s1.length - 1) + (s2.length - 1));
+        }
+
+        // Check if two asset codes look confusingly similar (handles 0/O, 1/l/I swaps, off-by-one typos)
+        function codesAreSimilar(code1, code2) {
+            if (!code1 || !code2) return false;
+            const c1 = normalizeForMatch(code1);
+            const c2 = normalizeForMatch(code2);
+            if (c1 === c2) return true;
+
+            // Substitute commonly confused characters then compare
+            const confusionMap = str => str.replace(/[oO]/g, '0').replace(/[lI]/g, '1');
+            if (confusionMap(c1) === confusionMap(c2)) return true;
+
+            // Levenshtein distance of 1 for codes of similar length
+            if (Math.abs(c1.length - c2.length) <= 1 && c1.length >= 3) {
+                let dist = 0;
+                const maxLen = Math.max(c1.length, c2.length);
+                const minLen = Math.min(c1.length, c2.length);
+                if (c1.length === c2.length) {
+                    for (let i = 0; i < c1.length; i++) {
+                        if (c1[i] !== c2[i]) dist++;
+                        if (dist > 1) break;
+                    }
+                    if (dist === 1) return true;
+                } else {
+                    // One insertion/deletion
+                    const longer = c1.length > c2.length ? c1 : c2;
+                    const shorter = c1.length > c2.length ? c2 : c1;
+                    let i = 0, j = 0;
+                    dist = 0;
+                    while (i < longer.length && j < shorter.length) {
+                        if (longer[i] !== shorter[j]) {
+                            dist++;
+                            if (dist > 1) break;
+                            i++; // skip one char in longer
+                        } else {
+                            i++; j++;
+                        }
+                    }
+                    dist += (longer.length - i) + (shorter.length - j);
+                    if (dist <= 1) return true;
+                }
+            }
+
+            return false;
+        }
+
         // Find potential duplicate assets
         function findDuplicates() {
             const duplicates = [];
@@ -11112,33 +11196,41 @@
                     const a2 = assets[j];
                     const reasons = [];
 
-                    // Check for same asset code
+                    // Check for same or confusingly similar asset code
                     const code1 = (a1.assetCode || '').toLowerCase().trim();
                     const code2 = (a2.assetCode || '').toLowerCase().trim();
-                    if (code1 && code2 && code1 === code2) {
-                        reasons.push('Same asset code');
+                    if (code1 && code2) {
+                        if (code1 === code2) {
+                            reasons.push('Same asset code');
+                        } else if (codesAreSimilar(code1, code2)) {
+                            reasons.push('Similar asset code (possible typo)');
+                        }
                     }
 
-                    // Check for same description
-                    const desc1 = (a1.description || '').toLowerCase().trim();
-                    const desc2 = (a2.description || '').toLowerCase().trim();
-                    if (desc1 && desc2 && desc1 === desc2) {
-                        reasons.push('Same description');
+                    // Check for same or highly similar description
+                    const desc1 = normalizeForMatch(a1.description);
+                    const desc2 = normalizeForMatch(a2.description);
+                    if (desc1 && desc2) {
+                        if (desc1 === desc2) {
+                            reasons.push('Same description');
+                        } else if (stringSimilarity(a1.description, a2.description) >= 0.85) {
+                            reasons.push('Very similar description');
+                        }
                     }
 
-                    // Check for same serial/model
-                    const serial1 = (a1.serialModel || '').toLowerCase().trim();
-                    const serial2 = (a2.serialModel || '').toLowerCase().trim();
-                    if (serial1 && serial2 && serial1 === serial2) {
+                    // Check for same serial/model (normalized to handle formatting differences)
+                    const serial1 = normalizeForMatch(a1.serialModel);
+                    const serial2 = normalizeForMatch(a2.serialModel);
+                    if (serial1 && serial2 && serial1.length >= 3 && serial1 === serial2) {
                         reasons.push('Same serial/model');
                     }
 
-                    // Check for same supplier and description (partial match)
-                    const supplier1 = (a1.supplier || '').toLowerCase().trim();
-                    const supplier2 = (a2.supplier || '').toLowerCase().trim();
-                    if (supplier1 && supplier2 && supplier1 === supplier2 && desc1 && desc2) {
-                        const descSimilar = desc1.includes(desc2) || desc2.includes(desc1);
-                        if (descSimilar && !reasons.includes('Same description')) {
+                    // Check for same supplier and description (partial or fuzzy match)
+                    const supplier1 = normalizeForMatch(a1.supplier);
+                    const supplier2 = normalizeForMatch(a2.supplier);
+                    if (supplier1 && supplier2 && (supplier1 === supplier2 || stringSimilarity(a1.supplier, a2.supplier) >= 0.85) && desc1 && desc2) {
+                        const descSim = stringSimilarity(a1.description, a2.description);
+                        if (descSim >= 0.7 && !reasons.includes('Same description') && !reasons.includes('Very similar description')) {
                             reasons.push('Same supplier with similar description');
                         }
                     }
@@ -11325,32 +11417,39 @@
             for (const localAsset of localAssets) {
                 const reasons = [];
 
-                // Check ID
+                // Check ID (exact match — strongest signal)
                 if (cloudAsset.id && localAsset.id && cloudAsset.id === localAsset.id) {
                     reasons.push('Same ID');
                 }
 
-                // Check asset code
+                // Check asset code (exact or similar)
                 const cloudCode = (cloudAsset.assetCode || '').toLowerCase().trim();
                 const localCode = (localAsset.assetCode || '').toLowerCase().trim();
-                if (cloudCode && localCode && cloudCode === localCode) {
-                    reasons.push('Same asset code');
+                if (cloudCode && localCode) {
+                    if (cloudCode === localCode) {
+                        reasons.push('Same asset code');
+                    } else if (codesAreSimilar(cloudCode, localCode)) {
+                        reasons.push('Similar asset code (possible typo)');
+                    }
                 }
 
-                // Check description and supplier
-                const cloudDesc = (cloudAsset.description || '').toLowerCase().trim();
-                const localDesc = (localAsset.description || '').toLowerCase().trim();
-                const cloudSupplier = (cloudAsset.supplier || '').toLowerCase().trim();
-                const localSupplier = (localAsset.supplier || '').toLowerCase().trim();
-                if (cloudDesc && localDesc && cloudDesc === localDesc &&
-                    cloudSupplier && localSupplier && cloudSupplier === localSupplier) {
-                    reasons.push('Same description & supplier');
+                // Check description and supplier (with normalization)
+                const cloudDesc = normalizeForMatch(cloudAsset.description);
+                const localDesc = normalizeForMatch(localAsset.description);
+                const cloudSupplier = normalizeForMatch(cloudAsset.supplier);
+                const localSupplier = normalizeForMatch(localAsset.supplier);
+                if (cloudDesc && localDesc && cloudSupplier && localSupplier) {
+                    const descMatch = cloudDesc === localDesc || stringSimilarity(cloudAsset.description, localAsset.description) >= 0.85;
+                    const supplierMatch = cloudSupplier === localSupplier || stringSimilarity(cloudAsset.supplier, localAsset.supplier) >= 0.85;
+                    if (descMatch && supplierMatch) {
+                        reasons.push('Same description & supplier');
+                    }
                 }
 
-                // Check serial/model
-                const cloudSerial = (cloudAsset.serialModel || '').toLowerCase().trim();
-                const localSerial = (localAsset.serialModel || '').toLowerCase().trim();
-                if (cloudSerial && localSerial && cloudSerial === localSerial) {
+                // Check serial/model (normalized)
+                const cloudSerial = normalizeForMatch(cloudAsset.serialModel);
+                const localSerial = normalizeForMatch(localAsset.serialModel);
+                if (cloudSerial && localSerial && cloudSerial.length >= 3 && cloudSerial === localSerial) {
                     reasons.push('Same serial/model');
                 }
 
@@ -21660,7 +21759,7 @@
             source: {
                 label: 'Source (Purchased/Donated)',
                 required: true,
-                aliases: ['source', 'asset source', 'acquisition type', 'type', 'purchase type', 'procurement type', 'funded by', 'funding source']
+                aliases: ['source', 'asset source', 'acquisition type', 'purchase type', 'procurement type', 'funded by', 'funding source']
             },
             month: {
                 label: 'Month',
@@ -21680,7 +21779,7 @@
             quantity: {
                 label: 'Quantity',
                 required: false,
-                aliases: ['quantity', 'qty', 'count', 'amount', 'units', 'no of items', 'number']
+                aliases: ['quantity', 'qty', 'count', 'units', 'no of items', 'number of items']
             },
             unitPrice: {
                 label: 'Unit Price',
@@ -21831,30 +21930,67 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // Auto-detect column mappings based on header names
+        // Auto-detect column mappings based on header names using scored matching
         function autoDetectColumns() {
             importColumnMapping = {};
 
-            importFileHeaders.forEach((header, index) => {
-                const normalizedHeader = header.toLowerCase().trim();
+            // Build a scored list of all possible (field, column) matches
+            const candidates = []; // { fieldKey, colIndex, score }
 
-                // Check each field's aliases
+            importFileHeaders.forEach((header, colIndex) => {
+                const normalizedHeader = header.toLowerCase().trim().replace(/\s+/g, ' ');
+                if (!normalizedHeader) return;
+
                 for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
-                    if (importColumnMapping[fieldKey] !== undefined) continue; // Already mapped
+                    let bestScore = 0;
 
-                    // Check if header matches any alias
-                    const matchFound = fieldDef.aliases.some(alias => {
-                        return normalizedHeader === alias ||
-                               normalizedHeader.includes(alias) ||
-                               alias.includes(normalizedHeader);
-                    });
+                    for (const alias of fieldDef.aliases) {
+                        let score = 0;
 
-                    if (matchFound) {
-                        importColumnMapping[fieldKey] = index;
-                        break;
+                        if (normalizedHeader === alias) {
+                            // Exact match — highest priority
+                            score = 100;
+                        } else if (normalizedHeader.replace(/[^a-z0-9]/g, '') === alias.replace(/[^a-z0-9]/g, '')) {
+                            // Exact match ignoring separators (e.g. "asset-code" vs "asset code")
+                            score = 95;
+                        } else if (normalizedHeader === alias + 's' || normalizedHeader + 's' === alias) {
+                            // Plural/singular variant
+                            score = 85;
+                        } else {
+                            // Substring matching — only if the alias is specific enough (>= 4 chars)
+                            // and the header is not too much longer (prevents "type" matching inside "procurement type")
+                            if (alias.length >= 4 && normalizedHeader.includes(alias)) {
+                                // Score based on how much of the header the alias covers
+                                score = Math.round(60 * (alias.length / normalizedHeader.length));
+                            } else if (normalizedHeader.length >= 4 && alias.includes(normalizedHeader)) {
+                                score = Math.round(55 * (normalizedHeader.length / alias.length));
+                            }
+                        }
+
+                        if (score > bestScore) bestScore = score;
+                    }
+
+                    if (bestScore > 0) {
+                        candidates.push({ fieldKey, colIndex, score: bestScore });
                     }
                 }
             });
+
+            // Sort by score descending so best matches are assigned first
+            candidates.sort((a, b) => b.score - a.score);
+
+            // Greedily assign: each field and each column used at most once
+            const usedFields = new Set();
+            const usedColumns = new Set();
+
+            for (const { fieldKey, colIndex, score } of candidates) {
+                if (usedFields.has(fieldKey) || usedColumns.has(colIndex)) continue;
+                // Require a minimum score to avoid spurious matches
+                if (score < 30) continue;
+                importColumnMapping[fieldKey] = colIndex;
+                usedFields.add(fieldKey);
+                usedColumns.add(colIndex);
+            }
 
             // Build mapping UI
             buildMappingUI();
@@ -22336,9 +22472,10 @@
                 progressText.textContent = 'Generating preview...';
             }
 
-            // Get existing asset codes for duplicate detection
+            // Get existing asset data for duplicate detection (codes + serial numbers)
             const existingAssets = loadAssetsFromStorage();
-            const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+            const existingCodes = new Set(existingAssets.map(a => (a.assetCode || '').toLowerCase().trim()).filter(Boolean));
+            const existingSerials = new Set(existingAssets.map(a => normalizeForMatch(a.serialModel)).filter(s => s.length >= 3));
 
             importPreviewData = [];
             let validCount = 0;
@@ -22402,10 +22539,16 @@
                         }
                     });
 
-                    // Check for duplicates
-                    if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                    // Check for duplicates — asset code or serial/model match
+                    if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase().trim())) {
                         rowData.status = 'duplicate';
                         rowData.errors.push('Asset code already exists');
+                    } else if (rowData.parsed.serialModel) {
+                        const normalizedSerial = normalizeForMatch(rowData.parsed.serialModel);
+                        if (normalizedSerial.length >= 3 && existingSerials.has(normalizedSerial)) {
+                            rowData.status = 'duplicate';
+                            rowData.errors.push('Serial/model number already exists');
+                        }
                     }
 
                     // Count by status
@@ -23381,9 +23524,10 @@
 
             gdriveImportState.previewData = [];
 
-            // Get existing asset codes for duplicate detection
+            // Get existing asset data for duplicate detection (codes + serial numbers)
             const existingAssets = loadAssetsFromStorage();
-            const existingCodes = new Set(existingAssets.map(a => a.assetCode?.toLowerCase()));
+            const existingCodes = new Set(existingAssets.map(a => (a.assetCode || '').toLowerCase().trim()).filter(Boolean));
+            const existingSerials = new Set(existingAssets.map(a => normalizeForMatch(a.serialModel)).filter(s => s.length >= 3));
 
             // Process all selected sheets
             Object.values(gdriveImportState.sheetsData).forEach(fileData => {
@@ -23445,10 +23589,16 @@
                             }
                         });
 
-                        // Check for duplicates
-                        if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase())) {
+                        // Check for duplicates — asset code or serial/model match
+                        if (rowData.parsed.assetCode && existingCodes.has(rowData.parsed.assetCode.toLowerCase().trim())) {
                             rowData.status = 'duplicate';
                             rowData.errors.push('Asset code already exists');
+                        } else if (rowData.parsed.serialModel) {
+                            const normalizedSerial = normalizeForMatch(rowData.parsed.serialModel);
+                            if (normalizedSerial.length >= 3 && existingSerials.has(normalizedSerial)) {
+                                rowData.status = 'duplicate';
+                                rowData.errors.push('Serial/model number already exists');
+                            }
                         }
 
                         // Only add rows that have at least some data
@@ -25995,12 +26145,54 @@
             alert(`Successfully updated costs for ${updatedCount} asset(s).\n\n${withoutCost.length - updatedCount} asset(s) still have no matching cost records.`);
         }
 
-        function loadAssetRegister() {
+        function loadAssetRegister(preservePage) {
             try {
                 assetRegisterData = loadAssetsFromStorage();
                 sortByDateDescending(assetRegisterData);
                 filteredRegisterData = [...assetRegisterData];
-                registerCurrentPage = 1;
+
+                // Re-apply current filters so filteredRegisterData stays consistent
+                const searchInput = document.getElementById('registerSearchInput');
+                const categoryFilter = document.getElementById('registerCategoryFilter');
+                const sourceFilter = document.getElementById('registerSourceFilter');
+                const departmentFilter = document.getElementById('registerDepartmentFilter');
+                const hasFilters = (searchInput && searchInput.value) ||
+                    (categoryFilter && categoryFilter.value) ||
+                    (sourceFilter && sourceFilter.value) ||
+                    (departmentFilter && departmentFilter.value) ||
+                    excludeDisposedAssets;
+
+                if (hasFilters) {
+                    const searchTerm = (searchInput ? searchInput.value : '').toLowerCase();
+                    const catVal = categoryFilter ? categoryFilter.value : '';
+                    const srcVal = sourceFilter ? sourceFilter.value : '';
+                    const deptVal = departmentFilter ? departmentFilter.value : '';
+                    const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
+
+                    filteredRegisterData = assetRegisterData.filter(asset => {
+                        const matchesSearch = !searchTerm ||
+                            asset.assetCode.toLowerCase().includes(searchTerm) ||
+                            (asset.description && asset.description.toLowerCase().includes(searchTerm)) ||
+                            (asset.supplier && asset.supplier.toLowerCase().includes(searchTerm)) ||
+                            (asset.department && asset.department.toLowerCase().includes(searchTerm));
+                        const matchesCategory = !catVal || asset.category === catVal;
+                        const matchesSource = !srcVal || asset.source === srcVal;
+                        const matchesDepartment = !deptVal || asset.department === deptVal;
+                        const matchesDisposal = !disposedCodes || !disposedCodes.has(asset.assetCode);
+                        return matchesSearch && matchesCategory && matchesSource && matchesDepartment && matchesDisposal;
+                    });
+                    sortByDateDescending(filteredRegisterData);
+                }
+
+                if (preservePage) {
+                    // Clamp current page to valid range after data changes
+                    const totalPages = Math.ceil(filteredRegisterData.length / REGISTER_PAGE_SIZE) || 1;
+                    if (registerCurrentPage > totalPages) {
+                        registerCurrentPage = totalPages;
+                    }
+                } else {
+                    registerCurrentPage = 1;
+                }
 
                 updateRegisterStats();
                 populateRegisterDepartmentFilter();
@@ -27128,9 +27320,9 @@
             if (typeof displayMonthlyBreakdown === 'function') {
                 try { displayMonthlyBreakdown(); } catch(e) { console.error('Error refreshing monthly breakdown:', e); }
             }
-            // Refresh Asset Register
+            // Refresh Asset Register (preserve current page)
             if (typeof loadAssetRegister === 'function') {
-                try { loadAssetRegister(); } catch(e) { console.error('Error refreshing asset register:', e); }
+                try { loadAssetRegister(true); } catch(e) { console.error('Error refreshing asset register:', e); }
             }
             // Refresh Board of Survey
             if (typeof loadDisposalRecords === 'function') {
@@ -29262,6 +29454,21 @@
                 {name:'Monitor, Patient - 2 Channel',price:'J$280,000\u2013550,000',src:'#1389 \u00b7 Register 1998'},
                 {name:'Monitor, Neonatal',price:'J$280,000\u2013550,000',src:'#1390 \u00b7 Register 1998'}
             ]},
+            {cat:'Patient Monitors', icon:'&#x1F4DF;', life:7, items:[
+                {name:'Patient Monitor (Bedside Multi-Parameter)',price:'J$280,000\u2013600,000',src:'Market estimate'},
+                {name:'Patient Monitor (Touch Screen)',price:'J$350,000\u2013750,000',src:'Market estimate'},
+                {name:'Monitor, Patient - Sgl Channel w/Wall Mount',price:'J$180,000\u2013380,000',src:'#718 \u00b7 Register 1998'},
+                {name:'Monitor, Patient - 2 Channel',price:'J$280,000\u2013550,000',src:'#1389 \u00b7 Register 1998'},
+                {name:'Monitor, Neonatal',price:'J$280,000\u2013550,000',src:'#1390 \u00b7 Register 1998'},
+                {name:'Monitor, ECG - Portable, Battery Operated',price:'J$250,000\u2013500,000',src:'#1388 \u00b7 Register 1998'},
+                {name:'Monitor, Cardiac - Electric',price:'J$280,000\u2013550,000',src:'#619 \u00b7 Register 1997'},
+                {name:'Monitor, Foetal',price:'J$380,000\u2013700,000',src:'#618 \u00b7 Register 1997'},
+                {name:'Monitor, Defibrillator',price:'J$450,000\u2013900,000',src:'#613 \u00b7 Register 1998'},
+                {name:'Monitor, Oxygen - Hi/Lo Alarm',price:'J$180,000\u2013380,000',src:'#679 \u00b7 Register 1998'},
+                {name:'Monitor, Trace - Physiological ECG/2 Pressure',price:'J$350,000\u2013750,000',src:'#720 \u00b7 Register 1998'},
+                {name:'Dinamap / Vital Signs Monitor',price:'J$180,000\u2013380,000',src:'Market estimate'},
+                {name:'Monitor, Blood Pressure - Auto Printer',price:'J$35,000\u201365,000',src:'#719 \u00b7 Register 1998'}
+            ]},
             {cat:'CSSD & Sterilization', icon:'&#x1F9EA;', life:10, items:[
                 {name:'Sterilizer, Counter Top',price:'J$280,000\u2013550,000',src:'#727 \u00b7 Register 1998'},
                 {name:'Sterilizer, Vacuum - Double Door',price:'J$850,000\u20131,800,000',src:'#728 \u00b7 Register 1998'},
@@ -29613,6 +29820,10 @@
             'bassinet with cart': 'bassinet stand', 'baby bassinet with cart': 'bassinet stand',
             // Medical/privacy screen
             'medical screen': 'privacy screen', 'bed screen': 'privacy screen',
+            // Touch Screen Patient Monitor — keep "patient monitor" as primary identity
+            'touch screen patient monitor': 'patient monitor touch screen',
+            'touchscreen patient monitor': 'patient monitor touch screen',
+            'touch screen monitor': 'patient monitor touch screen',
             // Hand truck
             'hand truck': 'sack trolley', 'folding hand truck': 'sack trolley',
             // Lateral / Horizontal filing cabinet synonyms
@@ -29656,6 +29867,11 @@
         function normalizeAssetDesc(desc) {
             // Pre-process compound hyphenated words before dash-splitting
             desc = desc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
+            // Pre-process: if description contains "patient monitor" anywhere, keep the full text
+            // (prevents dash-split from losing the primary identity, e.g. "Touch Screen - Patient Monitor")
+            if (/patient\s+monitor/i.test(desc)) {
+                desc = desc.replace(/\s*[-\u2013\u2014]\s*/g, ' ');
+            }
             // Pre-process: split on dashes/hyphens in original text BEFORE stripping non-alnum
             // e.g. "Stretchers - IV Poles - Mattress" → take "Stretchers" only
             // But: "Iron Frame - Reclining Chair (Blue)" → skip material/frame prefix, take "Reclining Chair"
@@ -29719,6 +29935,10 @@
             // Apply same critical pre-processing to rawDesc as normalizeAssetDesc:
             // Pre-process compound hyphenated words before dash-splitting
             assetDesc = assetDesc.replace(/\bfold[\s-]*in[\s-]*half\b/gi, 'folding');
+            // Pre-process: if description contains "patient monitor" anywhere, keep full text
+            if (/patient\s+monitor/i.test(assetDesc)) {
+                assetDesc = assetDesc.replace(/\s*[-\u2013\u2014]\s*/g, ' ');
+            }
             // 1. Dash-split: take first part, unless it's a material/frame descriptor
             var rawSrc = assetDesc;
             var rawDashParts = rawSrc.split(/\s*[-\u2013\u2014]\s*/);
@@ -29920,7 +30140,8 @@
                         ['sofa','wheelchair'],['recliner','wheelchair'],
                         ['stove','table'],['range','table'],['cooker','table'],
                         ['skip','bin'],['basin','bin'],['basin','cabinet'],
-                        ['speaker','fan'],['mixer','processor']
+                        ['speaker','fan'],['mixer','processor'],
+                        ['monitor','screen'],['bin','stool'],['stool','bin']
                     ];
                     var hasConflict = false;
                     for (var cp = 0; cp < conflictPairs.length; cp++) {
