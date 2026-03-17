@@ -8518,6 +8518,8 @@
                     <div class="page-action-bar">
                         <button class="btn monthly-view-btn" onclick="refreshAssetRegister()">🔄 Refresh</button>
                         <button class="btn monthly-view-btn" onclick="catalogAutoFillRegister()" style="background: linear-gradient(135deg, #16a085, #1abc9c);" title="Auto-fill Useful Life, Salvage Value, Depr. Method and missing prices from the Asset Cost Catalog">📋 Catalog Auto-Fill</button>
+                        <button class="btn monthly-view-btn" onclick="registerScanMultiCodeAssets()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">🔀 Scan for Multi-Code Assets</button>
+                        <button class="btn monthly-view-btn" onclick="applyRegisterMultiCodeSplit()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">✅ Apply Selected Splits</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                         <button class="btn monthly-view-btn" onclick="removeEmptyAssetsFromRegister()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Remove Empty Assets</button>
@@ -26982,6 +26984,150 @@
 
             refreshAllViews();
             alert(`✅ ${deadAssets.length} empty asset record(s) removed successfully.`);
+        }
+
+        // ============================================
+        // ASSET REGISTER: MULTI-CODE SPLIT FEATURE
+        // ============================================
+
+        function registerScanMultiCodeAssets() {
+            const assets = loadAssetsFromStorage();
+            const multiCodeIds = [];
+
+            assets.forEach(asset => {
+                const codeStr = (asset.assetCode || '').trim();
+                const deptStr = (asset.department || '').trim();
+                const codes = parseAssetCodes(codeStr);
+                const depts = parseDepartments(deptStr);
+
+                if (codes.length > 1 || depts.length > 1) {
+                    multiCodeIds.push(asset.id);
+                }
+            });
+
+            if (multiCodeIds.length === 0) {
+                alert('No multi-code assets found. All assets have single asset codes and departments.');
+                return;
+            }
+
+            // Clear current filters to show all assets
+            const searchInput = document.getElementById('registerSearchInput');
+            if (searchInput) searchInput.value = '';
+            const catFilter = document.getElementById('registerCategoryFilter');
+            if (catFilter) catFilter.value = '';
+            const srcFilter = document.getElementById('registerSourceFilter');
+            if (srcFilter) srcFilter.value = '';
+            const deptFilter = document.getElementById('registerDepartmentFilter');
+            if (deptFilter) deptFilter.value = '';
+            const deptTrigger = document.getElementById('registerDeptDropdownTrigger');
+            if (deptTrigger) deptTrigger.textContent = 'All Departments';
+
+            // Filter to only show multi-code assets
+            filteredRegisterData = assetRegisterData.filter(a => multiCodeIds.includes(a.id));
+            registerCurrentPage = 1;
+            displayAssetRegister();
+
+            // Auto-select all displayed multi-code assets
+            setTimeout(() => {
+                const checkboxes = document.querySelectorAll('.register-row-checkbox');
+                checkboxes.forEach(cb => { cb.checked = true; });
+                const selectAllCb = document.getElementById('registerSelectAll');
+                if (selectAllCb) selectAllCb.checked = true;
+                updateRegisterDeleteControls();
+            }, 100);
+
+            alert(`Found ${multiCodeIds.length} multi-code asset(s). They are now displayed and selected.\n\nReview them, then click "Apply Selected Splits" to split them into individual rows.`);
+        }
+
+        function applyRegisterMultiCodeSplit() {
+            const checked = document.querySelectorAll('.register-row-checkbox:checked');
+            const selectedIds = [...checked].map(cb => cb.value);
+
+            if (selectedIds.length === 0) {
+                alert('No assets selected. Please select assets to split, or use "Scan for Multi-Code Assets" first.');
+                return;
+            }
+
+            let assets = loadAssetsFromStorage();
+            const selectedAssets = selectedIds.map(id => assets.find(a => a.id === id)).filter(Boolean);
+
+            // Identify which selected assets are actually multi-code
+            const toSplit = [];
+            const notMultiCode = [];
+
+            selectedAssets.forEach(asset => {
+                const codes = parseAssetCodes((asset.assetCode || '').trim());
+                const depts = parseDepartments((asset.department || '').trim());
+
+                if (codes.length > 1 || depts.length > 1) {
+                    const splitCount = Math.max(codes.length, depts.length);
+                    const splitRows = [];
+                    for (let i = 0; i < splitCount; i++) {
+                        splitRows.push({
+                            assetCode: codes[i] || codes[codes.length - 1],
+                            department: depts[i] || depts[depts.length - 1]
+                        });
+                    }
+                    toSplit.push({ original: asset, codes, departments: depts, splitRows });
+                } else {
+                    notMultiCode.push(asset);
+                }
+            });
+
+            if (toSplit.length === 0) {
+                alert('None of the selected assets have multiple codes or departments to split.');
+                return;
+            }
+
+            let totalNewRows = 0;
+            toSplit.forEach(item => totalNewRows += item.splitRows.length);
+
+            let confirmMsg = `This will:\n• Remove ${toSplit.length} original multi-code asset(s)\n• Create ${totalNewRows} new individual asset rows\n\nEach new row will keep the same description, unit price, supplier, category, and other fields from the original.\n\n`;
+            if (notMultiCode.length > 0) {
+                confirmMsg += `Note: ${notMultiCode.length} selected asset(s) are not multi-code and will be skipped.\n\n`;
+            }
+            confirmMsg += 'Proceed?';
+
+            if (!confirm(confirmMsg)) return;
+
+            const idsToRemove = new Set(toSplit.map(item => item.original.id));
+            const newAssets = [];
+
+            toSplit.forEach(item => {
+                const orig = item.original;
+                item.splitRows.forEach(row => {
+                    const newAsset = Object.assign({}, orig);
+                    newAsset.id = generateAssetId();
+                    newAsset.assetCode = row.assetCode;
+                    newAsset.department = row.department;
+                    newAsset.quantity = 1;
+                    if (newAsset.unitPrice != null) {
+                        newAsset.totalPrice = newAsset.unitPrice;
+                    }
+                    newAssets.push(newAsset);
+                });
+
+                if (typeof addAuditEntry === 'function') {
+                    addAuditEntry(orig.assetCode, 'Split', orig.department, `Split multi-code asset into ${item.splitRows.length} individual rows: ${item.splitRows.map(r => r.assetCode).join(', ')}`);
+                }
+                if (typeof removeDisposalRecordsForAsset === 'function') {
+                    removeDisposalRecordsForAsset(orig.assetCode, orig.id);
+                }
+            });
+
+            assets = assets.filter(a => !idsToRemove.has(a.id));
+            assets = assets.concat(newAssets);
+            saveAssetsToStorage(assets);
+
+            if (typeof trackDeletedAssetIds === 'function') {
+                trackDeletedAssetIds([...idsToRemove]);
+            }
+
+            if (typeof refreshAllViews === 'function') {
+                refreshAllViews();
+            }
+
+            alert(`Split complete!\n• Removed ${toSplit.length} multi-code asset(s)\n• Created ${newAssets.length} new individual asset rows`);
         }
 
         // ============================================
