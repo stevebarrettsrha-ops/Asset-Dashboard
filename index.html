@@ -14442,18 +14442,30 @@
 
             if (isOpen) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
             } else {
-                // Calculate available space
+                // Use fixed positioning to escape overflow:clip on ancestors
                 const triggerRect = trigger.getBoundingClientRect();
                 const viewportHeight = window.innerHeight;
                 const spaceBelow = viewportHeight - triggerRect.bottom;
                 const spaceAbove = triggerRect.top;
-                const menuHeight = 250; // max-height from CSS
+                const menuHeight = 250;
 
-                // Show above if not enough space below but enough above
+                menu.style.position = 'fixed';
+                menu.style.left = triggerRect.left + 'px';
+                menu.style.width = triggerRect.width + 'px';
+
                 if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.style.top = '';
+                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
                     menu.classList.add('show', 'show-above');
                 } else {
+                    menu.style.top = (triggerRect.bottom + 4) + 'px';
+                    menu.style.bottom = '';
                     menu.classList.add('show');
                     menu.classList.remove('show-above');
                 }
@@ -14472,6 +14484,11 @@
             }
             if (menu) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
@@ -14493,6 +14510,11 @@
             const menu = document.getElementById('deptDropdownMenu');
             if (wrapper && menu && !wrapper.contains(e.target)) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
             }
 
             // Close Asset Register department dropdown
@@ -14507,6 +14529,11 @@
             const assetMenu = document.getElementById('assetDeptDropdownMenu');
             if (assetWrapper && assetMenu && !assetWrapper.contains(e.target)) {
                 assetMenu.classList.remove('show', 'show-above');
+                assetMenu.style.position = '';
+                assetMenu.style.top = '';
+                assetMenu.style.left = '';
+                assetMenu.style.width = '';
+                assetMenu.style.bottom = '';
             }
 
             // Close Audit Entry department dropdown
@@ -14514,6 +14541,11 @@
             const auditEntryMenu = document.getElementById('auditEntryDeptMenu');
             if (auditEntryWrapper && auditEntryMenu && !auditEntryWrapper.contains(e.target)) {
                 auditEntryMenu.classList.remove('show', 'show-above');
+                auditEntryMenu.style.position = '';
+                auditEntryMenu.style.top = '';
+                auditEntryMenu.style.left = '';
+                auditEntryMenu.style.width = '';
+                auditEntryMenu.style.bottom = '';
             }
         });
 
@@ -14529,22 +14561,42 @@
 
             // Close all other custom dropdowns first
             document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
-                if (m !== menu) m.classList.remove('show', 'show-above');
+                if (m !== menu) {
+                    m.classList.remove('show', 'show-above');
+                    m.style.position = '';
+                    m.style.top = '';
+                    m.style.left = '';
+                    m.style.width = '';
+                    m.style.bottom = '';
+                }
             });
 
             if (isOpen) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
             } else {
-                // Calculate available space and decide direction
+                // Use fixed positioning to escape overflow:clip on ancestors
                 const triggerRect = trigger.getBoundingClientRect();
                 const viewportHeight = window.innerHeight;
                 const spaceBelow = viewportHeight - triggerRect.bottom;
                 const spaceAbove = triggerRect.top;
                 const menuHeight = 250;
 
+                menu.style.position = 'fixed';
+                menu.style.left = triggerRect.left + 'px';
+                menu.style.width = triggerRect.width + 'px';
+
                 if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.style.top = '';
+                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
                     menu.classList.add('show', 'show-above');
                 } else {
+                    menu.style.top = (triggerRect.bottom + 4) + 'px';
+                    menu.style.bottom = '';
                     menu.classList.add('show');
                     menu.classList.remove('show-above');
                 }
@@ -14564,6 +14616,11 @@
             }
             if (menu) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
@@ -14625,22 +14682,42 @@
 
             // Close all other custom dropdowns first
             document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
-                if (m !== menu) m.classList.remove('show', 'show-above');
+                if (m !== menu) {
+                    m.classList.remove('show', 'show-above');
+                    m.style.position = '';
+                    m.style.top = '';
+                    m.style.left = '';
+                    m.style.width = '';
+                    m.style.bottom = '';
+                }
             });
 
             if (isOpen) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
             } else {
-                // Calculate available space and decide direction
+                // Use fixed positioning to escape overflow:clip on ancestors
                 const triggerRect = trigger.getBoundingClientRect();
                 const viewportHeight = window.innerHeight;
                 const spaceBelow = viewportHeight - triggerRect.bottom;
                 const spaceAbove = triggerRect.top;
                 const menuHeight = 250;
 
+                menu.style.position = 'fixed';
+                menu.style.left = triggerRect.left + 'px';
+                menu.style.width = triggerRect.width + 'px';
+
                 if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                    menu.style.top = '';
+                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
                     menu.classList.add('show', 'show-above');
                 } else {
+                    menu.style.top = (triggerRect.bottom + 4) + 'px';
+                    menu.style.bottom = '';
                     menu.classList.add('show');
                     menu.classList.remove('show-above');
                 }
@@ -14660,6 +14737,11 @@
             }
             if (menu) {
                 menu.classList.remove('show', 'show-above');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.width = '';
+                menu.style.bottom = '';
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
