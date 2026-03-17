@@ -14432,6 +14432,43 @@
             updateDepartmentManagementUI();
         }
 
+        // Dropdown positioning helpers
+        function resetDropdownStyles(menu) {
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.left = '';
+            menu.style.width = '';
+            menu.style.bottom = '';
+        }
+
+        function positionDropdownFixed(trigger, menu) {
+            const triggerRect = trigger.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const spaceBelow = viewportHeight - triggerRect.bottom;
+            const spaceAbove = triggerRect.top;
+            const menuHeight = 250;
+
+            menu.style.position = 'fixed';
+            menu.style.left = triggerRect.left + 'px';
+            menu.style.width = triggerRect.width + 'px';
+
+            if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+                menu.style.top = '';
+                menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
+                menu.classList.add('show', 'show-above');
+            } else {
+                menu.style.top = (triggerRect.bottom + 4) + 'px';
+                menu.style.bottom = '';
+                menu.classList.add('show');
+                menu.classList.remove('show-above');
+            }
+        }
+
+        function closeDropdownMenu(menu) {
+            menu.classList.remove('show', 'show-above');
+            resetDropdownStyles(menu);
+        }
+
         // Custom dropdown functions for department filter
         function toggleDeptDropdown() {
             const menu = document.getElementById('deptDropdownMenu');
@@ -14440,37 +14477,10 @@
 
             if (!menu || !trigger || !wrapper) return;
 
-            const isOpen = menu.classList.contains('show');
-
-            if (isOpen) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+            if (menu.classList.contains('show')) {
+                closeDropdownMenu(menu);
             } else {
-                // Use fixed positioning to escape overflow:clip on ancestors
-                const triggerRect = trigger.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const spaceBelow = viewportHeight - triggerRect.bottom;
-                const spaceAbove = triggerRect.top;
-                const menuHeight = 250;
-
-                menu.style.position = 'fixed';
-                menu.style.left = triggerRect.left + 'px';
-                menu.style.width = triggerRect.width + 'px';
-
-                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
-                    menu.style.top = '';
-                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
-                    menu.classList.add('show', 'show-above');
-                } else {
-                    menu.style.top = (triggerRect.bottom + 4) + 'px';
-                    menu.style.bottom = '';
-                    menu.classList.add('show');
-                    menu.classList.remove('show-above');
-                }
+                positionDropdownFixed(trigger, menu);
             }
         }
 
@@ -14485,12 +14495,7 @@
                 trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
             }
             if (menu) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+                closeDropdownMenu(menu);
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
@@ -14507,48 +14512,20 @@
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
-            // Close Audit Trail department dropdown
-            const wrapper = document.getElementById('deptDropdownWrapper');
-            const menu = document.getElementById('deptDropdownMenu');
-            if (wrapper && menu && !wrapper.contains(e.target)) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
-            }
-
-            // Close Asset Register department dropdown
-            const registerWrapper = document.getElementById('registerDeptDropdownWrapper');
-            const registerMenu = document.getElementById('registerDeptDropdownMenu');
-            if (registerWrapper && registerMenu && !registerWrapper.contains(e.target)) {
-                registerMenu.classList.remove('show', 'show-above');
-            }
-
-            // Close Asset Modal department dropdown
-            const assetWrapper = document.getElementById('assetDeptDropdownWrapper');
-            const assetMenu = document.getElementById('assetDeptDropdownMenu');
-            if (assetWrapper && assetMenu && !assetWrapper.contains(e.target)) {
-                assetMenu.classList.remove('show', 'show-above');
-                assetMenu.style.position = '';
-                assetMenu.style.top = '';
-                assetMenu.style.left = '';
-                assetMenu.style.width = '';
-                assetMenu.style.bottom = '';
-            }
-
-            // Close Audit Entry department dropdown
-            const auditEntryWrapper = document.getElementById('auditEntryDeptWrapper');
-            const auditEntryMenu = document.getElementById('auditEntryDeptMenu');
-            if (auditEntryWrapper && auditEntryMenu && !auditEntryWrapper.contains(e.target)) {
-                auditEntryMenu.classList.remove('show', 'show-above');
-                auditEntryMenu.style.position = '';
-                auditEntryMenu.style.top = '';
-                auditEntryMenu.style.left = '';
-                auditEntryMenu.style.width = '';
-                auditEntryMenu.style.bottom = '';
-            }
+            // Close all custom dropdowns when clicking outside their wrappers
+            const dropdownPairs = [
+                ['deptDropdownWrapper', 'deptDropdownMenu'],
+                ['registerDeptDropdownWrapper', 'registerDeptDropdownMenu'],
+                ['assetDeptDropdownWrapper', 'assetDeptDropdownMenu'],
+                ['auditEntryDeptWrapper', 'auditEntryDeptMenu']
+            ];
+            dropdownPairs.forEach(([wrapperId, menuId]) => {
+                const w = document.getElementById(wrapperId);
+                const m = document.getElementById(menuId);
+                if (w && m && !w.contains(e.target)) {
+                    closeDropdownMenu(m);
+                }
+            });
         });
 
         // Toggle asset modal department dropdown
@@ -14559,49 +14536,15 @@
 
             if (!menu || !trigger || !wrapper) return;
 
-            const isOpen = menu.classList.contains('show');
-
             // Close all other custom dropdowns first
             document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
-                if (m !== menu) {
-                    m.classList.remove('show', 'show-above');
-                    m.style.position = '';
-                    m.style.top = '';
-                    m.style.left = '';
-                    m.style.width = '';
-                    m.style.bottom = '';
-                }
+                if (m !== menu) closeDropdownMenu(m);
             });
 
-            if (isOpen) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+            if (menu.classList.contains('show')) {
+                closeDropdownMenu(menu);
             } else {
-                // Use fixed positioning to escape overflow:clip on ancestors
-                const triggerRect = trigger.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const spaceBelow = viewportHeight - triggerRect.bottom;
-                const spaceAbove = triggerRect.top;
-                const menuHeight = 250;
-
-                menu.style.position = 'fixed';
-                menu.style.left = triggerRect.left + 'px';
-                menu.style.width = triggerRect.width + 'px';
-
-                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
-                    menu.style.top = '';
-                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
-                    menu.classList.add('show', 'show-above');
-                } else {
-                    menu.style.top = (triggerRect.bottom + 4) + 'px';
-                    menu.style.bottom = '';
-                    menu.classList.add('show');
-                    menu.classList.remove('show-above');
-                }
+                positionDropdownFixed(trigger, menu);
             }
         }
 
@@ -14617,12 +14560,7 @@
                 trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
             }
             if (menu) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+                closeDropdownMenu(menu);
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
@@ -14680,49 +14618,15 @@
 
             if (!menu || !trigger) return;
 
-            const isOpen = menu.classList.contains('show');
-
             // Close all other custom dropdowns first
             document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
-                if (m !== menu) {
-                    m.classList.remove('show', 'show-above');
-                    m.style.position = '';
-                    m.style.top = '';
-                    m.style.left = '';
-                    m.style.width = '';
-                    m.style.bottom = '';
-                }
+                if (m !== menu) closeDropdownMenu(m);
             });
 
-            if (isOpen) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+            if (menu.classList.contains('show')) {
+                closeDropdownMenu(menu);
             } else {
-                // Use fixed positioning to escape overflow:clip on ancestors
-                const triggerRect = trigger.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const spaceBelow = viewportHeight - triggerRect.bottom;
-                const spaceAbove = triggerRect.top;
-                const menuHeight = 250;
-
-                menu.style.position = 'fixed';
-                menu.style.left = triggerRect.left + 'px';
-                menu.style.width = triggerRect.width + 'px';
-
-                if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
-                    menu.style.top = '';
-                    menu.style.bottom = (viewportHeight - triggerRect.top + 4) + 'px';
-                    menu.classList.add('show', 'show-above');
-                } else {
-                    menu.style.top = (triggerRect.bottom + 4) + 'px';
-                    menu.style.bottom = '';
-                    menu.classList.add('show');
-                    menu.classList.remove('show-above');
-                }
+                positionDropdownFixed(trigger, menu);
             }
         }
 
@@ -14738,12 +14642,7 @@
                 trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
             }
             if (menu) {
-                menu.classList.remove('show', 'show-above');
-                menu.style.position = '';
-                menu.style.top = '';
-                menu.style.left = '';
-                menu.style.width = '';
-                menu.style.bottom = '';
+                closeDropdownMenu(menu);
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
@@ -26991,21 +26890,18 @@
         // ============================================
 
         function registerScanMultiCodeAssets() {
-            const assets = loadAssetsFromStorage();
-            const multiCodeIds = [];
+            const multiCodeIds = new Set();
 
-            assets.forEach(asset => {
-                const codeStr = (asset.assetCode || '').trim();
-                const deptStr = (asset.department || '').trim();
-                const codes = parseAssetCodes(codeStr);
-                const depts = parseDepartments(deptStr);
+            assetRegisterData.forEach(asset => {
+                const codes = parseAssetCodes((asset.assetCode || '').trim());
+                const depts = parseDepartments((asset.department || '').trim());
 
                 if (codes.length > 1 || depts.length > 1) {
-                    multiCodeIds.push(asset.id);
+                    multiCodeIds.add(asset.id);
                 }
             });
 
-            if (multiCodeIds.length === 0) {
+            if (multiCodeIds.size === 0) {
                 alert('No multi-code assets found. All assets have single asset codes and departments.');
                 return;
             }
@@ -27023,7 +26919,7 @@
             if (deptTrigger) deptTrigger.textContent = 'All Departments';
 
             // Filter to only show multi-code assets
-            filteredRegisterData = assetRegisterData.filter(a => multiCodeIds.includes(a.id));
+            filteredRegisterData = assetRegisterData.filter(a => multiCodeIds.has(a.id));
             registerCurrentPage = 1;
             displayAssetRegister();
 
@@ -27036,7 +26932,7 @@
                 updateRegisterDeleteControls();
             }, 100);
 
-            alert(`Found ${multiCodeIds.length} multi-code asset(s). They are now displayed and selected.\n\nReview them, then click "Apply Selected Splits" to split them into individual rows.`);
+            alert(`Found ${multiCodeIds.size} multi-code asset(s). They are now displayed and selected.\n\nReview them, then click "Apply Selected Splits" to split them into individual rows.`);
         }
 
         function applyRegisterMultiCodeSplit() {
@@ -27049,11 +26945,12 @@
             }
 
             let assets = loadAssetsFromStorage();
-            const selectedAssets = selectedIds.map(id => assets.find(a => a.id === id)).filter(Boolean);
+            const assetMap = new Map(assets.map(a => [a.id, a]));
+            const selectedAssets = selectedIds.map(id => assetMap.get(id)).filter(Boolean);
 
             // Identify which selected assets are actually multi-code
             const toSplit = [];
-            const notMultiCode = [];
+            let notMultiCodeCount = 0;
 
             selectedAssets.forEach(asset => {
                 const codes = parseAssetCodes((asset.assetCode || '').trim());
@@ -27068,9 +26965,9 @@
                             department: depts[i] || depts[depts.length - 1]
                         });
                     }
-                    toSplit.push({ original: asset, codes, departments: depts, splitRows });
+                    toSplit.push({ original: asset, splitRows });
                 } else {
-                    notMultiCode.push(asset);
+                    notMultiCodeCount++;
                 }
             });
 
@@ -27083,51 +26980,46 @@
             toSplit.forEach(item => totalNewRows += item.splitRows.length);
 
             let confirmMsg = `This will:\n• Remove ${toSplit.length} original multi-code asset(s)\n• Create ${totalNewRows} new individual asset rows\n\nEach new row will keep the same description, unit price, supplier, category, and other fields from the original.\n\n`;
-            if (notMultiCode.length > 0) {
-                confirmMsg += `Note: ${notMultiCode.length} selected asset(s) are not multi-code and will be skipped.\n\n`;
+            if (notMultiCodeCount > 0) {
+                confirmMsg += `Note: ${notMultiCodeCount} selected asset(s) are not multi-code and will be skipped.\n\n`;
             }
             confirmMsg += 'Proceed?';
 
             if (!confirm(confirmMsg)) return;
 
             const idsToRemove = new Set(toSplit.map(item => item.original.id));
-            const newAssets = [];
 
-            toSplit.forEach(item => {
-                const orig = item.original;
-                item.splitRows.forEach(row => {
-                    const newAsset = Object.assign({}, orig);
-                    newAsset.id = generateAssetId();
-                    newAsset.assetCode = row.assetCode;
-                    newAsset.department = row.department;
-                    newAsset.quantity = 1;
-                    if (newAsset.unitPrice != null) {
-                        newAsset.totalPrice = newAsset.unitPrice;
-                    }
-                    newAssets.push(newAsset);
-                });
+            // Build new assets array, inserting split rows where the original was
+            const result = [];
+            assets.forEach(asset => {
+                if (idsToRemove.has(asset.id)) {
+                    // Replace original with its split rows at the same position
+                    const item = toSplit.find(t => t.original.id === asset.id);
+                    item.splitRows.forEach(row => {
+                        const newAsset = Object.assign({}, asset);
+                        newAsset.id = generateAssetId();
+                        newAsset.assetCode = row.assetCode;
+                        newAsset.department = row.department;
+                        newAsset.quantity = 1;
+                        if (newAsset.unitPrice != null) {
+                            newAsset.totalPrice = newAsset.unitPrice;
+                        }
+                        result.push(newAsset);
+                    });
 
-                if (typeof addAuditEntry === 'function') {
-                    addAuditEntry(orig.assetCode, 'Split', orig.department, `Split multi-code asset into ${item.splitRows.length} individual rows: ${item.splitRows.map(r => r.assetCode).join(', ')}`);
-                }
-                if (typeof removeDisposalRecordsForAsset === 'function') {
-                    removeDisposalRecordsForAsset(orig.assetCode, orig.id);
+                    addAuditEntry(asset.assetCode, 'Split', asset.department, `Split multi-code asset into ${item.splitRows.length} individual rows: ${item.splitRows.map(r => r.assetCode).join(', ')}`);
+                    removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+                } else {
+                    result.push(asset);
                 }
             });
 
-            assets = assets.filter(a => !idsToRemove.has(a.id));
-            assets = assets.concat(newAssets);
-            saveAssetsToStorage(assets);
+            saveAssetsToStorage(result);
+            trackDeletedAssetIds([...idsToRemove]);
+            refreshAllViews();
 
-            if (typeof trackDeletedAssetIds === 'function') {
-                trackDeletedAssetIds([...idsToRemove]);
-            }
-
-            if (typeof refreshAllViews === 'function') {
-                refreshAllViews();
-            }
-
-            alert(`Split complete!\n• Removed ${toSplit.length} multi-code asset(s)\n• Created ${newAssets.length} new individual asset rows`);
+            const totalCreated = result.length - (assets.length - idsToRemove.size);
+            alert(`Split complete!\n• Removed ${toSplit.length} multi-code asset(s)\n• Created ${totalCreated} new individual asset rows`);
         }
 
         // ============================================
