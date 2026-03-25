@@ -15005,19 +15005,29 @@
                         }
                     }
 
-                    // Ensure month is valid
+                    // Ensure month is valid and matches dateIn
                     const validMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
-                    if (!validMonths.includes(asset.month)) {
-                        // Try to extract from dateIn
-                        if (asset.dateIn) {
+                    // Always derive month from dateIn if available to prevent cross-month bleeding
+                    if (asset.dateIn) {
+                        const derivedMonth = getMonthFromDate(asset.dateIn);
+                        if (derivedMonth && validMonths.includes(derivedMonth)) {
+                            if (asset.month !== derivedMonth) {
+                                asset.month = derivedMonth;
+                                fixed = true;
+                            }
+                        } else if (!validMonths.includes(asset.month)) {
+                            // dateIn didn't yield a valid month, try split fallback
                             const monthPart = asset.dateIn.split('-')[1];
                             if (monthPart) {
                                 asset.month = monthPart.toUpperCase();
                             }
+                            if (!validMonths.includes(asset.month)) {
+                                asset.month = 'APR';
+                            }
+                            fixed = true;
                         }
-                        if (!validMonths.includes(asset.month)) {
-                            asset.month = 'APR';
-                        }
+                    } else if (!validMonths.includes(asset.month)) {
+                        asset.month = 'APR';
                         fixed = true;
                     }
 
@@ -15141,7 +15151,9 @@
                 document.getElementById('unitPrice').value = asset.unitPrice || 0;
                 document.getElementById('totalPrice').value = asset.totalPrice || 0;
                 document.getElementById('source').value = asset.source;
-                document.getElementById('month').value = asset.month;
+                // Derive month from dateIn to ensure consistency
+                const derivedEditMonth = asset.dateIn ? getMonthFromDate(asset.dateIn) : '';
+                document.getElementById('month').value = derivedEditMonth || asset.month;
                 document.getElementById('assetUsefulLife').value = asset.usefulLife || '';
                 document.getElementById('assetSalvageValue').value = asset.salvageValue || '';
                 document.getElementById('assetDepreciationMethod').value = asset.depreciationMethod || 'straight';
@@ -15293,7 +15305,7 @@
                 unitPrice: parseFloat(document.getElementById('unitPrice').value) || 0,
                 totalPrice: parseFloat(document.getElementById('totalPrice').value) || 0,
                 source: document.getElementById('source').value,
-                month: document.getElementById('month').value,
+                month: getMonthFromDate(formatDateForDisplay(document.getElementById('dateIn').value)) || document.getElementById('month').value,
                 usefulLife: parseFloat(document.getElementById('assetUsefulLife').value) || 0,
                 salvageValue: parseFloat(document.getElementById('assetSalvageValue').value) || 0,
                 depreciationMethod: document.getElementById('assetDepreciationMethod').value || 'straight',
@@ -15522,6 +15534,16 @@
                 if (el) el.addEventListener('input', updateDeprPreview);
             });
             if (dateInInput) dateInInput.addEventListener('change', updateDeprPreview);
+            // Auto-update month dropdown when dateIn changes
+            if (dateInInput) dateInInput.addEventListener('change', function() {
+                const dateVal = dateInInput.value;
+                if (dateVal) {
+                    const derivedMonth = getMonthFromDate(formatDateForDisplay(dateVal));
+                    if (derivedMonth) {
+                        document.getElementById('month').value = derivedMonth;
+                    }
+                }
+            });
             if (usefulLifeInput) usefulLifeInput.addEventListener('input', updateDeprPreview);
             if (salvageInput) salvageInput.addEventListener('input', updateDeprPreview);
             if (deprMethodSelect) deprMethodSelect.addEventListener('change', updateDeprPreview);
@@ -20609,6 +20631,14 @@
 
                 // Categorize assets by source
                 assets.forEach(asset => {
+                    // Derive correct month from dateIn to prevent cross-month bleeding
+                    if (asset.dateIn) {
+                        const derivedMonth = getMonthFromDate(asset.dateIn);
+                        if (derivedMonth && months.includes(derivedMonth)) {
+                            asset.month = derivedMonth;
+                        }
+                    }
+
                     const isMedical = asset.category === 'Medical Equipment';
                     const dataStore = asset.source === 'Purchased' ? purchasedData : donatedData;
 
@@ -20870,7 +20900,7 @@
                         unitPrice: unitPrice,
                         totalPrice: totalPrice,
                         source: sourceType,
-                        month: month
+                        month: (dateIn ? getMonthFromDate(dateIn) : '') || month
                     };
                     
                     items.push(item);
@@ -22900,7 +22930,7 @@
                                 quantity: 1,
                                 unitPrice: row.parsed.unitPrice,
                                 totalPrice: _importTotal,
-                                month: row.parsed.month,
+                                month: getMonthFromDate(row.parsed.dateIn) || row.parsed.month,
                                 itemType: row.parsed.description,
                                 salvageValue: calcSalvageValue(_importTotal, row.parsed.category),
                                 depreciationMethod: 'straight'
@@ -23951,7 +23981,7 @@
                                 supplier: row.parsed.supplier,
                                 department: row.parsed.department,
                                 source: row.parsed.source,
-                                month: row.parsed.month || getMonthFromDate(row.parsed.dateIn),
+                                month: getMonthFromDate(row.parsed.dateIn) || row.parsed.month,
                                 category: row.parsed.category,
                                 serialModel: row.parsed.serialModel,
                                 quantity: 1,
