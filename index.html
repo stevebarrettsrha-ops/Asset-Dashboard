@@ -6226,6 +6226,268 @@
         .catalog-show-more:hover {
             background: var(--table-hover);
         }
+
+        /* ============================================
+           RESOURCE MANAGER (Page 15)
+           ============================================ */
+        .resource-manager-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .resource-manager-controls .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .resource-manager-controls .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .resource-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: box-shadow 0.2s;
+        }
+        .resource-item:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        .resource-item-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .resource-item-icon.pdf { background: rgba(231, 76, 60, 0.15); }
+        .resource-item-icon.video { background: rgba(155, 89, 182, 0.15); }
+        .resource-item-icon.doc { background: rgba(52, 152, 219, 0.15); }
+        .resource-item-icon.other { background: rgba(149, 165, 166, 0.15); }
+        .resource-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .resource-item-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .resource-item-code {
+            display: inline-block;
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            color: white;
+            padding: 1px 8px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .resource-item-meta {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .resource-item-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .resource-item-actions .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .resource-item-actions .btn:hover {
+            transform: translateY(-1px);
+        }
+        .resource-item-actions .btn-open {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+        .resource-item-actions .btn-details {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        .resource-item-actions .btn-delete {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .resource-empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .resource-empty-state .empty-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        .resource-empty-state h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .resource-search-bar {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .resource-search-bar:focus {
+            border-color: #3498db;
+        }
+        .resource-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .resource-stat-card {
+            flex: 1;
+            min-width: 140px;
+            padding: 16px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .resource-stat-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .resource-stat-card .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        /* Resource Add/Edit Modal */
+        .resource-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        .resource-modal-overlay.active {
+            display: flex;
+        }
+        .resource-modal {
+            background: var(--card-bg);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 560px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .resource-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .resource-modal-header h2 {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+        }
+        .resource-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .resource-modal-body {
+            padding: 24px;
+        }
+        .resource-form-group {
+            margin-bottom: 16px;
+        }
+        .resource-form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        .resource-form-group input,
+        .resource-form-group select,
+        .resource-form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .resource-form-group textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+        .resource-form-group input:focus,
+        .resource-form-group select:focus,
+        .resource-form-group textarea:focus {
+            border-color: #3498db;
+        }
+        .resource-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        @media (max-width: 768px) {
+            .resource-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .resource-item-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
     </style>
 </head>
 <body>
@@ -7010,6 +7272,12 @@
             <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
                 <span class="sidebar-nav-icon">&#x1F4E4;</span>
                 <span class="sidebar-nav-text">BOS Upload</span>
+            </button>
+
+            <div class="sidebar-section-label">Learning</div>
+            <button class="sidebar-nav-item" data-page="15" data-tooltip="Resource Manager" onclick="sidebarNavigate(15)">
+                <span class="sidebar-nav-icon">&#x1F4DA;</span>
+                <span class="sidebar-nav-text">Resource Manager</span>
             </button>
         </div>
 
@@ -9842,6 +10110,159 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- PAGE 15: RESOURCE MANAGER                    -->
+    <!-- ============================================ -->
+    <div class="page" id="page15">
+        <div class="header" style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Resource Manager</h1>
+                        <div class="dashboard-subtitle">Upload and manage training documents for instructors</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="cloud-dropdown">
+                            <button class="cloud-menu-btn" onclick="toggleCloudMenu(this)">
+                                <span class="cloudMenuIcon">&#9729;&#65039;</span>
+                                <span class="cloud-status-dot cloudStatusDot"></span>
+                                <span class="cloudStatusText">Not connected</span>
+                            </button>
+                            <div class="cloud-dropdown-menu">
+                                <div class="cloud-menu-header">
+                                    <h4>&#9729;&#65039; Google Drive Sync</h4>
+                                    <p class="lastSyncInfo">Last sync: Never</p>
+                                    <p class="lastSavedByInfo" style="font-size: 0.8rem;">Last saved by: --</p>
+                                </div>
+                                <div class="cloudNotConnected">
+                                    <button class="cloud-menu-item" onclick="connectToGoogleDrive()"><span>&#128279;</span> Connect to Google Drive</button>
+                                </div>
+                                <div class="cloudConnected" style="display: none;">
+                                    <button class="cloud-menu-item" onclick="saveToCloud()"><span>&#128190;</span> Save to Cloud</button>
+                                    <button class="cloud-menu-item" onclick="syncFromCloud()"><span>&#128260;</span> Sync from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="smartMergeFromCloud()" style="background: linear-gradient(135deg, #9C27B0 0%, #E91E63 100%); color: white;"><span>&#128256;</span> Smart Merge from Cloud</button>
+                                    <button class="cloud-menu-item" onclick="browseBackupFiles()"><span>&#128193;</span> Browse Backup Files</button>
+                                    <div class="cloud-menu-divider"></div>
+                                    <button class="cloud-menu-item danger" onclick="disconnectFromGoogleDrive()"><span>&#128268;</span> Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="user-info" id="userInfo15"></div>
+                    </div>
+                </div>
+                <div class="page-action-bar" id="resourceAdminControls" style="display: none;">
+                    <button class="btn monthly-view-btn" onclick="openAddResourceModal()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">&#10133; Add Resource</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 20px;">
+            <!-- Search and filter bar -->
+            <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                <input type="text" class="resource-search-bar" id="resourceSearchInput" placeholder="Search resources..." oninput="filterResources()">
+                <select id="resourceTypeFilter" onchange="filterResources()" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); font-size: 0.9rem; outline: none;">
+                    <option value="">All Types</option>
+                    <option value="Worksheet">Worksheets</option>
+                    <option value="Video">Videos</option>
+                    <option value="Document">Documents</option>
+                    <option value="Presentation">Presentations</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <!-- Stats -->
+            <div class="resource-stats" id="resourceStats">
+                <div class="resource-stat-card">
+                    <div class="stat-label">Total Resources</div>
+                    <div class="stat-value" style="color: #e67e22;" id="resourceTotalCount">0</div>
+                </div>
+                <div class="resource-stat-card">
+                    <div class="stat-label">Worksheets</div>
+                    <div class="stat-value" style="color: #e74c3c;" id="resourceWorksheetCount">0</div>
+                </div>
+                <div class="resource-stat-card">
+                    <div class="stat-label">Videos</div>
+                    <div class="stat-value" style="color: #9b59b6;" id="resourceVideoCount">0</div>
+                </div>
+                <div class="resource-stat-card">
+                    <div class="stat-label">Documents</div>
+                    <div class="stat-value" style="color: #3498db;" id="resourceDocCount">0</div>
+                </div>
+            </div>
+
+            <!-- Resource list -->
+            <div class="resource-list" id="resourceListContainer">
+                <div class="resource-empty-state">
+                    <div class="empty-icon">&#128193;</div>
+                    <h3>No Resources Uploaded Yet</h3>
+                    <p>Use the "Add Resource" button above to upload training documents for instructors.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear15"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
+    <!-- Resource Add/Edit Modal -->
+    <div class="resource-modal-overlay" id="resourceModalOverlay">
+        <div class="resource-modal">
+            <div class="resource-modal-header">
+                <h2 id="resourceModalTitle">Add New Resource</h2>
+                <button class="resource-modal-close" onclick="closeResourceModal()">&times;</button>
+            </div>
+            <div class="resource-modal-body">
+                <form id="resourceForm" onsubmit="saveResource(event)">
+                    <div class="resource-form-group">
+                        <label>Title *</label>
+                        <input type="text" id="resourceTitle" required placeholder="e.g. Apply OHS Regulations in the Workplace">
+                    </div>
+                    <div class="resource-form-group">
+                        <label>Type *</label>
+                        <select id="resourceType" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="Worksheet">Worksheet</option>
+                            <option value="Video">Video</option>
+                            <option value="Document">Document</option>
+                            <option value="Presentation">Presentation</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="resource-form-group">
+                        <label>Format *</label>
+                        <select id="resourceFormat" required>
+                            <option value="">-- Select Format --</option>
+                            <option value="PDF">PDF</option>
+                            <option value="Video">Video</option>
+                            <option value="Word">Word Document</option>
+                            <option value="Excel">Excel Spreadsheet</option>
+                            <option value="PowerPoint">PowerPoint</option>
+                            <option value="Image">Image</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="resource-form-group">
+                        <label>File URL (Google Drive or direct link)</label>
+                        <input type="url" id="resourceUrl" placeholder="https://drive.google.com/file/...">
+                    </div>
+                    <div class="resource-form-group">
+                        <label>Qualification / Course</label>
+                        <input type="text" id="resourceQualification" placeholder="e.g. ETE40214 - Renewable Energy, Efficiency & Technology Lvl 4">
+                    </div>
+                    <div class="resource-form-group">
+                        <label>Description</label>
+                        <textarea id="resourceDescription" placeholder="Brief description of this resource..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="resource-modal-footer">
+                <button class="btn" style="padding: 10px 20px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); cursor: pointer;" onclick="closeResourceModal()">Cancel</button>
+                <button class="btn" style="padding: 10px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; font-weight: 600; cursor: pointer;" onclick="saveResource(event)">Save Resource</button>
+            </div>
+        </div>
+    </div>
+
     </div>
 
     <!-- Add Asset Code Modal (Admin Only) -->
@@ -12046,6 +12467,7 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        adminResources: JSON.parse(localStorage.getItem('adminResources') || '[]'),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers // Backup local users (passwords are hashed)
                     }
@@ -12227,6 +12649,25 @@
                 });
                 if (added > 0) {
                     localStorage.setItem('portalUserAccounts', JSON.stringify(localAccounts));
+                    dataChanged = true;
+                }
+            }
+
+            // Merge admin resources by ID
+            if (cloudDataObj.adminResources && cloudDataObj.adminResources.length > 0) {
+                const localResources = JSON.parse(localStorage.getItem('adminResources') || '[]');
+                const localResIds = new Set(localResources.map(r => r.id));
+                let added = 0;
+                cloudDataObj.adminResources.forEach(r => {
+                    if (r.id && !localResIds.has(r.id)) {
+                        localResources.push(r);
+                        localResIds.add(r.id);
+                        added++;
+                    }
+                });
+                if (added > 0) {
+                    localStorage.setItem('adminResources', JSON.stringify(localResources));
+                    if (typeof loadAdminResources === 'function') loadAdminResources();
                     dataChanged = true;
                 }
             }
@@ -12455,6 +12896,7 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        adminResources: JSON.parse(localStorage.getItem('adminResources') || '[]'),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers // Backup local users (passwords are hashed)
                     }
@@ -12632,6 +13074,12 @@
                 // Restore portal heading settings
                 if (backupData.data.portalHeadingSettings) {
                     localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                }
+
+                // Restore admin resources
+                if (backupData.data.adminResources && backupData.data.adminResources.length > 0) {
+                    localStorage.setItem('adminResources', JSON.stringify(backupData.data.adminResources));
+                    if (typeof loadAdminResources === 'function') loadAdminResources();
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -12828,6 +13276,12 @@
                 // Restore portal heading settings
                 if (backupData.data.portalHeadingSettings) {
                     localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                }
+
+                // Restore admin resources
+                if (backupData.data.adminResources && backupData.data.adminResources.length > 0) {
+                    localStorage.setItem('adminResources', JSON.stringify(backupData.data.adminResources));
+                    if (typeof loadAdminResources === 'function') loadAdminResources();
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -13103,6 +13557,12 @@
                 // Restore portal heading settings
                 if (backupData.data.portalHeadingSettings) {
                     localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                }
+
+                // Restore admin resources
+                if (backupData.data.adminResources && backupData.data.adminResources.length > 0) {
+                    localStorage.setItem('adminResources', JSON.stringify(backupData.data.adminResources));
+                    if (typeof loadAdminResources === 'function') loadAdminResources();
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -16674,6 +17134,18 @@
                     `;
                 }
                 scanMultiCodeAssets();
+            }
+
+            // Handle Resource Manager page
+            if (pageNum === 15) {
+                const userInfo15 = document.getElementById('userInfo15');
+                if (userInfo15 && currentUser) {
+                    userInfo15.innerHTML = `
+                        <span>👤 ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                initResourceManager();
             }
         }
 
@@ -31195,6 +31667,241 @@
 
             // Re-scan
             scanMultiCodeAssets();
+        }
+
+        // ============================================
+        // RESOURCE MANAGER (Page 15)
+        // ============================================
+
+        const RESOURCES_STORAGE_KEY = 'adminResources';
+        let adminResources = [];
+
+        function loadAdminResources() {
+            try {
+                adminResources = JSON.parse(localStorage.getItem(RESOURCES_STORAGE_KEY) || '[]');
+            } catch (e) {
+                adminResources = [];
+            }
+            return adminResources;
+        }
+
+        function saveAdminResources() {
+            localStorage.setItem(RESOURCES_STORAGE_KEY, JSON.stringify(adminResources));
+        }
+
+        function generateResourceCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = 'VT-';
+            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+            code += '-';
+            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+            return code;
+        }
+
+        function getResourceFormatIcon(format) {
+            const f = (format || '').toLowerCase();
+            if (f === 'pdf') return { icon: '\uD83D\uDCC4', cls: 'pdf' };
+            if (f === 'video') return { icon: '\uD83C\uDFAC', cls: 'video' };
+            if (f === 'word' || f === 'document') return { icon: '\uD83D\uDCC3', cls: 'doc' };
+            if (f === 'excel' || f === 'spreadsheet') return { icon: '\uD83D\uDCCA', cls: 'doc' };
+            if (f === 'powerpoint' || f === 'presentation') return { icon: '\uD83D\uDCCA', cls: 'doc' };
+            return { icon: '\uD83D\uDCC1', cls: 'other' };
+        }
+
+        function initResourceManager() {
+            loadAdminResources();
+            const isAdmin = currentUser && (currentUser.role === 'Administrator' || currentUser.role === 'Admin' || currentUser.isAdmin);
+            const adminControls = document.getElementById('resourceAdminControls');
+            if (adminControls) {
+                adminControls.style.display = isAdmin ? 'flex' : 'none';
+            }
+            renderResourceList();
+        }
+
+        function renderResourceList() {
+            const container = document.getElementById('resourceListContainer');
+            if (!container) return;
+
+            const isAdmin = currentUser && (currentUser.role === 'Administrator' || currentUser.role === 'Admin' || currentUser.isAdmin);
+            const searchTerm = (document.getElementById('resourceSearchInput')?.value || '').toLowerCase();
+            const typeFilter = document.getElementById('resourceTypeFilter')?.value || '';
+
+            let filtered = adminResources.filter(r => {
+                const matchSearch = !searchTerm ||
+                    (r.title || '').toLowerCase().includes(searchTerm) ||
+                    (r.code || '').toLowerCase().includes(searchTerm) ||
+                    (r.qualification || '').toLowerCase().includes(searchTerm) ||
+                    (r.description || '').toLowerCase().includes(searchTerm);
+                const matchType = !typeFilter || r.type === typeFilter;
+                return matchSearch && matchType;
+            });
+
+            // Update stats
+            const totalEl = document.getElementById('resourceTotalCount');
+            const wsEl = document.getElementById('resourceWorksheetCount');
+            const vidEl = document.getElementById('resourceVideoCount');
+            const docEl = document.getElementById('resourceDocCount');
+            if (totalEl) totalEl.textContent = adminResources.length;
+            if (wsEl) wsEl.textContent = adminResources.filter(r => r.type === 'Worksheet').length;
+            if (vidEl) vidEl.textContent = adminResources.filter(r => r.type === 'Video').length;
+            if (docEl) docEl.textContent = adminResources.filter(r => r.type === 'Document').length;
+
+            if (filtered.length === 0) {
+                const msg = adminResources.length === 0
+                    ? (isAdmin
+                        ? 'Use the "Add Resource" button above to upload training documents for instructors.'
+                        : 'No resources have been uploaded by the administrator yet.')
+                    : 'No resources match your search criteria.';
+                container.innerHTML = `
+                    <div class="resource-empty-state">
+                        <div class="empty-icon">&#128193;</div>
+                        <h3>${adminResources.length === 0 ? 'No Resources Uploaded Yet' : 'No Results Found'}</h3>
+                        <p>${msg}</p>
+                    </div>`;
+                return;
+            }
+
+            // Sort by date descending
+            filtered.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+
+            container.innerHTML = filtered.map(r => {
+                const fmt = getResourceFormatIcon(r.format);
+                const dateStr = r.dateAdded ? new Date(r.dateAdded).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '';
+                const openLabel = r.format === 'Video' ? '\u25B6 Play' : 'Open';
+                const openBtn = r.url
+                    ? `<button class="btn btn-open" onclick="window.open('${escapeHtml(r.url)}', '_blank')">${openLabel}</button>`
+                    : `<button class="btn btn-open" disabled style="opacity:0.5">No File</button>`;
+                const deleteBtn = isAdmin
+                    ? `<button class="btn btn-delete" onclick="deleteResource('${escapeHtml(r.id)}')" title="Delete">&times;</button>`
+                    : '';
+
+                return `<div class="resource-item">
+                    <div class="resource-item-icon ${fmt.cls}">${fmt.icon}</div>
+                    <div class="resource-item-info">
+                        <div class="resource-item-title">${escapeHtml(r.title)}</div>
+                        <div>
+                            <span class="resource-item-code">${escapeHtml(r.code)}</span>
+                            <span style="font-size: 0.82rem; color: var(--text-secondary);">${escapeHtml(r.type || '')} &bull; ${escapeHtml(r.format || '')} &bull; Added ${dateStr}</span>
+                        </div>
+                        ${r.qualification ? `<div class="resource-item-meta">Qualification: ${escapeHtml(r.qualification)}</div>` : ''}
+                        ${r.description ? `<div class="resource-item-meta">${escapeHtml(r.description)}</div>` : ''}
+                    </div>
+                    <div class="resource-item-actions">
+                        ${openBtn}
+                        <button class="btn btn-details" onclick="viewResourceDetails('${escapeHtml(r.id)}')">&#128196; ID</button>
+                        ${deleteBtn}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterResources() {
+            renderResourceList();
+        }
+
+        function openAddResourceModal(editId) {
+            const overlay = document.getElementById('resourceModalOverlay');
+            const titleEl = document.getElementById('resourceModalTitle');
+            document.getElementById('resourceForm').reset();
+            document.getElementById('resourceForm').dataset.editId = editId || '';
+
+            if (editId) {
+                const r = adminResources.find(x => x.id === editId);
+                if (r) {
+                    titleEl.textContent = 'Edit Resource';
+                    document.getElementById('resourceTitle').value = r.title || '';
+                    document.getElementById('resourceType').value = r.type || '';
+                    document.getElementById('resourceFormat').value = r.format || '';
+                    document.getElementById('resourceUrl').value = r.url || '';
+                    document.getElementById('resourceQualification').value = r.qualification || '';
+                    document.getElementById('resourceDescription').value = r.description || '';
+                }
+            } else {
+                titleEl.textContent = 'Add New Resource';
+            }
+
+            overlay.classList.add('active');
+        }
+
+        function closeResourceModal() {
+            document.getElementById('resourceModalOverlay').classList.remove('active');
+        }
+
+        function saveResource(e) {
+            if (e) e.preventDefault();
+
+            const title = document.getElementById('resourceTitle').value.trim();
+            const type = document.getElementById('resourceType').value;
+            const format = document.getElementById('resourceFormat').value;
+            const url = document.getElementById('resourceUrl').value.trim();
+            const qualification = document.getElementById('resourceQualification').value.trim();
+            const description = document.getElementById('resourceDescription').value.trim();
+
+            if (!title || !type || !format) {
+                alert('Please fill in all required fields (Title, Type, Format).');
+                return;
+            }
+
+            const editId = document.getElementById('resourceForm').dataset.editId;
+
+            if (editId) {
+                const idx = adminResources.findIndex(r => r.id === editId);
+                if (idx !== -1) {
+                    adminResources[idx].title = title;
+                    adminResources[idx].type = type;
+                    adminResources[idx].format = format;
+                    adminResources[idx].url = url;
+                    adminResources[idx].qualification = qualification;
+                    adminResources[idx].description = description;
+                    adminResources[idx].updatedAt = new Date().toISOString();
+                    adminResources[idx].updatedBy = currentUser ? currentUser.username : 'Unknown';
+                }
+            } else {
+                const resource = {
+                    id: 'res_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    code: generateResourceCode(),
+                    title: title,
+                    type: type,
+                    format: format,
+                    url: url,
+                    qualification: qualification,
+                    description: description,
+                    dateAdded: new Date().toISOString(),
+                    addedBy: currentUser ? currentUser.username : 'Unknown'
+                };
+                adminResources.push(resource);
+            }
+
+            saveAdminResources();
+            closeResourceModal();
+            renderResourceList();
+        }
+
+        function deleteResource(id) {
+            if (!confirm('Are you sure you want to delete this resource?')) return;
+            adminResources = adminResources.filter(r => r.id !== id);
+            saveAdminResources();
+            renderResourceList();
+        }
+
+        function viewResourceDetails(id) {
+            const r = adminResources.find(x => x.id === id);
+            if (!r) return;
+
+            const dateStr = r.dateAdded ? new Date(r.dateAdded).toLocaleString() : 'N/A';
+            const details = [
+                `Code: ${r.code}`,
+                `Title: ${r.title}`,
+                `Type: ${r.type}`,
+                `Format: ${r.format}`,
+                `Date Added: ${dateStr}`,
+                `Added By: ${r.addedBy || 'N/A'}`,
+                r.qualification ? `Qualification: ${r.qualification}` : null,
+                r.description ? `Description: ${r.description}` : null,
+                r.url ? `URL: ${r.url}` : null
+            ].filter(Boolean).join('\n');
+
+            alert(details);
         }
 
     </script>
