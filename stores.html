@@ -258,7 +258,7 @@
         thead { background: linear-gradient(135deg, #2ECC71, #27AE60); }
         th { color: white; padding: 12px 15px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
         td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-primary); }
-        tr:hover { background: var(--bg-secondary); }
+        tbody tr:hover { background: var(--bg-secondary); }
 
         /* BADGES */
         .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
@@ -1504,6 +1504,17 @@
                         </div>
                     </div>
                     <div class="card no-print" style="margin-bottom:20px;">
+                        <h2>Category Report</h2>
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:15px;">Generate a detailed PDF report for a specific category including all items, stock levels, values, and transaction history.</p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <select class="form-control" id="catReportSelect" style="width:auto;min-width:220px;">
+                                <option value="">Select Category</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="printCategoryReport()">Generate Report</button>
+                            <button class="btn btn-info" onclick="printAllCategoriesReport()">All Categories Report</button>
+                        </div>
+                    </div>
+                    <div class="card no-print" style="margin-bottom:20px;">
                         <h2>Data Export / Import</h2>
                         <div class="btn-group">
                             <button class="btn btn-info" onclick="exportAllJSON()">Export All Data (JSON)</button>
@@ -1915,6 +1926,7 @@
             if (pageId === 'categories') { renderCategoryList(); renderCategorySummary(); refreshCategoryCards(); }
             if (pageId === 'addItem' || pageId === 'excelImport') populateCategoryDropdowns();
             if (pageId === 'quarterlyView') { populateQvCategoryFilter(); updateFyNav(); renderQuarterlyView(); }
+            if (pageId === 'reports') populateCatReportDropdown();
 
             // Close mobile sidebar
             closeSidebarMobile();
@@ -2905,6 +2917,119 @@
                 const tableHtml = '<table><thead><tr><th>#</th><th>Date</th><th>Performed By</th><th>Items Counted</th><th>Adjustments</th><th>Net Variance</th></tr></thead><tbody>' + rows + '</tbody></table>';
                 openStoresPrintWindow('Physical Stock Count Report', summaryHtml + tableHtml);
             }
+        }
+
+        // ============================================
+        // CATEGORY REPORT
+        // ============================================
+        function populateCatReportDropdown() {
+            var el = document.getElementById('catReportSelect');
+            if (!el) return;
+            var current = el.value;
+            var cats = getCategories().slice().sort();
+            el.innerHTML = '<option value="">Select Category</option>' +
+                cats.map(function(c) { return '<option>' + sanitize(c) + '</option>'; }).join('');
+            if (current) el.value = current;
+        }
+
+        function buildCategoryReportHtml(categoryName) {
+            var items = appData.items.filter(function(i) { return i.category === categoryName; });
+            var txs = (appData.transactions || []).filter(function(t) {
+                return items.some(function(i) { return i.code === t.itemCode; });
+            });
+            var received = txs.filter(function(t) { return t.type === 'Received'; });
+            var issued = txs.filter(function(t) { return t.type === 'Issued'; });
+            var totalQty = items.reduce(function(s, i) { return s + i.qty; }, 0);
+            var totalValue = items.reduce(function(s, i) { return s + i.qty * i.unitCost; }, 0);
+            var totalReceived = received.reduce(function(s, t) { return s + t.qty; }, 0);
+            var totalIssued = issued.reduce(function(s, t) { return s + t.qty; }, 0);
+            var lowStock = items.filter(function(i) { return i.qty > 0 && i.qty <= i.reorderLevel; });
+            var outOfStock = items.filter(function(i) { return i.qty === 0; });
+
+            var summaryHtml = '<div class="summary">' +
+                '<div class="summary-item"><div class="label">Total Items</div><div class="value">' + items.length + '</div></div>' +
+                '<div class="summary-item"><div class="label">Total Qty</div><div class="value">' + totalQty.toLocaleString() + '</div></div>' +
+                '<div class="summary-item"><div class="label">Total Value</div><div class="value">$' + totalValue.toLocaleString() + '</div></div>' +
+                '<div class="summary-item"><div class="label">Received</div><div class="value" style="color:#27ae60;">' + totalReceived.toLocaleString() + '</div></div>' +
+                '<div class="summary-item"><div class="label">Issued</div><div class="value" style="color:#e67e22;">' + totalIssued.toLocaleString() + '</div></div>' +
+                '<div class="summary-item"><div class="label">Low / Out</div><div class="value" style="color:#e74c3c;">' + lowStock.length + ' / ' + outOfStock.length + '</div></div>' +
+            '</div>';
+
+            // Items table
+            var itemRows = items.map(function(i, idx) {
+                var status = i.qty === 0 ? '<span class="status-critical">Out of Stock</span>' :
+                             i.qty <= i.reorderLevel ? '<span class="status-low">Low Stock</span>' :
+                             '<span class="status-ok">In Stock</span>';
+                return '<tr><td>' + (idx + 1) + '</td><td><strong>' + sanitize(i.code) + '</strong></td>' +
+                    '<td>' + sanitize(i.description) + '</td><td>' + sanitize(i.unit) + '</td>' +
+                    '<td>' + i.qty + '</td><td>' + i.reorderLevel + '</td><td>' + i.maxLevel + '</td>' +
+                    '<td style="text-align:right;">$' + i.unitCost.toLocaleString() + '</td>' +
+                    '<td style="text-align:right;">$' + (i.qty * i.unitCost).toLocaleString() + '</td>' +
+                    '<td>' + sanitize(i.supplier || '-') + '</td><td>' + sanitize(i.location || '-') + '</td>' +
+                    '<td>' + status + '</td></tr>';
+            }).join('');
+            if (!itemRows) itemRows = '<tr><td colspan="12" style="text-align:center;padding:15px;">No items in this category</td></tr>';
+
+            var itemsTableHtml = '<h3 style="margin:20px 0 8px 0;font-size:13px;border-bottom:2px solid #27ae60;padding-bottom:5px;">STOCK ITEMS (' + items.length + ')</h3>' +
+                '<table><thead><tr><th>#</th><th>Code</th><th>Description</th><th>Unit</th><th>Qty</th>' +
+                '<th>Reorder</th><th>Max</th><th>Unit Cost</th><th>Total Value</th><th>Supplier</th><th>Location</th><th>Status</th></tr></thead>' +
+                '<tbody>' + itemRows + '</tbody>' +
+                '<tfoot><tr style="font-weight:700;background:#f0f0f0;"><td colspan="4">TOTALS</td><td>' + totalQty.toLocaleString() + '</td><td colspan="3"></td>' +
+                '<td style="text-align:right;">$' + totalValue.toLocaleString() + '</td><td colspan="3"></td></tr></tfoot></table>';
+
+            // Transaction history table
+            var txRows = txs.slice().sort(function(a, b) { return b.date.localeCompare(a.date); }).map(function(t, idx) {
+                return '<tr><td>' + (idx + 1) + '</td><td>' + t.date + '</td><td>' + t.type + '</td>' +
+                    '<td>' + sanitize(t.itemCode) + '</td><td>' + sanitize(t.description) + '</td>' +
+                    '<td>' + t.qty + '</td><td>' + sanitize(t.department || '-') + '</td>' +
+                    '<td>' + sanitize(t.reference || '-') + '</td><td>' + sanitize(t.by || '-') + '</td></tr>';
+            }).join('');
+
+            var txTableHtml = '';
+            if (txs.length > 0) {
+                txTableHtml = '<h3 style="margin:25px 0 8px 0;font-size:13px;border-bottom:2px solid #3498db;padding-bottom:5px;">TRANSACTION HISTORY (' + txs.length + ')</h3>' +
+                    '<table><thead><tr><th>#</th><th>Date</th><th>Type</th><th>Item Code</th><th>Description</th><th>Qty</th><th>Department</th><th>Reference</th><th>By</th></tr></thead>' +
+                    '<tbody>' + txRows + '</tbody></table>';
+            }
+
+            return summaryHtml + itemsTableHtml + txTableHtml;
+        }
+
+        function printCategoryReport() {
+            var cat = document.getElementById('catReportSelect').value;
+            if (!cat) { alert('Please select a category.'); return; }
+            var html = buildCategoryReportHtml(cat);
+            openStoresPrintWindow('Category Report: ' + cat, html);
+            logActivity('Category Report', 'Generated report for category: ' + cat);
+        }
+
+        function printAllCategoriesReport() {
+            var cats = getCategories().slice().sort();
+            var usedCats = cats.filter(function(c) {
+                return appData.items.some(function(i) { return i.category === c; });
+            });
+            if (usedCats.length === 0) { alert('No categories with items to report.'); return; }
+
+            // Build combined report with page breaks between categories
+            var html = '';
+            usedCats.forEach(function(cat, idx) {
+                if (idx > 0) html += '<div style="page-break-before:always;margin-top:30px;border-top:3px solid #27ae60;padding-top:15px;"></div>';
+                html += '<h2 style="color:#27ae60;font-size:16px;margin-bottom:10px;">' + sanitize(cat) + '</h2>';
+                html += buildCategoryReportHtml(cat);
+            });
+
+            // Overall summary at top
+            var totalItems = appData.items.length;
+            var totalValue = appData.items.reduce(function(s, i) { return s + i.qty * i.unitCost; }, 0);
+            var overviewHtml = '<div class="summary">' +
+                '<div class="summary-item"><div class="label">Categories</div><div class="value">' + usedCats.length + '</div></div>' +
+                '<div class="summary-item"><div class="label">Total Items</div><div class="value">' + totalItems + '</div></div>' +
+                '<div class="summary-item"><div class="label">Total Value</div><div class="value">$' + totalValue.toLocaleString() + '</div></div>' +
+            '</div>' +
+            '<div style="page-break-after:always;"></div>';
+
+            openStoresPrintWindow('All Categories Report', overviewHtml + html);
+            logActivity('Category Report', 'Generated report for all ' + usedCats.length + ' categories');
         }
 
         // ============================================
