@@ -501,6 +501,29 @@
         .bulk-field-row .bulk-field-input { display: flex; align-items: center; gap: 8px; }
         .bulk-field-row .bulk-field-input input[type="checkbox"] { margin: 0; }
         .bulk-field-row .form-control { flex: 1; }
+
+        /* Category Management */
+        .cat-mgmt { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .cat-mgmt { grid-template-columns: 1fr; } }
+        .cat-add-form { display: flex; gap: 8px; margin-bottom: 20px; }
+        .cat-add-form input { flex: 1; }
+        .cat-list { list-style: none; padding: 0; margin: 0; }
+        .cat-list-item {
+            display: flex; align-items: center; gap: 10px; padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color); transition: background 0.15s ease;
+        }
+        .cat-list-item:hover { background: var(--bg-secondary); }
+        .cat-list-item .cat-name { flex: 1; font-weight: 500; font-size: 14px; }
+        .cat-list-item .cat-count {
+            font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary);
+            padding: 2px 10px; border-radius: 12px; min-width: 60px; text-align: center;
+        }
+        .cat-list-item .cat-actions { display: flex; gap: 5px; }
+        .cat-list-item .cat-actions button { padding: 4px 10px; font-size: 11px; }
+        .cat-rename-input {
+            flex: 1; padding: 6px 10px; border: 2px solid var(--primary); border-radius: 6px;
+            font-size: 14px; background: var(--bg-card); color: var(--text-primary); outline: none;
+        }
     </style>
 </head>
 <body>
@@ -735,16 +758,6 @@
                                     <label>Category</label>
                                     <select class="form-control" id="newItemCategory" required>
                                         <option value="">Select Category</option>
-                                        <option>Medical Supplies</option>
-                                        <option>Cleaning Supplies</option>
-                                        <option>Office Supplies</option>
-                                        <option>Kitchen/Dietary</option>
-                                        <option>Linen & Bedding</option>
-                                        <option>Maintenance Supplies</option>
-                                        <option>Personal Protective Equipment</option>
-                                        <option>Stationery</option>
-                                        <option>IT Supplies</option>
-                                        <option>General</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -810,9 +823,32 @@
                 <div class="page" id="page-categories">
                     <div class="page-header">
                         <h1>Stock Categories</h1>
-                        <p>Manage inventory categories</p>
+                        <p>Manage inventory categories - add, rename, or remove</p>
                     </div>
                     <div class="stats-row" id="categoryCards"></div>
+                    <div class="cat-mgmt">
+                        <div class="card">
+                            <h2>Manage Categories</h2>
+                            <div class="cat-add-form">
+                                <input type="text" class="form-control" id="newCategoryName" placeholder="New category name..." maxlength="60" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategory();}">
+                                <button class="btn btn-primary" onclick="addCategory()">Add</button>
+                            </div>
+                            <ul class="cat-list" id="categoryList"></ul>
+                        </div>
+                        <div class="card">
+                            <h2>Category Summary</h2>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr><th>Category</th><th>Items</th><th>Total Qty</th><th>Value (JMD)</th></tr>
+                                    </thead>
+                                    <tbody id="categorySummaryTable">
+                                        <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);">No categories</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Receive Stock -->
@@ -1270,15 +1306,6 @@
                                 </label>
                                 <select id="importDefaultCat" class="form-control" style="width:auto;display:inline-block;min-width:150px;margin-left:5px;">
                                     <option>General</option>
-                                    <option>Medical Supplies</option>
-                                    <option>Cleaning Supplies</option>
-                                    <option>Office Supplies</option>
-                                    <option>Kitchen/Dietary</option>
-                                    <option>Linen &amp; Bedding</option>
-                                    <option>Maintenance Supplies</option>
-                                    <option>Personal Protective Equipment</option>
-                                    <option>Stationery</option>
-                                    <option>IT Supplies</option>
                                 </select>
                             </div>
                             <div class="import-progress" id="importProgressWrap" style="display:none;">
@@ -1389,7 +1416,9 @@
                     </div>
                     <div class="form-group">
                         <label>Category</label>
-                        <input type="text" class="form-control" id="editItemCategory">
+                        <select class="form-control" id="editItemCategory">
+                            <option value="">Select Category</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Reorder Level</label>
@@ -1431,16 +1460,6 @@
                     <div class="bulk-field-input">
                         <select class="form-control" id="bulkCategory" disabled>
                             <option value="">Select Category</option>
-                            <option>Medical Supplies</option>
-                            <option>Cleaning Supplies</option>
-                            <option>Office Supplies</option>
-                            <option>Kitchen/Dietary</option>
-                            <option>Linen &amp; Bedding</option>
-                            <option>Maintenance Supplies</option>
-                            <option>Personal Protective Equipment</option>
-                            <option>Stationery</option>
-                            <option>IT Supplies</option>
-                            <option>General</option>
                         </select>
                     </div>
                 </div>
@@ -1517,6 +1536,7 @@
                 if (!data.auditLog) data.auditLog = [];
                 if (!data.requisitions) data.requisitions = [];
                 if (!data.countHistory) data.countHistory = [];
+                if (!data.categories) data.categories = ['Medical Supplies','Cleaning Supplies','Office Supplies','Kitchen/Dietary','Linen & Bedding','Maintenance Supplies','Personal Protective Equipment','Stationery','IT Supplies','General'];
                 data.items.forEach(item => {
                     if (!item.batches) item.batches = [];
                     if (item.trackExpiry === undefined) item.trackExpiry = false;
@@ -1542,7 +1562,8 @@
                 auditLog: [],
                 requisitions: [],
                 countHistory: [],
-                itemCounter: 11
+                itemCounter: 11,
+                categories: ['Medical Supplies','Cleaning Supplies','Office Supplies','Kitchen/Dietary','Linen & Bedding','Maintenance Supplies','Personal Protective Equipment','Stationery','IT Supplies','General']
             };
         }
 
@@ -1762,6 +1783,8 @@
             if (pageId === 'stockCount') renderCountHistory();
             if (pageId === 'stockAdjustment') populateAdjDropdown();
             if (pageId === 'auditLog') renderAuditLog();
+            if (pageId === 'categories') { renderCategoryList(); renderCategorySummary(); refreshCategoryCards(); }
+            if (pageId === 'addItem' || pageId === 'excelImport') populateCategoryDropdowns();
 
             // Close mobile sidebar
             closeSidebarMobile();
@@ -2813,6 +2836,193 @@
         }
 
         // ============================================
+        // CATEGORY MANAGEMENT
+        // ============================================
+        function getCategories() {
+            if (!appData.categories) appData.categories = ['General'];
+            return appData.categories;
+        }
+
+        function populateCategoryDropdowns() {
+            const cats = getCategories().slice().sort();
+            const ids = ['newItemCategory', 'editItemCategory', 'bulkCategory', 'importDefaultCat'];
+            ids.forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const current = el.value;
+                const isFilter = id === 'importDefaultCat';
+                if (isFilter) {
+                    el.innerHTML = cats.map(function(c) { return '<option>' + sanitize(c) + '</option>'; }).join('');
+                } else {
+                    el.innerHTML = '<option value="">Select Category</option>' +
+                        cats.map(function(c) { return '<option>' + sanitize(c) + '</option>'; }).join('');
+                }
+                if (current) el.value = current;
+            });
+        }
+
+        function renderCategoryList() {
+            const list = document.getElementById('categoryList');
+            if (!list) return;
+            const cats = getCategories().slice().sort();
+            const itemCounts = {};
+            appData.items.forEach(function(i) {
+                itemCounts[i.category] = (itemCounts[i.category] || 0) + 1;
+            });
+
+            if (cats.length === 0) {
+                list.innerHTML = '<li style="padding:20px;text-align:center;color:var(--text-secondary);">No categories defined</li>';
+                return;
+            }
+
+            list.innerHTML = cats.map(function(cat) {
+                const count = itemCounts[cat] || 0;
+                return '<li class="cat-list-item" id="catRow_' + sanitize(cat).replace(/[^a-zA-Z0-9]/g, '_') + '">' +
+                    '<span class="cat-name">' + sanitize(cat) + '</span>' +
+                    '<span class="cat-count">' + count + ' item' + (count !== 1 ? 's' : '') + '</span>' +
+                    '<span class="cat-actions">' +
+                        '<button class="btn btn-info" onclick="startRenameCategory(\'' + sanitize(cat).replace(/'/g, "\\'") + '\')">Rename</button>' +
+                        '<button class="btn btn-danger" onclick="deleteCategory(\'' + sanitize(cat).replace(/'/g, "\\'") + '\')">Delete</button>' +
+                    '</span>' +
+                '</li>';
+            }).join('');
+        }
+
+        function renderCategorySummary() {
+            const tbody = document.getElementById('categorySummaryTable');
+            if (!tbody) return;
+            const cats = getCategories().slice().sort();
+            const catData = {};
+            cats.forEach(function(c) { catData[c] = { count: 0, qty: 0, value: 0 }; });
+            appData.items.forEach(function(i) {
+                if (!catData[i.category]) catData[i.category] = { count: 0, qty: 0, value: 0 };
+                catData[i.category].count++;
+                catData[i.category].qty += i.qty;
+                catData[i.category].value += i.qty * i.unitCost;
+            });
+            if (cats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-secondary);">No categories</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cats.map(function(c) {
+                const d = catData[c] || { count: 0, qty: 0, value: 0 };
+                return '<tr><td>' + sanitize(c) + '</td><td>' + d.count + '</td><td>' + d.qty.toLocaleString() + '</td><td>$' + d.value.toLocaleString() + '</td></tr>';
+            }).join('');
+        }
+
+        function addCategory() {
+            const input = document.getElementById('newCategoryName');
+            const name = input.value.trim();
+            if (!name) { alert('Please enter a category name.'); return; }
+            if (getCategories().some(function(c) { return c.toLowerCase() === name.toLowerCase(); })) {
+                alert('Category "' + name + '" already exists.');
+                return;
+            }
+            appData.categories.push(name);
+            saveData(appData);
+            logActivity('Add Category', 'Added category: ' + name);
+            input.value = '';
+            renderCategoryList();
+            renderCategorySummary();
+            populateCategoryDropdowns();
+            refreshCategoryCards();
+        }
+
+        function deleteCategory(name) {
+            const count = appData.items.filter(function(i) { return i.category === name; }).length;
+            let msg = 'Are you sure you want to delete the category "' + name + '"?';
+            if (count > 0) {
+                msg += '\n\n' + count + ' item(s) are assigned to this category. They will be moved to "General".';
+            }
+            if (!confirm(msg)) return;
+
+            appData.categories = appData.categories.filter(function(c) { return c !== name; });
+            // Ensure General exists for reassignment
+            if (count > 0) {
+                if (!appData.categories.includes('General')) appData.categories.push('General');
+                appData.items.forEach(function(i) {
+                    if (i.category === name) i.category = 'General';
+                });
+            }
+            saveData(appData);
+            logActivity('Delete Category', 'Deleted category: ' + name + (count > 0 ? ' (' + count + ' items moved to General)' : ''));
+            renderCategoryList();
+            renderCategorySummary();
+            populateCategoryDropdowns();
+            refreshCategoryCards();
+            renderStockTable(appData.items);
+        }
+
+        function startRenameCategory(name) {
+            const row = document.getElementById('catRow_' + name.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (!row) return;
+            const nameSpan = row.querySelector('.cat-name');
+            const actionsSpan = row.querySelector('.cat-actions');
+            const oldName = name;
+
+            nameSpan.innerHTML = '<input type="text" class="cat-rename-input" id="catRenameInput" value="' + sanitize(oldName) + '" maxlength="60">';
+            actionsSpan.innerHTML =
+                '<button class="btn btn-primary" onclick="confirmRenameCategory(\'' + sanitize(oldName).replace(/'/g, "\\'") + '\')">Save</button>' +
+                '<button class="btn btn-secondary" onclick="renderCategoryList()">Cancel</button>';
+
+            const input = document.getElementById('catRenameInput');
+            input.focus();
+            input.select();
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); confirmRenameCategory(oldName); }
+                if (e.key === 'Escape') { renderCategoryList(); }
+            });
+        }
+
+        function confirmRenameCategory(oldName) {
+            const input = document.getElementById('catRenameInput');
+            if (!input) return;
+            const newName = input.value.trim();
+            if (!newName) { alert('Category name cannot be empty.'); return; }
+            if (newName === oldName) { renderCategoryList(); return; }
+            if (getCategories().some(function(c) { return c.toLowerCase() === newName.toLowerCase() && c !== oldName; })) {
+                alert('Category "' + newName + '" already exists.');
+                return;
+            }
+
+            const idx = appData.categories.indexOf(oldName);
+            if (idx >= 0) appData.categories[idx] = newName;
+
+            // Update all items with this category
+            let updated = 0;
+            appData.items.forEach(function(i) {
+                if (i.category === oldName) { i.category = newName; updated++; }
+            });
+
+            saveData(appData);
+            logActivity('Rename Category', 'Renamed "' + oldName + '" to "' + newName + '" (' + updated + ' items updated)');
+            renderCategoryList();
+            renderCategorySummary();
+            populateCategoryDropdowns();
+            refreshCategoryCards();
+            renderStockTable(appData.items);
+        }
+
+        function refreshCategoryCards() {
+            const catCards = document.getElementById('categoryCards');
+            if (!catCards) return;
+            const catData = {};
+            appData.items.forEach(function(i) {
+                if (!catData[i.category]) catData[i.category] = { count: 0, value: 0 };
+                catData[i.category].count++;
+                catData[i.category].value += i.qty * i.unitCost;
+            });
+            const colors = ['green', 'blue', 'orange', 'red', 'purple'];
+            catCards.innerHTML = Object.entries(catData).map(function(entry, idx) {
+                return '<div class="stat-card ' + colors[idx % colors.length] + '">' +
+                    '<div class="stat-value">' + entry[1].count + '</div>' +
+                    '<div class="stat-label">' + sanitize(entry[0]) + '</div>' +
+                    '<div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">Value: $' + entry[1].value.toLocaleString() + '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        // ============================================
         // BULK SELECT / EDIT / DELETE
         // ============================================
         const selectedItems = new Set();
@@ -3509,27 +3719,16 @@
             // Stock items table
             renderStockTable(appData.items);
 
-            // Category filter dropdown
+            // Category filter dropdown (uses all categories from data + any from items)
             const catFilter = document.getElementById('stockCategoryFilter');
-            const cats = [...new Set(appData.items.map(i => i.category))].sort();
-            catFilter.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option>${c}</option>`).join('');
+            const allCats = [...new Set([...getCategories(), ...appData.items.map(i => i.category)])].sort();
+            catFilter.innerHTML = '<option value="">All Categories</option>' + allCats.map(c => `<option>${c}</option>`).join('');
 
-            // Category cards
-            const catCards = document.getElementById('categoryCards');
-            const catData = {};
-            appData.items.forEach(i => {
-                if (!catData[i.category]) catData[i.category] = { count: 0, value: 0 };
-                catData[i.category].count++;
-                catData[i.category].value += i.qty * i.unitCost;
-            });
-            const colors = ['green', 'blue', 'orange', 'red', 'purple'];
-            catCards.innerHTML = Object.entries(catData).map(([cat, data], idx) => `
-                <div class="stat-card ${colors[idx % colors.length]}">
-                    <div class="stat-value">${data.count}</div>
-                    <div class="stat-label">${cat}</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">Value: $${data.value.toLocaleString()}</div>
-                </div>
-            `).join('');
+            // Category cards & management
+            refreshCategoryCards();
+            renderCategoryList();
+            renderCategorySummary();
+            populateCategoryDropdowns();
 
             // Transaction history
             renderTxTable(appData.transactions, 'txHistoryTable');
