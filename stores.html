@@ -457,6 +457,50 @@
             color: var(--success); border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;
         }
         .duplicate-warning { color: var(--warning); font-size: 12px; margin-top: 4px; }
+
+        /* Bulk Selection & Actions */
+        .bulk-toolbar {
+            display: none; align-items: center; gap: 12px; padding: 12px 18px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 10px; margin-bottom: 15px; color: white; flex-wrap: wrap;
+        }
+        .bulk-toolbar.visible { display: flex; }
+        .bulk-toolbar .bulk-count { font-weight: 700; font-size: 15px; }
+        .bulk-toolbar .bulk-actions { display: flex; gap: 8px; margin-left: auto; }
+        .bulk-toolbar .btn-bulk {
+            padding: 7px 16px; border: 2px solid rgba(255,255,255,0.4); border-radius: 6px;
+            background: transparent; color: white; cursor: pointer; font-size: 13px; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .bulk-toolbar .btn-bulk:hover { background: rgba(255,255,255,0.2); border-color: white; }
+        .bulk-toolbar .btn-bulk.danger { border-color: rgba(231,76,60,0.7); }
+        .bulk-toolbar .btn-bulk.danger:hover { background: rgba(231,76,60,0.3); border-color: #e74c3c; }
+
+        .stock-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        tr.row-selected { background: rgba(46, 204, 113, 0.08) !important; }
+
+        /* Bulk Edit Modal */
+        .bulk-edit-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start;
+            padding: 40px 20px; overflow-y: auto;
+        }
+        .bulk-edit-overlay.active { display: flex; }
+        .bulk-edit-box {
+            background: var(--bg-card); border-radius: 15px; padding: 30px; width: 100%;
+            max-width: 650px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s ease;
+        }
+        .bulk-edit-box h2 { margin-bottom: 5px; }
+        .bulk-edit-box .bulk-edit-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+        .bulk-field-row {
+            display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--border-color);
+        }
+        .bulk-field-row:last-child { border-bottom: none; }
+        .bulk-field-row label { font-size: 14px; font-weight: 500; white-space: nowrap; }
+        .bulk-field-row .bulk-field-input { display: flex; align-items: center; gap: 8px; }
+        .bulk-field-row .bulk-field-input input[type="checkbox"] { margin: 0; }
+        .bulk-field-row .form-control { flex: 1; }
     </style>
 </head>
 <body>
@@ -644,10 +688,20 @@
                             </select>
                             <button class="btn btn-primary" onclick="showPage('addItem')">+ Add Item</button>
                         </div>
+                        <div class="bulk-toolbar" id="bulkToolbar">
+                            <span class="bulk-count"><span id="bulkSelectedCount">0</span> item(s) selected</span>
+                            <button class="btn-bulk" onclick="selectAllVisible()" id="btnSelectAll">Select All</button>
+                            <button class="btn-bulk" onclick="clearSelection()">Clear Selection</button>
+                            <div class="bulk-actions">
+                                <button class="btn-bulk" onclick="openBulkEdit()">&#x270f;&#xfe0f; Edit Selected</button>
+                                <button class="btn-bulk danger" onclick="bulkDelete()">&#x1f5d1;&#xfe0f; Delete Selected</button>
+                            </div>
+                        </div>
                         <div class="table-container">
                             <table>
                                 <thead>
                                     <tr>
+                                        <th style="width:40px;"><input type="checkbox" class="stock-checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th>
                                         <th>Item Code</th><th>Description</th><th>Category</th><th>Unit</th>
                                         <th>In Stock</th><th>Reorder Lvl</th><th>Unit Cost</th><th>Total Value</th>
                                         <th>Status</th><th>Actions</th>
@@ -1361,6 +1415,85 @@
                 <div class="btn-group">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                     <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Modal -->
+    <div class="bulk-edit-overlay" id="bulkEditModal">
+        <div class="bulk-edit-box">
+            <h2>Bulk Edit Items</h2>
+            <div class="bulk-edit-sub">Check the fields you want to update. Only checked fields will be changed across all selected items.</div>
+            <form onsubmit="saveBulkEdit(event)">
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkCategory"> Category</label>
+                    <div class="bulk-field-input">
+                        <select class="form-control" id="bulkCategory" disabled>
+                            <option value="">Select Category</option>
+                            <option>Medical Supplies</option>
+                            <option>Cleaning Supplies</option>
+                            <option>Office Supplies</option>
+                            <option>Kitchen/Dietary</option>
+                            <option>Linen &amp; Bedding</option>
+                            <option>Maintenance Supplies</option>
+                            <option>Personal Protective Equipment</option>
+                            <option>Stationery</option>
+                            <option>IT Supplies</option>
+                            <option>General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkUnit"> Unit of Measure</label>
+                    <div class="bulk-field-input">
+                        <select class="form-control" id="bulkUnit" disabled>
+                            <option>Each</option>
+                            <option>Box</option>
+                            <option>Pack</option>
+                            <option>Case</option>
+                            <option>Roll</option>
+                            <option>Gallon</option>
+                            <option>Litre</option>
+                            <option>Pair</option>
+                            <option>Set</option>
+                            <option>Ream</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkReorder"> Reorder Level</label>
+                    <div class="bulk-field-input">
+                        <input type="number" class="form-control" id="bulkReorder" min="0" placeholder="Set reorder level" disabled>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkMax"> Max Stock Level</label>
+                    <div class="bulk-field-input">
+                        <input type="number" class="form-control" id="bulkMax" min="0" placeholder="Set max stock level" disabled>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkCost"> Unit Cost (JMD)</label>
+                    <div class="bulk-field-input">
+                        <input type="number" class="form-control" id="bulkCost" step="0.01" min="0" placeholder="Set unit cost" disabled>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkSupplier"> Supplier</label>
+                    <div class="bulk-field-input">
+                        <input type="text" class="form-control" id="bulkSupplier" placeholder="Set supplier" disabled>
+                    </div>
+                </div>
+                <div class="bulk-field-row">
+                    <label><input type="checkbox" id="bulkChkLocation"> Location / Bin</label>
+                    <div class="bulk-field-input">
+                        <input type="text" class="form-control" id="bulkLocation" placeholder="Set location" disabled>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary">Apply to Selected Items</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeBulkEdit()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -2634,12 +2767,15 @@
         function renderStockTable(items) {
             const tbody = document.getElementById('stockItemsTable');
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-secondary);">No items found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text-secondary);">No items found</td></tr>';
                 return;
             }
             tbody.innerHTML = items.map(item => {
                 const status = getStockStatus(item);
-                return `<tr>
+                const checked = selectedItems.has(item.code) ? 'checked' : '';
+                const rowClass = selectedItems.has(item.code) ? ' class="row-selected"' : '';
+                return `<tr${rowClass}>
+                    <td><input type="checkbox" class="stock-checkbox row-select-cb" data-code="${item.code}" ${checked} onchange="toggleItemSelect(this)"></td>
                     <td><strong>${item.code}</strong></td>
                     <td>${item.description}</td>
                     <td>${item.category}</td>
@@ -2655,6 +2791,7 @@
                     </td>
                 </tr>`;
             }).join('');
+            updateBulkToolbar();
         }
 
         function renderTxTable(txs, tableId) {
@@ -2673,6 +2810,190 @@
                 <td>${tx.reference}</td>
                 <td>${tx.by}</td>
             </tr>`).join('');
+        }
+
+        // ============================================
+        // BULK SELECT / EDIT / DELETE
+        // ============================================
+        const selectedItems = new Set();
+
+        function toggleItemSelect(cb) {
+            const code = cb.getAttribute('data-code');
+            if (cb.checked) {
+                selectedItems.add(code);
+                cb.closest('tr').classList.add('row-selected');
+            } else {
+                selectedItems.delete(code);
+                cb.closest('tr').classList.remove('row-selected');
+            }
+            updateBulkToolbar();
+        }
+
+        function toggleSelectAll(masterCb) {
+            const checkboxes = document.querySelectorAll('.row-select-cb');
+            checkboxes.forEach(function(cb) {
+                cb.checked = masterCb.checked;
+                const code = cb.getAttribute('data-code');
+                if (masterCb.checked) {
+                    selectedItems.add(code);
+                    cb.closest('tr').classList.add('row-selected');
+                } else {
+                    selectedItems.delete(code);
+                    cb.closest('tr').classList.remove('row-selected');
+                }
+            });
+            updateBulkToolbar();
+        }
+
+        function selectAllVisible() {
+            const checkboxes = document.querySelectorAll('.row-select-cb');
+            checkboxes.forEach(function(cb) {
+                cb.checked = true;
+                selectedItems.add(cb.getAttribute('data-code'));
+                cb.closest('tr').classList.add('row-selected');
+            });
+            const master = document.getElementById('selectAllCheckbox');
+            if (master) master.checked = true;
+            updateBulkToolbar();
+        }
+
+        function clearSelection() {
+            selectedItems.clear();
+            document.querySelectorAll('.row-select-cb').forEach(function(cb) {
+                cb.checked = false;
+                cb.closest('tr').classList.remove('row-selected');
+            });
+            const master = document.getElementById('selectAllCheckbox');
+            if (master) master.checked = false;
+            updateBulkToolbar();
+        }
+
+        function updateBulkToolbar() {
+            const toolbar = document.getElementById('bulkToolbar');
+            const countEl = document.getElementById('bulkSelectedCount');
+            const count = selectedItems.size;
+            countEl.textContent = count;
+            if (count > 0) {
+                toolbar.classList.add('visible');
+            } else {
+                toolbar.classList.remove('visible');
+            }
+            // Update select all checkbox state
+            const allCbs = document.querySelectorAll('.row-select-cb');
+            const master = document.getElementById('selectAllCheckbox');
+            if (master && allCbs.length > 0) {
+                const allChecked = Array.from(allCbs).every(function(cb) { return cb.checked; });
+                const someChecked = Array.from(allCbs).some(function(cb) { return cb.checked; });
+                master.checked = allChecked;
+                master.indeterminate = someChecked && !allChecked;
+            }
+            // Update select all button text
+            const btnAll = document.getElementById('btnSelectAll');
+            if (btnAll && allCbs.length > 0) {
+                const allChecked = Array.from(allCbs).every(function(cb) { return cb.checked; });
+                btnAll.textContent = allChecked ? 'Deselect All' : 'Select All';
+                btnAll.onclick = allChecked ? clearSelection : selectAllVisible;
+            }
+        }
+
+        // Bulk Delete
+        function bulkDelete() {
+            const count = selectedItems.size;
+            if (count === 0) return;
+            if (!confirm('Are you sure you want to delete ' + count + ' selected item(s)? This cannot be undone.')) return;
+
+            const codesToDelete = new Set(selectedItems);
+            appData.items = appData.items.filter(function(i) { return !codesToDelete.has(i.code); });
+            saveData(appData);
+            logActivity('Bulk Delete', 'Deleted ' + count + ' items: ' + Array.from(codesToDelete).join(', '));
+            selectedItems.clear();
+            refreshAll();
+            alert(count + ' item(s) deleted successfully.');
+        }
+
+        // Bulk Edit Modal
+        function openBulkEdit() {
+            if (selectedItems.size === 0) return;
+            // Reset all checkboxes and fields
+            const fields = ['Category', 'Unit', 'Reorder', 'Max', 'Cost', 'Supplier', 'Location'];
+            fields.forEach(function(f) {
+                const chk = document.getElementById('bulkChk' + f);
+                const input = document.getElementById('bulk' + f);
+                if (chk) chk.checked = false;
+                if (input) { input.disabled = true; input.value = ''; }
+            });
+            // Wire up checkbox toggle for each field
+            fields.forEach(function(f) {
+                const chk = document.getElementById('bulkChk' + f);
+                const input = document.getElementById('bulk' + f);
+                if (chk && input) {
+                    chk.onchange = function() { input.disabled = !chk.checked; if (chk.checked) input.focus(); };
+                }
+            });
+            document.getElementById('bulkEditModal').classList.add('active');
+        }
+
+        function closeBulkEdit() {
+            document.getElementById('bulkEditModal').classList.remove('active');
+        }
+
+        function saveBulkEdit(e) {
+            e.preventDefault();
+            const updates = {};
+            let updateCount = 0;
+
+            if (document.getElementById('bulkChkCategory').checked) {
+                const val = document.getElementById('bulkCategory').value;
+                if (val) { updates.category = val; updateCount++; }
+            }
+            if (document.getElementById('bulkChkUnit').checked) {
+                updates.unit = document.getElementById('bulkUnit').value;
+                updateCount++;
+            }
+            if (document.getElementById('bulkChkReorder').checked) {
+                updates.reorderLevel = parseInt(document.getElementById('bulkReorder').value) || 0;
+                updateCount++;
+            }
+            if (document.getElementById('bulkChkMax').checked) {
+                updates.maxLevel = parseInt(document.getElementById('bulkMax').value) || 0;
+                updateCount++;
+            }
+            if (document.getElementById('bulkChkCost').checked) {
+                updates.unitCost = parseFloat(document.getElementById('bulkCost').value) || 0;
+                updateCount++;
+            }
+            if (document.getElementById('bulkChkSupplier').checked) {
+                updates.supplier = sanitize(document.getElementById('bulkSupplier').value.trim());
+                updateCount++;
+            }
+            if (document.getElementById('bulkChkLocation').checked) {
+                updates.location = sanitize(document.getElementById('bulkLocation').value.trim());
+                updateCount++;
+            }
+
+            if (updateCount === 0) {
+                alert('Please check at least one field to update.');
+                return;
+            }
+
+            const codes = Array.from(selectedItems);
+            let edited = 0;
+            appData.items.forEach(function(item) {
+                if (selectedItems.has(item.code)) {
+                    Object.keys(updates).forEach(function(key) {
+                        item[key] = updates[key];
+                    });
+                    edited++;
+                }
+            });
+
+            saveData(appData);
+            const fieldNames = Object.keys(updates).join(', ');
+            logActivity('Bulk Edit', 'Updated ' + edited + ' items (' + fieldNames + '): ' + codes.join(', '));
+            closeBulkEdit();
+            selectedItems.clear();
+            refreshAll();
+            alert(edited + ' item(s) updated successfully.');
         }
 
         // ============================================
