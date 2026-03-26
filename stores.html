@@ -524,6 +524,57 @@
             flex: 1; padding: 6px 10px; border: 2px solid var(--primary); border-radius: 6px;
             font-size: 14px; background: var(--bg-card); color: var(--text-primary); outline: none;
         }
+
+        /* Quarterly View */
+        .fy-nav {
+            display: flex; align-items: center; gap: 0; background: #1a2233; border-radius: 10px;
+            padding: 4px; margin-bottom: 25px; overflow-x: auto;
+        }
+        body.dark-mode .fy-nav { background: #0d1b2a; }
+        .fy-quarter-btn {
+            padding: 10px 20px; border: none; background: transparent; color: #8899aa;
+            font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+            border-radius: 8px; transition: all 0.2s ease; position: relative;
+        }
+        .fy-quarter-btn:hover { color: #ccd6e0; background: rgba(255,255,255,0.05); }
+        .fy-quarter-btn.active { background: #c8a400; color: #fff; }
+        .fy-quarter-btn .fy-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: currentColor; margin-left: 6px; vertical-align: middle; opacity: 0.6;
+        }
+        .fy-quarter-btn.active .fy-dot { background: #fff; opacity: 1; }
+        .fy-year-group {
+            display: flex; align-items: center; gap: 0; margin-left: auto;
+        }
+        .fy-year-arrow {
+            width: 32px; height: 32px; border: none; background: rgba(255,255,255,0.08);
+            color: #8899aa; border-radius: 6px; cursor: pointer; font-size: 16px;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+        }
+        .fy-year-arrow:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .fy-year-label {
+            padding: 8px 16px; color: #ccd6e0; font-weight: 700; font-size: 14px;
+            white-space: nowrap; min-width: 110px; text-align: center;
+        }
+
+        .qv-filter-bar {
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .qv-filter-bar label { font-weight: 600; font-size: 13px; color: var(--text-secondary); }
+        .qv-filter-bar select { min-width: 180px; }
+
+        .qv-stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .qv-stat {
+            text-align: center; padding: 18px 12px; background: var(--bg-card); border-radius: 10px;
+            border: 1px solid var(--border-color); box-shadow: 0 2px 8px var(--shadow);
+        }
+        .qv-stat .qv-num { font-size: 28px; font-weight: 700; }
+        .qv-stat .qv-lbl { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+        .qv-section-title {
+            font-size: 16px; font-weight: 700; margin: 20px 0 10px 0; padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
@@ -626,6 +677,9 @@
                     </a>
                     <a class="sidebar-item" data-page="auditLog" onclick="showPage('auditLog')">
                         <span class="icon">&#x1f4dc;</span> Audit Log
+                    </a>
+                    <a class="sidebar-item" data-page="quarterlyView" onclick="showPage('quarterlyView')">
+                        <span class="icon">&#x1f4c5;</span> Quarterly View
                     </a>
                     <a class="sidebar-item" data-page="reports" onclick="showPage('reports')">
                         <span class="icon">&#x1f4c8;</span> Reports
@@ -1320,6 +1374,81 @@
                     </div>
                 </div>
 
+                <!-- Quarterly View -->
+                <div class="page" id="page-quarterlyView">
+                    <div class="page-header">
+                        <h1>Quarterly View</h1>
+                        <p>Filter inventory and transactions by fiscal quarter and category</p>
+                    </div>
+
+                    <!-- Fiscal Year / Quarter Navigation Bar -->
+                    <div class="fy-nav" id="fyNavBar">
+                        <button class="fy-quarter-btn" data-q="1" onclick="selectQuarter(1)">Q1 Apr&ndash;Jun <span class="fy-dot"></span></button>
+                        <button class="fy-quarter-btn" data-q="2" onclick="selectQuarter(2)">Q2 Jul&ndash;Sep <span class="fy-dot"></span></button>
+                        <button class="fy-quarter-btn" data-q="3" onclick="selectQuarter(3)">Q3 Oct&ndash;Dec <span class="fy-dot"></span></button>
+                        <button class="fy-quarter-btn" data-q="4" onclick="selectQuarter(4)">Q4 Jan&ndash;Mar <span class="fy-dot"></span></button>
+                        <div class="fy-year-group">
+                            <button class="fy-year-arrow" onclick="changeFiscalYear(-1)">&#x276E;</button>
+                            <span class="fy-year-label" id="fyYearLabel">FY 2025/2026</span>
+                            <button class="fy-year-arrow" onclick="changeFiscalYear(1)">&#x276F;</button>
+                        </div>
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="qv-filter-bar">
+                        <label>Category:</label>
+                        <select class="form-control" id="qvCategoryFilter" onchange="renderQuarterlyView()">
+                            <option value="">All Categories</option>
+                        </select>
+                        <label>Transaction Type:</label>
+                        <select class="form-control" id="qvTypeFilter" onchange="renderQuarterlyView()">
+                            <option value="">All Types</option>
+                            <option value="Received">Received</option>
+                            <option value="Issued">Issued</option>
+                            <option value="Adjustment">Adjustment</option>
+                        </select>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div class="qv-stats-row" id="qvStats"></div>
+
+                    <!-- Stock Snapshot -->
+                    <div class="card">
+                        <h2 class="qv-section-title" id="qvStockTitle">Stock Items</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Item Code</th><th>Description</th><th>Category</th><th>Unit</th>
+                                        <th>Current Qty</th><th>Unit Cost</th><th>Total Value</th><th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="qvStockTable">
+                                    <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">Select a quarter to view data</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transactions in Quarter -->
+                    <div class="card">
+                        <h2 class="qv-section-title" id="qvTxTitle">Transactions</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th><th>Type</th><th>Item Code</th><th>Description</th>
+                                        <th>Qty</th><th>Department</th><th>Reference</th><th>By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="qvTxTable">
+                                    <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">No transactions for this period</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="page" id="page-reports">
                     <div class="page-header">
                         <h1>Inventory Reports</h1>
@@ -1785,6 +1914,7 @@
             if (pageId === 'auditLog') renderAuditLog();
             if (pageId === 'categories') { renderCategoryList(); renderCategorySummary(); refreshCategoryCards(); }
             if (pageId === 'addItem' || pageId === 'excelImport') populateCategoryDropdowns();
+            if (pageId === 'quarterlyView') { populateQvCategoryFilter(); updateFyNav(); renderQuarterlyView(); }
 
             // Close mobile sidebar
             closeSidebarMobile();
@@ -2833,6 +2963,164 @@
                 <td>${tx.reference}</td>
                 <td>${tx.by}</td>
             </tr>`).join('');
+        }
+
+        // ============================================
+        // QUARTERLY VIEW - Fiscal Year (Apr-Mar)
+        // ============================================
+        // Jamaica fiscal year: April 1 - March 31
+        // Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar
+        let qvFiscalYear = getCurrentFiscalYear();
+        let qvQuarter = getCurrentQuarter();
+
+        function getCurrentFiscalYear() {
+            const now = new Date();
+            const month = now.getMonth(); // 0-indexed
+            const year = now.getFullYear();
+            // If Jan-Mar, fiscal year started previous calendar year
+            return month < 3 ? year - 1 : year;
+        }
+
+        function getCurrentQuarter() {
+            const month = new Date().getMonth();
+            if (month >= 3 && month <= 5) return 1;  // Apr-Jun
+            if (month >= 6 && month <= 8) return 2;  // Jul-Sep
+            if (month >= 9 && month <= 11) return 3; // Oct-Dec
+            return 4; // Jan-Mar
+        }
+
+        function getQuarterDateRange(fy, q) {
+            // fy = fiscal year start (e.g. 2025 for FY 2025/2026)
+            switch (q) {
+                case 1: return { from: fy + '-04-01', to: fy + '-06-30' };
+                case 2: return { from: fy + '-07-01', to: fy + '-09-30' };
+                case 3: return { from: fy + '-10-01', to: fy + '-12-31' };
+                case 4: return { from: (fy + 1) + '-01-01', to: (fy + 1) + '-03-31' };
+            }
+        }
+
+        function selectQuarter(q) {
+            qvQuarter = q;
+            updateFyNav();
+            renderQuarterlyView();
+        }
+
+        function changeFiscalYear(delta) {
+            qvFiscalYear += delta;
+            updateFyNav();
+            renderQuarterlyView();
+        }
+
+        function updateFyNav() {
+            // Highlight active quarter
+            document.querySelectorAll('.fy-quarter-btn').forEach(function(btn) {
+                btn.classList.toggle('active', parseInt(btn.getAttribute('data-q')) === qvQuarter);
+            });
+            // Update year label
+            document.getElementById('fyYearLabel').textContent = 'FY ' + qvFiscalYear + '/' + (qvFiscalYear + 1);
+        }
+
+        function populateQvCategoryFilter() {
+            const el = document.getElementById('qvCategoryFilter');
+            if (!el) return;
+            const current = el.value;
+            const cats = getCategories().slice().sort();
+            el.innerHTML = '<option value="">All Categories</option>' +
+                cats.map(function(c) { return '<option>' + sanitize(c) + '</option>'; }).join('');
+            if (current) el.value = current;
+        }
+
+        function renderQuarterlyView() {
+            const range = getQuarterDateRange(qvFiscalYear, qvQuarter);
+            const catFilter = document.getElementById('qvCategoryFilter').value;
+            const typeFilter = document.getElementById('qvTypeFilter').value;
+
+            // Filter transactions by date range
+            let txs = (appData.transactions || []).filter(function(t) {
+                return t.date >= range.from && t.date <= range.to;
+            });
+
+            // Filter by category: match transaction itemCode to items category
+            if (catFilter) {
+                const catCodes = new Set(appData.items.filter(function(i) { return i.category === catFilter; }).map(function(i) { return i.code; }));
+                txs = txs.filter(function(t) { return catCodes.has(t.itemCode); });
+            }
+
+            // Filter by type
+            if (typeFilter) {
+                txs = txs.filter(function(t) { return t.type === typeFilter; });
+            }
+
+            // Filter stock items by category
+            let items = appData.items;
+            if (catFilter) {
+                items = items.filter(function(i) { return i.category === catFilter; });
+            }
+
+            // Compute stats
+            const receivedTx = txs.filter(function(t) { return t.type === 'Received'; });
+            const issuedTx = txs.filter(function(t) { return t.type === 'Issued'; });
+            const totalReceived = receivedTx.reduce(function(s, t) { return s + t.qty; }, 0);
+            const totalIssued = issuedTx.reduce(function(s, t) { return s + t.qty; }, 0);
+            const totalValue = items.reduce(function(s, i) { return s + i.qty * i.unitCost; }, 0);
+            const lowStockCount = items.filter(function(i) { return i.qty > 0 && i.qty <= i.reorderLevel; }).length;
+            const outOfStockCount = items.filter(function(i) { return i.qty === 0; }).length;
+
+            // Quarter names
+            var quarterNames = { 1: 'Q1 (Apr\u2013Jun)', 2: 'Q2 (Jul\u2013Sep)', 3: 'Q3 (Oct\u2013Dec)', 4: 'Q4 (Jan\u2013Mar)' };
+            var qLabel = quarterNames[qvQuarter] + ' FY ' + qvFiscalYear + '/' + (qvFiscalYear + 1);
+
+            // Render stats
+            document.getElementById('qvStats').innerHTML =
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--primary);">' + items.length + '</div><div class="qv-lbl">Stock Items' + (catFilter ? ' (' + sanitize(catFilter) + ')' : '') + '</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--info);">$' + totalValue.toLocaleString() + '</div><div class="qv-lbl">Inventory Value</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--success);">' + totalReceived.toLocaleString() + '</div><div class="qv-lbl">Units Received</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--warning);">' + totalIssued.toLocaleString() + '</div><div class="qv-lbl">Units Issued</div></div>' +
+                '<div class="qv-stat"><div class="qv-num">' + txs.length + '</div><div class="qv-lbl">Transactions</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--danger);">' + (lowStockCount + outOfStockCount) + '</div><div class="qv-lbl">Low / Out of Stock</div></div>';
+
+            // Render stock table
+            document.getElementById('qvStockTitle').textContent = 'Stock Items' + (catFilter ? ' \u2014 ' + catFilter : '') + ' (' + items.length + ')';
+            var stockTbody = document.getElementById('qvStockTable');
+            if (items.length === 0) {
+                stockTbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">No items match the current filter</td></tr>';
+            } else {
+                stockTbody.innerHTML = items.map(function(item) {
+                    var status = getStockStatus(item);
+                    return '<tr>' +
+                        '<td><strong>' + sanitize(item.code) + '</strong></td>' +
+                        '<td>' + sanitize(item.description) + '</td>' +
+                        '<td>' + sanitize(item.category) + '</td>' +
+                        '<td>' + sanitize(item.unit) + '</td>' +
+                        '<td>' + item.qty + '</td>' +
+                        '<td>$' + item.unitCost.toLocaleString() + '</td>' +
+                        '<td>$' + (item.qty * item.unitCost).toLocaleString() + '</td>' +
+                        '<td><span class="badge badge-' + status.class + '">' + status.label + '</span></td>' +
+                    '</tr>';
+                }).join('');
+            }
+
+            // Render transactions table
+            document.getElementById('qvTxTitle').textContent = 'Transactions \u2014 ' + qLabel + ' (' + txs.length + ')';
+            var txTbody = document.getElementById('qvTxTable');
+            if (txs.length === 0) {
+                txTbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-secondary);">No transactions for ' + qLabel + '</td></tr>';
+            } else {
+                txTbody.innerHTML = txs.slice().sort(function(a, b) { return b.date.localeCompare(a.date); }).map(function(tx) {
+                    var typeIcon = tx.type === 'Received' ? '\ud83d\udce5' : tx.type === 'Issued' ? '\ud83d\udce4' : '\ud83d\udd04';
+                    var typeClass = tx.type === 'Received' ? 'tx-receive' : 'tx-issue';
+                    return '<tr>' +
+                        '<td>' + tx.date + '</td>' +
+                        '<td><span class="' + typeClass + '">' + typeIcon + ' ' + tx.type + '</span></td>' +
+                        '<td>' + sanitize(tx.itemCode) + '</td>' +
+                        '<td>' + sanitize(tx.description) + '</td>' +
+                        '<td>' + tx.qty + '</td>' +
+                        '<td>' + sanitize(tx.department || '-') + '</td>' +
+                        '<td>' + sanitize(tx.reference || '-') + '</td>' +
+                        '<td>' + sanitize(tx.by || '-') + '</td>' +
+                    '</tr>';
+                }).join('');
+            }
         }
 
         // ============================================
