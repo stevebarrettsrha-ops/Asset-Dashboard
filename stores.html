@@ -370,6 +370,93 @@
 
         .validation-error { border-color: #e74c3c !important; }
         .error-text { color: #e74c3c; font-size: 12px; margin-top: 4px; }
+
+        /* Excel Import Styles */
+        .import-wizard { max-width: 100%; }
+        .wizard-steps {
+            display: flex; gap: 0; margin-bottom: 30px; position: relative;
+            background: var(--bg-secondary); border-radius: 10px; padding: 5px; overflow: hidden;
+        }
+        .wizard-step {
+            flex: 1; text-align: center; padding: 12px 10px; font-size: 13px; font-weight: 600;
+            color: var(--text-secondary); position: relative; border-radius: 8px; transition: all 0.3s ease;
+        }
+        .wizard-step.active { background: var(--primary); color: white; }
+        .wizard-step.completed { background: var(--success); color: white; }
+        .wizard-step .step-num {
+            display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%;
+            background: var(--border-color); color: var(--text-primary); font-size: 12px; margin-right: 6px;
+        }
+        .wizard-step.active .step-num, .wizard-step.completed .step-num { background: rgba(255,255,255,0.3); color: white; }
+
+        .upload-zone {
+            border: 3px dashed var(--border-color); border-radius: 15px; padding: 60px 40px;
+            text-align: center; cursor: pointer; transition: all 0.3s ease; background: var(--bg-secondary);
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--primary); background: rgba(46, 204, 113, 0.05);
+        }
+        .upload-zone .upload-icon { font-size: 64px; margin-bottom: 15px; display: block; }
+        .upload-zone .upload-text { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+        .upload-zone .upload-sub { font-size: 14px; color: var(--text-secondary); }
+
+        .sheet-selector { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
+        .sheet-btn {
+            padding: 10px 20px; border: 2px solid var(--border-color); border-radius: 8px;
+            background: var(--bg-card); cursor: pointer; font-size: 14px; font-weight: 500;
+            color: var(--text-primary); transition: all 0.2s ease;
+        }
+        .sheet-btn:hover { border-color: var(--primary); }
+        .sheet-btn.active { border-color: var(--primary); background: var(--primary); color: white; }
+
+        .mapping-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 20px 0; }
+        .mapping-row {
+            display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 10px;
+            padding: 12px 15px; background: var(--bg-secondary); border-radius: 8px;
+        }
+        .mapping-row .arrow { text-align: center; font-size: 20px; color: var(--primary); }
+        .mapping-row label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .mapping-row .field-hint { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .mapping-row select {
+            width: 100%; padding: 8px 10px; border: 2px solid var(--border-color); border-radius: 6px;
+            background: var(--bg-card); color: var(--text-primary); font-size: 13px;
+        }
+        .mapping-row select:focus { border-color: var(--primary); outline: none; }
+
+        .preview-table-wrap { max-height: 400px; overflow: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+        .preview-table-wrap table { font-size: 12px; }
+        .preview-table-wrap th { position: sticky; top: 0; z-index: 1; }
+
+        .import-summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;
+        }
+        .summary-stat {
+            text-align: center; padding: 20px; background: var(--bg-secondary); border-radius: 10px;
+        }
+        .summary-stat .num { font-size: 32px; font-weight: 700; color: var(--primary); }
+        .summary-stat .lbl { font-size: 13px; color: var(--text-secondary); margin-top: 5px; }
+
+        .import-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .file-info {
+            display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--bg-secondary);
+            border-radius: 10px; margin-bottom: 20px;
+        }
+        .file-info .file-icon { font-size: 36px; }
+        .file-info .file-name { font-weight: 600; font-size: 15px; }
+        .file-info .file-meta { font-size: 12px; color: var(--text-secondary); }
+
+        .import-progress {
+            width: 100%; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; margin: 15px 0;
+        }
+        .import-progress-bar {
+            height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s ease; width: 0%;
+        }
+
+        .auto-map-badge {
+            display: inline-block; padding: 2px 8px; background: rgba(46, 204, 113, 0.15);
+            color: var(--success); border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;
+        }
+        .duplicate-warning { color: var(--warning); font-size: 12px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -436,6 +523,9 @@
                     </a>
                     <a class="sidebar-item" data-page="categories" onclick="showPage('categories')">
                         <span class="icon">&#x1f3f7;&#xfe0f;</span> Categories
+                    </a>
+                    <a class="sidebar-item" data-page="excelImport" onclick="showPage('excelImport')">
+                        <span class="icon">&#x1f4e5;</span> Excel Import
                     </a>
                 </div>
                 <div class="sidebar-section">
@@ -1038,6 +1128,117 @@
                 </div>
 
                 <!-- Reports -->
+                <!-- Excel Import -->
+                <div class="page" id="page-excelImport">
+                    <div class="page-header">
+                        <h1>Excel Import</h1>
+                        <p>Upload Excel files and map columns to import inventory data</p>
+                    </div>
+
+                    <div class="card import-wizard">
+                        <!-- Wizard Steps -->
+                        <div class="wizard-steps">
+                            <div class="wizard-step active" id="wizStep1">
+                                <span class="step-num">1</span> Upload File
+                            </div>
+                            <div class="wizard-step" id="wizStep2">
+                                <span class="step-num">2</span> Select Sheet
+                            </div>
+                            <div class="wizard-step" id="wizStep3">
+                                <span class="step-num">3</span> Map Columns
+                            </div>
+                            <div class="wizard-step" id="wizStep4">
+                                <span class="step-num">4</span> Review &amp; Import
+                            </div>
+                        </div>
+
+                        <!-- Step 1: Upload -->
+                        <div class="wizard-content" id="wizContent1">
+                            <div class="upload-zone" id="excelDropZone" onclick="document.getElementById('excelFileInput').click();">
+                                <span class="upload-icon">&#x1f4c1;</span>
+                                <div class="upload-text">Drop Excel file here or click to browse</div>
+                                <div class="upload-sub">Supports .xlsx, .xls, and .csv files</div>
+                            </div>
+                            <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleExcelFile(event)">
+                        </div>
+
+                        <!-- Step 2: Select Sheet -->
+                        <div class="wizard-content" id="wizContent2" style="display:none;">
+                            <div class="file-info" id="importFileInfo"></div>
+                            <h3 style="margin-bottom:10px;">Select a sheet to import from:</h3>
+                            <div class="sheet-selector" id="sheetSelector"></div>
+                            <div style="margin-top:20px;">
+                                <h3 style="margin-bottom:10px;">Sheet Preview (first 10 rows)</h3>
+                                <div class="preview-table-wrap" id="sheetPreview"></div>
+                            </div>
+                            <div class="import-actions">
+                                <button class="btn btn-secondary" onclick="excelImportReset()">Back</button>
+                                <button class="btn btn-primary" onclick="goToMapping()">Next: Map Columns</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Map Columns -->
+                        <div class="wizard-content" id="wizContent3" style="display:none;">
+                            <div class="file-info" id="importFileInfo2"></div>
+                            <p style="margin-bottom:5px;color:var(--text-secondary);font-size:14px;">
+                                Match each Excel column to the corresponding dashboard field. Fields marked with * are required.
+                                The system will attempt to auto-detect common column names.
+                            </p>
+                            <div style="margin:15px 0;">
+                                <label style="font-weight:600;margin-right:10px;">Header row:</label>
+                                <select id="headerRowSelect" class="form-control" style="width:auto;display:inline-block;min-width:120px;" onchange="changeHeaderRow()">
+                                </select>
+                                <span style="font-size:12px;color:var(--text-secondary);margin-left:10px;">Choose which row contains column headers</span>
+                            </div>
+                            <div class="mapping-grid" id="columnMapping"></div>
+                            <div class="import-actions">
+                                <button class="btn btn-secondary" onclick="goToStep(2)">Back</button>
+                                <button class="btn btn-primary" onclick="goToReview()">Next: Review</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Review & Import -->
+                        <div class="wizard-content" id="wizContent4" style="display:none;">
+                            <div class="import-summary" id="importSummary"></div>
+                            <div id="duplicateWarnings" style="margin-bottom:15px;"></div>
+                            <h3 style="margin-bottom:10px;">Data Preview (first 20 rows)</h3>
+                            <div class="preview-table-wrap" id="importPreview"></div>
+                            <div style="margin-top:15px;">
+                                <label style="font-size:14px;">
+                                    <input type="checkbox" id="skipDuplicates" checked>
+                                    Skip items with duplicate item codes (existing items won't be overwritten)
+                                </label>
+                            </div>
+                            <div style="margin-top:10px;">
+                                <label style="font-size:14px;">
+                                    <input type="checkbox" id="importDefaultCategory" checked>
+                                    Set default category for unmapped category field:
+                                </label>
+                                <select id="importDefaultCat" class="form-control" style="width:auto;display:inline-block;min-width:150px;margin-left:5px;">
+                                    <option>General</option>
+                                    <option>Medical Supplies</option>
+                                    <option>Cleaning Supplies</option>
+                                    <option>Office Supplies</option>
+                                    <option>Kitchen/Dietary</option>
+                                    <option>Linen &amp; Bedding</option>
+                                    <option>Maintenance Supplies</option>
+                                    <option>Personal Protective Equipment</option>
+                                    <option>Stationery</option>
+                                    <option>IT Supplies</option>
+                                </select>
+                            </div>
+                            <div class="import-progress" id="importProgressWrap" style="display:none;">
+                                <div class="import-progress-bar" id="importProgressBar"></div>
+                            </div>
+                            <div id="importResultMsg" style="display:none;margin-top:15px;"></div>
+                            <div class="import-actions" id="importActionBtns">
+                                <button class="btn btn-secondary" onclick="goToStep(3)">Back</button>
+                                <button class="btn btn-primary" id="btnDoImport" onclick="executeImport()">Import Items</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="page" id="page-reports">
                     <div class="page-header">
                         <h1>Inventory Reports</h1>
@@ -2472,6 +2673,468 @@
                 <td>${tx.reference}</td>
                 <td>${tx.by}</td>
             </tr>`).join('');
+        }
+
+        // ============================================
+        // EXCEL IMPORT
+        // ============================================
+        let excelWorkbook = null;
+        let excelFileName = '';
+        let excelFileSize = 0;
+        let excelSelectedSheet = '';
+        let excelSheetData = [];
+        let excelHeaderRow = 0;
+
+        // Dashboard fields for mapping
+        const dashboardFields = [
+            { key: 'code', label: 'Item Code *', hint: 'Unique identifier', required: true, aliases: ['item code', 'itemcode', 'item_code', 'code', 'sku', 'product code', 'item no', 'item number', 'item #'] },
+            { key: 'description', label: 'Description *', hint: 'Item name/description', required: true, aliases: ['description', 'desc', 'item name', 'item description', 'items', 'name', 'product name', 'product', 'item'] },
+            { key: 'category', label: 'Category', hint: 'Stock category', aliases: ['category', 'cat', 'type', 'group', 'class', 'department'] },
+            { key: 'unit', label: 'Unit of Measure', hint: 'e.g. Box, Each, Case', aliases: ['unit', 'unit of measure', 'uom', 'unit of measurement', 'measure', 'unit_of_measure', 'units'] },
+            { key: 'qty', label: 'Quantity', hint: 'Current stock quantity', aliases: ['quantity', 'qty', 'stock', 'stock balance', 'stock balances', 'balance', 'on hand', 'count', 'current qty', 'opening quantity'] },
+            { key: 'reorderLevel', label: 'Reorder Level', hint: 'Min qty before reorder', aliases: ['reorder level', 'reorder', 'min level', 'minimum', 'min qty', 'reorder_level', 'min stock'] },
+            { key: 'maxLevel', label: 'Max Stock Level', hint: 'Maximum capacity', aliases: ['max level', 'maximum', 'max qty', 'max stock', 'max_level', 'maximum stock level'] },
+            { key: 'unitCost', label: 'Unit Cost (JMD)', hint: 'Cost per unit', aliases: ['unit cost', 'cost', 'price', 'unit price', 'rate', 'unit_cost', 'amount'] },
+            { key: 'supplier', label: 'Supplier', hint: 'Primary supplier', aliases: ['supplier', 'vendor', 'source', 'manufacturer', 'brand'] },
+            { key: 'location', label: 'Location / Bin', hint: 'Storage location', aliases: ['location', 'bin', 'shelf', 'storage', 'warehouse', 'store', 'location / bin'] },
+            { key: 'notes', label: 'Notes', hint: 'Additional notes', aliases: ['notes', 'note', 'remarks', 'comment', 'comments', 'memo'] }
+        ];
+
+        // Drag & drop handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('excelDropZone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+                dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+                dropZone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    dropZone.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file) processExcelFile(file);
+                });
+            }
+        });
+
+        function handleExcelFile(event) {
+            const file = event.target.files[0];
+            if (file) processExcelFile(file);
+        }
+
+        function processExcelFile(file) {
+            const validExts = ['.xlsx', '.xls', '.csv'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            if (!validExts.includes(ext)) {
+                alert('Please upload a valid Excel or CSV file (.xlsx, .xls, .csv)');
+                return;
+            }
+            excelFileName = file.name;
+            excelFileSize = file.size;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    excelWorkbook = XLSX.read(e.target.result, { type: 'array' });
+                    if (excelWorkbook.SheetNames.length === 0) {
+                        alert('The file contains no sheets.');
+                        return;
+                    }
+                    // If only one sheet, auto-select it
+                    if (excelWorkbook.SheetNames.length === 1) {
+                        selectSheet(excelWorkbook.SheetNames[0]);
+                    }
+                    showSheetSelector();
+                    goToStep(2);
+                } catch (err) {
+                    alert('Error reading file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showSheetSelector() {
+            const container = document.getElementById('sheetSelector');
+            container.innerHTML = excelWorkbook.SheetNames.map(function(name, i) {
+                const active = name === excelSelectedSheet ? ' active' : '';
+                return '<button class="sheet-btn' + active + '" onclick="selectSheet(\'' + sanitize(name.replace(/'/g, "\\'")) + '\')">' +
+                    sanitize(name) + '</button>';
+            }).join('');
+            updateFileInfo('importFileInfo');
+        }
+
+        function updateFileInfo(elId) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const sizeStr = excelFileSize > 1024 * 1024
+                ? (excelFileSize / (1024 * 1024)).toFixed(1) + ' MB'
+                : (excelFileSize / 1024).toFixed(1) + ' KB';
+            el.innerHTML = '<span class="file-icon">&#x1f4c4;</span>' +
+                '<div><div class="file-name">' + sanitize(excelFileName) + '</div>' +
+                '<div class="file-meta">' + sizeStr +
+                (excelSelectedSheet ? ' &bull; Sheet: ' + sanitize(excelSelectedSheet) : '') +
+                ' &bull; ' + excelWorkbook.SheetNames.length + ' sheet(s)</div></div>';
+        }
+
+        function selectSheet(name) {
+            excelSelectedSheet = name;
+            const sheet = excelWorkbook.Sheets[name];
+            excelSheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            excelHeaderRow = detectHeaderRow(excelSheetData);
+
+            // Update active button
+            document.querySelectorAll('.sheet-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.textContent === name);
+            });
+            updateFileInfo('importFileInfo');
+            renderSheetPreview();
+        }
+
+        function detectHeaderRow(data) {
+            // Look at first 10 rows for the one most likely to be headers
+            const maxCheck = Math.min(data.length, 10);
+            let bestRow = 0;
+            let bestScore = -1;
+            for (let r = 0; r < maxCheck; r++) {
+                const row = data[r];
+                if (!row || row.length === 0) continue;
+                let score = 0;
+                const nonEmpty = row.filter(function(c) { return c !== '' && c !== null && c !== undefined; });
+                if (nonEmpty.length < 2) continue;
+                // Score: more non-empty string cells = more likely header
+                nonEmpty.forEach(function(cell) {
+                    if (typeof cell === 'string' && cell.length > 0 && isNaN(Number(cell))) score += 2;
+                    if (typeof cell === 'string' && cell.length > 0) score += 1;
+                });
+                // Bonus for matching known field aliases
+                const allAliases = dashboardFields.reduce(function(acc, f) { return acc.concat(f.aliases); }, []);
+                nonEmpty.forEach(function(cell) {
+                    if (typeof cell === 'string' && allAliases.indexOf(cell.toString().toLowerCase().trim()) >= 0) score += 5;
+                });
+                if (score > bestScore) { bestScore = score; bestRow = r; }
+            }
+            return bestRow;
+        }
+
+        function renderSheetPreview() {
+            const preview = document.getElementById('sheetPreview');
+            if (!excelSheetData || excelSheetData.length === 0) {
+                preview.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text-secondary);">No data in this sheet</p>';
+                return;
+            }
+            const maxRows = Math.min(excelSheetData.length, 11);
+            const maxCols = excelSheetData.reduce(function(m, r) { return Math.max(m, r ? r.length : 0); }, 0);
+            let html = '<table><thead><tr><th style="width:40px;">#</th>';
+            for (let c = 0; c < maxCols; c++) html += '<th>Col ' + (c + 1) + '</th>';
+            html += '</tr></thead><tbody>';
+            for (let r = 0; r < maxRows; r++) {
+                const isHeader = r === excelHeaderRow;
+                html += '<tr style="' + (isHeader ? 'background:rgba(46,204,113,0.15);font-weight:600;' : '') + '">';
+                html += '<td style="color:var(--text-secondary);font-size:11px;">' + (r + 1) + (isHeader ? ' &#x2190; Headers' : '') + '</td>';
+                for (let c = 0; c < maxCols; c++) {
+                    const val = excelSheetData[r] && excelSheetData[r][c] !== undefined ? excelSheetData[r][c] : '';
+                    html += '<td>' + sanitize(String(val)) + '</td>';
+                }
+                html += '</tr>';
+            }
+            if (excelSheetData.length > 11) {
+                html += '<tr><td colspan="' + (maxCols + 1) + '" style="text-align:center;color:var(--text-secondary);font-style:italic;padding:10px;">... and ' + (excelSheetData.length - 11) + ' more rows</td></tr>';
+            }
+            html += '</tbody></table>';
+            preview.innerHTML = html;
+        }
+
+        function goToStep(step) {
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById('wizContent' + i).style.display = i === step ? 'block' : 'none';
+                const stepEl = document.getElementById('wizStep' + i);
+                stepEl.classList.remove('active', 'completed');
+                if (i < step) stepEl.classList.add('completed');
+                if (i === step) stepEl.classList.add('active');
+            }
+            if (step === 2) {
+                showSheetSelector();
+                if (excelSelectedSheet) renderSheetPreview();
+            }
+            if (step === 3) {
+                updateFileInfo('importFileInfo2');
+                buildMappingUI();
+            }
+        }
+
+        function goToMapping() {
+            if (!excelSelectedSheet || excelSheetData.length === 0) {
+                alert('Please select a sheet first.');
+                return;
+            }
+            goToStep(3);
+        }
+
+        function buildMappingUI() {
+            const container = document.getElementById('columnMapping');
+            const headerSelect = document.getElementById('headerRowSelect');
+            const maxOpt = Math.min(excelSheetData.length, 15);
+
+            // Populate header row selector
+            headerSelect.innerHTML = '';
+            for (let r = 0; r < maxOpt; r++) {
+                const rowPreview = (excelSheetData[r] || []).slice(0, 4).map(function(c) {
+                    return String(c || '').substring(0, 20);
+                }).join(', ');
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = 'Row ' + (r + 1) + ': ' + rowPreview;
+                if (r === excelHeaderRow) opt.selected = true;
+                headerSelect.appendChild(opt);
+            }
+
+            renderMappingRows();
+        }
+
+        function changeHeaderRow() {
+            excelHeaderRow = parseInt(document.getElementById('headerRowSelect').value);
+            renderMappingRows();
+        }
+
+        function renderMappingRows() {
+            const container = document.getElementById('columnMapping');
+            const headers = excelSheetData[excelHeaderRow] || [];
+            const excelCols = headers.map(function(h, i) {
+                return { index: i, name: String(h || 'Column ' + (i + 1)).trim() };
+            });
+
+            let html = '';
+            dashboardFields.forEach(function(field) {
+                const autoMatch = autoDetectColumn(field, excelCols);
+                html += '<div class="mapping-row">';
+                html += '<div><label>' + field.label + '</label><div class="field-hint">' + field.hint + '</div></div>';
+                html += '<div class="arrow">&#x27a1;</div>';
+                html += '<div><select id="map_' + field.key + '" class="mapping-select">';
+                html += '<option value="">-- Skip (do not import) --</option>';
+                excelCols.forEach(function(col) {
+                    const selected = autoMatch === col.index ? ' selected' : '';
+                    html += '<option value="' + col.index + '"' + selected + '>' + sanitize(col.name) + '</option>';
+                });
+                html += '</select>';
+                if (autoMatch !== null) html += '<span class="auto-map-badge">Auto-detected</span>';
+                html += '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function autoDetectColumn(field, excelCols) {
+            for (let i = 0; i < excelCols.length; i++) {
+                const colName = excelCols[i].name.toLowerCase().trim();
+                for (let a = 0; a < field.aliases.length; a++) {
+                    if (colName === field.aliases[a] || colName.indexOf(field.aliases[a]) >= 0) {
+                        return excelCols[i].index;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getMappings() {
+            const mappings = {};
+            dashboardFields.forEach(function(field) {
+                const sel = document.getElementById('map_' + field.key);
+                if (sel && sel.value !== '') {
+                    mappings[field.key] = parseInt(sel.value);
+                }
+            });
+            return mappings;
+        }
+
+        function goToReview() {
+            const mappings = getMappings();
+            if (mappings.code === undefined) {
+                alert('Item Code is required. Please map a column to "Item Code".');
+                return;
+            }
+            if (mappings.description === undefined) {
+                alert('Description is required. Please map a column to "Description".');
+                return;
+            }
+
+            // Build import preview
+            const dataRows = excelSheetData.slice(excelHeaderRow + 1).filter(function(row) {
+                return row && row.some(function(c) { return c !== '' && c !== null && c !== undefined; });
+            });
+
+            const existingCodes = new Set(appData.items.map(function(i) { return i.code; }));
+            let newCount = 0;
+            let dupCount = 0;
+            let skippedCount = 0;
+
+            const previewRows = [];
+            dataRows.forEach(function(row) {
+                const code = String(row[mappings.code] || '').trim();
+                const desc = String(row[mappings.description] || '').trim();
+                if (!code || !desc) { skippedCount++; return; }
+
+                const isDup = existingCodes.has(code);
+                if (isDup) dupCount++;
+                else newCount++;
+
+                previewRows.push({
+                    code: code,
+                    description: desc,
+                    category: mappings.category !== undefined ? String(row[mappings.category] || '').trim() : '',
+                    unit: mappings.unit !== undefined ? String(row[mappings.unit] || '').trim() : '',
+                    qty: mappings.qty !== undefined ? String(row[mappings.qty] || '').trim() : '',
+                    reorderLevel: mappings.reorderLevel !== undefined ? String(row[mappings.reorderLevel] || '').trim() : '',
+                    maxLevel: mappings.maxLevel !== undefined ? String(row[mappings.maxLevel] || '').trim() : '',
+                    unitCost: mappings.unitCost !== undefined ? String(row[mappings.unitCost] || '').trim() : '',
+                    supplier: mappings.supplier !== undefined ? String(row[mappings.supplier] || '').trim() : '',
+                    location: mappings.location !== undefined ? String(row[mappings.location] || '').trim() : '',
+                    notes: mappings.notes !== undefined ? String(row[mappings.notes] || '').trim() : '',
+                    isDuplicate: isDup
+                });
+            });
+
+            // Summary
+            document.getElementById('importSummary').innerHTML =
+                '<div class="summary-stat"><div class="num">' + dataRows.length + '</div><div class="lbl">Total Rows</div></div>' +
+                '<div class="summary-stat"><div class="num" style="color:var(--success);">' + newCount + '</div><div class="lbl">New Items</div></div>' +
+                '<div class="summary-stat"><div class="num" style="color:var(--warning);">' + dupCount + '</div><div class="lbl">Duplicates</div></div>' +
+                '<div class="summary-stat"><div class="num" style="color:var(--text-secondary);">' + skippedCount + '</div><div class="lbl">Skipped (empty)</div></div>';
+
+            // Duplicate warning
+            const dupWarn = document.getElementById('duplicateWarnings');
+            if (dupCount > 0) {
+                dupWarn.innerHTML = '<div style="padding:12px;background:rgba(243,156,18,0.1);border:1px solid var(--warning);border-radius:8px;color:var(--warning);font-size:13px;">' +
+                    '&#x26a0;&#xfe0f; <strong>' + dupCount + ' item(s)</strong> already exist in your inventory. ' +
+                    'With "Skip duplicates" checked, these will not be imported.</div>';
+            } else {
+                dupWarn.innerHTML = '';
+            }
+
+            // Preview table
+            const mapped = dashboardFields.filter(function(f) { return mappings[f.key] !== undefined; });
+            let tableHtml = '<table><thead><tr><th>#</th>';
+            mapped.forEach(function(f) { tableHtml += '<th>' + f.label.replace(' *', '') + '</th>'; });
+            tableHtml += '<th>Status</th></tr></thead><tbody>';
+
+            const showRows = previewRows.slice(0, 20);
+            showRows.forEach(function(row, i) {
+                const rowClass = row.isDuplicate ? 'style="background:rgba(243,156,18,0.08);"' : '';
+                tableHtml += '<tr ' + rowClass + '><td>' + (i + 1) + '</td>';
+                mapped.forEach(function(f) { tableHtml += '<td>' + sanitize(row[f.key]) + '</td>'; });
+                tableHtml += '<td>' + (row.isDuplicate
+                    ? '<span class="badge" style="background:var(--warning);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Duplicate</span>'
+                    : '<span class="badge" style="background:var(--success);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">New</span>') + '</td>';
+                tableHtml += '</tr>';
+            });
+            if (previewRows.length > 20) {
+                tableHtml += '<tr><td colspan="' + (mapped.length + 2) + '" style="text-align:center;color:var(--text-secondary);font-style:italic;padding:10px;">... and ' + (previewRows.length - 20) + ' more rows</td></tr>';
+            }
+            tableHtml += '</tbody></table>';
+            document.getElementById('importPreview').innerHTML = tableHtml;
+
+            // Reset import state
+            document.getElementById('importProgressWrap').style.display = 'none';
+            document.getElementById('importResultMsg').style.display = 'none';
+            document.getElementById('btnDoImport').disabled = false;
+
+            goToStep(4);
+        }
+
+        function executeImport() {
+            const mappings = getMappings();
+            const skipDups = document.getElementById('skipDuplicates').checked;
+            const useDefaultCat = document.getElementById('importDefaultCategory').checked;
+            const defaultCat = document.getElementById('importDefaultCat').value;
+
+            const dataRows = excelSheetData.slice(excelHeaderRow + 1).filter(function(row) {
+                return row && row.some(function(c) { return c !== '' && c !== null && c !== undefined; });
+            });
+
+            const existingCodes = new Set(appData.items.map(function(i) { return i.code; }));
+            const validUnits = ['Each', 'Box', 'Pack', 'Case', 'Roll', 'Gallon', 'Litre', 'Pair', 'Set', 'Ream',
+                'Bag', 'Bags', 'Bucket', 'Lbs', 'Rolls'];
+
+            document.getElementById('importProgressWrap').style.display = 'block';
+            document.getElementById('btnDoImport').disabled = true;
+
+            let imported = 0;
+            let skipped = 0;
+            let errors = 0;
+
+            dataRows.forEach(function(row, idx) {
+                const code = String(row[mappings.code] || '').trim();
+                const desc = String(row[mappings.description] || '').trim();
+
+                if (!code || !desc) { skipped++; return; }
+                if (skipDups && existingCodes.has(code)) { skipped++; return; }
+
+                // Parse unit - try to match known units
+                let unit = 'Each';
+                if (mappings.unit !== undefined) {
+                    const rawUnit = String(row[mappings.unit] || '').trim();
+                    const matchedUnit = validUnits.find(function(u) {
+                        return u.toLowerCase() === rawUnit.toLowerCase();
+                    });
+                    unit = matchedUnit || (rawUnit || 'Each');
+                }
+
+                // Parse category
+                let category = useDefaultCat ? defaultCat : 'General';
+                if (mappings.category !== undefined) {
+                    const rawCat = String(row[mappings.category] || '').trim();
+                    if (rawCat) category = rawCat;
+                    else if (useDefaultCat) category = defaultCat;
+                }
+
+                const item = {
+                    code: sanitize(code),
+                    description: sanitize(desc),
+                    category: category,
+                    unit: unit,
+                    qty: mappings.qty !== undefined ? (parseInt(row[mappings.qty]) || 0) : 0,
+                    reorderLevel: mappings.reorderLevel !== undefined ? (parseInt(row[mappings.reorderLevel]) || 0) : 0,
+                    maxLevel: mappings.maxLevel !== undefined ? (parseInt(row[mappings.maxLevel]) || 0) : 0,
+                    unitCost: mappings.unitCost !== undefined ? (parseFloat(row[mappings.unitCost]) || 0) : 0,
+                    supplier: mappings.supplier !== undefined ? sanitize(String(row[mappings.supplier] || '').trim()) : '',
+                    location: mappings.location !== undefined ? sanitize(String(row[mappings.location] || '').trim()) : '',
+                    notes: mappings.notes !== undefined ? sanitize(String(row[mappings.notes] || '').trim()) : '',
+                    trackExpiry: false,
+                    shelfLife: 0,
+                    batches: []
+                };
+
+                appData.items.push(item);
+                existingCodes.add(code);
+                imported++;
+
+                // Update progress
+                const pct = Math.round(((idx + 1) / dataRows.length) * 100);
+                document.getElementById('importProgressBar').style.width = pct + '%';
+            });
+
+            appData.itemCounter += imported;
+            saveData(appData);
+            logActivity('Excel Import', 'Imported ' + imported + ' items from ' + excelFileName + ' (Sheet: ' + excelSelectedSheet + ')');
+
+            document.getElementById('importProgressBar').style.width = '100%';
+            const msgEl = document.getElementById('importResultMsg');
+            msgEl.style.display = 'block';
+            msgEl.innerHTML = '<div style="padding:15px;background:rgba(46,204,113,0.1);border:1px solid var(--success);border-radius:8px;font-size:14px;">' +
+                '<strong>Import Complete!</strong><br>' +
+                imported + ' item(s) imported successfully. ' +
+                skipped + ' row(s) skipped.' +
+                (errors > 0 ? ' ' + errors + ' error(s).' : '') +
+                '</div>';
+
+            refreshAll();
+        }
+
+        function excelImportReset() {
+            excelWorkbook = null;
+            excelFileName = '';
+            excelFileSize = 0;
+            excelSelectedSheet = '';
+            excelSheetData = [];
+            excelHeaderRow = 0;
+            document.getElementById('excelFileInput').value = '';
+            goToStep(1);
         }
 
         // ============================================
