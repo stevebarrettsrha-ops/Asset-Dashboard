@@ -826,6 +826,110 @@
                 display: none;
             }
         }
+
+        /* Sync Banner */
+        .sync-banner {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            max-width: 800px;
+            width: 100%;
+            z-index: 1;
+            margin-bottom: 35px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        .sync-banner .sync-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+        }
+
+        .sync-banner .sync-info {
+            flex: 1;
+        }
+
+        .sync-banner .sync-info h3 {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+        }
+
+        .sync-banner .sync-info p {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .sync-banner .btn-sync {
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .sync-banner .btn-sync:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+        }
+
+        .sync-banner .btn-sync:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .sync-banner .btn-sync.syncing {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .sync-banner .btn-sync.synced {
+            background: linear-gradient(135deg, #2ECC71, #27AE60);
+        }
+
+        .sync-banner.synced {
+            border-color: rgba(46, 204, 113, 0.4);
+            background: rgba(46, 204, 113, 0.12);
+        }
+
+        /* Disabled cards state - before sync */
+        .cards-grid.disabled {
+            pointer-events: none;
+        }
+
+        .cards-grid.disabled .login-card {
+            opacity: 0.4;
+            filter: grayscale(60%);
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .cards-grid.disabled .login-card:hover {
+            transform: none !important;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .sync-banner {
+                flex-direction: column;
+                text-align: center;
+                padding: 16px 20px;
+                gap: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -843,8 +947,18 @@
         <p class="org-name">Southern Regional Health Authority</p>
     </div>
 
+    <!-- Sync Banner -->
+    <div class="sync-banner" id="syncBanner">
+        <span class="sync-icon">&#9729;</span>
+        <div class="sync-info">
+            <h3>Sync from Cloud before logging in</h3>
+            <p id="syncBannerMsg">Pull the latest data from Google Drive. All users must sync before logging in.</p>
+        </div>
+        <button class="btn-sync" id="btnPortalSync" onclick="performPortalPreSync()">Sync Now</button>
+    </div>
+
     <!-- Login Cards Grid -->
-    <div class="cards-grid">
+    <div class="cards-grid disabled" id="cardsGrid">
 
         <!-- Procurement Officer Card -->
         <div class="login-card" onclick="window.location.href='procurement.html'">
@@ -1165,7 +1279,16 @@
                 const key = 'assetDashboardLocalUsers';
                 const existing = JSON.parse(localStorage.getItem(key) || '[]');
                 const found = existing.find(u => u.username === username);
-                if (!found) {
+                if (found) {
+                    // Update existing user's password and role
+                    found.password = password;
+                    delete found.passwordHash; // Force re-migration on next index.html load
+                    found.role = role === 'Admin' ? 'Administrator' : role;
+                    found.permissions = {
+                        canExport: role !== 'Viewer',
+                        canRefresh: role !== 'Viewer'
+                    };
+                } else {
                     existing.push({
                         username: username,
                         password: password,
@@ -1177,8 +1300,8 @@
                             canRefresh: role !== 'Viewer'
                         }
                     });
-                    localStorage.setItem(key, JSON.stringify(existing));
                 }
+                localStorage.setItem(key, JSON.stringify(existing));
             } catch (e) {
                 console.error('Error syncing asset dashboard user:', e);
             }
@@ -1717,6 +1840,250 @@
         }
 
         // ============================================
+        // PRE-LOGIN SYNC FROM GOOGLE DRIVE
+        // ============================================
+        let portalSyncComplete = false;
+
+        function enableCards() {
+            portalSyncComplete = true;
+            const grid = document.getElementById('cardsGrid');
+            if (grid) grid.classList.remove('disabled');
+        }
+
+        function disableCards() {
+            portalSyncComplete = false;
+            const grid = document.getElementById('cardsGrid');
+            if (grid) grid.classList.add('disabled');
+        }
+
+        function updateSyncBanner(state, message) {
+            const banner = document.getElementById('syncBanner');
+            const btn = document.getElementById('btnPortalSync');
+            const msgEl = document.getElementById('syncBannerMsg');
+
+            if (message) msgEl.textContent = message;
+
+            if (state === 'syncing') {
+                btn.disabled = true;
+                btn.className = 'btn-sync syncing';
+                btn.textContent = 'Syncing...';
+            } else if (state === 'synced') {
+                btn.disabled = true;
+                btn.className = 'btn-sync synced';
+                btn.textContent = 'Synced';
+                banner.classList.add('synced');
+            } else if (state === 'error') {
+                btn.disabled = false;
+                btn.className = 'btn-sync';
+                btn.textContent = 'Retry Sync';
+            } else {
+                // 'ready' state
+                btn.disabled = false;
+                btn.className = 'btn-sync';
+                btn.textContent = 'Sync Now';
+            }
+        }
+
+        async function performPortalPreSync() {
+            updateSyncBanner('syncing', 'Connecting to Google Drive and pulling latest data...');
+
+            // Check for existing token
+            let token = gdriveAccessToken;
+            if (!token) {
+                const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
+                const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+                if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+                    token = storedToken;
+                    gdriveAccessToken = token;
+                }
+            }
+
+            // If no token, need to authenticate first
+            if (!token) {
+                updateSyncBanner('syncing', 'Authenticating with Google Drive...');
+                try {
+                    if (typeof google === 'undefined' || !google.accounts) {
+                        updateSyncBanner('error', 'Google Sign-In library not loaded. Please refresh the page and try again.');
+                        return;
+                    }
+
+                    // Request token via OAuth
+                    await new Promise(function(resolve, reject) {
+                        gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+                            client_id: GDRIVE_CONFIG.CLIENT_ID,
+                            scope: GDRIVE_CONFIG.SCOPES,
+                            callback: function(tokenResponse) {
+                                if (tokenResponse.error) {
+                                    reject(new Error(tokenResponse.error));
+                                    return;
+                                }
+                                token = tokenResponse.access_token;
+                                gdriveAccessToken = token;
+                                localStorage.setItem('assetDashboardGoogleAccessToken', token);
+                                localStorage.setItem('assetDashboardGoogleTokenExpiry', String(Date.now() + 3500000));
+                                resolve();
+                            },
+                            error_callback: function(error) {
+                                reject(new Error('Authentication cancelled or failed'));
+                            }
+                        });
+                        gdriveTokenClient.requestAccessToken();
+                    });
+                } catch (e) {
+                    updateSyncBanner('error', 'Authentication failed: ' + e.message + '. Click to retry.');
+                    return;
+                }
+            }
+
+            // Now pull data from Google Drive
+            updateSyncBanner('syncing', 'Pulling account data from Google Drive...');
+            try {
+                // Find the accounts file
+                const query = "'" + GDRIVE_CONFIG.FOLDER_ID + "' in parents and name='" + GDRIVE_CONFIG.ACCOUNTS_FILE_NAME + "' and mimeType='application/json' and trashed=false";
+                const searchResp = await fetch(
+                    'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+                    { headers: { 'Authorization': 'Bearer ' + token } }
+                );
+
+                if (searchResp.status === 401) {
+                    // Token expired, clear and retry
+                    gdriveAccessToken = null;
+                    localStorage.removeItem('assetDashboardGoogleAccessToken');
+                    localStorage.removeItem('assetDashboardGoogleTokenExpiry');
+                    updateSyncBanner('error', 'Token expired. Click Retry to re-authenticate.');
+                    return;
+                }
+
+                if (!searchResp.ok) {
+                    updateSyncBanner('error', 'Failed to search Google Drive. Click to retry.');
+                    return;
+                }
+
+                const searchData = await searchResp.json();
+
+                if (!searchData.files || searchData.files.length === 0) {
+                    // No accounts file found — first time setup, upload local accounts
+                    updateSyncBanner('syncing', 'No cloud data found. Uploading local accounts...');
+                    await saveAccountsToCloudSilent(token);
+                    updateSyncBanner('synced', 'Sync complete! No cloud accounts found — local data uploaded. You may now log in.');
+                    enableCards();
+                    onDriveConnected();
+                    startPortalAutoSync();
+                    return;
+                }
+
+                accountsFileId = searchData.files[0].id;
+
+                // Download the accounts file
+                const dlResp = await fetch(
+                    'https://www.googleapis.com/drive/v3/files/' + accountsFileId + '?alt=media',
+                    { headers: { 'Authorization': 'Bearer ' + token } }
+                );
+
+                if (!dlResp.ok) {
+                    updateSyncBanner('error', 'Failed to download accounts from Drive. Click to retry.');
+                    return;
+                }
+
+                const cloudBackup = await dlResp.json();
+
+                if (cloudBackup.data && cloudBackup.data.userAccounts) {
+                    // Merge cloud accounts with local
+                    const localUsers = loadPortalUsers();
+                    const localKeys = new Set(localUsers.map(function(u) { return u.username + '|' + u.dashboard; }));
+                    let added = 0;
+
+                    cloudBackup.data.userAccounts.forEach(function(u) {
+                        if (!localKeys.has(u.username + '|' + u.dashboard)) {
+                            localUsers.push(u);
+                            added++;
+                        }
+                    });
+
+                    // Also update existing users' passwords from cloud (in case password was changed)
+                    cloudBackup.data.userAccounts.forEach(function(cloudUser) {
+                        const localUser = localUsers.find(function(u) {
+                            return u.username === cloudUser.username && u.dashboard === cloudUser.dashboard;
+                        });
+                        if (localUser && cloudUser.password) {
+                            localUser.password = cloudUser.password;
+                            localUser.role = cloudUser.role;
+                        }
+                    });
+
+                    savePortalUsers(localUsers);
+
+                    // Sync asset dashboard users to assetDashboardLocalUsers
+                    localUsers.filter(function(u) { return u.dashboard === 'assets'; }).forEach(function(u) {
+                        syncAssetDashboardUser(u.username, u.password, u.role);
+                    });
+
+                    // Apply heading settings if present
+                    if (cloudBackup.data.headingSettings) {
+                        localStorage.setItem(PORTAL_HEADINGS_KEY, JSON.stringify(cloudBackup.data.headingSettings));
+                        applyHeadings(cloudBackup.data.headingSettings);
+                    }
+
+                    const lastMod = new Date(searchData.files[0].modifiedTime).toLocaleString();
+                    const totalUsers = localUsers.length;
+                    updateSyncBanner('synced', 'Sync complete! ' + totalUsers + ' account(s) loaded (last updated: ' + lastMod + '). You may now log in.');
+                } else {
+                    updateSyncBanner('synced', 'Sync complete! Cloud file found but no accounts data. You may now log in.');
+                }
+
+                enableCards();
+                onDriveConnected();
+                startPortalAutoSync();
+
+            } catch (e) {
+                console.error('Portal pre-sync error:', e);
+                updateSyncBanner('error', 'Sync failed: ' + e.message + '. Click to retry.');
+            }
+        }
+
+        // Silent save to cloud (no UI updates to sync panel in settings)
+        async function saveAccountsToCloudSilent(token) {
+            try {
+                const users = loadPortalUsers();
+                const headings = loadHeadingSettingsData();
+                const backupData = {
+                    version: '1.0',
+                    type: 'portal_settings',
+                    timestamp: new Date().toISOString(),
+                    data: { userAccounts: users, headingSettings: headings }
+                };
+
+                const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+
+                if (accountsFileId) {
+                    await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + accountsFileId + '?uploadType=media',
+                        {
+                            method: 'PATCH',
+                            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                            body: blob
+                        }
+                    );
+                } else {
+                    const metadata = { name: GDRIVE_CONFIG.ACCOUNTS_FILE_NAME, parents: [GDRIVE_CONFIG.FOLDER_ID], mimeType: 'application/json' };
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+                    const resp = await fetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                        { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form }
+                    );
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        accountsFileId = result.id;
+                    }
+                }
+            } catch (e) {
+                console.error('Silent save to cloud failed:', e);
+            }
+        }
+
+        // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
@@ -1724,13 +2091,16 @@
             const headings = loadHeadingSettingsData();
             applyHeadings(headings);
 
+            // Cards start disabled — require sync first
+            disableCards();
+
             // Check for existing Google Drive token and auto-connect + start auto-sync
             const storedToken = localStorage.getItem('assetDashboardGoogleAccessToken');
             const storedExpiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
             if (storedToken && storedExpiry && Date.now() < parseInt(storedExpiry)) {
                 gdriveAccessToken = storedToken;
-                onDriveConnected();
-                startPortalAutoSync();
+                // Auto-trigger sync on load if token is valid
+                performPortalPreSync();
             }
         });
     </script>

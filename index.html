@@ -10303,9 +10303,60 @@
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('loginError');
 
+            // Refresh localUsers from localStorage to catch portal-created accounts
+            try { localUsers = JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]'); }
+            catch (e) { console.error('Error refreshing localUsers:', e); }
+
             // First, check local users (compare hashed passwords)
             const hashedInput = await hashPassword(password);
-            const localUser = localUsers.find(u => u.username.toLowerCase() === username && u.passwordHash === hashedInput);
+            let localUser = localUsers.find(u => u.username.toLowerCase() === username && u.passwordHash === hashedInput);
+
+            // Fallback: check local users with plaintext password (from portal sync) and migrate on the fly
+            if (!localUser) {
+                for (let i = 0; i < localUsers.length; i++) {
+                    if (localUsers[i].username.toLowerCase() === username && localUsers[i].password && !localUsers[i].passwordHash) {
+                        const storedHash = await hashPassword(localUsers[i].password);
+                        if (storedHash === hashedInput) {
+                            // Migrate to hashed password
+                            localUsers[i].passwordHash = storedHash;
+                            delete localUsers[i].password;
+                            localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+                            localUser = localUsers[i];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: check portalUserAccounts for assets dashboard users
+            if (!localUser) {
+                try {
+                    const portalUsers = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]');
+                    const portalUser = portalUsers.find(u => u.username === username && u.dashboard === 'assets');
+                    if (portalUser) {
+                        const portalHash = await hashPassword(portalUser.password);
+                        if (portalHash === hashedInput) {
+                            // Create local user entry from portal account
+                            localUser = {
+                                username: portalUser.username,
+                                passwordHash: hashedInput,
+                                displayName: portalUser.username.charAt(0).toUpperCase() + portalUser.username.slice(1),
+                                role: portalUser.role === 'Admin' ? 'Administrator' : portalUser.role,
+                                email: '',
+                                permissions: {
+                                    canExport: portalUser.role !== 'Viewer',
+                                    canRefresh: portalUser.role !== 'Viewer'
+                                }
+                            };
+                            localUsers.push(localUser);
+                            localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+                            console.log('Synced portal user to local users:', username);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error checking portal accounts:', e);
+                }
+            }
 
             if (localUser) {
                 // Local user found and password matches
