@@ -19,8 +19,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
             overflow-x: hidden;
         }
 
@@ -354,35 +354,7 @@
             color: #FF6B35;
         }
 
-        /* Settings Button */
-        .settings-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .settings-btn:hover {
-            background: rgba(255, 107, 53, 0.8);
-            border-color: #FF6B35;
-            transform: rotate(90deg) scale(1.1);
-        }
-
-        /* Settings Modal */
-        .settings-overlay {
+        .settings-overlay-legacy-removed {
             display: none;
             position: fixed;
             top: 0;
@@ -930,6 +902,486 @@
                 gap: 12px;
             }
         }
+
+        /* ============================================
+           ACCOUNT SETTINGS VIEW
+           ============================================ */
+        #portalView {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            min-height: 100vh;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #accountsView {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            min-height: 100vh;
+            padding: 30px 20px;
+            z-index: 1;
+            animation: fadeInDown 0.4s ease;
+        }
+
+        #accountsView.active {
+            display: flex;
+        }
+
+        .acct-container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .acct-top-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .acct-back-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .acct-back-btn:hover {
+            background: rgba(255, 107, 53, 0.7);
+            border-color: #FF6B35;
+        }
+
+        .acct-top-bar h1 {
+            color: #fff;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .acct-top-bar .acct-subtitle {
+            color: rgba(255,255,255,0.55);
+            font-size: 13px;
+            margin: 0;
+        }
+
+        /* Tabs */
+        .acct-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .acct-tab {
+            flex: 1;
+            padding: 12px 10px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.55);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 9px;
+            transition: all 0.25s ease;
+        }
+
+        .acct-tab:hover:not(.active) {
+            color: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .acct-tab.active {
+            background: rgba(255, 107, 53, 0.85);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(255,107,53,0.3);
+        }
+
+        /* Panels */
+        .acct-panel {
+            display: none;
+        }
+
+        .acct-panel.active {
+            display: block;
+        }
+
+        /* Section cards */
+        .acct-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(8px);
+        }
+
+        .acct-card h3 {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+        }
+
+        .acct-card .acct-card-desc {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin: 0 0 20px 0;
+        }
+
+        /* Form elements (dark theme) */
+        .acct-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .acct-form-group {
+            margin-bottom: 0;
+        }
+
+        .acct-form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .acct-form-group input,
+        .acct-form-group select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 9px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+            transition: border-color 0.3s;
+        }
+
+        .acct-form-group input::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+
+        .acct-form-group input:focus,
+        .acct-form-group select:focus {
+            border-color: #FF6B35;
+            outline: none;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .acct-form-group select option {
+            background: #2C3E50;
+            color: #fff;
+        }
+
+        .acct-btn-primary {
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            color: white;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .acct-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(255,107,53,0.45);
+        }
+
+        .acct-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.8);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 11px 26px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .acct-btn-secondary:hover {
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+        }
+
+        .acct-btn-danger {
+            background: rgba(231,76,60,0.2);
+            color: #e74c3c;
+            border: 1px solid rgba(231,76,60,0.3);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .acct-btn-danger:hover {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        /* Status message */
+        .acct-status {
+            margin-top: 12px;
+            padding: 10px 16px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .acct-status.success {
+            display: block;
+            background: rgba(46,204,113,0.15);
+            color: #2ecc71;
+            border: 1px solid rgba(46,204,113,0.25);
+        }
+
+        .acct-status.error {
+            display: block;
+            background: rgba(231,76,60,0.15);
+            color: #e74c3c;
+            border: 1px solid rgba(231,76,60,0.25);
+        }
+
+        /* Accounts table (dark theme) */
+        .acct-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .acct-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 11px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .acct-table td {
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 14px;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .acct-table tr:hover td {
+            background: rgba(255,255,255,0.04);
+        }
+
+        .acct-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .acct-badge.admin { background: rgba(255,107,53,0.2); color: #FF6B35; }
+        .acct-badge.user { background: rgba(46,204,113,0.2); color: #2ecc71; }
+        .acct-badge.viewer { background: rgba(52,152,219,0.2); color: #3498db; }
+
+        .acct-dash-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .acct-dash-badge.procurement { background: rgba(102,126,234,0.2); color: #8b9cf7; }
+        .acct-dash-badge.stores { background: rgba(46,204,113,0.2); color: #2ecc71; }
+        .acct-dash-badge.assets { background: rgba(255,107,53,0.2); color: #FF6B35; }
+
+        .acct-empty {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255,255,255,0.35);
+            font-size: 14px;
+        }
+
+        /* Cloud sync panel (dark) */
+        .acct-cloud-panel {
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 14px;
+            padding: 22px;
+        }
+
+        .acct-cloud-panel h4 {
+            color: #93c5fd;
+            font-size: 15px;
+            margin: 0 0 6px 0;
+        }
+
+        .acct-cloud-panel p {
+            color: rgba(255,255,255,0.45);
+            font-size: 13px;
+            margin: 0 0 14px 0;
+        }
+
+        .acct-cloud-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        .acct-cloud-status.connected {
+            background: rgba(46,204,113,0.12);
+            color: #2ecc71;
+        }
+
+        .acct-cloud-status.disconnected {
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.4);
+        }
+
+        .acct-cloud-status .cdot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .acct-cloud-status.connected .cdot { background: #2ecc71; }
+        .acct-cloud-status.disconnected .cdot { background: rgba(255,255,255,0.2); }
+
+        .acct-cloud-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .acct-btn-cloud {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .acct-btn-cloud:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+        }
+
+        .acct-btn-cloud:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .acct-btn-cloud-outline {
+            background: transparent;
+            color: #93c5fd;
+            border: 1px solid rgba(59,130,246,0.35);
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .acct-btn-cloud-outline:hover {
+            background: rgba(59,130,246,0.12);
+        }
+
+        .acct-btn-cloud-outline:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* Heading preview (dark) */
+        .acct-heading-preview {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .acct-heading-preview .ph-icon { font-size: 36px; margin-bottom: 8px; }
+        .acct-heading-preview .ph-name { color: #fff; font-size: 20px; font-weight: 700; }
+        .acct-heading-preview .ph-org { color: #FF6B35; font-size: 14px; font-weight: 600; margin-top: 4px; }
+
+        /* Account Settings button on portal */
+        .acct-settings-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.8);
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1;
+            margin-top: 15px;
+            backdrop-filter: blur(8px);
+        }
+
+        .acct-settings-link:hover {
+            background: rgba(255,107,53,0.7);
+            border-color: #FF6B35;
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .acct-form-row {
+                grid-template-columns: 1fr;
+            }
+            .acct-top-bar h1 {
+                font-size: 20px;
+            }
+            .acct-tabs {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -939,224 +1391,244 @@
         <span></span><span></span><span></span><span></span>
     </div>
 
-    <!-- Portal Header -->
-    <div class="portal-header">
-        <span class="logo-icon">🏥</span>
-        <h1>May Pen Hospital</h1>
-        <p class="subtitle">Management Systems Portal</p>
-        <p class="org-name">Southern Regional Health Authority</p>
-    </div>
-
-    <!-- Sync Banner -->
-    <div class="sync-banner" id="syncBanner">
-        <span class="sync-icon">&#9729;</span>
-        <div class="sync-info">
-            <h3>Sync from Cloud before logging in</h3>
-            <p id="syncBannerMsg">Pull the latest data from Google Drive. All users must sync before logging in.</p>
-        </div>
-        <button class="btn-sync" id="btnPortalSync" onclick="performPortalPreSync()">Sync Now</button>
-    </div>
-
-    <!-- Login Cards Grid -->
-    <div class="cards-grid disabled" id="cardsGrid">
-
-        <!-- Procurement Officer Card -->
-        <div class="login-card" onclick="window.location.href='procurement.html'">
-            <div class="card-strip procurement"></div>
-            <div class="card-body">
-                <div class="card-icon procurement">
-                    📋
-                </div>
-                <div class="card-dept">Finance &amp; Procurement</div>
-                <h2 class="card-title">Procurement Officer</h2>
-                <p class="card-description">
-                    Government of Jamaica procurement management system. Guides officers through the full GOJ procurement lifecycle from requisition to payment.
-                </p>
-                <div class="card-features">
-                    <span class="feature-tag">GOJ Process</span>
-                    <span class="feature-tag">Purchase Orders</span>
-                    <span class="feature-tag">Supplier Mgmt</span>
-                    <span class="feature-tag">Auto-Generate POs</span>
-                </div>
-                <a class="card-btn procurement" href="procurement.html">
-                    Launch System <span class="arrow">&rarr;</span>
-                </a>
-                <div class="card-status">
-                    <span class="status-dot"></span>
-                    System Online
-                </div>
-            </div>
+    <!-- ==================== PORTAL VIEW ==================== -->
+    <div id="portalView">
+        <!-- Portal Header -->
+        <div class="portal-header">
+            <span class="logo-icon">🏥</span>
+            <h1>May Pen Hospital</h1>
+            <p class="subtitle">Management Systems Portal</p>
+            <p class="org-name">Southern Regional Health Authority</p>
         </div>
 
-        <!-- General Stores Department Card -->
-        <div class="login-card" onclick="window.location.href='stores.html'">
-            <div class="card-strip stores"></div>
-            <div class="card-body">
-                <div class="card-icon stores">
-                    📦
-                </div>
-                <div class="card-dept">General Stores Department</div>
-                <h2 class="card-title">Inventory Management</h2>
-                <p class="card-description">
-                    Comprehensive inventory management system for the General Stores Department. Track stock levels, manage receipts, issues, and reorder points.
-                </p>
-                <div class="card-features">
-                    <span class="feature-tag">Stock Control</span>
-                    <span class="feature-tag">Receive/Issue</span>
-                    <span class="feature-tag">Reorder Alerts</span>
-                    <span class="feature-tag">Reports</span>
-                </div>
-                <a class="card-btn stores" href="stores.html">
-                    Launch System <span class="arrow">&rarr;</span>
-                </a>
-                <div class="card-status">
-                    <span class="status-dot"></span>
-                    System Online
-                </div>
+        <!-- Sync Banner -->
+        <div class="sync-banner" id="syncBanner">
+            <span class="sync-icon">&#9729;</span>
+            <div class="sync-info">
+                <h3>Sync from Cloud before logging in</h3>
+                <p id="syncBannerMsg">Pull the latest data from Google Drive. All users must sync before logging in.</p>
             </div>
+            <button class="btn-sync" id="btnPortalSync" onclick="performPortalPreSync()">Sync Now</button>
         </div>
 
-        <!-- Fixed Asset System Card -->
-        <div class="login-card" onclick="window.location.href='index.html'">
-            <div class="card-strip assets"></div>
-            <div class="card-body">
-                <div class="card-icon assets">
-                    🏷️
-                </div>
-                <div class="card-dept">Operations/Administration Department</div>
-                <h2 class="card-title">Fixed Asset System</h2>
-                <p class="card-description">
-                    Fixed asset tracking, depreciation, QR codes, audit trails, and reporting for all hospital capital assets and equipment.
-                </p>
-                <div class="card-features">
-                    <span class="feature-tag">Asset Tracking</span>
-                    <span class="feature-tag">Depreciation</span>
-                    <span class="feature-tag">QR Codes</span>
-                    <span class="feature-tag">Audit Trail</span>
-                </div>
-                <a class="card-btn assets" href="index.html">
-                    Launch System <span class="arrow">&rarr;</span>
-                </a>
-                <div class="card-status">
-                    <span class="status-dot"></span>
-                    System Online
-                </div>
-            </div>
-        </div>
+        <!-- Login Cards Grid -->
+        <div class="cards-grid disabled" id="cardsGrid">
 
-    </div>
-
-    <!-- Portal Footer -->
-    <div class="portal-footer" id="portalFooter">
-        <p>&copy; <script>document.write(new Date().getFullYear())</script> <span id="footerHospitalName">May Pen Hospital</span> &mdash; <span id="footerOrgName">Southern Regional Health Authority</span></p>
-        <p style="margin-top: 5px;">Government of Jamaica</p>
-    </div>
-
-    <!-- Settings Button -->
-    <button class="settings-btn" onclick="openSettings()" title="Portal Settings">&#9881;</button>
-
-    <!-- Settings Modal -->
-    <div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
-        <div class="settings-panel">
-            <div class="settings-header">
-                <h2>&#9881; Portal Settings</h2>
-                <button class="settings-close" onclick="closeSettings()">&times;</button>
-            </div>
-            <div class="settings-tabs">
-                <button class="settings-tab active" onclick="switchSettingsTab('users', this)">User Accounts</button>
-                <button class="settings-tab" onclick="switchSettingsTab('headings', this)">Headings</button>
-            </div>
-            <div class="settings-body">
-
-                <!-- User Accounts Section -->
-                <div class="settings-section active" id="settingsUsers">
-                    <h3>User Account Management</h3>
-                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">Manage login credentials for all three dashboard systems. Changes are saved to the browser and shared across dashboards.</p>
-
-                    <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 2px solid #eee;">
-                        <h4 style="margin: 0 0 15px 0; color: #2C3E50;">Add New User Account</h4>
-                        <div class="form-row">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Username</label>
-                                <input type="text" id="newUsername" placeholder="Enter username">
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Password</label>
-                                <input type="password" id="newPassword" placeholder="Enter password">
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 15px;">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Dashboard</label>
-                                <select id="newDashboard">
-                                    <option value="procurement">Procurement Officer</option>
-                                    <option value="stores">General Stores</option>
-                                    <option value="assets">Fixed Asset System</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label>Role</label>
-                                <select id="newRole">
-                                    <option value="Admin">Admin</option>
-                                    <option value="User">User</option>
-                                    <option value="Viewer">Viewer</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="margin-top: 15px;">
-                            <button class="btn-primary" onclick="addUserAccount()">Add User</button>
-                        </div>
-                        <div class="status-msg" id="addUserStatus"></div>
+            <!-- Procurement Officer Card -->
+            <div class="login-card" onclick="window.location.href='procurement.html'">
+                <div class="card-strip procurement"></div>
+                <div class="card-body">
+                    <div class="card-icon procurement">
+                        📋
                     </div>
+                    <div class="card-dept">Finance &amp; Procurement</div>
+                    <h2 class="card-title">Procurement Officer</h2>
+                    <p class="card-description">
+                        Government of Jamaica procurement management system. Guides officers through the full GOJ procurement lifecycle from requisition to payment.
+                    </p>
+                    <div class="card-features">
+                        <span class="feature-tag">GOJ Process</span>
+                        <span class="feature-tag">Purchase Orders</span>
+                        <span class="feature-tag">Supplier Mgmt</span>
+                        <span class="feature-tag">Auto-Generate POs</span>
+                    </div>
+                    <a class="card-btn procurement" href="procurement.html">
+                        Launch System <span class="arrow">&rarr;</span>
+                    </a>
+                    <div class="card-status">
+                        <span class="status-dot"></span>
+                        System Online
+                    </div>
+                </div>
+            </div>
 
-                    <h4 style="color: #2C3E50; margin-bottom: 10px;">Current User Accounts</h4>
+            <!-- General Stores Department Card -->
+            <div class="login-card" onclick="window.location.href='stores.html'">
+                <div class="card-strip stores"></div>
+                <div class="card-body">
+                    <div class="card-icon stores">
+                        📦
+                    </div>
+                    <div class="card-dept">General Stores Department</div>
+                    <h2 class="card-title">Inventory Management</h2>
+                    <p class="card-description">
+                        Comprehensive inventory management system for the General Stores Department. Track stock levels, manage receipts, issues, and reorder points.
+                    </p>
+                    <div class="card-features">
+                        <span class="feature-tag">Stock Control</span>
+                        <span class="feature-tag">Receive/Issue</span>
+                        <span class="feature-tag">Reorder Alerts</span>
+                        <span class="feature-tag">Reports</span>
+                    </div>
+                    <a class="card-btn stores" href="stores.html">
+                        Launch System <span class="arrow">&rarr;</span>
+                    </a>
+                    <div class="card-status">
+                        <span class="status-dot"></span>
+                        System Online
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Asset System Card -->
+            <div class="login-card" onclick="window.location.href='index.html'">
+                <div class="card-strip assets"></div>
+                <div class="card-body">
+                    <div class="card-icon assets">
+                        🏷️
+                    </div>
+                    <div class="card-dept">Operations/Administration Department</div>
+                    <h2 class="card-title">Fixed Asset System</h2>
+                    <p class="card-description">
+                        Fixed asset tracking, depreciation, QR codes, audit trails, and reporting for all hospital capital assets and equipment.
+                    </p>
+                    <div class="card-features">
+                        <span class="feature-tag">Asset Tracking</span>
+                        <span class="feature-tag">Depreciation</span>
+                        <span class="feature-tag">QR Codes</span>
+                        <span class="feature-tag">Audit Trail</span>
+                    </div>
+                    <a class="card-btn assets" href="index.html">
+                        Launch System <span class="arrow">&rarr;</span>
+                    </a>
+                    <div class="card-status">
+                        <span class="status-dot"></span>
+                        System Online
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Account Settings Button -->
+        <button class="acct-settings-link" onclick="showAccountsView()">&#9881; Account Settings</button>
+
+        <!-- Portal Footer -->
+        <div class="portal-footer" id="portalFooter">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> <span id="footerHospitalName">May Pen Hospital</span> &mdash; <span id="footerOrgName">Southern Regional Health Authority</span></p>
+            <p style="margin-top: 5px;">Government of Jamaica</p>
+        </div>
+    </div>
+
+    <!-- ==================== ACCOUNT SETTINGS VIEW ==================== -->
+    <div id="accountsView">
+        <div class="acct-container">
+
+            <!-- Top bar -->
+            <div class="acct-top-bar">
+                <button class="acct-back-btn" onclick="showPortalView()" title="Back to Portal">&larr;</button>
+                <div>
+                    <h1>Account Settings</h1>
+                    <p class="acct-subtitle">Manage user accounts, headings, and cloud sync for all dashboards</p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="acct-tabs">
+                <button class="acct-tab active" onclick="switchAcctTab('accounts', this)">User Accounts</button>
+                <button class="acct-tab" onclick="switchAcctTab('headings', this)">Headings</button>
+                <button class="acct-tab" onclick="switchAcctTab('cloudsync', this)">Cloud Sync</button>
+            </div>
+
+            <!-- ===== User Accounts Panel ===== -->
+            <div class="acct-panel active" id="panelAccounts">
+
+                <!-- Add User -->
+                <div class="acct-card">
+                    <h3>Add New User Account</h3>
+                    <p class="acct-card-desc">Create login credentials for any dashboard system. Accounts are saved locally and synced to Google Drive.</p>
+                    <div class="acct-form-row">
+                        <div class="acct-form-group">
+                            <label>Username</label>
+                            <input type="text" id="newUsername" placeholder="Enter username">
+                        </div>
+                        <div class="acct-form-group">
+                            <label>Password</label>
+                            <input type="password" id="newPassword" placeholder="Enter password">
+                        </div>
+                    </div>
+                    <div class="acct-form-row">
+                        <div class="acct-form-group">
+                            <label>Dashboard</label>
+                            <select id="newDashboard">
+                                <option value="procurement">Procurement Officer</option>
+                                <option value="stores">General Stores</option>
+                                <option value="assets">Fixed Asset System</option>
+                            </select>
+                        </div>
+                        <div class="acct-form-group">
+                            <label>Role</label>
+                            <select id="newRole">
+                                <option value="Admin">Admin</option>
+                                <option value="User">User</option>
+                                <option value="Viewer">Viewer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 18px;">
+                        <button class="acct-btn-primary" onclick="addUserAccount()">Add User</button>
+                    </div>
+                    <div class="acct-status" id="addUserStatus"></div>
+                </div>
+
+                <!-- Current Accounts -->
+                <div class="acct-card">
+                    <h3>Current User Accounts</h3>
+                    <p class="acct-card-desc">All accounts across every dashboard. Remove accounts or manage roles here.</p>
                     <div id="userAccountsList"></div>
-
-                    <!-- Google Drive Cloud Sync -->
-                    <div class="cloud-sync-panel">
-                        <h4>&#9729; Google Drive Sync</h4>
-                        <p>Save and load user accounts to/from your designated Google Drive folder so they persist across devices and browsers.</p>
-                        <div class="cloud-status disconnected" id="cloudStatus">
-                            <span class="dot"></span>
-                            <span id="cloudStatusText">Not Connected</span>
-                        </div>
-                        <div class="cloud-btn-group">
-                            <button class="btn-cloud" id="btnCloudConnect" onclick="connectGoogleDrive()">Connect to Google Drive</button>
-                            <button class="btn-cloud" id="btnCloudSave" onclick="saveAccountsToCloud()" disabled>Save to Drive</button>
-                            <button class="btn-cloud-outline" id="btnCloudLoad" onclick="loadAccountsFromCloud()" disabled>Load from Drive</button>
-                        </div>
-                        <div class="status-msg" id="cloudSyncStatus"></div>
-                    </div>
                 </div>
 
-                <!-- Headings Section -->
-                <div class="settings-section" id="settingsHeadings">
-                    <h3>Dashboard Headings</h3>
-                    <p style="color: #666; margin-bottom: 20px; font-size: 14px;">Customize the hospital name and organization that appears across all dashboards, reports, and exports.</p>
+            </div>
 
-                    <div class="form-group">
+            <!-- ===== Headings Panel ===== -->
+            <div class="acct-panel" id="panelHeadings">
+                <div class="acct-card">
+                    <h3>Dashboard Headings</h3>
+                    <p class="acct-card-desc">Customize the hospital name and organization that appears across all dashboards, reports, and exports.</p>
+
+                    <div class="acct-form-group" style="margin-bottom: 15px;">
                         <label>Hospital / Facility Name</label>
                         <input type="text" id="settingHospitalName" placeholder="e.g., May Pen Hospital" value="">
                     </div>
-                    <div class="form-group">
+                    <div class="acct-form-group" style="margin-bottom: 0;">
                         <label>Health Authority / Organization</label>
                         <input type="text" id="settingOrgName" placeholder="e.g., Southern Regional Health Authority" value="">
                     </div>
 
-                    <div class="heading-preview">
-                        <div class="preview-icon">&#127973;</div>
-                        <div class="preview-name" id="previewHospitalName">May Pen Hospital</div>
-                        <div class="preview-org" id="previewOrgName">Southern Regional Health Authority</div>
+                    <div class="acct-heading-preview">
+                        <div class="ph-icon">🏥</div>
+                        <div class="ph-name" id="previewHospitalName">May Pen Hospital</div>
+                        <div class="ph-org" id="previewOrgName">Southern Regional Health Authority</div>
                     </div>
 
                     <div style="margin-top: 20px; display: flex; gap: 10px;">
-                        <button class="btn-primary" onclick="saveHeadingSettings()">Save Changes</button>
-                        <button class="btn-secondary" onclick="resetHeadingSettings()">Reset to Defaults</button>
+                        <button class="acct-btn-primary" onclick="saveHeadingSettings()">Save Changes</button>
+                        <button class="acct-btn-secondary" onclick="resetHeadingSettings()">Reset to Defaults</button>
                     </div>
-                    <div class="status-msg" id="headingStatus"></div>
+                    <div class="acct-status" id="headingStatus"></div>
                 </div>
-
             </div>
+
+            <!-- ===== Cloud Sync Panel ===== -->
+            <div class="acct-panel" id="panelCloudsync">
+                <div class="acct-card">
+                    <div class="acct-cloud-panel">
+                        <h4>&#9729; Google Drive Sync</h4>
+                        <p>Save and load user accounts to/from your designated Google Drive folder so they persist across devices and browsers.</p>
+                        <div class="acct-cloud-status disconnected" id="cloudStatus">
+                            <span class="cdot"></span>
+                            <span id="cloudStatusText">Not Connected</span>
+                        </div>
+                        <div class="acct-cloud-btns">
+                            <button class="acct-btn-cloud" id="btnCloudConnect" onclick="connectGoogleDrive()">Connect to Google Drive</button>
+                            <button class="acct-btn-cloud" id="btnCloudSave" onclick="saveAccountsToCloud()" disabled>Save to Drive</button>
+                            <button class="acct-btn-cloud-outline" id="btnCloudLoad" onclick="loadAccountsFromCloud()" disabled>Load from Drive</button>
+                        </div>
+                        <div class="acct-status" id="cloudSyncStatus"></div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -1178,23 +1650,26 @@
         ];
 
         // ============================================
-        // SETTINGS MODAL
+        // VIEW SWITCHING (Portal <-> Account Settings)
         // ============================================
-        function openSettings() {
-            document.getElementById('settingsOverlay').classList.add('active');
+        function showAccountsView() {
+            document.getElementById('portalView').style.display = 'none';
+            document.getElementById('accountsView').classList.add('active');
             loadUserAccountsList();
             loadHeadingSettings();
         }
 
-        function closeSettings() {
-            document.getElementById('settingsOverlay').classList.remove('active');
+        function showPortalView() {
+            document.getElementById('accountsView').classList.remove('active');
+            document.getElementById('portalView').style.display = 'flex';
         }
 
-        function switchSettingsTab(tabId, btn) {
-            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+        function switchAcctTab(tabId, btn) {
+            document.querySelectorAll('.acct-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.acct-panel').forEach(function(p) { p.classList.remove('active'); });
             btn.classList.add('active');
-            document.getElementById(tabId === 'users' ? 'settingsUsers' : 'settingsHeadings').classList.add('active');
+            var panelMap = { accounts: 'panelAccounts', headings: 'panelHeadings', cloudsync: 'panelCloudsync' };
+            document.getElementById(panelMap[tabId]).classList.add('active');
         }
 
         // ============================================
@@ -1225,19 +1700,19 @@
             const statusDiv = document.getElementById('addUserStatus');
 
             if (!username || !password) {
-                statusDiv.className = 'status-msg error';
+                statusDiv.className = 'acct-status error';
                 statusDiv.textContent = 'Please enter both username and password.';
                 return;
             }
 
             if (username.length < 3) {
-                statusDiv.className = 'status-msg error';
+                statusDiv.className = 'acct-status error';
                 statusDiv.textContent = 'Username must be at least 3 characters.';
                 return;
             }
 
             if (password.length < 3) {
-                statusDiv.className = 'status-msg error';
+                statusDiv.className = 'acct-status error';
                 statusDiv.textContent = 'Password must be at least 3 characters.';
                 return;
             }
@@ -1246,7 +1721,7 @@
             const exists = users.find(u => u.username === username && u.dashboard === dashboard);
 
             if (exists) {
-                statusDiv.className = 'status-msg error';
+                statusDiv.className = 'acct-status error';
                 statusDiv.textContent = 'A user with this username already exists for this dashboard.';
                 return;
             }
@@ -1262,9 +1737,9 @@
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
 
-            statusDiv.className = 'status-msg success';
+            statusDiv.className = 'acct-status success';
             statusDiv.textContent = 'User account added successfully!';
-            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 3000);
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'acct-status'; }, 3000);
 
             loadUserAccountsList();
 
@@ -1326,28 +1801,28 @@
             const container = document.getElementById('userAccountsList');
 
             if (users.length === 0) {
-                container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No user accounts configured. Add one above.</p>';
+                container.innerHTML = '<div class="acct-empty">No user accounts configured. Add one above.</div>';
                 return;
             }
 
             const dashboardLabels = {
-                procurement: '<span class="dashboard-label procurement">Procurement</span>',
-                stores: '<span class="dashboard-label stores">Stores</span>',
-                assets: '<span class="dashboard-label assets">Fixed Assets</span>'
+                procurement: '<span class="acct-dash-badge procurement">Procurement</span>',
+                stores: '<span class="acct-dash-badge stores">Stores</span>',
+                assets: '<span class="acct-dash-badge assets">Fixed Assets</span>'
             };
 
-            const roleBadge = (role) => {
+            const roleBadge = function(role) {
                 const cls = role === 'Admin' ? 'admin' : role === 'User' ? 'user' : 'viewer';
-                return '<span class="role-badge ' + cls + '">' + role + '</span>';
+                return '<span class="acct-badge ' + cls + '">' + role + '</span>';
             };
 
-            let html = '<table class="user-table"><thead><tr><th>Username</th><th>Dashboard</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
-            users.forEach(u => {
+            let html = '<table class="acct-table"><thead><tr><th>Username</th><th>Dashboard</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
+            users.forEach(function(u) {
                 html += '<tr>';
                 html += '<td><strong>' + u.username + '</strong></td>';
                 html += '<td>' + (dashboardLabels[u.dashboard] || u.dashboard) + '</td>';
                 html += '<td>' + roleBadge(u.role) + '</td>';
-                html += '<td><button class="btn-danger" onclick="removeUserAccount(\'' + u.username + '\', \'' + u.dashboard + '\')">Remove</button></td>';
+                html += '<td><button class="acct-btn-danger" onclick="removeUserAccount(\'' + u.username + '\', \'' + u.dashboard + '\')">Remove</button></td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
@@ -1395,9 +1870,9 @@
             applyHeadings({ hospitalName, orgName });
 
             const statusDiv = document.getElementById('headingStatus');
-            statusDiv.className = 'status-msg success';
+            statusDiv.className = 'acct-status success';
             statusDiv.textContent = 'Heading settings saved! Changes will apply across all dashboards on next load.';
-            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 4000);
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'acct-status'; }, 4000);
         }
 
         function resetHeadingSettings() {
@@ -1407,9 +1882,9 @@
             applyHeadings(DEFAULT_HEADINGS);
 
             const statusDiv = document.getElementById('headingStatus');
-            statusDiv.className = 'status-msg success';
+            statusDiv.className = 'acct-status success';
             statusDiv.textContent = 'Headings reset to defaults.';
-            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 3000);
+            setTimeout(() => { statusDiv.style.display = 'none'; statusDiv.className = 'acct-status'; }, 3000);
         }
 
         function applyHeadings(settings) {
@@ -1501,13 +1976,20 @@
         async function onDriveConnected() {
             // Update UI
             const statusEl = document.getElementById('cloudStatus');
-            statusEl.className = 'cloud-status connected';
-            document.getElementById('cloudStatusText').textContent = 'Connected to Google Drive';
+            if (statusEl) {
+                statusEl.className = 'acct-cloud-status connected';
+                document.getElementById('cloudStatusText').textContent = 'Connected to Google Drive';
+            }
 
-            document.getElementById('btnCloudConnect').textContent = 'Connected';
-            document.getElementById('btnCloudConnect').disabled = true;
-            document.getElementById('btnCloudSave').disabled = false;
-            document.getElementById('btnCloudLoad').disabled = false;
+            var btnConnect = document.getElementById('btnCloudConnect');
+            if (btnConnect) {
+                btnConnect.textContent = 'Connected';
+                btnConnect.disabled = true;
+            }
+            var btnSave = document.getElementById('btnCloudSave');
+            if (btnSave) btnSave.disabled = false;
+            var btnLoad = document.getElementById('btnCloudLoad');
+            if (btnLoad) btnLoad.disabled = false;
 
             // Look for existing accounts file
             try {
@@ -1539,8 +2021,7 @@
             }
 
             const btn = document.getElementById('btnCloudSave');
-            btn.disabled = true;
-            btn.textContent = 'Saving...';
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
             try {
                 const users = loadPortalUsers();
@@ -1613,8 +2094,7 @@
             } catch (e) {
                 showCloudStatus('error', 'Save failed: ' + e.message);
             } finally {
-                btn.disabled = false;
-                btn.textContent = 'Save to Drive';
+                if (btn) { btn.disabled = false; btn.textContent = 'Save to Drive'; }
             }
         }
 
@@ -1647,8 +2127,7 @@
             }
 
             const btn = document.getElementById('btnCloudLoad');
-            btn.disabled = true;
-            btn.textContent = 'Loading...';
+            if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
 
             try {
                 const response = await fetch(
@@ -1695,28 +2174,31 @@
             } catch (e) {
                 showCloudStatus('error', 'Load failed: ' + e.message);
             } finally {
-                btn.disabled = false;
-                btn.textContent = 'Load from Drive';
+                if (btn) { btn.disabled = false; btn.textContent = 'Load from Drive'; }
             }
         }
 
         function showCloudStatus(type, message) {
             const statusDiv = document.getElementById('cloudSyncStatus');
-            statusDiv.className = 'status-msg ' + (type === 'error' ? 'error' : 'success');
+            if (!statusDiv) return;
+            statusDiv.className = 'acct-status ' + (type === 'error' ? 'error' : 'success');
             statusDiv.textContent = message;
             if (type !== 'error') {
-                setTimeout(function() { statusDiv.style.display = 'none'; statusDiv.className = 'status-msg'; }, 5000);
+                setTimeout(function() { statusDiv.style.display = 'none'; statusDiv.className = 'acct-status'; }, 5000);
             }
         }
 
         function resetCloudUI() {
             const statusEl = document.getElementById('cloudStatus');
-            statusEl.className = 'cloud-status disconnected';
-            document.getElementById('cloudStatusText').textContent = 'Not Connected';
-            document.getElementById('btnCloudConnect').textContent = 'Connect to Google Drive';
-            document.getElementById('btnCloudConnect').disabled = false;
-            document.getElementById('btnCloudSave').disabled = true;
-            document.getElementById('btnCloudLoad').disabled = true;
+            if (statusEl) statusEl.className = 'acct-cloud-status disconnected';
+            var txt = document.getElementById('cloudStatusText');
+            if (txt) txt.textContent = 'Not Connected';
+            var btnC = document.getElementById('btnCloudConnect');
+            if (btnC) { btnC.textContent = 'Connect to Google Drive'; btnC.disabled = false; }
+            var btnS = document.getElementById('btnCloudSave');
+            if (btnS) btnS.disabled = true;
+            var btnL = document.getElementById('btnCloudLoad');
+            if (btnL) btnL.disabled = true;
             if (portalAutoSyncInterval) {
                 clearInterval(portalAutoSyncInterval);
                 portalAutoSyncInterval = null;
