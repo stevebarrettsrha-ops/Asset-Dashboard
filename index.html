@@ -9622,6 +9622,9 @@
                         <span id="fyReportYearDisplay" style="font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center;">FY 2025/2026</span>
                         <button class="btn monthly-view-btn" onclick="nextFYReport()" title="Next Year">&#9654;&#65039;</button>
                     </div>
+                    <select id="fyReportCategoryFilter" onchange="generateFiscalYearReport()" style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color, #ddd); background: var(--bg-card); color: var(--text-primary); font-size: 14px; cursor: pointer; min-width: 180px;">
+                        <option value="">All Categories</option>
+                    </select>
                     <button class="btn monthly-view-btn" onclick="generateFiscalYearReport()">&#128260; Refresh</button>
                     <button class="btn monthly-view-btn" onclick="printFiscalYearReport()">&#128424; Print Report</button>
                     <button class="btn monthly-view-btn" onclick="exportFYReportCSV()">&#128229; Export CSV</button>
@@ -16555,10 +16558,32 @@
             const disposedCodes = getDisposedAssetCodes();
             const fyMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
 
+            // Get selected category filter
+            const catFilterEl = document.getElementById('fyReportCategoryFilter');
+            const selectedCategory = catFilterEl ? catFilterEl.value : '';
+
+            // Populate category dropdown (preserve current selection)
+            if (catFilterEl) {
+                const categories = loadCategories();
+                // Collect categories actually present in all assets (not just FY-filtered)
+                const usedCats = new Set();
+                assets.forEach(function(a) { if (a.category) usedCats.add(a.category); });
+                const allCats = Array.from(new Set([...categories, ...usedCats])).sort();
+
+                var prevVal = selectedCategory;
+                catFilterEl.innerHTML = '<option value="">All Categories</option>';
+                allCats.forEach(function(cat) {
+                    catFilterEl.innerHTML += '<option value="' + cat.replace(/"/g, '&quot;') + '"' + (cat === prevVal ? ' selected' : '') + '>' + cat + '</option>';
+                });
+            }
+
             // Filter assets to this fiscal year, excluding BOS/disposed assets
             const fyAssets = assets.filter(function(a) {
                 // Exclude disposed assets
                 if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+
+                // Apply category filter
+                if (selectedCategory && a.category !== selectedCategory) return false;
 
                 // Determine fiscal year from the asset's date
                 const fy = getFiscalYearFromDate(a.dateIn);
@@ -16705,9 +16730,12 @@
             const assets = loadAssetsFromStorage();
             const disposedCodes = getDisposedAssetCodes();
             const hospitalName = getHospitalName();
+            const catFilterEl = document.getElementById('fyReportCategoryFilter');
+            const selectedCategory = catFilterEl ? catFilterEl.value : '';
 
             const fyAssets = assets.filter(function(a) {
                 if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+                if (selectedCategory && a.category !== selectedCategory) return false;
                 const fy = getFiscalYearFromDate(a.dateIn);
                 if (fy === fyReportYear) return true;
                 if (a.month) {
@@ -16763,7 +16791,7 @@
                 '<h1>Fiscal Year Report</h1>' +
                 '<h2>FY ' + fyReportYear + '/' + (fyReportYear + 1) + '</h2>' +
                 '<p>Fixed Asset Management System &bull; Generated: ' + new Date().toLocaleString() + '</p>' +
-                '<p style="font-size:12px;color:#666;">Excludes Board of Survey (disposed) assets</p>' +
+                '<p style="font-size:12px;color:#666;">Excludes Board of Survey (disposed) assets' + (selectedCategory ? ' &bull; Filtered by: ' + escapeHtml(selectedCategory) : '') + '</p>' +
             '</div>' +
             '<div class="summary">' +
                 '<div class="summary-item"><strong>Total Assets:</strong> ' + gt.items + ' (' + gt.purchased + ' purchased, ' + gt.donated + ' donated)</div>' +
@@ -16807,9 +16835,12 @@
             var fyMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
             var assets = loadAssetsFromStorage();
             var disposedCodes = getDisposedAssetCodes();
+            var catFilterEl = document.getElementById('fyReportCategoryFilter');
+            var selectedCategory = catFilterEl ? catFilterEl.value : '';
 
             var fyAssets = assets.filter(function(a) {
                 if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+                if (selectedCategory && a.category !== selectedCategory) return false;
                 var fy = getFiscalYearFromDate(a.dateIn);
                 if (fy === fyReportYear) return true;
                 if (a.month) {
@@ -16852,7 +16883,7 @@
             var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             var link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'Fiscal_Year_Report_FY' + fyReportYear + '_' + (fyReportYear + 1) + '.csv';
+            link.download = 'Fiscal_Year_Report_FY' + fyReportYear + '_' + (fyReportYear + 1) + (selectedCategory ? '_' + selectedCategory.replace(/[^a-zA-Z0-9]/g, '_') : '') + '.csv';
             link.click();
         }
 
