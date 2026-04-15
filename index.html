@@ -235,7 +235,7 @@
 
         .page {
             display: none;
-            overflow-x: clip;
+            overflow-x: visible;
         }
 
         .page.active {
@@ -1207,7 +1207,7 @@
         /* Audit Trail Filter Section - constrain grid items */
         #auditTab .calc-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 220px));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 15px;
             justify-content: start;
         }
@@ -1215,7 +1215,7 @@
         #auditTab .calc-grid > div,
         #auditTab .calc-grid > input,
         #auditTab .calc-grid > select {
-            max-width: 220px;
+            max-width: 320px;
             min-width: 150px;
         }
 
@@ -1271,7 +1271,7 @@
             position: absolute;
             top: 100%;
             left: 0;
-            right: 0;
+            min-width: 100%;
             max-height: 250px;
             overflow-y: auto;
             background: var(--bg-card);
@@ -1280,6 +1280,8 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.25);
             z-index: 9999;
             margin-top: 4px;
+            white-space: normal;
+            word-wrap: break-word;
         }
 
         .custom-dropdown-menu.show {
@@ -1316,7 +1318,7 @@
 
         /* Fix for native department dropdown overflow - ensure dropdown stays within viewport */
         #auditTab .calc-grid select.calc-input {
-            max-width: 220px;
+            max-width: 320px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1338,10 +1340,8 @@
         /* Style select options for better readability */
         #auditDepartmentFilter option,
         #auditLocation option {
-            max-width: 350px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            max-width: 450px;
+            white-space: normal;
             padding: 8px 12px;
         }
 
@@ -4755,7 +4755,7 @@
         }
 
         .register-filter-group select#registerDepartmentFilter {
-            max-width: 280px;
+            max-width: 350px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -4772,10 +4772,8 @@
         }
 
         .register-filter-group select#registerDepartmentFilter option {
-            max-width: 280px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            max-width: 450px;
+            white-space: normal;
         }
 
         .register-search-box {
@@ -5833,7 +5831,7 @@
             margin-left: 270px;
             width: calc(100% - 270px);
             max-width: 100%;
-            overflow-x: clip;
+            overflow-x: visible;
             box-sizing: border-box;
             transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -8341,7 +8339,7 @@
                     </div>
                     <div class="register-filter-group" style="position: relative;">
                         <label>Department:</label>
-                        <div class="custom-dropdown-wrapper" id="registerDeptDropdownWrapper" style="min-width: 200px; max-width: 280px;">
+                        <div class="custom-dropdown-wrapper" id="registerDeptDropdownWrapper" style="min-width: 200px; max-width: 350px;">
                             <button type="button" class="custom-dropdown-trigger" id="registerDeptDropdownTrigger" onclick="toggleRegisterDeptDropdown()" style="padding: 8px 35px 8px 12px; font-size: 0.9em;">
                                 All Departments
                             </button>
@@ -14249,17 +14247,16 @@
                 departments.forEach(dept => {
                     const option = document.createElement('div');
                     option.className = 'custom-dropdown-option' + (currentValue === dept ? ' selected' : '');
-                    const maxLength = 40;
-                    option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
-                    option.title = dept; // Show full name on hover
+                    option.textContent = dept;
+                    option.title = dept;
                     option.onclick = function() { selectDeptOption(dept, dept); };
                     deptDropdownMenu.appendChild(option);
                 });
 
                 // Update trigger text if there's a current value
                 if (currentValue && currentValue !== '') {
-                    const maxLength = 25;
-                    deptDropdownTrigger.textContent = currentValue.length > maxLength ? currentValue.substring(0, maxLength) + '...' : currentValue;
+                    deptDropdownTrigger.textContent = currentValue;
+                    deptDropdownTrigger.title = currentValue;
                 }
             }
 
@@ -14284,13 +14281,24 @@
         function positionDropdownFixed(trigger, menu) {
             const triggerRect = trigger.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
             const spaceBelow = viewportHeight - triggerRect.bottom;
             const spaceAbove = triggerRect.top;
             const menuHeight = 250;
 
+            // Use wider of trigger width or 350px for department dropdowns
+            const menuWidth = Math.max(triggerRect.width, 350);
+
             menu.style.position = 'fixed';
-            menu.style.left = triggerRect.left + 'px';
-            menu.style.width = triggerRect.width + 'px';
+            menu.style.width = menuWidth + 'px';
+
+            // Position left, but prevent overflowing the right edge of viewport
+            const leftPos = triggerRect.left;
+            if (leftPos + menuWidth > viewportWidth - 10) {
+                menu.style.left = Math.max(10, viewportWidth - menuWidth - 10) + 'px';
+            } else {
+                menu.style.left = leftPos + 'px';
+            }
 
             if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
                 menu.style.top = '';
@@ -14331,8 +14339,8 @@
 
             if (hiddenInput) hiddenInput.value = value;
             if (trigger) {
-                const maxLength = 25;
-                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+                trigger.textContent = text;
+                trigger.title = text;
             }
             if (menu) {
                 closeDropdownMenu(menu);
@@ -14396,8 +14404,8 @@
 
             if (hiddenInput) hiddenInput.value = value;
             if (trigger) {
-                const maxLength = 30;
-                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+                trigger.textContent = text;
+                trigger.title = text;
             }
             if (menu) {
                 closeDropdownMenu(menu);
@@ -14434,8 +14442,7 @@
             departments.forEach(dept => {
                 const option = document.createElement('div');
                 option.className = 'custom-dropdown-option' + (selectedValue === dept ? ' selected' : '');
-                const maxLength = 40;
-                option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
+                option.textContent = dept;
                 option.title = dept;
                 option.dataset.value = dept;
                 option.onclick = function() { selectAssetDeptOption(dept, dept); };
@@ -14444,8 +14451,8 @@
 
             // Update trigger text
             if (selectedValue && trigger) {
-                const maxLength = 30;
-                trigger.textContent = selectedValue.length > maxLength ? selectedValue.substring(0, maxLength) + '...' : selectedValue;
+                trigger.textContent = selectedValue;
+                trigger.title = selectedValue;
             } else if (trigger) {
                 trigger.textContent = 'Select Department';
             }
@@ -14478,8 +14485,8 @@
 
             if (hiddenInput) hiddenInput.value = value;
             if (trigger) {
-                const maxLength = 25;
-                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+                trigger.textContent = text;
+                trigger.title = text;
             }
             if (menu) {
                 closeDropdownMenu(menu);
@@ -14516,8 +14523,7 @@
             departments.forEach(dept => {
                 const option = document.createElement('div');
                 option.className = 'custom-dropdown-option' + (selectedValue === dept ? ' selected' : '');
-                const maxLength = 40;
-                option.textContent = dept.length > maxLength ? dept.substring(0, maxLength) + '...' : dept;
+                option.textContent = dept;
                 option.title = dept;
                 option.dataset.value = dept;
                 option.onclick = function() { selectAuditEntryDeptOption(dept, dept); };
@@ -14526,8 +14532,8 @@
 
             // Update trigger text
             if (selectedValue && trigger) {
-                const maxLength = 25;
-                trigger.textContent = selectedValue.length > maxLength ? selectedValue.substring(0, maxLength) + '...' : selectedValue;
+                trigger.textContent = selectedValue;
+                trigger.title = selectedValue;
             } else if (trigger) {
                 trigger.textContent = 'Select Department';
             }
@@ -26619,9 +26625,7 @@
             let optionsHtml = '<div class="custom-dropdown-option selected" onclick="selectRegisterDeptOption(\'\', \'All Departments\')">All Departments</div>';
 
             departments.sort().forEach(dept => {
-                // Truncate long department names for display
-                const displayText = dept.length > 35 ? dept.substring(0, 35) + '...' : dept;
-                optionsHtml += `<div class="custom-dropdown-option" title="${dept}" onclick="selectRegisterDeptOption('${dept.replace(/'/g, "\\'")}', '${displayText.replace(/'/g, "\\'")}')">${displayText}</div>`;
+                optionsHtml += `<div class="custom-dropdown-option" title="${dept}" onclick="selectRegisterDeptOption('${dept.replace(/'/g, "\\'")}', '${dept.replace(/'/g, "\\'")}')">${dept}</div>`;
             });
 
             menu.innerHTML = optionsHtml;
@@ -26638,15 +26642,13 @@
 
             // Close all other custom dropdowns first
             document.querySelectorAll('.custom-dropdown-menu.show').forEach(m => {
-                if (m !== menu) m.classList.remove('show', 'show-above');
+                if (m !== menu) closeDropdownMenu(m);
             });
 
             if (isOpen) {
-                menu.classList.remove('show', 'show-above');
+                closeDropdownMenu(menu);
             } else {
-                // Always open downward for this dropdown
-                menu.classList.add('show');
-                menu.classList.remove('show-above');
+                positionDropdownFixed(trigger, menu);
             }
         }
 
@@ -26658,8 +26660,8 @@
 
             if (hiddenInput) hiddenInput.value = value;
             if (trigger) {
-                const maxLength = 25;
-                trigger.textContent = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+                trigger.textContent = text;
+                trigger.title = text;
             }
             if (menu) {
                 menu.classList.remove('show', 'show-above');
