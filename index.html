@@ -10297,6 +10297,11 @@
             document.getElementById('loginFormView').style.display = 'none';
         }
 
+        // If navigated from portal.html with #login hash, skip portal view and show login form directly
+        if (window.location.hash === '#login') {
+            showAssetLogin();
+        }
+
         async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('username').value.trim().toLowerCase();
