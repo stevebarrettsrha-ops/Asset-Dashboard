@@ -6763,6 +6763,12 @@
                 <span class="sidebar-nav-icon">&#x1F4E4;</span>
                 <span class="sidebar-nav-text">BOS Upload</span>
             </button>
+
+            <div class="sidebar-section-label">Reports</div>
+            <button class="sidebar-nav-item" data-page="15" data-tooltip="Fiscal Year Report" onclick="sidebarNavigate(15)">
+                <span class="sidebar-nav-icon">&#x1F4C5;</span>
+                <span class="sidebar-nav-text">Fiscal Year Report</span>
+            </button>
         </div>
 
         <div class="sidebar-footer">
@@ -9594,6 +9600,48 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- PAGE 15: FISCAL YEAR REPORT                  -->
+    <!-- ============================================ -->
+    <div class="page" id="page15">
+        <div class="header">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Fiscal Year Report</h1>
+                        <div class="dashboard-subtitle">Annual asset summary by fiscal month (APR &ndash; MAR) &bull; Currency: JMD</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="user-info" id="userInfo15"></div>
+                    </div>
+                </div>
+
+                <div class="page-action-bar">
+                    <div style="display: inline-flex; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 15px; border-radius: 8px;">
+                        <button class="btn monthly-view-btn" onclick="prevFYReport()" title="Previous Year">&#9664;&#65039;</button>
+                        <span id="fyReportYearDisplay" style="font-weight: 600; color: var(--text-primary); min-width: 120px; text-align: center;">FY 2025/2026</span>
+                        <button class="btn monthly-view-btn" onclick="nextFYReport()" title="Next Year">&#9654;&#65039;</button>
+                    </div>
+                    <button class="btn monthly-view-btn" onclick="generateFiscalYearReport()">&#128260; Refresh</button>
+                    <button class="btn monthly-view-btn" onclick="printFiscalYearReport()">&#128424; Print Report</button>
+                    <button class="btn monthly-view-btn" onclick="exportFYReportCSV()">&#128229; Export CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;" id="fyReportSummaryCards"></div>
+
+        <!-- Report Table -->
+        <div style="overflow-x: auto; background: var(--bg-card); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+            <div id="fyReportContent" style="padding: 0;"></div>
+        </div>
+
+        <div class="footer">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear15"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
     </div>
 
     <!-- Add Asset Code Modal (Admin Only) -->
@@ -9846,7 +9894,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14', 'copyrightYear15'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -16449,6 +16497,18 @@
                 }
                 scanMultiCodeAssets();
             }
+
+            // Handle Fiscal Year Report page
+            if (pageNum === 15) {
+                const userInfo15 = document.getElementById('userInfo15');
+                if (userInfo15 && currentUser) {
+                    userInfo15.innerHTML = `
+                        <span>&#x1F464; ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                generateFiscalYearReport();
+            }
         }
 
         // ============================================
@@ -16470,6 +16530,330 @@
             if (window.innerWidth <= 900) {
                 closeMobileSidebar();
             }
+        }
+
+        // ============================================
+        // FISCAL YEAR REPORT (Page 15)
+        // ============================================
+        let fyReportYear = currentFiscalYear;
+
+        function prevFYReport() {
+            fyReportYear--;
+            generateFiscalYearReport();
+        }
+
+        function nextFYReport() {
+            fyReportYear++;
+            generateFiscalYearReport();
+        }
+
+        function generateFiscalYearReport() {
+            const display = document.getElementById('fyReportYearDisplay');
+            if (display) display.textContent = 'FY ' + fyReportYear + '/' + (fyReportYear + 1);
+
+            const assets = loadAssetsFromStorage();
+            const disposedCodes = getDisposedAssetCodes();
+            const fyMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+
+            // Filter assets to this fiscal year, excluding BOS/disposed assets
+            const fyAssets = assets.filter(function(a) {
+                // Exclude disposed assets
+                if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+
+                // Determine fiscal year from the asset's date
+                const fy = getFiscalYearFromDate(a.dateIn);
+                if (fy === fyReportYear) return true;
+
+                // Fallback: match by month field + calendar year
+                if (a.month) {
+                    const m = a.month.toUpperCase().substring(0, 3);
+                    if (['JAN', 'FEB', 'MAR'].includes(m)) {
+                        // These months belong to fyReportYear if the calendar year is fyReportYear+1
+                        const yearFromDate = a.dateIn ? parseInt(String(a.dateIn).split(/[-\/]/).pop()) : null;
+                        if (yearFromDate === fyReportYear + 1) return true;
+                    } else {
+                        const yearFromDate = a.dateIn ? parseInt(String(a.dateIn).split(/[-\/]/).pop()) : null;
+                        if (yearFromDate === fyReportYear) return true;
+                    }
+                }
+                return false;
+            });
+
+            // Build monthly data
+            const monthData = {};
+            fyMonths.forEach(function(m) { monthData[m] = { items: 0, purchased: 0, donated: 0, cost: 0, purchasedCost: 0, donatedCost: 0, deprAnnual: 0, bookValue: 0 }; });
+
+            let grandTotalItems = 0, grandTotalCost = 0, grandTotalDepr = 0, grandTotalBook = 0;
+            let grandPurchased = 0, grandDonated = 0;
+
+            fyAssets.forEach(function(a) {
+                let m = (a.month || '').toUpperCase().substring(0, 3);
+                if (!monthData[m]) {
+                    // Try to derive month from dateIn
+                    if (a.dateIn) {
+                        const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+                        const parsed = new Date(a.dateIn.split('-').reverse().join('-'));
+                        if (!isNaN(parsed.getTime())) {
+                            m = monthNames[parsed.getMonth()];
+                        }
+                    }
+                }
+                if (!monthData[m]) return;
+
+                const cost = parseFloat(a.totalPrice) || 0;
+                const depr = calcAssetDepreciation(a);
+                const isPurchased = (a.source || '').toLowerCase() === 'purchased';
+
+                monthData[m].items++;
+                monthData[m].cost += cost;
+                monthData[m].deprAnnual += depr.annual || 0;
+                monthData[m].bookValue += depr.bookValue || cost;
+
+                if (isPurchased) {
+                    monthData[m].purchased++;
+                    monthData[m].purchasedCost += cost;
+                } else {
+                    monthData[m].donated++;
+                    monthData[m].donatedCost += cost;
+                }
+
+                grandTotalItems++;
+                grandTotalCost += cost;
+                grandTotalDepr += depr.annual || 0;
+                grandTotalBook += depr.bookValue || cost;
+                if (isPurchased) grandPurchased++; else grandDonated++;
+            });
+
+            // Summary cards
+            const cardsEl = document.getElementById('fyReportSummaryCards');
+            if (cardsEl) {
+                cardsEl.innerHTML =
+                    '<div style="background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Total Assets</div>' +
+                        '<div style="font-size: 28px; font-weight: 700; color: var(--text-primary);">' + grandTotalItems.toLocaleString() + '</div>' +
+                        '<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">' + grandPurchased + ' purchased &bull; ' + grandDonated + ' donated</div>' +
+                    '</div>' +
+                    '<div style="background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Total Cost</div>' +
+                        '<div style="font-size: 28px; font-weight: 700; color: var(--primary-green);">JMD ' + formatCurrency(grandTotalCost) + '</div>' +
+                    '</div>' +
+                    '<div style="background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Annual Depreciation</div>' +
+                        '<div style="font-size: 28px; font-weight: 700; color: #e74c3c;">JMD ' + formatCurrency(grandTotalDepr) + '</div>' +
+                    '</div>' +
+                    '<div style="background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Net Book Value</div>' +
+                        '<div style="font-size: 28px; font-weight: 700; color: var(--primary-orange);">JMD ' + formatCurrency(grandTotalBook) + '</div>' +
+                    '</div>';
+            }
+
+            // Build report table
+            var html = '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">';
+            html += '<thead><tr style="background: var(--bg-header, #f8f9fa);">';
+            html += '<th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0); white-space: nowrap;">Month</th>';
+            html += '<th style="padding: 14px 16px; text-align: center; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Items</th>';
+            html += '<th style="padding: 14px 16px; text-align: center; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Purchased</th>';
+            html += '<th style="padding: 14px 16px; text-align: center; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Donated</th>';
+            html += '<th style="padding: 14px 16px; text-align: right; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Total Cost (JMD)</th>';
+            html += '<th style="padding: 14px 16px; text-align: right; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Purchased Cost</th>';
+            html += '<th style="padding: 14px 16px; text-align: right; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Donated Value</th>';
+            html += '<th style="padding: 14px 16px; text-align: right; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Annual Depr.</th>';
+            html += '<th style="padding: 14px 16px; text-align: right; font-weight: 700; color: var(--text-primary); border-bottom: 2px solid var(--border-color, #e0e0e0);">Book Value</th>';
+            html += '</tr></thead><tbody>';
+
+            fyMonths.forEach(function(m, i) {
+                var d = monthData[m];
+                var actualYear = ['JAN', 'FEB', 'MAR'].includes(m) ? fyReportYear + 1 : fyReportYear;
+                var rowBg = i % 2 === 0 ? '' : 'background: var(--bg-alt-row, rgba(0,0,0,0.02));';
+                var hasData = d.items > 0;
+
+                html += '<tr style="' + rowBg + (hasData ? '' : 'opacity: 0.5;') + '">';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); font-weight: 600; white-space: nowrap;">' + m + ' ' + actualYear + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: center;">' + d.items + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: center; color: var(--primary-green);">' + d.purchased + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: center; color: var(--primary-orange);">' + d.donated + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: right; font-weight: 600;">' + (hasData ? formatCurrency(d.cost) : '-') + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: right;">' + (d.purchased > 0 ? formatCurrency(d.purchasedCost) : '-') + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: right;">' + (d.donated > 0 ? formatCurrency(d.donatedCost) : '-') + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: right; color: #e74c3c;">' + (hasData ? formatCurrency(d.deprAnnual) : '-') + '</td>';
+                html += '<td style="padding: 12px 16px; border-bottom: 1px solid var(--border-color, #eee); text-align: right;">' + (hasData ? formatCurrency(d.bookValue) : '-') + '</td>';
+                html += '</tr>';
+            });
+
+            // Grand total row
+            html += '<tr style="background: var(--bg-header, #f0f4f8); font-weight: 700;">';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc);">TOTAL</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: center;">' + grandTotalItems + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: center; color: var(--primary-green);">' + grandPurchased + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: center; color: var(--primary-orange);">' + grandDonated + '</td>';
+            var grandPurchasedCost = 0, grandDonatedCost = 0;
+            fyMonths.forEach(function(m) { grandPurchasedCost += monthData[m].purchasedCost; grandDonatedCost += monthData[m].donatedCost; });
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: right;">JMD ' + formatCurrency(grandTotalCost) + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: right;">' + formatCurrency(grandPurchasedCost) + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: right;">' + formatCurrency(grandDonatedCost) + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: right; color: #e74c3c;">JMD ' + formatCurrency(grandTotalDepr) + '</td>';
+            html += '<td style="padding: 14px 16px; border-top: 2px solid var(--border-color, #ccc); text-align: right;">JMD ' + formatCurrency(grandTotalBook) + '</td>';
+            html += '</tr>';
+
+            html += '</tbody></table>';
+
+            document.getElementById('fyReportContent').innerHTML = html;
+        }
+
+        function printFiscalYearReport() {
+            const fyMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+            const assets = loadAssetsFromStorage();
+            const disposedCodes = getDisposedAssetCodes();
+            const hospitalName = getHospitalName();
+
+            const fyAssets = assets.filter(function(a) {
+                if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+                const fy = getFiscalYearFromDate(a.dateIn);
+                if (fy === fyReportYear) return true;
+                if (a.month) {
+                    var m = a.month.toUpperCase().substring(0, 3);
+                    var yearFromDate = a.dateIn ? parseInt(String(a.dateIn).split(/[-\/]/).pop()) : null;
+                    if (['JAN', 'FEB', 'MAR'].includes(m)) { if (yearFromDate === fyReportYear + 1) return true; }
+                    else { if (yearFromDate === fyReportYear) return true; }
+                }
+                return false;
+            });
+
+            var monthData = {};
+            fyMonths.forEach(function(m) { monthData[m] = { items: 0, purchased: 0, donated: 0, cost: 0, purchasedCost: 0, donatedCost: 0, deprAnnual: 0, bookValue: 0 }; });
+            var gt = { items: 0, cost: 0, depr: 0, book: 0, purchased: 0, donated: 0, purchasedCost: 0, donatedCost: 0 };
+
+            fyAssets.forEach(function(a) {
+                var m = (a.month || '').toUpperCase().substring(0, 3);
+                if (!monthData[m] && a.dateIn) {
+                    var mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+                    var p = new Date(a.dateIn.split('-').reverse().join('-'));
+                    if (!isNaN(p.getTime())) m = mn[p.getMonth()];
+                }
+                if (!monthData[m]) return;
+                var cost = parseFloat(a.totalPrice) || 0;
+                var depr = calcAssetDepreciation(a);
+                var isPurchased = (a.source || '').toLowerCase() === 'purchased';
+                monthData[m].items++; monthData[m].cost += cost;
+                monthData[m].deprAnnual += depr.annual || 0;
+                monthData[m].bookValue += depr.bookValue || cost;
+                if (isPurchased) { monthData[m].purchased++; monthData[m].purchasedCost += cost; }
+                else { monthData[m].donated++; monthData[m].donatedCost += cost; }
+                gt.items++; gt.cost += cost; gt.depr += depr.annual || 0; gt.book += depr.bookValue || cost;
+                if (isPurchased) { gt.purchased++; gt.purchasedCost += cost; } else { gt.donated++; gt.donatedCost += cost; }
+            });
+
+            var rows = '';
+            fyMonths.forEach(function(m) {
+                var d = monthData[m];
+                var yr = ['JAN','FEB','MAR'].includes(m) ? fyReportYear + 1 : fyReportYear;
+                rows += '<tr>' +
+                    '<td style="font-weight:600;">' + m + ' ' + yr + '</td>' +
+                    '<td style="text-align:center;">' + d.items + '</td>' +
+                    '<td style="text-align:center;">' + d.purchased + '</td>' +
+                    '<td style="text-align:center;">' + d.donated + '</td>' +
+                    '<td style="text-align:right;">' + (d.items > 0 ? formatCurrency(d.cost) : '-') + '</td>' +
+                    '<td style="text-align:right;">' + (d.items > 0 ? formatCurrency(d.deprAnnual) : '-') + '</td>' +
+                    '<td style="text-align:right;">' + (d.items > 0 ? formatCurrency(d.bookValue) : '-') + '</td>' +
+                    '</tr>';
+            });
+
+            var printContent = '<div class="header">' +
+                '<div class="logo">&#x1F3E5; ' + escapeHtml(hospitalName) + '</div>' +
+                '<h1>Fiscal Year Report</h1>' +
+                '<h2>FY ' + fyReportYear + '/' + (fyReportYear + 1) + '</h2>' +
+                '<p>Fixed Asset Management System &bull; Generated: ' + new Date().toLocaleString() + '</p>' +
+                '<p style="font-size:12px;color:#666;">Excludes Board of Survey (disposed) assets</p>' +
+            '</div>' +
+            '<div class="summary">' +
+                '<div class="summary-item"><strong>Total Assets:</strong> ' + gt.items + ' (' + gt.purchased + ' purchased, ' + gt.donated + ' donated)</div>' +
+                '<div class="summary-item"><strong>Total Cost:</strong> JMD ' + formatCurrency(gt.cost) + '</div>' +
+                '<div class="summary-item"><strong>Annual Depreciation:</strong> JMD ' + formatCurrency(gt.depr) + '</div>' +
+                '<div class="summary-item"><strong>Net Book Value:</strong> JMD ' + formatCurrency(gt.book) + '</div>' +
+            '</div>' +
+            '<table>' +
+                '<thead><tr><th>Month</th><th>Items</th><th>Purchased</th><th>Donated</th><th>Total Cost (JMD)</th><th>Annual Depr. (JMD)</th><th>Book Value (JMD)</th></tr></thead>' +
+                '<tbody>' + rows +
+                '<tr class="total-row"><td>TOTAL</td><td style="text-align:center;">' + gt.items + '</td><td style="text-align:center;">' + gt.purchased + '</td><td style="text-align:center;">' + gt.donated + '</td><td style="text-align:right;">' + formatCurrency(gt.cost) + '</td><td style="text-align:right;">' + formatCurrency(gt.depr) + '</td><td style="text-align:right;">' + formatCurrency(gt.book) + '</td></tr>' +
+                '</tbody></table>';
+
+            var printWindow = window.open('', '_blank');
+            printWindow.document.write(
+                '<html><head><title>Fiscal Year Report - FY ' + fyReportYear + '/' + (fyReportYear + 1) + '</title>' +
+                '<style>' +
+                    'body { font-family: Arial, sans-serif; margin: 30px; color: #333; }' +
+                    '.header { text-align: center; border-bottom: 3px solid #FF6B35; padding-bottom: 20px; margin-bottom: 25px; }' +
+                    '.header .logo { font-size: 20px; font-weight: 700; margin-bottom: 5px; }' +
+                    '.header h1 { margin: 5px 0; font-size: 24px; }' +
+                    '.header h2 { margin: 5px 0; font-size: 18px; color: #555; }' +
+                    '.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px; }' +
+                    '.summary-item { font-size: 14px; }' +
+                    'table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }' +
+                    'th { background: #2C3E50; color: white; padding: 10px 12px; text-align: left; font-size: 12px; }' +
+                    'td { padding: 9px 12px; border-bottom: 1px solid #ddd; }' +
+                    'tr:nth-child(even) { background: #f8f9fa; }' +
+                    '.total-row { font-weight: 700; background: #eef2f7 !important; }' +
+                    '.total-row td { border-top: 2px solid #2C3E50; }' +
+                    '@media print { body { margin: 15px; } }' +
+                '</style></head><body>' +
+                printContent +
+                '<script>window.onload = function() { window.print(); };<\/script>' +
+                '</body></html>'
+            );
+            printWindow.document.close();
+        }
+
+        function exportFYReportCSV() {
+            var fyMonths = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+            var assets = loadAssetsFromStorage();
+            var disposedCodes = getDisposedAssetCodes();
+
+            var fyAssets = assets.filter(function(a) {
+                if (a.assetCode && disposedCodes.has(a.assetCode)) return false;
+                var fy = getFiscalYearFromDate(a.dateIn);
+                if (fy === fyReportYear) return true;
+                if (a.month) {
+                    var m = a.month.toUpperCase().substring(0, 3);
+                    var yearFromDate = a.dateIn ? parseInt(String(a.dateIn).split(/[-\/]/).pop()) : null;
+                    if (['JAN', 'FEB', 'MAR'].includes(m)) { if (yearFromDate === fyReportYear + 1) return true; }
+                    else { if (yearFromDate === fyReportYear) return true; }
+                }
+                return false;
+            });
+
+            var monthData = {};
+            fyMonths.forEach(function(m) { monthData[m] = { items: 0, purchased: 0, donated: 0, cost: 0, purchasedCost: 0, donatedCost: 0, deprAnnual: 0, bookValue: 0 }; });
+
+            fyAssets.forEach(function(a) {
+                var m = (a.month || '').toUpperCase().substring(0, 3);
+                if (!monthData[m] && a.dateIn) {
+                    var mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+                    var p = new Date(a.dateIn.split('-').reverse().join('-'));
+                    if (!isNaN(p.getTime())) m = mn[p.getMonth()];
+                }
+                if (!monthData[m]) return;
+                var cost = parseFloat(a.totalPrice) || 0;
+                var depr = calcAssetDepreciation(a);
+                var isPurchased = (a.source || '').toLowerCase() === 'purchased';
+                monthData[m].items++; monthData[m].cost += cost;
+                monthData[m].deprAnnual += depr.annual || 0;
+                monthData[m].bookValue += depr.bookValue || cost;
+                if (isPurchased) { monthData[m].purchased++; monthData[m].purchasedCost += cost; }
+                else { monthData[m].donated++; monthData[m].donatedCost += cost; }
+            });
+
+            var csv = 'Month,Items,Purchased,Donated,Total Cost (JMD),Purchased Cost (JMD),Donated Value (JMD),Annual Depreciation (JMD),Book Value (JMD)\n';
+            fyMonths.forEach(function(m) {
+                var d = monthData[m];
+                var yr = ['JAN','FEB','MAR'].includes(m) ? fyReportYear + 1 : fyReportYear;
+                csv += m + ' ' + yr + ',' + d.items + ',' + d.purchased + ',' + d.donated + ',' + d.cost.toFixed(2) + ',' + d.purchasedCost.toFixed(2) + ',' + d.donatedCost.toFixed(2) + ',' + d.deprAnnual.toFixed(2) + ',' + d.bookValue.toFixed(2) + '\n';
+            });
+
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Fiscal_Year_Report_FY' + fyReportYear + '_' + (fyReportYear + 1) + '.csv';
+            link.click();
         }
 
         function toggleSidebar() {
