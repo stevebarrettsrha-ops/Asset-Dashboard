@@ -1864,10 +1864,24 @@
                                         added++;
                                     }
                                 });
+
+                                // Update existing users' passwords/roles from cloud
+                                cloudBackup.data.userAccounts.forEach(cloudUser => {
+                                    const localUser = localUsers.find(u => u.username === cloudUser.username && u.dashboard === cloudUser.dashboard);
+                                    if (localUser && cloudUser.password) {
+                                        localUser.password = cloudUser.password;
+                                        localUser.role = cloudUser.role;
+                                    }
+                                });
+
                                 if (added > 0) {
-                                    savePortalUsers(localUsers);
+                                    // Sync asset dashboard users for newly added accounts
+                                    localUsers.filter(u => u.dashboard === 'assets').forEach(u => {
+                                        syncAssetDashboardUser(u.username, u.password, u.role);
+                                    });
                                     loadUserAccountsList();
                                 }
+                                savePortalUsers(localUsers);
 
                                 // Merge heading settings (cloud wins if present)
                                 if (cloudBackup.data.headingSettings) {
