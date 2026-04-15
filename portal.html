@@ -748,6 +748,86 @@
             color: #fff;
         }
 
+        .acct-btn-edit {
+            background: rgba(102,126,234,0.2);
+            color: #8b9cf7;
+            border: 1px solid rgba(102,126,234,0.3);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .acct-btn-edit:hover {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .acct-btn-save {
+            background: rgba(46,204,113,0.2);
+            color: #2ecc71;
+            border: 1px solid rgba(46,204,113,0.3);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .acct-btn-save:hover {
+            background: #2ecc71;
+            color: #fff;
+        }
+
+        .acct-btn-cancel {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .acct-btn-cancel:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        .acct-edit-row td {
+            background: rgba(102,126,234,0.06) !important;
+            padding: 14px !important;
+        }
+
+        .acct-edit-row input,
+        .acct-edit-row select {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 7px 12px;
+            border-radius: 7px;
+            font-size: 13px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .acct-edit-row input:focus,
+        .acct-edit-row select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
+        }
+
+        .acct-edit-row select option {
+            background: #2a2555;
+            color: #fff;
+        }
+
         /* Status message */
         .acct-status {
             margin-top: 12px;
@@ -1177,7 +1257,7 @@
                 <!-- Current Accounts -->
                 <div class="acct-card">
                     <h3>Current User Accounts</h3>
-                    <p class="acct-card-desc">All accounts across every dashboard. Remove accounts or manage roles here.</p>
+                    <p class="acct-card-desc">All accounts across every dashboard. Edit passwords, roles, or remove accounts here.</p>
                     <div id="userAccountsList"></div>
                 </div>
 
@@ -1419,17 +1499,121 @@
                 return '<span class="acct-badge ' + cls + '">' + role + '</span>';
             };
 
-            let html = '<table class="acct-table"><thead><tr><th>Username</th><th>Dashboard</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
-            users.forEach(function(u) {
-                html += '<tr>';
+            let html = '<table class="acct-table" id="acctTable"><thead><tr><th>Username</th><th>Dashboard</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
+            users.forEach(function(u, idx) {
+                html += '<tr id="acctRow_' + idx + '">';
                 html += '<td><strong>' + u.username + '</strong></td>';
                 html += '<td>' + (dashboardLabels[u.dashboard] || u.dashboard) + '</td>';
                 html += '<td>' + roleBadge(u.role) + '</td>';
-                html += '<td><button class="acct-btn-danger" onclick="removeUserAccount(\'' + u.username + '\', \'' + u.dashboard + '\')">Remove</button></td>';
+                html += '<td style="display:flex;gap:6px;flex-wrap:wrap;">';
+                html += '<button class="acct-btn-edit" onclick="editUserAccount(' + idx + ')">Edit</button>';
+                html += '<button class="acct-btn-danger" onclick="removeUserAccount(\'' + u.username + '\', \'' + u.dashboard + '\')">Remove</button>';
+                html += '</td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
+            html += '<div class="acct-status" id="editUserStatus"></div>';
             container.innerHTML = html;
+        }
+
+        function editUserAccount(idx) {
+            const users = loadPortalUsers();
+            if (idx < 0 || idx >= users.length) return;
+            const u = users[idx];
+
+            // Remove any existing edit row
+            const existingEdit = document.getElementById('acctEditRow');
+            if (existingEdit) existingEdit.remove();
+
+            const row = document.getElementById('acctRow_' + idx);
+            if (!row) return;
+
+            const editRow = document.createElement('tr');
+            editRow.id = 'acctEditRow';
+            editRow.className = 'acct-edit-row';
+            editRow.innerHTML =
+                '<td colspan="4">' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+                    '<div>' +
+                        '<label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">New Password</label>' +
+                        '<input type="password" id="editPassword" placeholder="Leave blank to keep current">' +
+                    '</div>' +
+                    '<div>' +
+                        '<label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Role</label>' +
+                        '<select id="editRole">' +
+                            '<option value="Admin"' + (u.role === 'Admin' ? ' selected' : '') + '>Admin</option>' +
+                            '<option value="User"' + (u.role === 'User' ? ' selected' : '') + '>User</option>' +
+                            '<option value="Viewer"' + (u.role === 'Viewer' ? ' selected' : '') + '>Viewer</option>' +
+                        '</select>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="display:flex;gap:8px;">' +
+                    '<button class="acct-btn-save" onclick="saveUserEdit(' + idx + ')">Save Changes</button>' +
+                    '<button class="acct-btn-cancel" onclick="cancelUserEdit()">Cancel</button>' +
+                '</div>' +
+                '</td>';
+
+            row.after(editRow);
+        }
+
+        function saveUserEdit(idx) {
+            const users = loadPortalUsers();
+            if (idx < 0 || idx >= users.length) return;
+            const u = users[idx];
+
+            const newPassword = document.getElementById('editPassword').value;
+            const newRole = document.getElementById('editRole').value;
+            const statusDiv = document.getElementById('editUserStatus');
+
+            if (newPassword && newPassword.length < 3) {
+                statusDiv.className = 'acct-status error';
+                statusDiv.textContent = 'Password must be at least 3 characters.';
+                return;
+            }
+
+            let changed = false;
+
+            if (newPassword) {
+                u.password = newPassword;
+                changed = true;
+            }
+
+            if (newRole !== u.role) {
+                u.role = newRole;
+                changed = true;
+            }
+
+            if (!changed) {
+                cancelUserEdit();
+                return;
+            }
+
+            savePortalUsers(users);
+
+            // Sync to asset dashboard localStorage if this is an assets user
+            if (u.dashboard === 'assets') {
+                syncAssetDashboardUser(u.username, u.password, u.role);
+            }
+
+            loadUserAccountsList();
+
+            // Show success message
+            const newStatusDiv = document.getElementById('editUserStatus');
+            if (newStatusDiv) {
+                newStatusDiv.className = 'acct-status success';
+                newStatusDiv.textContent = 'User "' + u.username + '" updated successfully!';
+                setTimeout(function() { newStatusDiv.style.display = 'none'; newStatusDiv.className = 'acct-status'; }, 3000);
+            }
+
+            // Auto-save to Google Drive if connected
+            if (gdriveAccessToken) {
+                saveAccountsToCloud();
+            }
+        }
+
+        function cancelUserEdit() {
+            const editRow = document.getElementById('acctEditRow');
+            if (editRow) editRow.remove();
         }
 
         // ============================================
