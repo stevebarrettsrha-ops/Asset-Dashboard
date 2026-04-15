@@ -100,186 +100,12 @@
             background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
         }
 
-        /* Portal Cards View */
-        .portal-view {
-            text-align: center;
-            width: 100%;
-            max-width: 1100px;
-        }
-
-        .portal-view .portal-header-icon {
-            font-size: 60px;
-            margin-bottom: 10px;
-        }
-
-        .portal-view h1 {
-            color: #ffffff;
-            font-size: 34px;
-            font-weight: 700;
-            margin-bottom: 6px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-
-        .portal-view .portal-subtitle {
-            color: rgba(255,255,255,0.6);
-            font-size: 17px;
-            margin-bottom: 5px;
-        }
-
-        .portal-view .portal-org {
-            color: #FF6B35;
-            font-size: 19px;
-            font-weight: 600;
-            margin-bottom: 40px;
-        }
-
-        .portal-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 28px;
-            padding: 0 10px;
-        }
-
-        .portal-card {
-            background: rgba(255,255,255,0.95);
-            border-radius: 18px;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: slideUp 0.6s ease forwards;
-            opacity: 0;
-            text-decoration: none;
-            display: block;
-        }
-
-        .portal-card:nth-child(1) { animation-delay: 0.15s; }
-        .portal-card:nth-child(2) { animation-delay: 0.3s; }
-        .portal-card:nth-child(3) { animation-delay: 0.45s; }
-
-        .portal-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 25px 70px rgba(0,0,0,0.4);
-        }
-
-        .portal-card-strip {
-            height: 6px;
-            width: 100%;
-        }
-
-        .portal-card-strip.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .portal-card-strip.green { background: linear-gradient(135deg, #2ECC71, #27AE60); }
-        .portal-card-strip.orange { background: linear-gradient(135deg, #FF6B35, #E55934); }
-
-        .portal-card-body {
-            padding: 30px 25px;
-            text-align: center;
-        }
-
-        .portal-card-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 36px;
-        }
-
-        .portal-card-icon.purple { background: rgba(102,126,234,0.12); }
-        .portal-card-icon.green { background: rgba(46,204,113,0.12); }
-        .portal-card-icon.orange { background: rgba(255,107,53,0.12); }
-
-        .portal-card-dept {
-            font-size: 12px;
-            font-weight: 600;
-            color: #7f8c8d;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-        }
-
-        .portal-card-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: #2C3E50;
-            margin-bottom: 10px;
-        }
-
-        .portal-card-desc {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.5;
-            margin-bottom: 20px;
-        }
-
-        .portal-card-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .portal-card-tags span {
-            background: #f0f2f5;
-            color: #555;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 500;
-        }
-
-        .portal-card-btn {
-            display: inline-block;
-            padding: 12px 30px;
-            border-radius: 8px;
-            color: white;
-            font-size: 15px;
-            font-weight: 600;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-        }
-
-        .portal-card-btn.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .portal-card-btn.green { background: linear-gradient(135deg, #2ECC71, #27AE60); }
-        .portal-card-btn.orange { background: linear-gradient(135deg, #FF6B35, #E55934); }
-
-        .portal-card-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            margin-top: 14px;
-            font-size: 11px;
-            color: #95a5a6;
-        }
-
-        .portal-card-status .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #2ECC71;
-            animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .portal-footer-text {
-            text-align: center;
-            margin-top: 40px;
-            color: rgba(255,255,255,0.4);
-            font-size: 12px;
-        }
-
-        /* Login form (shown when Fixed Asset card is clicked) */
+        /* Login form view */
         .login-form-view {
-            display: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
         }
 
         .login-box {
@@ -290,12 +116,6 @@
             width: 100%;
             max-width: 450px;
             animation: slideUp 0.5s ease;
-        }
-
-        @media (max-width: 768px) {
-            .portal-cards { grid-template-columns: 1fr; gap: 18px; }
-            .portal-view h1 { font-size: 24px; }
-            .portal-card-tags { display: none; }
         }
 
         @keyframes slideUp {
@@ -6255,75 +6075,7 @@
     <!-- LOGIN PAGE -->
     <div class="login-container" id="loginPage">
 
-        <!-- PORTAL CARDS VIEW -->
-        <div class="portal-view" id="portalView">
-            <div class="portal-header-icon">🏥</div>
-            <h1>May Pen Hospital</h1>
-            <p class="portal-subtitle">Management Systems Portal</p>
-            <p class="portal-org">Southern Regional Health Authority</p>
-
-            <div class="portal-cards">
-                <!-- Procurement Officer Card -->
-                <a class="portal-card" href="procurement.html">
-                    <div class="portal-card-strip purple"></div>
-                    <div class="portal-card-body">
-                        <div class="portal-card-icon purple">📋</div>
-                        <div class="portal-card-dept">Finance &amp; Procurement</div>
-                        <div class="portal-card-title">Procurement Officer</div>
-                        <p class="portal-card-desc">Government of Jamaica procurement management. Guides officers through the full GOJ procurement lifecycle with auto-generated purchase orders.</p>
-                        <div class="portal-card-tags">
-                            <span>GOJ Process</span>
-                            <span>Purchase Orders</span>
-                            <span>Supplier Mgmt</span>
-                        </div>
-                        <span class="portal-card-btn purple">Launch System &rarr;</span>
-                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
-                    </div>
-                </a>
-
-                <!-- General Stores Card -->
-                <a class="portal-card" href="stores.html">
-                    <div class="portal-card-strip green"></div>
-                    <div class="portal-card-body">
-                        <div class="portal-card-icon green">📦</div>
-                        <div class="portal-card-dept">General Stores Department</div>
-                        <div class="portal-card-title">Inventory Management</div>
-                        <p class="portal-card-desc">Comprehensive inventory management for the General Stores Department. Track stock levels, manage receipts, issues, and reorder points.</p>
-                        <div class="portal-card-tags">
-                            <span>Stock Control</span>
-                            <span>Receive/Issue</span>
-                            <span>Reorder Alerts</span>
-                        </div>
-                        <span class="portal-card-btn green">Launch System &rarr;</span>
-                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
-                    </div>
-                </a>
-
-                <!-- Fixed Asset System Card -->
-                <div class="portal-card" onclick="showAssetLogin()">
-                    <div class="portal-card-strip orange"></div>
-                    <div class="portal-card-body">
-                        <div class="portal-card-icon orange">🏷️</div>
-                        <div class="portal-card-dept">Operations/Administration Department</div>
-                        <div class="portal-card-title">Fixed Asset System</div>
-                        <p class="portal-card-desc">Fixed asset tracking, depreciation, QR codes, audit trails, and reporting for all hospital capital assets and equipment.</p>
-                        <div class="portal-card-tags">
-                            <span>Asset Tracking</span>
-                            <span>Depreciation</span>
-                            <span>QR Codes</span>
-                        </div>
-                        <span class="portal-card-btn orange">Launch System &rarr;</span>
-                        <div class="portal-card-status"><span class="dot"></span> System Online</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="portal-footer-text">
-                <p>&copy; 2025 May Pen Hospital &mdash; Southern Regional Health Authority &mdash; Government of Jamaica</p>
-            </div>
-        </div>
-
-        <!-- FIXED ASSET LOGIN FORM (shown when Fixed Asset card is clicked) -->
+        <!-- FIXED ASSET LOGIN FORM -->
         <div class="login-form-view" id="loginFormView">
             <div class="login-box">
                 <div class="login-header">
@@ -6396,7 +6148,7 @@
 
                 <div class="login-footer">
                     <p>⚠️ Authorized Personnel Only</p>
-                    <button onclick="showPortalView()" style="margin-top:12px;background:none;border:none;color:#667eea;cursor:pointer;font-size:14px;">&larr; Back to Systems Portal</button>
+                    <button onclick="window.location.href='portal.html'" style="margin-top:12px;background:none;border:none;color:#667eea;cursor:pointer;font-size:14px;">&larr; Back to Systems Portal</button>
                 </div>
             </div>
         </div>
@@ -10281,25 +10033,6 @@
 
                 return false;
             }
-        }
-
-        // Portal view / Asset login toggle
-        function showAssetLogin() {
-            document.getElementById('portalView').style.display = 'none';
-            document.getElementById('loginFormView').style.display = 'flex';
-            document.getElementById('loginFormView').style.justifyContent = 'center';
-            document.getElementById('loginFormView').style.alignItems = 'center';
-            document.getElementById('loginFormView').style.width = '100%';
-        }
-
-        function showPortalView() {
-            document.getElementById('portalView').style.display = 'block';
-            document.getElementById('loginFormView').style.display = 'none';
-        }
-
-        // If navigated from portal.html with #login hash, skip portal view and show login form directly
-        if (window.location.hash === '#login') {
-            showAssetLogin();
         }
 
         async function handleLogin(event) {
@@ -15626,10 +15359,6 @@
                         const orgName = settings.orgName;
 
                         if (hospitalName) {
-                            // Portal view header
-                            const portalH1 = document.querySelector('#portalView h1');
-                            if (portalH1) portalH1.textContent = hospitalName;
-
                             // Sidebar brand
                             const sidebarSub = document.querySelector('.sidebar-brand-sub');
                             if (sidebarSub) sidebarSub.textContent = hospitalName;
@@ -15637,17 +15366,6 @@
                             // Dashboard subtitle
                             const dashSubtitle = document.querySelector('.dashboard-subtitle');
                             if (dashSubtitle) dashSubtitle.textContent = hospitalName + ' \u2022 Currency: JMD (Jamaican Dollar)';
-
-                            // Portal footer
-                            const portalFooter = document.querySelector('.portal-footer-text p');
-                            if (portalFooter) {
-                                portalFooter.innerHTML = '&copy; ' + new Date().getFullYear() + ' ' + escapeHtml(hospitalName) + ' &mdash; ' + (orgName || 'Southern Regional Health Authority') + ' &mdash; Government of Jamaica';
-                            }
-                        }
-
-                        if (orgName) {
-                            const portalOrg = document.querySelector('.portal-org');
-                            if (portalOrg) portalOrg.textContent = orgName;
                         }
                     }
                 } catch (e) {
