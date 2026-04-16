@@ -235,7 +235,7 @@
 
         .page {
             display: none;
-            overflow-x: visible;
+            overflow-x: hidden;
         }
 
         .page.active {
@@ -1345,20 +1345,10 @@
             padding: 8px 12px;
         }
 
-        /* Ensure audit trail section allows dropdown overflow */
-        .audit-trail#auditTab {
-            overflow: visible !important;
-        }
-
         /* Ensure audit entries table stays below dropdown */
         #auditEntries {
             position: relative;
             z-index: 1;
-        }
-
-        /* Ensure page3 allows dropdown overflow */
-        #page3 {
-            overflow: visible !important;
         }
 
         /* Responsive adjustments for audit trail */
@@ -1617,11 +1607,11 @@
             .dashboard-container {
                 padding: 10px;
                 max-width: 100%;
-                overflow-x: clip;
+                overflow-x: hidden;
             }
 
             .page {
-                overflow-x: clip;
+                overflow-x: hidden;
             }
 
             /* Header responsive adjustments */
@@ -5831,7 +5821,7 @@
             margin-left: 270px;
             width: calc(100% - 270px);
             max-width: 100%;
-            overflow-x: visible;
+            overflow-x: hidden;
             box-sizing: border-box;
             transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -14289,8 +14279,16 @@
             // Use wider of trigger width or 350px for department dropdowns
             const menuWidth = Math.max(triggerRect.width, 350);
 
+            // Move menu to document.body so it escapes all stacking contexts and overflow containers
+            if (menu.parentElement !== document.body) {
+                menu._originalParent = menu.parentElement;
+                menu._originalNextSibling = menu.nextSibling;
+                document.body.appendChild(menu);
+            }
+
             menu.style.position = 'fixed';
             menu.style.width = menuWidth + 'px';
+            menu.style.zIndex = '99999';
 
             // Position left, but prevent overflowing the right edge of viewport
             const leftPos = triggerRect.left;
@@ -14315,6 +14313,17 @@
         function closeDropdownMenu(menu) {
             menu.classList.remove('show', 'show-above');
             resetDropdownStyles(menu);
+            menu.style.zIndex = '';
+            // Move menu back to its original parent in the DOM
+            if (menu._originalParent) {
+                if (menu._originalNextSibling && menu._originalNextSibling.parentElement === menu._originalParent) {
+                    menu._originalParent.insertBefore(menu, menu._originalNextSibling);
+                } else {
+                    menu._originalParent.appendChild(menu);
+                }
+                delete menu._originalParent;
+                delete menu._originalNextSibling;
+            }
         }
 
         // Custom dropdown functions for department filter
@@ -14360,7 +14369,7 @@
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
-            // Close all custom dropdowns when clicking outside their wrappers
+            // Close all custom dropdowns when clicking outside their wrappers AND outside the menu itself
             const dropdownPairs = [
                 ['deptDropdownWrapper', 'deptDropdownMenu'],
                 ['registerDeptDropdownWrapper', 'registerDeptDropdownMenu'],
@@ -14370,7 +14379,7 @@
             dropdownPairs.forEach(([wrapperId, menuId]) => {
                 const w = document.getElementById(wrapperId);
                 const m = document.getElementById(menuId);
-                if (w && m && !w.contains(e.target)) {
+                if (w && m && !w.contains(e.target) && !m.contains(e.target)) {
                     closeDropdownMenu(m);
                 }
             });
@@ -26664,7 +26673,7 @@
                 trigger.title = text;
             }
             if (menu) {
-                menu.classList.remove('show', 'show-above');
+                closeDropdownMenu(menu);
                 // Update selected state
                 const options = menu.querySelectorAll('.custom-dropdown-option');
                 options.forEach(opt => {
