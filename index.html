@@ -4729,7 +4729,9 @@
             border-radius: 10px;
             overflow: visible;
             position: relative;
-            z-index: 100;
+            /* Lower than .header (z-index:100) so the sticky header
+               stacks above the filters when scrolling. */
+            z-index: 5;
         }
 
         .register-filter-group {
@@ -4764,7 +4766,7 @@
         /* Ensure register department dropdown appears above table */
         #registerDeptDropdownWrapper {
             position: relative;
-            z-index: 100;
+            z-index: 5;
         }
 
         #registerDeptDropdownMenu {
@@ -7248,7 +7250,7 @@
                 <h2 class="section-title">📋 Asset Audit Trail</h2>
                 
                 <!-- Add Entry Form (Admin Only) -->
-                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 100;">
+                <div id="addAuditEntrySection" style="display: none; background: var(--table-hover); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 5;">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">➕ Add New Audit Entry</h3>
                     <div class="calc-grid" style="margin-bottom: 15px; overflow: visible;">
                         <input type="text" id="auditAssetCode" class="calc-input" placeholder="Enter Asset Code (e.g., MPH-001-2025)">
@@ -7263,8 +7265,8 @@
                             <option value="Asset Updated">Asset Updated</option>
                             <option value="Other">Other</option>
                         </select>
-                        <div style="position: relative; z-index: 101;">
-                            <div class="custom-dropdown-wrapper" id="auditEntryDeptWrapper" style="position: relative; z-index: 102;">
+                        <div style="position: relative; z-index: 6;">
+                            <div class="custom-dropdown-wrapper" id="auditEntryDeptWrapper" style="position: relative; z-index: 7;">
                                 <button type="button" class="custom-dropdown-trigger" id="auditEntryDeptTrigger" onclick="toggleAuditEntryDeptDropdown()" style="width: 100%;">
                                     Select Department
                                 </button>
@@ -7283,7 +7285,7 @@
                 </div>
                 
                 <!-- Enhanced Filter Section -->
-                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 100;">
+                <div style="margin-bottom: 20px; padding: 20px; background: var(--table-hover); border-radius: 8px; border-left: 4px solid var(--primary-orange); overflow: visible; position: relative; z-index: 5;">
                     <h3 style="margin-bottom: 15px; color: var(--text-primary);">🔍 Filter Audit Trail</h3>
                     <div class="calc-grid" style="margin-bottom: 15px;">
                         <div style="position: relative;">
@@ -7300,7 +7302,7 @@
                         </div>
                         <div>
                             <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Action Type:</label>
-                            <select id="auditActionFilter" class="calc-input" onchange="displayAuditTrail()">
+                            <select id="auditActionFilter" class="calc-input" onchange="filterAuditTrail()">
                                 <option value="">All Actions</option>
                                 <option value="Asset Created">Asset Created</option>
                                 <option value="Asset Assigned">Asset Assigned</option>
@@ -7316,15 +7318,15 @@
                         </div>
                         <div>
                             <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date From:</label>
-                            <input type="date" id="auditDateFrom" class="calc-input" onchange="displayAuditTrail()">
+                            <input type="date" id="auditDateFrom" class="calc-input" onchange="filterAuditTrail()">
                         </div>
                         <div>
                             <label style="font-weight: 600; display: block; margin-bottom: 5px; color: var(--text-primary);">Date To:</label>
-                            <input type="date" id="auditDateTo" class="calc-input" onchange="displayAuditTrail()">
+                            <input type="date" id="auditDateTo" class="calc-input" onchange="filterAuditTrail()">
                         </div>
                     </div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="search-btn" onclick="displayAuditTrail()">🔄 Apply Filters</button>
+                        <button class="search-btn" onclick="filterAuditTrail()">🔄 Apply Filters</button>
                         <button class="search-btn" onclick="clearAuditFilters()" style="background: #6c757d;">✖️ Clear Filters</button>
                         <button class="search-btn" onclick="toggleDepartmentSummary()" style="background: #17a2b8;">📊 Toggle Department Summary</button>
                     </div>
@@ -13494,7 +13496,11 @@
         const AUDIT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRt9acOzIUpkzVpss1pSymrNKEPCrISurkWg_T8UZQwWdW_c2WK-Z_0LS3M_uxR-WnQA/exec';
         
         let auditRefreshInterval = null;
-        
+
+        // Audit Trail pagination state (prevents rendering thousands of rows at once)
+        let auditCurrentPage = 1;
+        const AUDIT_PAGE_SIZE = 100;
+
         let purchasedData = {};
         let donatedData = {};
         let allAssetsData = [];
@@ -14354,7 +14360,8 @@
                 });
             }
 
-            // Trigger the audit trail display update
+            // Trigger the audit trail display update (reset to first page on filter change)
+            auditCurrentPage = 1;
             displayAuditTrail();
         }
 
@@ -20214,6 +20221,15 @@
 
             window.currentAuditData = auditRecords;
 
+            // Pagination: render only AUDIT_PAGE_SIZE rows per page so the browser
+            // doesn't freeze when there are thousands of audit entries.
+            const totalPages = Math.max(1, Math.ceil(auditRecords.length / AUDIT_PAGE_SIZE));
+            if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+            if (auditCurrentPage < 1) auditCurrentPage = 1;
+            const startIndex = (auditCurrentPage - 1) * AUDIT_PAGE_SIZE;
+            const endIndex = Math.min(startIndex + AUDIT_PAGE_SIZE, auditRecords.length);
+            const pageRecords = auditRecords.slice(startIndex, endIndex);
+
             // Show filter status
             const filterStatus = (departmentFilter || actionFilter || dateFrom || dateTo)
                 ? `<div style="margin-bottom: 10px; padding: 10px; background: #e8f4f8; border-radius: 4px; color: #0c5460;">
@@ -20245,7 +20261,7 @@
             `;
 
             const _auditAssetCache = loadAssetsFromStorage(); // Load once outside loop
-            auditRecords.forEach(record => {
+            pageRecords.forEach(record => {
                 const recordJson = JSON.stringify(record).replace(/"/g, '&quot;');
 
                 // Look up asset details if not stored in record
@@ -20282,11 +20298,42 @@
             });
 
             html += '</tbody></table></div>';
+
+            // Pagination controls
+            const prevDisabled = auditCurrentPage <= 1 ? 'disabled' : '';
+            const nextDisabled = auditCurrentPage >= totalPages ? 'disabled' : '';
+            html += `
+                <div class="register-pagination" style="margin-top: 15px;">
+                    <button onclick="prevAuditPage()" ${prevDisabled}>&larr; Previous</button>
+                    <span>Page ${auditCurrentPage} of ${totalPages} (${auditRecords.length} entries, showing ${startIndex + 1}-${endIndex})</span>
+                    <button onclick="nextAuditPage()" ${nextDisabled}>Next &rarr;</button>
+                </div>
+            `;
+
             auditEntries.innerHTML = html;
+        }
+
+        function prevAuditPage() {
+            if (auditCurrentPage > 1) {
+                auditCurrentPage--;
+                displayAuditTrail();
+            }
+        }
+
+        function nextAuditPage() {
+            auditCurrentPage++;
+            displayAuditTrail();
+        }
+
+        // Reset to page 1 whenever filters change so the user sees fresh results.
+        function filterAuditTrail() {
+            auditCurrentPage = 1;
+            displayAuditTrail();
         }
 
         // Clear all audit filters
         function clearAuditFilters() {
+            auditCurrentPage = 1;
             const deptFilter = document.getElementById('auditDepartmentFilter');
             const actionFilter = document.getElementById('auditActionFilter');
             const dateFrom = document.getElementById('auditDateFrom');
@@ -20480,6 +20527,7 @@
                 });
             }
 
+            auditCurrentPage = 1;
             displayAuditTrail();
         }
 
