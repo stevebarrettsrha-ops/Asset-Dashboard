@@ -1300,6 +1300,11 @@
             cursor: pointer;
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.35;
         }
 
         .custom-dropdown-option:last-child {
@@ -4771,6 +4776,41 @@
 
         #registerDeptDropdownMenu {
             z-index: 9999;
+        }
+
+        /* Compact Asset Register header so it doesn't dominate the viewport */
+        #page7 .header {
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+        }
+
+        #page7 .header-top {
+            margin-bottom: 10px;
+        }
+
+        #page7 .dashboard-title {
+            font-size: 1.5em;
+            margin-bottom: 2px;
+        }
+
+        #page7 .dashboard-subtitle {
+            font-size: 0.85em;
+            margin-bottom: 0;
+            opacity: 0.9;
+        }
+
+        #page7 .page-action-bar {
+            padding: 8px 10px;
+            gap: 6px;
+            border-radius: 8px;
+        }
+
+        #page7 .page-action-bar .btn.monthly-view-btn {
+            padding: 6px 12px;
+            font-size: 0.82em;
+            border-radius: 6px;
+            font-weight: 600;
         }
 
         .register-filter-group select#registerDepartmentFilter option {
@@ -14297,18 +14337,22 @@
             const spaceAbove = triggerRect.top;
             const menuHeight = 250;
 
-            // Use wider of trigger width or 350px for department dropdowns
-            const menuWidth = Math.max(triggerRect.width, 350);
+            // Use wider of trigger width or 350px for department dropdowns,
+            // but never exceed available viewport width (leave 20px margin).
+            const maxAllowedWidth = Math.max(200, viewportWidth - 20);
+            const menuWidth = Math.min(Math.max(triggerRect.width, 350), maxAllowedWidth);
 
             menu.style.position = 'fixed';
             menu.style.width = menuWidth + 'px';
+            menu.style.maxWidth = maxAllowedWidth + 'px';
+            menu.style.boxSizing = 'border-box';
 
             // Position left, but prevent overflowing the right edge of viewport
             const leftPos = triggerRect.left;
             if (leftPos + menuWidth > viewportWidth - 10) {
                 menu.style.left = Math.max(10, viewportWidth - menuWidth - 10) + 'px';
             } else {
-                menu.style.left = leftPos + 'px';
+                menu.style.left = Math.max(10, leftPos) + 'px';
             }
 
             if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
