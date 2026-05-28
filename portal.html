@@ -479,10 +479,6 @@
         }
 
         /* Disabled cards state - before sync */
-        .cards-grid.disabled {
-            pointer-events: none;
-        }
-
         .cards-grid.disabled .login-card {
             opacity: 0.4;
             filter: grayscale(60%);
@@ -493,6 +489,26 @@
         .cards-grid.disabled .login-card:hover {
             transform: none !important;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Block the inner "Launch System" anchor from navigating while disabled,
+           but keep the card itself clickable so we can show feedback. */
+        .cards-grid.disabled .card-btn {
+            pointer-events: none;
+        }
+
+        /* Shake animation used to draw attention to the Sync banner when a user
+           clicks a disabled login card. */
+        @keyframes syncBannerShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .sync-banner.attention {
+            animation: syncBannerShake 0.5s ease;
+            border-color: #FF6B35 !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.35);
         }
 
         @media (max-width: 768px) {
@@ -1098,7 +1114,7 @@
         <div class="cards-grid disabled" id="cardsGrid">
 
             <!-- Procurement Officer Card -->
-            <div class="login-card" onclick="window.location.href='procurement.html'">
+            <div class="login-card" onclick="attemptDashboardLogin('procurement.html')">
                 <div class="card-strip procurement"></div>
                 <div class="card-body">
                     <div class="card-icon procurement">
@@ -1126,7 +1142,7 @@
             </div>
 
             <!-- General Stores Department Card -->
-            <div class="login-card" onclick="window.location.href='stores.html'">
+            <div class="login-card" onclick="attemptDashboardLogin('stores.html')">
                 <div class="card-strip stores"></div>
                 <div class="card-body">
                     <div class="card-icon stores">
@@ -1154,7 +1170,7 @@
             </div>
 
             <!-- Fixed Asset System Card -->
-            <div class="login-card" onclick="window.location.href='index.html'">
+            <div class="login-card" onclick="attemptDashboardLogin('index.html')">
                 <div class="card-strip assets"></div>
                 <div class="card-body">
                     <div class="card-icon assets">
@@ -2131,6 +2147,29 @@
             portalSyncComplete = true;
             const grid = document.getElementById('cardsGrid');
             if (grid) grid.classList.remove('disabled');
+        }
+
+        // Called when a user clicks a login card. If sync hasn't completed,
+        // give clear visual + textual feedback (shake the sync banner, scroll
+        // to it, update the message) so the user knows they need to sync first
+        // before they can reach the username/password screen.
+        function attemptDashboardLogin(url) {
+            if (portalSyncComplete) {
+                window.location.href = url;
+                return;
+            }
+            const banner = document.getElementById('syncBanner');
+            const msgEl = document.getElementById('syncBannerMsg');
+            if (msgEl) {
+                msgEl.textContent = 'Please click "Sync Now" first to pull the latest accounts before logging in.';
+            }
+            if (banner) {
+                banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                banner.classList.remove('attention');
+                void banner.offsetWidth; // restart animation
+                banner.classList.add('attention');
+                setTimeout(function() { banner.classList.remove('attention'); }, 1500);
+            }
         }
 
         function disableCards() {
