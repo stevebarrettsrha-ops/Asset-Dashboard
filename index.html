@@ -292,7 +292,7 @@
         .dashboard-subtitle {
             font-size: 0.85em;
             opacity: 0.9;
-            margin-bottom: 0;
+            margin-bottom: 8px;
         }
 
         .status-bar {
@@ -31459,6 +31459,44 @@
             // Re-scan
             scanMultiCodeAssets();
         }
+
+        // Wrap async user-action functions so rejections surface to the user
+        // instead of becoming silent "Unhandled Promise rejection" console noise.
+        (function wrapAsyncActions() {
+            const names = [
+                'saveToCloud', 'loadData', 'syncFromCloud', 'smartMergeFromCloud',
+                'connectToGoogleDrive', 'browseBackupFiles',
+                'performForcedSyncAfterConnect', 'performForcedSaveAfterConnect',
+                'performAutoSync', 'performAutoSyncOnLogin',
+                'nextFiscalYear', 'previousFiscalYear',
+                'refreshInvoiceList', 'refreshGDriveFiles', 'scanGDriveFolder',
+                'confirmGDriveImport', 'confirmImport', 'connectGDriveForImport',
+                'processSelectedGDriveFiles', 'processGDriveExcelFile',
+                'deleteInvoice', 'downloadAllQRCodes', 'findExistingBackupFile',
+                'generatePreview', 'handleGoogleAuthCallback', 'handleLogin',
+                'completeLogin', 'closeSyncOnLoginModal', 'importFromUrl',
+                'loadCredentials', 'loadWithCORSProxy', 'migrateLocalUserPasswords',
+                'parseCredentialsFromRows', 'processResponses', 'saveAllInlineUsers',
+                'selectBackupFile', 'startInvoiceCamera', 'submitAuditEntry',
+                'submitForcedPasswordChange', 'submitGoogleToken', 'submitPasswordChange',
+                'uploadCapturedInvoice', 'uploadInvoiceToDrive', 'uploadSelectedInvoices',
+                'hashPassword'
+            ];
+            names.forEach(name => {
+                const orig = window[name];
+                if (typeof orig !== 'function') return;
+                window[name] = function (...args) {
+                    return Promise.resolve()
+                        .then(() => orig.apply(this, args))
+                        .catch(err => {
+                            console.error(`[${name}] failed:`, err);
+                            const msg = err && err.message ? err.message : String(err);
+                            try { alert(`${name} failed: ${msg}`); } catch (_) {}
+                            throw err;
+                        });
+                };
+            });
+        })();
 
     </script>
 </body>
