@@ -5933,6 +5933,11 @@
 
             .sidebar-overlay {
                 display: block;
+                pointer-events: none;
+            }
+
+            .sidebar-overlay.visible {
+                pointer-events: auto;
             }
         }
 
