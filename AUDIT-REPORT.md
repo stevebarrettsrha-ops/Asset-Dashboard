@@ -6,6 +6,35 @@
 
 ---
 
+## Third pass — pipeline / modeling features (the three apps as one flow)
+
+Implemented the three priority modeling suggestions, treating Procurement →
+Stores / Fixed Assets as a single purchase-to-inventory pipeline:
+
+1. **Procurement three-way match (PO ↔ GRN ↔ Invoice).** New *3-Way Match* page
+   shows every PO in the matching pipeline with per-document status and an overall
+   state (Matched / Exceptions / Awaiting docs). Amount matching uses a 2%
+   tolerance; partial/damaged deliveries and invoices-without-receipt are
+   conflicts. `markInvoicePaid` now blocks payment on unresolved exceptions unless
+   an authorized, activity-logged override is recorded. (Logic verified by a Node
+   simulation — 7 scenarios pass.)
+2. **Capitalization handoff (Procurement → Fixed Assets).** `recordDelivery`
+   routes delivery lines by unit price: lines ≥ `CAPITALIZATION_THRESHOLD`
+   (50,000) go to the asset register via an `assetRegisterIntake` key; cheaper
+   lines continue to Stores. The asset dashboard shows a *Capitalize* button (count
+   badge) opening a Pending Capitalizations modal that creates draft asset entries
+   (description, supplier, cost, date, PO/GRN pre-filled, audit-logged).
+3. **Stores write-off lifecycle + shrinkage report.** Negative stock adjustments
+   with a loss reason (Damage/Theft/Expiry/Spillage/Obsolete) are now recorded as
+   value-tracked write-offs and reconcile expiry batches; a new *Write-Off /
+   Shrinkage* report (on-screen + printable) breaks losses down by reason and
+   value. (The valuation report already existed and was left in place.)
+
+All four files still parse cleanly, every handler resolves, and no new duplicate
+IDs were introduced.
+
+---
+
 ## Executive Summary
 
 The suite is **functional and close to production-ready** at the feature level: every inline event handler resolves to a defined function (no dead buttons), there are no duplicate element IDs, all inline JavaScript parses cleanly, and cross-page data keys are consistent.
