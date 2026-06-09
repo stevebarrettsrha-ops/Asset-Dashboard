@@ -1349,6 +1349,23 @@
         ];
 
         // ============================================
+        // PASSWORD HASHING (SHA-256, shared salt with the dashboards)
+        // ============================================
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password + 'AssetDashboard_Salt_2024');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Return a 64-hex value unchanged (already hashed); otherwise hash it.
+        async function toPasswordHash(value) {
+            if (typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)) return value;
+            return await hashPassword(String(value || ''));
+        }
+
+        // ============================================
         // VIEW SWITCHING (Portal <-> Account Settings)
         // ============================================
         function showAccountsView() {
@@ -1391,7 +1408,7 @@
             localStorage.setItem(PORTAL_USERS_KEY, JSON.stringify(users));
         }
 
-        function addUserAccount() {
+        async function addUserAccount() {
             const username = document.getElementById('newUsername').value.trim().toLowerCase();
             const password = document.getElementById('newPassword').value;
             const dashboard = document.getElementById('newDashboard').value;
@@ -1425,7 +1442,7 @@
                 return;
             }
 
-            users.push({ username, password, dashboard, role });
+            users.push({ username, passwordHash: await hashPassword(password), dashboard, role });
             savePortalUsers(users);
 
             // Also sync to the respective dashboard's localStorage for Fixed Assets
@@ -1448,15 +1465,17 @@
             }
         }
 
-        function syncAssetDashboardUser(username, password, role) {
+        async function syncAssetDashboardUser(username, password, role) {
             try {
+                // Store the asset-dashboard credential as a hash (never plaintext).
+                // `password` may already be a hash (from a hashed account) or plaintext.
+                const passwordHash = await toPasswordHash(password);
                 const key = 'assetDashboardLocalUsers';
                 const existing = JSON.parse(localStorage.getItem(key) || '[]');
                 const found = existing.find(u => u.username === username);
                 if (found) {
-                    // Update existing user's password and role
-                    found.password = password;
-                    delete found.passwordHash; // Force re-migration on next index.html load
+                    found.passwordHash = passwordHash;
+                    delete found.password;
                     found.role = role === 'Admin' ? 'Administrator' : role;
                     found.permissions = {
                         canExport: role !== 'Viewer',
@@ -1465,7 +1484,7 @@
                 } else {
                     existing.push({
                         username: username,
-                        password: password,
+                        passwordHash: passwordHash,
                         displayName: username.charAt(0).toUpperCase() + username.slice(1),
                         role: role === 'Admin' ? 'Administrator' : role,
                         email: '',
@@ -1572,7 +1591,7 @@
             row.after(editRow);
         }
 
-        function saveUserEdit(idx) {
+        async function saveUserEdit(idx) {
             const users = loadPortalUsers();
             if (idx < 0 || idx >= users.length) return;
             const u = users[idx];
@@ -1590,7 +1609,8 @@
             let changed = false;
 
             if (newPassword) {
-                u.password = newPassword;
+                u.passwordHash = await hashPassword(newPassword);
+                delete u.password;
                 changed = true;
             }
 
@@ -1608,7 +1628,7 @@
 
             // Sync to asset dashboard localStorage if this is an assets user
             if (u.dashboard === 'assets') {
-                syncAssetDashboardUser(u.username, u.password, u.role);
+                syncAssetDashboardUser(u.username, u.passwordHash || u.password, u.role);
             }
 
             loadUserAccountsList();
@@ -1970,7 +1990,7 @@
 
                 // Sync asset dashboard users
                 cloudUsers.filter(u => u.dashboard === 'assets').forEach(u => {
-                    syncAssetDashboardUser(u.username, u.password, u.role);
+                    syncAssetDashboardUser(u.username, u.passwordHash || u.password, u.role);
                 });
 
                 showCloudStatus('success', 'Loaded ' + cloudUsers.length + ' accounts from Google Drive!');
@@ -2068,8 +2088,9 @@
                                 // Update existing users' passwords/roles from cloud
                                 cloudBackup.data.userAccounts.forEach(cloudUser => {
                                     const localUser = localUsers.find(u => u.username === cloudUser.username && u.dashboard === cloudUser.dashboard);
-                                    if (localUser && cloudUser.password) {
-                                        localUser.password = cloudUser.password;
+                                    if (localUser && (cloudUser.passwordHash || cloudUser.password)) {
+                                        if (cloudUser.passwordHash) { localUser.passwordHash = cloudUser.passwordHash; delete localUser.password; }
+                                        else { localUser.password = cloudUser.password; }
                                         localUser.role = cloudUser.role;
                                     }
                                 });
@@ -2077,7 +2098,7 @@
                                 if (added > 0) {
                                     // Sync asset dashboard users for newly added accounts
                                     localUsers.filter(u => u.dashboard === 'assets').forEach(u => {
-                                        syncAssetDashboardUser(u.username, u.password, u.role);
+                                        syncAssetDashboardUser(u.username, u.passwordHash || u.password, u.role);
                                     });
                                     loadUserAccountsList();
                                 }
@@ -2327,8 +2348,9 @@
                         const localUser = localUsers.find(function(u) {
                             return u.username === cloudUser.username && u.dashboard === cloudUser.dashboard;
                         });
-                        if (localUser && cloudUser.password) {
-                            localUser.password = cloudUser.password;
+                        if (localUser && (cloudUser.passwordHash || cloudUser.password)) {
+                            if (cloudUser.passwordHash) { localUser.passwordHash = cloudUser.passwordHash; delete localUser.password; }
+                            else { localUser.password = cloudUser.password; }
                             localUser.role = cloudUser.role;
                         }
                     });
@@ -2337,7 +2359,7 @@
 
                     // Sync asset dashboard users to assetDashboardLocalUsers
                     localUsers.filter(function(u) { return u.dashboard === 'assets'; }).forEach(function(u) {
-                        syncAssetDashboardUser(u.username, u.password, u.role);
+                        syncAssetDashboardUser(u.username, u.passwordHash || u.password, u.role);
                     });
 
                     // Apply heading settings if present

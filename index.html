@@ -10128,7 +10128,7 @@
                     const portalUsers = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]');
                     const portalUser = portalUsers.find(u => u.username === username && u.dashboard === 'assets');
                     if (portalUser) {
-                        const portalHash = await hashPassword(portalUser.password);
+                        const portalHash = portalUser.passwordHash ? portalUser.passwordHash : await hashPassword(portalUser.password || '');
                         if (portalHash === hashedInput) {
                             // Create local user entry from portal account
                             localUser = {

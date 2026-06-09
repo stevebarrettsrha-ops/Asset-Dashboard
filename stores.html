@@ -261,6 +261,7 @@
         tbody tr:hover { background: var(--bg-secondary); }
 
         /* BADGES */
+        .nav-badge { display: inline-block; background: #e74c3c; color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
         .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .badge-ok { background: #d5f5e3; color: #196f3d; }
         .badge-low { background: #fdebd0; color: #935116; }
@@ -651,6 +652,9 @@
                     <a class="sidebar-item" data-page="receive" onclick="showPage('receive')">
                         <span class="icon">&#x1f4e5;</span> Receive Stock
                     </a>
+                    <a class="sidebar-item" data-page="pendingDeliveries" onclick="showPage('pendingDeliveries')">
+                        <span class="icon">&#x1f69a;</span> Pending Deliveries <span id="pendingDeliveriesBadge" class="nav-badge" style="display:none;"></span>
+                    </a>
                     <a class="sidebar-item" data-page="issue" onclick="showPage('issue')">
                         <span class="icon">&#x1f4e4;</span> Issue Stock
                     </a>
@@ -966,6 +970,15 @@
                             </div>
                         </form>
                     </div>
+                </div>
+
+                <!-- Pending Deliveries (from Procurement) -->
+                <div class="page" id="page-pendingDeliveries">
+                    <div class="page-header">
+                        <h1>Pending Deliveries</h1>
+                        <p>Deliveries recorded in the Procurement system awaiting receipt into stores</p>
+                    </div>
+                    <div id="pendingDeliveriesContainer"></div>
                 </div>
 
                 <!-- Issue Stock -->
@@ -1682,6 +1695,102 @@
         let currentUser = null;
         let credentialsData = null;
 
+        // ============================================
+        // PASSWORD HASHING (SHA-256, shared salt with the asset dashboard)
+        // ============================================
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password + 'AssetDashboard_Salt_2024');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function credPasswordMatches(record, hashedInput) {
+            if (record.passwordHash) return record.passwordHash === hashedInput;
+            if (record.password !== undefined && record.password !== null && record.password !== '') {
+                return (await hashPassword(String(record.password).trim())) === hashedInput;
+            }
+            return false;
+        }
+
+        async function hashCredentialRows(rows) {
+            const out = [];
+            for (const r of rows) {
+                const copy = Object.assign({}, r);
+                if (copy.password !== undefined && copy.password !== null && copy.password !== '') {
+                    copy.passwordHash = await hashPassword(String(copy.password).trim());
+                }
+                delete copy.password;
+                out.push(copy);
+            }
+            return out;
+        }
+
+        // Forced-password-change overrides for the shipped default account.
+        function getCredentialOverrides() {
+            try { return JSON.parse(localStorage.getItem('storesCredentialOverrides') || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function setCredentialOverride(username, passwordHash) {
+            const o = getCredentialOverrides();
+            o[username.toLowerCase()] = passwordHash;
+            localStorage.setItem('storesCredentialOverrides', JSON.stringify(o));
+        }
+
+        function finishStoresLogin(u, source) {
+            currentUser = {
+                username: u.username,
+                displayName: u.displayName || u.username,
+                role: u.role || 'user',
+                email: u.email || '',
+                canExport: u.canExport !== undefined ? u.canExport : true,
+                canRefresh: u.canRefresh !== undefined ? u.canRefresh : true
+            };
+            const statusEl = document.getElementById('loginStatus');
+            if (statusEl) statusEl.textContent = '';
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+            document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+            logActivity('Login', 'User logged in' + (source ? ' (' + source + ')' : '') + ': ' + currentUser.displayName);
+            refreshAll();
+        }
+
+        function promptForcedPasswordChange(username, displayName, role) {
+            const statusEl = document.getElementById('loginStatus');
+            if (statusEl) statusEl.textContent = '';
+            const existing = document.getElementById('forcePwModal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'forcePwModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+            modal.innerHTML =
+                '<div style="background:#fff;padding:24px;border-radius:10px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);">' +
+                '<h2 style="margin-top:0;">Set a New Password</h2>' +
+                '<p style="color:#666;font-size:14px;">For security, the default password must be changed before first use. This applies to this device only.</p>' +
+                '<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;margin-bottom:4px;">New password (min 8 characters)</label>' +
+                '<input type="password" id="forcePwNew" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;"></div>' +
+                '<div style="margin-bottom:12px;"><label style="display:block;font-size:13px;margin-bottom:4px;">Confirm new password</label>' +
+                '<input type="password" id="forcePwConfirm" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;"></div>' +
+                '<div id="forcePwError" style="color:#c0392b;font-size:13px;margin-bottom:10px;display:none;"></div>' +
+                '<button id="forcePwSubmit" type="button" style="width:100%;padding:11px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Set Password &amp; Continue</button>' +
+                '</div>';
+            document.body.appendChild(modal);
+            document.getElementById('forcePwSubmit').addEventListener('click', async function () {
+                const np = document.getElementById('forcePwNew').value;
+                const cp = document.getElementById('forcePwConfirm').value;
+                const errEl = document.getElementById('forcePwError');
+                const showErr = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
+                if (!np || np.length < 8) return showErr('Password must be at least 8 characters.');
+                if (np === '123') return showErr('Please choose a different password.');
+                if (np !== cp) return showErr('Passwords do not match.');
+                const h = await hashPassword(np);
+                setCredentialOverride(username, h);
+                modal.remove();
+                finishStoresLogin({ username: username, displayName: displayName, role: role || 'user' }, 'password set');
+            });
+        }
+
         function loadData() {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
@@ -1803,9 +1912,9 @@
                     if (rows.length > 0 && rows[0].username && rows[0].username.toLowerCase() === 'username') {
                         rows.shift();
                     }
-                    credentialsData = rows;
-                    localStorage.setItem('storesCachedCredentials', JSON.stringify(rows));
-                    return rows;
+                    credentialsData = await hashCredentialRows(rows);
+                    localStorage.setItem('storesCachedCredentials', JSON.stringify(credentialsData));
+                    return credentialsData;
                 } catch (e) {
                     continue;
                 }
@@ -1827,100 +1936,67 @@
             const statusEl = document.getElementById('loginStatus');
             const errEl = document.getElementById('loginError');
             errEl.style.display = 'none';
-
-            function loginSuccess(displayName, source) {
-                currentUser = {
-                    username: user,
-                    displayName: displayName || user,
-                    role: 'user',
-                    email: '',
-                    canExport: true,
-                    canRefresh: true
-                };
-                statusEl.textContent = '';
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('appContainer').classList.add('active');
-                document.getElementById('navUserDisplay').textContent = currentUser.displayName;
-                logActivity('Login', 'User logged in (' + source + '): ' + currentUser.displayName);
-                refreshAll();
-            }
-
-            // Check portal-configured users first
-            const portalUsers = getPortalUsers('stores');
-            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
-            if (portalMatch) {
-                loginSuccess(portalMatch.displayName || portalMatch.username, 'portal');
-                return;
-            }
-
-            // Default hardcoded credentials
-            if (user === 'stores' && pass === '123') {
-                loginSuccess('Stores Officer', 'default');
-                return;
-            }
-
-            // Try Google Sheets credentials
             statusEl.textContent = 'Authenticating...';
 
+            const hashedInput = await hashPassword(pass);
+            const invalid = () => {
+                statusEl.textContent = '';
+                errEl.textContent = 'Invalid username or password';
+                errEl.style.display = 'block';
+            };
+
+            // A forced-change override, if present, is the ONLY accepted password.
+            const overrides = getCredentialOverrides();
+            if (overrides[user]) {
+                if (overrides[user] === hashedInput) {
+                    finishStoresLogin({ username: user, displayName: 'Stores Officer', role: 'user' }, 'override');
+                } else {
+                    invalid();
+                }
+                return;
+            }
+
+            // The shipped default password must never authenticate directly — force a
+            // change first (checked before any other source so a persisted default
+            // account can't bypass it).
+            if (user === 'stores' && pass === '123') {
+                promptForcedPasswordChange('stores', 'Stores Officer', 'user');
+                return;
+            }
+
+            // 1) Portal-configured users (hashed comparison, plaintext fallback)
+            const portalUsers = getPortalUsers('stores');
+            for (const u of portalUsers) {
+                if (u.username === user && await credPasswordMatches(u, hashedInput)) {
+                    finishStoresLogin({ username: user, displayName: u.displayName || u.username, role: 'user' }, 'portal');
+                    return;
+                }
+            }
+
+            // 2) Google Sheets credentials (hashed comparison)
             if (!credentialsData) {
                 statusEl.textContent = 'Loading credentials from server...';
                 await loadCredentials();
             }
 
             if (credentialsData && credentialsData.length > 0) {
-                const match = credentialsData.find(c =>
-                    c.username && c.username.toString().trim().toLowerCase() === user &&
-                    c.password && c.password.toString().trim() === pass
-                );
-                if (match) {
-                    currentUser = {
-                        username: match.username,
-                        displayName: match.displayName || match.username,
-                        role: match.role || 'user',
-                        email: match.email || '',
-                        canExport: match.canExport === 'true' || match.canExport === true,
-                        canRefresh: match.canRefresh === 'true' || match.canRefresh === true
-                    };
-                    statusEl.textContent = '';
-                    document.getElementById('loginPage').style.display = 'none';
-                    document.getElementById('appContainer').classList.add('active');
-                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
-                    logActivity('Login', 'User logged in: ' + currentUser.displayName);
-                    refreshAll();
-                    return;
+                for (const c of credentialsData) {
+                    if (c.username && c.username.toString().trim().toLowerCase() === user &&
+                        await credPasswordMatches(c, hashedInput)) {
+                        finishStoresLogin({
+                            username: c.username,
+                            displayName: c.displayName || c.username,
+                            role: c.role || 'user',
+                            email: c.email || '',
+                            canExport: c.canExport === 'true' || c.canExport === true,
+                            canRefresh: c.canRefresh === 'true' || c.canRefresh === true
+                        }, 'sheet');
+                        return;
+                    }
                 }
             }
 
-            // Fallback: try cached credentials
-            const cached = localStorage.getItem('storesCachedCredentials');
-            if (cached && !credentialsData) {
-                credentialsData = JSON.parse(cached);
-                const match = credentialsData.find(c =>
-                    c.username && c.username.toString().trim().toLowerCase() === user &&
-                    c.password && c.password.toString().trim() === pass
-                );
-                if (match) {
-                    currentUser = {
-                        username: match.username,
-                        displayName: match.displayName || match.username,
-                        role: match.role || 'user',
-                        email: match.email || '',
-                        canExport: match.canExport === 'true' || match.canExport === true,
-                        canRefresh: match.canRefresh === 'true' || match.canRefresh === true
-                    };
-                    statusEl.textContent = '';
-                    document.getElementById('loginPage').style.display = 'none';
-                    document.getElementById('appContainer').classList.add('active');
-                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
-                    logActivity('Login', 'User logged in (cached): ' + currentUser.displayName);
-                    refreshAll();
-                    return;
-                }
-            }
-
-            statusEl.textContent = '';
-            errEl.textContent = 'Invalid username or password';
-            errEl.style.display = 'block';
+            invalid();
         }
 
         function logout() {
@@ -1946,6 +2022,7 @@
 
             // Refresh dropdowns when navigating to receive/issue/requisitions
             if (pageId === 'receive' || pageId === 'issue') populateItemDropdowns();
+            if (pageId === 'pendingDeliveries') renderPendingDeliveries();
             if (pageId === 'requisitions') { populateReqDropdown(); renderRequisitions(); }
             if (pageId === 'expiryAlerts') renderExpiryAlerts();
             if (pageId === 'stockCount') renderCountHistory();
@@ -2175,6 +2252,162 @@
         }
 
         // ============================================
+        // PENDING DELIVERIES (handoff from Procurement)
+        // ============================================
+        function getPendingDeliveries() {
+            try {
+                const raw = localStorage.getItem('storesDeliveryNotifications');
+                const arr = raw ? JSON.parse(raw) : [];
+                return Array.isArray(arr) ? arr : [];
+            } catch (e) {
+                console.error('Corrupt storesDeliveryNotifications, resetting:', e);
+                return [];
+            }
+        }
+
+        function savePendingDeliveries(list) {
+            localStorage.setItem('storesDeliveryNotifications', JSON.stringify(list));
+        }
+
+        function updatePendingDeliveriesBadge() {
+            const badge = document.getElementById('pendingDeliveriesBadge');
+            if (!badge) return;
+            const count = getPendingDeliveries().length;
+            if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
+            else { badge.style.display = 'none'; }
+        }
+
+        // Suggest the closest stock item for a free-text procurement line description.
+        function suggestItemForDescription(desc) {
+            if (!desc) return '';
+            const d = String(desc).toLowerCase().trim();
+            let best = '', bestScore = 0;
+            const dTokens = new Set(d.split(/\s+/).filter(Boolean));
+            appData.items.forEach(it => {
+                const id = (it.description || '').toLowerCase();
+                let score = 0;
+                if (id === d) score = 100;
+                else if (id && (id.includes(d) || d.includes(id))) score = 60;
+                else {
+                    let overlap = 0;
+                    id.split(/\s+/).forEach(t => { if (t && dTokens.has(t)) overlap++; });
+                    score = overlap * 10;
+                }
+                if (score > bestScore) { bestScore = score; best = it.code; }
+            });
+            return bestScore >= 20 ? best : '';
+        }
+
+        function renderPendingDeliveries() {
+            const container = document.getElementById('pendingDeliveriesContainer');
+            if (!container) return;
+            const deliveries = getPendingDeliveries();
+            if (deliveries.length === 0) {
+                container.innerHTML = '<div class="card"><p style="text-align:center;color:var(--text-secondary);padding:30px;">No pending deliveries. Deliveries recorded in the Procurement system will appear here for receipt into stores.</p></div>';
+                return;
+            }
+
+            let html = '';
+            deliveries.forEach((d, di) => {
+                const lines = Array.isArray(d.items) ? d.items : [];
+                html += '<div class="card" style="margin-bottom:16px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;">';
+                html += '<div><h3 style="margin:0;">' + sanitize(d.poId || 'Delivery') + '</h3>' +
+                        '<div style="color:var(--text-secondary);font-size:13px;margin-top:4px;">Supplier: <strong>' + sanitize(d.supplierName || 'N/A') + '</strong> &nbsp;|&nbsp; GRN: ' + sanitize(d.grn || 'N/A') + ' &nbsp;|&nbsp; Delivered: ' + sanitize(d.deliveryDate || 'N/A') + '</div></div>';
+                html += '<div class="btn-group" style="margin:0;">' +
+                        '<button class="btn btn-success" onclick="receivePendingDelivery(' + di + ')">Receive All &amp; Acknowledge</button> ' +
+                        '<button class="btn btn-danger" onclick="dismissPendingDelivery(' + di + ')">Dismiss</button></div>';
+                html += '</div>';
+
+                if (lines.length === 0) {
+                    html += '<p style="color:var(--text-secondary);">No line items recorded for this delivery.</p>';
+                } else {
+                    html += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>' +
+                            '<th>Ordered Description</th><th>Qty</th><th>Receive Into Stock Item</th><th>Qty to Receive</th></tr></thead><tbody>';
+                    lines.forEach((line, li) => {
+                        const suggested = suggestItemForDescription(line.description);
+                        const opts = '<option value="">-- Skip / not stocked --</option>' +
+                            appData.items.map(it =>
+                                '<option value="' + sanitize(it.code) + '"' + (it.code === suggested ? ' selected' : '') + '>' +
+                                sanitize(it.code) + ' &ndash; ' + sanitize(it.description) + '</option>'
+                            ).join('');
+                        html += '<tr>' +
+                            '<td>' + sanitize(line.description || '') + '</td>' +
+                            '<td>' + (parseInt(line.qty) || 0) + '</td>' +
+                            '<td><select class="form-control" id="pdItem-' + di + '-' + li + '" style="min-width:220px;">' + opts + '</select></td>' +
+                            '<td><input type="number" class="form-control" id="pdQty-' + di + '-' + li + '" min="0" value="' + (parseInt(line.qty) || 0) + '" style="width:90px;"></td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    html += '<p style="color:var(--text-secondary);font-size:12px;margin-top:8px;">Unmatched lines are skipped. Items not yet stocked should be added via <a href="#" onclick="showPage(\'addItem\');return false;">Add Item</a> first.</p>';
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function receivePendingDelivery(di) {
+            const deliveries = getPendingDeliveries();
+            const d = deliveries[di];
+            if (!d) { renderPendingDeliveries(); return; }
+            const lines = Array.isArray(d.items) ? d.items : [];
+            let received = 0, skipped = 0;
+            const today = new Date().toISOString().split('T')[0];
+            const officer = currentUser ? currentUser.displayName : 'Stores Officer';
+
+            lines.forEach((line, li) => {
+                const sel = document.getElementById('pdItem-' + di + '-' + li);
+                const qtyEl = document.getElementById('pdQty-' + di + '-' + li);
+                const code = sel ? sel.value : '';
+                const qty = qtyEl ? parseInt(qtyEl.value) : 0;
+                if (!code || !validatePositiveInteger(qty)) { skipped++; return; }
+                const item = appData.items.find(i => i.code === code);
+                if (!item) { skipped++; return; }
+                item.qty += qty;
+                appData.transactions.push({
+                    date: d.deliveryDate || today,
+                    type: 'Received',
+                    itemCode: code,
+                    description: item.description,
+                    qty: qty,
+                    department: 'N/A',
+                    supplier: sanitize(d.supplierName || ''),
+                    reference: sanitize(d.grn || d.poId || 'Procurement Delivery'),
+                    by: sanitize(officer),
+                    batchNo: '',
+                    expiryDate: '',
+                    notes: 'Auto-received from Procurement delivery ' + sanitize(d.poId || ''),
+                    timestamp: new Date().toISOString()
+                });
+                received++;
+            });
+
+            if (received === 0 && skipped > 0 && !confirm('No lines were mapped to a stock item, so nothing will be received. Acknowledge and remove this delivery anyway?')) {
+                return;
+            }
+
+            deliveries.splice(di, 1);
+            savePendingDeliveries(deliveries);
+            saveData(appData);
+            logActivity('Receive Delivery', 'Procurement delivery ' + (d.poId || '') + ': ' + received + ' line(s) received, ' + skipped + ' skipped (GRN ' + (d.grn || 'N/A') + ')');
+            alert('Delivery processed. ' + received + ' line item(s) received into stock' + (skipped ? ', ' + skipped + ' skipped' : '') + '.');
+            renderPendingDeliveries();
+            refreshAll();
+        }
+
+        function dismissPendingDelivery(di) {
+            const deliveries = getPendingDeliveries();
+            const d = deliveries[di];
+            if (!d) { renderPendingDeliveries(); return; }
+            if (!confirm('Dismiss delivery ' + (d.poId || '') + ' without receiving it into stock?')) return;
+            deliveries.splice(di, 1);
+            savePendingDeliveries(deliveries);
+            logActivity('Dismiss Delivery', 'Dismissed procurement delivery ' + (d.poId || '') + ' (GRN ' + (d.grn || 'N/A') + ')');
+            renderPendingDeliveries();
+            refreshAll();
+        }
+
+        // ============================================
         // ISSUE STOCK
         // ============================================
         function issueStock(e) {
@@ -2187,6 +2420,7 @@
             if (qty > item.qty) { alert('Insufficient stock! Available: ' + item.qty + ', Requested: ' + qty); return; }
 
             // FIFO: deduct from oldest batches first
+            let untrackedIssued = 0;
             if (item.trackExpiry && item.batches.length > 0) {
                 let remaining = qty;
                 const sortedBatches = item.batches.filter(b => b.remainingQty > 0).sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
@@ -2196,9 +2430,30 @@
                     batch.remainingQty -= deduct;
                     remaining -= deduct;
                 }
+                // Whatever the tracked batches could not cover came from untracked stock.
+                untrackedIssued = remaining;
             }
 
             item.qty -= qty;
+
+            // Reconcile batch records with the authoritative item.qty: drop depleted
+            // batches, and never let the sum of remaining batch quantities exceed the
+            // on-hand quantity (otherwise expiry alerts over-count). Trim newest first.
+            if (item.batches && item.batches.length > 0) {
+                item.batches = item.batches.filter(b => (b.remainingQty || 0) > 0);
+                let batchSum = item.batches.reduce((s, b) => s + (b.remainingQty || 0), 0);
+                if (batchSum > item.qty) {
+                    let excess = batchSum - item.qty;
+                    const newestFirst = item.batches.slice().sort((a, b) => new Date(b.expiryDate) - new Date(a.expiryDate));
+                    for (const batch of newestFirst) {
+                        if (excess <= 0) break;
+                        const trim = Math.min(excess, batch.remainingQty);
+                        batch.remainingQty -= trim;
+                        excess -= trim;
+                    }
+                    item.batches = item.batches.filter(b => (b.remainingQty || 0) > 0);
+                }
+            }
             const tx = {
                 date: document.getElementById('issDate').value,
                 type: 'Issued',
@@ -2215,7 +2470,11 @@
             saveData(appData);
             logActivity('Issue Stock', 'Issued ' + qty + ' x ' + item.description + ' to ' + tx.department);
             e.target.reset();
-            alert('Stock issued successfully! ' + qty + ' units of ' + item.description + ' issued to ' + tx.department + '.');
+            let msg = 'Stock issued successfully! ' + qty + ' units of ' + item.description + ' issued to ' + tx.department + '.';
+            if (untrackedIssued > 0) {
+                msg += '\n\nNote: ' + untrackedIssued + ' unit(s) were issued from stock not covered by expiry-tracked batches.';
+            }
+            alert(msg);
             refreshAll();
         }
 
@@ -3220,12 +3479,13 @@
                 txs = txs.filter(function(t) { return t.type === typeFilter; });
             }
 
-            // Filter stock items by category and dateAdded within quarter
-            let items = appData.items.filter(function(i) {
-                if (i.dateAdded && i.dateAdded >= range.from && i.dateAdded <= range.to) return true;
-                if (!i.dateAdded) return true;
-                return false;
-            });
+            // Stock levels are a LIVE position, not a period-historical record (we only
+            // store current qty, not per-quarter snapshots). So the stock list/value
+            // below is the current snapshot (optionally category-filtered) shown
+            // consistently for every quarter; only the transaction stats are
+            // period-bound. This avoids the previous bug where undated items appeared
+            // in every quarter while dated items appeared in only one.
+            let items = appData.items.slice();
             if (catFilter) {
                 items = items.filter(function(i) { return i.category === catFilter; });
             }
@@ -3245,15 +3505,15 @@
 
             // Render stats
             document.getElementById('qvStats').innerHTML =
-                '<div class="qv-stat"><div class="qv-num" style="color:var(--primary);">' + items.length + '</div><div class="qv-lbl">Stock Items' + (catFilter ? ' (' + sanitize(catFilter) + ')' : '') + '</div></div>' +
-                '<div class="qv-stat"><div class="qv-num" style="color:var(--info);">$' + totalValue.toLocaleString() + '</div><div class="qv-lbl">Inventory Value</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--primary);">' + items.length + '</div><div class="qv-lbl">Stock Items (current)' + (catFilter ? ' (' + sanitize(catFilter) + ')' : '') + '</div></div>' +
+                '<div class="qv-stat"><div class="qv-num" style="color:var(--info);">$' + totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 }) + '</div><div class="qv-lbl">Current Inventory Value</div></div>' +
                 '<div class="qv-stat"><div class="qv-num" style="color:var(--success);">' + totalReceived.toLocaleString() + '</div><div class="qv-lbl">Units Received</div></div>' +
                 '<div class="qv-stat"><div class="qv-num" style="color:var(--warning);">' + totalIssued.toLocaleString() + '</div><div class="qv-lbl">Units Issued</div></div>' +
                 '<div class="qv-stat"><div class="qv-num">' + txs.length + '</div><div class="qv-lbl">Transactions</div></div>' +
                 '<div class="qv-stat"><div class="qv-num" style="color:var(--danger);">' + (lowStockCount + outOfStockCount) + '</div><div class="qv-lbl">Low / Out of Stock</div></div>';
 
             // Render stock table
-            document.getElementById('qvStockTitle').textContent = 'Stock Items' + (catFilter ? ' \u2014 ' + catFilter : '') + ' (' + items.length + ')';
+            document.getElementById('qvStockTitle').textContent = 'Stock Items (current position)' + (catFilter ? ' \u2014 ' + catFilter : '') + ' (' + items.length + ')';
             var stockTbody = document.getElementById('qvStockTable');
             if (items.length === 0) {
                 stockTbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-secondary);">No items match the current filter</td></tr>';
@@ -4223,6 +4483,9 @@
                     <td><button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="showPage('receive')">Receive</button></td>
                 </tr>`).join('');
             }
+
+            // Pending deliveries handoff badge
+            updatePendingDeliveriesBadge();
         }
 
         // ============================================

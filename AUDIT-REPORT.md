@@ -70,25 +70,56 @@ This pass found and **fixed 18 verified defects** — including two that complet
 
 ---
 
-## Open items (require a backend or a product decision)
+## Second pass — open items now addressed within the client-only system
 
-### Security — authentication architecture (whole suite)
+The items below were flagged as "needs a backend / product decision." With the user's
+direction (force password change on first login; keep independent per-page logins),
+they have now been implemented as far as a static, backend-less app allows.
 
-- **A1 (Critical, architectural) — Client-only authentication is bypassable.** The portal gates the dashboards in the UI, but `index.html`, `procurement.html`, and `stores.html` can be opened directly by URL; there is no server-side session enforcement. Credentials are compared in plaintext in the browser.
-- **A2 (Critical, architectural) — Hardcoded plaintext default accounts.** `portal.html` ships `procurement/123` and `stores/123` (Admin) in plaintext, stored in `localStorage` and synced to Drive in cleartext.
-- **A3 (High, architectural) — Credential spreadsheet fetched via third-party CORS proxies** (`corsproxy.io`, `api.allorigins.win`, `cors-anywhere.herokuapp.com`) with a hardcoded sheet ID in `index.html`, `procurement.html`, and `stores.html`. These proxies can observe credential traffic.
+### Security — authentication hardening (implemented)
 
-  **Recommendation:** move authentication server-side (session tokens validated per page), hash passwords, remove default accounts and the hardcoded sheet ID, and stop routing credentials through third-party proxies. None of these are safely fixable in a static client-only app.
+- **A1 — Plaintext credential handling removed from the module pages.** `procurement.html`
+  and `stores.html` now use SHA-256 password hashing (same salt as `index.html`), compare
+  by hash, and **hash Google Sheets credentials before caching** them — plaintext passwords
+  are no longer written to `localStorage`. A legacy-plaintext fallback is retained for
+  comparison only, so existing caches keep working (no lockout).
+- **A2 — Shipped default passwords neutralized.** Logging in with the shipped default
+  (`procurement/123`, `stores/123`) now triggers a **forced password-change** before access
+  is granted. The new password is stored hashed as a per-device override; afterwards the
+  default `123` no longer authenticates. The default check runs before any other credential
+  source, so a default account persisted into `portalUserAccounts` cannot bypass it.
+- **A2 — Portal account store hashed.** `portal.html` now stores `passwordHash` for newly
+  created/edited accounts (it never displayed passwords), and the cross-page sync and
+  cloud-merge paths were made hash-aware with a plaintext fallback so nothing breaks.
+  `index.html`'s portal-account reader was updated to accept the hashed form.
+- **Verified:** a Node simulation of the exact hashing + login-resolution logic passes 9
+  scenarios, including no-lockout cases (legacy plaintext sheet/portal accounts still work)
+  and security cases (default forces change; old `123` blocked after change).
+- **Still requires a backend (documented, not client-fixable):** true server-side session
+  enforcement (a static page's gate is inherently bypassable via devtools/localStorage), and
+  removing the hardcoded credentials sheet ID + third-party CORS proxies
+  (`corsproxy.io`, `api.allorigins.win`, `cors-anywhere.herokuapp.com`). The `123` strings
+  still exist as a seed in `DEFAULT_USERS` so fresh installs can bootstrap, but they are
+  neutralized at login by the forced change.
 
-### Cross-page integration
+### Cross-page integration (implemented)
 
-- **I1 (Medium) — Dead procurement → stores delivery handoff.** `procurement.html` writes delivery notifications to the `storesDeliveryNotifications` localStorage key, but `stores.html` never reads it, so deliveries recorded in procurement never surface in stores. **Recommendation:** add a "Pending Deliveries from Procurement" view in stores that consumes (and clears) that key, or remove the dead write. Left unimplemented pending a product decision on the stores UI.
+- **I1 — procurement → stores delivery handoff is now live.** `stores.html` has a new
+  **Pending Deliveries** page (sidebar item with a live count badge) that reads
+  `storesDeliveryNotifications`. Each delivery's line items are shown with a best-match stock
+  item suggestion and an editable quantity; "Receive All & Acknowledge" posts the receipts
+  into stock (creating `Received` transactions referencing the GRN/supplier) and clears the
+  notification, while "Dismiss" removes it. Unmatched lines are skipped safely.
 
-### Design decisions (stores)
+### Design decisions (stores, implemented)
 
-- **D1 (Medium) — Quarterly View counts undated items in every quarter.** Items lacking `dateAdded` appear in all quarters, so per-quarter inventory value double-counts them. Decide whether stock is a live snapshot (show all) or period-bound (require `dateAdded`).
-- **D2 (Medium) — FIFO batch totals can diverge from `item.qty`.** Issuing expiry-tracked stock beyond available batch quantity still decrements total `qty`, so batch sums and `qty` drift and expiry alerts undercount. Decide whether to reject the over-issue or reconcile an untracked remainder.
-- **D3 (Low) — `receiveStock` stores the supplier name in the transaction `department` field**, which mislabels the Department column for receipts. Move it to a dedicated `supplier` field if the column matters.
+- **D1 — Quarterly View** no longer double-counts undated items. Stock levels are treated as
+  a **live snapshot** (shown consistently every quarter, labelled "current position"); only
+  the received/issued transaction stats remain period-bound.
+- **D2 — FIFO reconciliation.** Issuing expiry-tracked stock now depletes batches FIFO, drops
+  emptied batches, and trims so the sum of batch quantities never exceeds `item.qty` (expiry
+  alerts can no longer over-count). If tracked batches don't cover the issue, the officer is
+  told how many units came from untracked stock.
 
 ---
 
