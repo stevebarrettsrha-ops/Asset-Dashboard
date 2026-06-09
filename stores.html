@@ -1227,8 +1227,8 @@
                 <!-- Stock Adjustment -->
                 <div class="page" id="page-stockAdjustment">
                     <div class="page-header">
-                        <h1>Stock Adjustment</h1>
-                        <p>Quick stock level adjustments with reason tracking</p>
+                        <h1>Stock Adjustment & Write-Off</h1>
+                        <p>Adjust stock levels with reason tracking. Reductions for Damage, Theft, Expiry, Spillage or Obsolete stock are recorded as value-tracked write-offs and appear in the Write-Off / Shrinkage report.</p>
                     </div>
                     <div class="card">
                         <form onsubmit="submitStockAdjustment(event)">
@@ -1251,6 +1251,7 @@
                                         <option>Theft</option>
                                         <option>Expiry</option>
                                         <option>Spillage</option>
+                                        <option>Obsolete</option>
                                         <option>Counting Error</option>
                                         <option>Other</option>
                                     </select>
@@ -1518,6 +1519,11 @@
                             <div style="font-size:40px;margin-bottom:10px;">&#x1f4cb;</div>
                             <h3 style="font-size:16px;">Stock Count Report</h3>
                             <p style="color:var(--text-secondary);font-size:13px;">Physical count history & variances</p>
+                        </div>
+                        <div class="card" style="cursor:pointer;text-align:center;" onclick="printStoresReport('writeoff')">
+                            <div style="font-size:40px;margin-bottom:10px;">&#x1f5d1;&#xfe0f;</div>
+                            <h3 style="font-size:16px;">Write-Off / Shrinkage</h3>
+                            <p style="color:var(--text-secondary);font-size:13px;">Stock losses by reason & value</p>
                         </div>
                     </div>
                     <div class="card no-print" style="margin-bottom:20px;">
@@ -1808,6 +1814,7 @@
                 if (!data.auditLog) data.auditLog = [];
                 if (!data.requisitions) data.requisitions = [];
                 if (!data.countHistory) data.countHistory = [];
+                if (!data.writeOffs) data.writeOffs = [];
                 if (!data.categories) data.categories = ['Medical Supplies','Cleaning Supplies','Office Supplies','Kitchen/Dietary','Linen & Bedding','Maintenance Supplies','Personal Protective Equipment','Stationery','IT Supplies','General'];
                 data.items.forEach(item => {
                     if (!item.batches) item.batches = [];
@@ -1839,6 +1846,7 @@
                 auditLog: [],
                 requisitions: [],
                 countHistory: [],
+                writeOffs: [],
                 itemCounter: 11,
                 categories: ['Medical Supplies','Cleaning Supplies','Office Supplies','Kitchen/Dietary','Linen & Bedding','Maintenance Supplies','Personal Protective Equipment','Stationery','IT Supplies','General']
             };
@@ -2833,11 +2841,57 @@
                 timestamp: new Date().toISOString()
             });
 
+            // Write-off lifecycle: a negative adjustment with a loss reason is a
+            // value-tracked stock loss (shrinkage), recorded for the write-off report.
+            let writeOffMsg = '';
+            const LOSS_REASONS = ['Damage', 'Theft', 'Expiry', 'Spillage', 'Obsolete'];
+            if (adjQty < 0 && LOSS_REASONS.includes(reason)) {
+                const writtenQty = Math.abs(adjQty);
+                const unitCost = parseFloat(item.unitCost) || 0;
+                const value = writtenQty * unitCost;
+                if (!appData.writeOffs) appData.writeOffs = [];
+                appData.writeOffs.push({
+                    date: new Date().toISOString().split('T')[0],
+                    itemCode: code,
+                    description: item.description,
+                    category: item.category,
+                    qty: writtenQty,
+                    reason: reason,
+                    unitCost: unitCost,
+                    value: value,
+                    by: currentUser ? currentUser.displayName : 'Stores Officer',
+                    notes: sanitize(notes),
+                    timestamp: new Date().toISOString()
+                });
+                reconcileBatches(item);
+                logActivity('Write-Off', writtenQty + ' x ' + item.description + ' (' + reason + ') value $' + value.toLocaleString());
+                writeOffMsg = '\nRecorded as a write-off: ' + writtenQty + ' unit(s), value $' + value.toLocaleString() + '.';
+            }
+
             saveData(appData);
             logActivity('Stock Adjustment', (adjQty > 0 ? '+' : '') + adjQty + ' x ' + item.description + ' - Reason: ' + reason);
             e.target.reset();
-            alert('Stock adjusted! ' + item.description + ': ' + (adjQty > 0 ? '+' : '') + adjQty + ' units (' + reason + ')');
+            alert('Stock adjusted! ' + item.description + ': ' + (adjQty > 0 ? '+' : '') + adjQty + ' units (' + reason + ')' + writeOffMsg);
             refreshAll();
+        }
+
+        // Keep expiry-tracked batch quantities consistent with item.qty after a
+        // reduction (drop emptied batches; never let batch totals exceed on-hand qty).
+        function reconcileBatches(item) {
+            if (!item.batches || item.batches.length === 0) return;
+            item.batches = item.batches.filter(b => (b.remainingQty || 0) > 0);
+            let sum = item.batches.reduce((s, b) => s + (b.remainingQty || 0), 0);
+            if (sum > item.qty) {
+                let excess = sum - item.qty;
+                const newestFirst = item.batches.slice().sort((a, b) => new Date(b.expiryDate) - new Date(a.expiryDate));
+                for (const b of newestFirst) {
+                    if (excess <= 0) break;
+                    const trim = Math.min(excess, b.remainingQty);
+                    b.remainingQty -= trim;
+                    excess -= trim;
+                }
+                item.batches = item.batches.filter(b => (b.remainingQty || 0) > 0);
+            }
         }
 
         // ============================================
@@ -2978,6 +3032,34 @@
                     <tbody>${rows}</tbody>
                     <tfoot><tr><td colspan="2" style="text-align:right;font-weight:700;padding:12px 15px;">Grand Total:</td><td style="font-weight:700;padding:12px 15px;">$${totalVal.toLocaleString()}</td></tr></tfoot>
                     </table></div>`;
+            } else if (type === 'writeoff') {
+                title.textContent = 'Write-Off / Shrinkage Report';
+                const writeOffs = appData.writeOffs || [];
+                const byReason = {};
+                let totalQty = 0, totalValue = 0;
+                writeOffs.forEach(w => {
+                    if (!byReason[w.reason]) byReason[w.reason] = { count: 0, qty: 0, value: 0 };
+                    byReason[w.reason].count++;
+                    byReason[w.reason].qty += w.qty;
+                    byReason[w.reason].value += w.value;
+                    totalQty += w.qty;
+                    totalValue += w.value;
+                });
+                let reasonRows = Object.entries(byReason).map(([r, d]) =>
+                    `<tr><td>${sanitize(r)}</td><td>${d.count}</td><td>${d.qty}</td><td>$${d.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>`
+                ).join('');
+                if (!reasonRows) reasonRows = '<tr><td colspan="4" style="text-align:center;padding:20px;">No write-offs recorded</td></tr>';
+                let detailRows = writeOffs.slice().reverse().map(w =>
+                    `<tr><td>${w.date}</td><td>${sanitize(w.itemCode)}</td><td>${sanitize(w.description)}</td><td>${w.qty}</td><td>${sanitize(w.reason)}</td><td>$${w.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td><td>${sanitize(w.by || '')}</td></tr>`
+                ).join('');
+                if (!detailRows) detailRows = '<tr><td colspan="7" style="text-align:center;padding:20px;">No write-offs recorded</td></tr>';
+                content.innerHTML = `<p style="margin-bottom:15px;color:var(--text-secondary);">Generated: ${new Date().toLocaleDateString()} &nbsp;|&nbsp; Total shrinkage value: <strong>$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong> (${totalQty} units)</p>
+                    <h3 style="margin:10px 0;">By Reason</h3>
+                    <div class="table-container"><table><thead><tr><th>Reason</th><th>Events</th><th>Qty</th><th>Value (JMD)</th></tr></thead>
+                    <tbody>${reasonRows}</tbody>
+                    <tfoot><tr><td style="text-align:right;font-weight:700;padding:10px 15px;">Total:</td><td style="font-weight:700;">${byReason ? Object.values(byReason).reduce((s, d) => s + d.count, 0) : 0}</td><td style="font-weight:700;">${totalQty}</td><td style="font-weight:700;">$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr></tfoot></table></div>
+                    <h3 style="margin:18px 0 10px;">Detail</h3>
+                    <div class="table-container"><table><thead><tr><th>Date</th><th>Code</th><th>Description</th><th>Qty</th><th>Reason</th><th>Value</th><th>By</th></tr></thead><tbody>${detailRows}</tbody></table></div>`;
             } else if (type === 'movement') {
                 title.textContent = 'Stock Movement Report';
                 const received = appData.transactions.filter(t => t.type === 'Received').reduce((s, t) => s + t.qty, 0);
@@ -3217,6 +3299,22 @@
                 if (!rows) rows = '<tr><td colspan="6" style="text-align:center;padding:15px;">No stock counts performed</td></tr>';
                 const tableHtml = '<table><thead><tr><th>#</th><th>Date</th><th>Performed By</th><th>Items Counted</th><th>Adjustments</th><th>Net Variance</th></tr></thead><tbody>' + rows + '</tbody></table>';
                 openStoresPrintWindow('Physical Stock Count Report', summaryHtml + tableHtml);
+            } else if (type === 'writeoff') {
+                const writeOffs = appData.writeOffs || [];
+                const byReason = {};
+                let totalQty = 0, totalValue = 0;
+                writeOffs.forEach(function (w) {
+                    if (!byReason[w.reason]) byReason[w.reason] = { count: 0, qty: 0, value: 0 };
+                    byReason[w.reason].count++; byReason[w.reason].qty += w.qty; byReason[w.reason].value += w.value;
+                    totalQty += w.qty; totalValue += w.value;
+                });
+                const summaryHtml = '<div class="summary"><div class="summary-item"><div class="label">Write-Off Events</div><div class="value">' + writeOffs.length + '</div></div><div class="summary-item"><div class="label">Units</div><div class="value">' + totalQty.toLocaleString() + '</div></div><div class="summary-item"><div class="label">Total Shrinkage Value</div><div class="value">$' + totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 }) + '</div></div></div>';
+                let rRows = Object.entries(byReason).map(function (e) {
+                    return '<tr><td>' + e[0] + '</td><td>' + e[1].count + '</td><td>' + e[1].qty + '</td><td style="text-align:right;">$' + e[1].value.toLocaleString(undefined, { maximumFractionDigits: 2 }) + '</td><td>' + (totalValue > 0 ? ((e[1].value / totalValue) * 100).toFixed(1) : 0) + '%</td></tr>';
+                }).join('');
+                if (!rRows) rRows = '<tr><td colspan="5" style="text-align:center;padding:15px;">No write-offs recorded</td></tr>';
+                const tableHtml = '<h3>By Reason</h3><table><thead><tr><th>Reason</th><th>Events</th><th>Qty</th><th>Value (JMD)</th><th>% of Total</th></tr></thead><tbody>' + rRows + '</tbody></table>';
+                openStoresPrintWindow('Write-Off / Shrinkage Report', summaryHtml + tableHtml);
             }
         }
 
