@@ -514,6 +514,10 @@
         tr:hover { background: var(--bg-secondary); }
 
         /* Status Badges */
+        .nav-badge { display: inline-block; background: #e74c3c; color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
+        .match-ok { color: #196f3d; font-weight: 700; }
+        .match-bad { color: #922b21; font-weight: 700; }
+        .match-wait { color: #935116; font-weight: 700; }
         .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -761,6 +765,9 @@
                     </a>
                     <a class="sidebar-item" data-page="invoices" onclick="showPage('invoices')">
                         <span class="icon">💳</span> Invoice & Payment
+                    </a>
+                    <a class="sidebar-item" data-page="matching" onclick="showPage('matching')">
+                        <span class="icon">🔗</span> 3-Way Match <span id="matchBadge" class="nav-badge" style="display:none;"></span>
                     </a>
                 </div>
                 <div class="sidebar-section">
@@ -1372,6 +1379,31 @@
                     </div>
                 </div>
 
+                <!-- 3-Way Match Page -->
+                <div class="page" id="page-matching">
+                    <div class="page-header">
+                        <h1>3-Way Match</h1>
+                        <p>Match Purchase Order &harr; Goods Receipt (GRN) &harr; Invoice before payment</p>
+                    </div>
+                    <div class="card">
+                        <div id="matchSummary" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;"></div>
+                        <p style="color:var(--text-secondary);font-size:13px;margin:0;">Payment is blocked on the Invoice page when a PO has unresolved match exceptions, unless an authorized override is recorded.</p>
+                    </div>
+                    <div class="card">
+                        <h2>Match Status by Purchase Order</h2>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>PO #</th><th>Supplier</th><th>PO Total</th><th>PO</th><th>GRN</th><th>Invoice</th><th>Amount</th><th>Status</th><th>Exceptions</th></tr>
+                                </thead>
+                                <tbody id="matchTable">
+                                    <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-secondary);">No purchase orders in the matching pipeline yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Audit Log Page -->
                 <div class="page" id="page-auditLog">
                     <div class="page-header">
@@ -1882,6 +1914,7 @@
             if (pageId === 'approvals') renderApprovals();
             if (pageId === 'delivery') populateDeliveryPOs();
             if (pageId === 'invoices') populateInvoicePOs();
+            if (pageId === 'matching') renderMatching();
             if (pageId === 'auditLog') renderAuditLog();
 
             closeSidebarMobile();
@@ -2638,6 +2671,12 @@
                     </tr>
                 `).join('');
             }
+
+            // 3-way match exception badge + live table if open
+            updateMatchBadge();
+            if (document.getElementById('page-matching') && document.getElementById('page-matching').classList.contains('active')) {
+                renderMatching();
+            }
         }
 
         // ============================================
@@ -2933,12 +2972,134 @@
             refreshAll();
         }
 
+        // ============================================
+        // 3-WAY MATCH (PO <-> GRN <-> Invoice)
+        // ============================================
+        const MATCH_TOLERANCE_PCT = 2; // acceptable variance between PO and invoice totals
+
+        function getMatchResult(po) {
+            const deliveries = (appData.deliveries || []).filter(d => d.poId === po.id);
+            const invoices = (appData.invoices || []).filter(inv => inv.poId === po.id);
+            const checks = {};
+            const exceptions = [];
+
+            // Check 1 — goods received (a GRN exists)
+            checks.received = deliveries.length > 0;
+            if (!checks.received) exceptions.push('No goods receipt (GRN) recorded for this PO.');
+
+            // Condition — flag partial/damaged receipts
+            const flagged = deliveries.filter(d => /partial|damag|reject|short/i.test(d.condition || ''));
+            checks.condition = checks.received && flagged.length === 0;
+            if (flagged.length > 0) exceptions.push('Delivery condition flagged: ' + flagged.map(d => (d.condition || '').split(' - ')[0]).join(', ') + '.');
+
+            // Check 2 — invoice present
+            checks.invoiced = invoices.length > 0;
+            if (!checks.invoiced) exceptions.push('No supplier invoice recorded for this PO.');
+
+            // Check 3 — amount match (sum of invoices vs PO grand total, within tolerance)
+            const poTotal = po.grandTotal || (po.totalValue + (po.gctAmount || 0));
+            const invoiceTotal = invoices.reduce((s, inv) => s + (inv.totalAmount || 0), 0);
+            if (checks.invoiced) {
+                const diff = invoiceTotal - poTotal;
+                const tol = Math.abs(poTotal) * (MATCH_TOLERANCE_PCT / 100);
+                checks.amount = Math.abs(diff) <= tol;
+                if (!checks.amount) {
+                    exceptions.push('Invoice total $' + invoiceTotal.toLocaleString() + ' differs from PO total $' + poTotal.toLocaleString() +
+                        ' by $' + Math.abs(diff).toLocaleString() + ' (' + (diff > 0 ? 'over' : 'under') + ', tolerance ' + MATCH_TOLERANCE_PCT + '%).');
+                }
+            } else {
+                checks.amount = false;
+            }
+
+            const matched = checks.received && checks.condition && checks.invoiced && checks.amount;
+            // A genuine conflict (vs simply awaiting a document): an invoice with no
+            // goods receipt, a flagged delivery condition, or an amount mismatch.
+            const hasConflict =
+                (checks.invoiced && !checks.received) ||
+                (checks.received && !checks.condition) ||
+                (checks.invoiced && !checks.amount);
+            const status = matched ? 'Matched' : (hasConflict ? 'Exceptions' : 'Awaiting');
+            return { po, deliveries, invoices, checks, exceptions, matched, status, hasConflict, poTotal, invoiceTotal };
+        }
+
+        // POs that have entered the matching pipeline (have a GRN and/or an invoice).
+        function getMatchingPipeline() {
+            return appData.purchaseOrders.filter(po =>
+                (appData.deliveries || []).some(d => d.poId === po.id) ||
+                (appData.invoices || []).some(inv => inv.poId === po.id)
+            );
+        }
+
+        function updateMatchBadge() {
+            const badge = document.getElementById('matchBadge');
+            if (!badge) return;
+            const exceptions = getMatchingPipeline().filter(po => getMatchResult(po).status === 'Exceptions').length;
+            if (exceptions > 0) { badge.textContent = exceptions; badge.style.display = 'inline-block'; }
+            else { badge.style.display = 'none'; }
+        }
+
+        function renderMatching() {
+            const tbody = document.getElementById('matchTable');
+            const summary = document.getElementById('matchSummary');
+            if (!tbody) return;
+            const pipeline = getMatchingPipeline();
+            const results = pipeline.map(getMatchResult);
+
+            if (summary) {
+                const matched = results.filter(r => r.matched).length;
+                const exceptions = results.filter(r => r.status === 'Exceptions').length;
+                const awaiting = results.filter(r => r.status === 'Awaiting').length;
+                const card = (n, label, color) => '<div class="qv-stat" style="background:var(--bg-secondary,#f8f9fa);border-radius:8px;padding:12px 18px;min-width:120px;"><div style="font-size:24px;font-weight:700;color:' + color + ';">' + n + '</div><div style="font-size:12px;color:var(--text-secondary);">' + label + '</div></div>';
+                summary.innerHTML = card(matched, 'Matched', '#196f3d') + card(exceptions, 'Exceptions', '#922b21') + card(awaiting, 'Awaiting docs', '#935116');
+            }
+
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-secondary);">No purchase orders in the matching pipeline yet</td></tr>';
+                updateMatchBadge();
+                return;
+            }
+
+            const tick = (ok, waitText) => ok ? '<span class="match-ok">&#10004;</span>' : (waitText ? '<span class="match-wait">&#8230;</span>' : '<span class="match-bad">&#10008;</span>');
+            tbody.innerHTML = results.map(r => {
+                const statusClass = r.matched ? 'match-ok' : (r.status === 'Exceptions' ? 'match-bad' : 'match-wait');
+                return '<tr>' +
+                    '<td><strong>' + sanitize(r.po.id) + '</strong></td>' +
+                    '<td>' + sanitize(r.po.supplier ? r.po.supplier.name : '') + '</td>' +
+                    '<td>$' + r.poTotal.toLocaleString() + '</td>' +
+                    '<td>' + tick(true) + '</td>' +
+                    '<td>' + tick(r.checks.received && r.checks.condition, !r.checks.received) + '</td>' +
+                    '<td>' + tick(r.checks.invoiced, !r.checks.invoiced) + '</td>' +
+                    '<td>' + (r.checks.invoiced ? tick(r.checks.amount) : tick(false, true)) + '</td>' +
+                    '<td><span class="' + statusClass + '">' + r.status + '</span></td>' +
+                    '<td style="font-size:12px;color:var(--text-secondary);">' + (r.exceptions.length ? sanitize(r.exceptions.join(' ')) : '—') + '</td>' +
+                    '</tr>';
+            }).join('');
+            updateMatchBadge();
+        }
+
         function markInvoicePaid(invId) {
             const inv = appData.invoices.find(i => i.id === invId);
             if (!inv) return;
+
+            // 3-way match gate: block payment on unresolved exceptions unless overridden.
+            const po = appData.purchaseOrders.find(p => p.id === inv.poId);
+            if (po) {
+                const m = getMatchResult(po);
+                if (!m.matched) {
+                    const proceed = confirm('3-WAY MATCH EXCEPTION — ' + po.id + '\n\n' + m.exceptions.join('\n') +
+                        '\n\nPayment should not proceed until these are resolved. Authorize an override and record it?');
+                    if (!proceed) return;
+                    inv.matchOverride = true;
+                    inv.matchOverrideBy = currentUser ? currentUser.displayName : 'Unknown';
+                    inv.matchOverrideExceptions = m.exceptions;
+                    logActivity('Match Override', 'Payment authorized despite 3-way match exceptions for ' + po.id + ': ' + m.exceptions.join('; '));
+                } else {
+                    inv.matched = true;
+                }
+            }
+
             inv.status = 'Paid';
             inv.paidDate = new Date().toISOString().split('T')[0];
-            const po = appData.purchaseOrders.find(p => p.id === inv.poId);
             if (po) po.status = 'Closed';
             addActivity('Payment processed for invoice ' + inv.invoiceNumber, 'Paid');
             logActivity('Process Payment', 'Paid invoice ' + inv.invoiceNumber + ': $' + inv.totalAmount.toLocaleString());
