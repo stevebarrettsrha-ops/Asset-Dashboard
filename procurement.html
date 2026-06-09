@@ -1543,14 +1543,40 @@
         function loadData() {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
-                const data = JSON.parse(raw);
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch (e) {
+                    console.error('Corrupt procurement data, resetting to defaults:', e);
+                    return defaultData();
+                }
+                if (!data || typeof data !== 'object') return defaultData();
+                if (!Array.isArray(data.requisitions)) data.requisitions = [];
+                if (!Array.isArray(data.suppliers)) data.suppliers = [];
+                if (!Array.isArray(data.purchaseOrders)) data.purchaseOrders = [];
                 if (!data.auditLog) data.auditLog = [];
                 if (!data.quotations) data.quotations = [];
                 if (!data.evaluations) data.evaluations = [];
                 if (!data.deliveries) data.deliveries = [];
                 if (!data.invoices) data.invoices = [];
+                if (!data.activity) data.activity = [];
+                if (typeof data.poCounter !== 'number') data.poCounter = 1000;
+                if (typeof data.reqCounter !== 'number') data.reqCounter = 100;
+                if (typeof data.supCounter !== 'number') {
+                    // Seed from the highest existing numeric SUP id so we never collide.
+                    let maxSup = 0;
+                    data.suppliers.forEach(s => {
+                        const m = /SUP-(\d+)/.exec(s.id || '');
+                        if (m) maxSup = Math.max(maxSup, parseInt(m[1], 10));
+                    });
+                    data.supCounter = maxSup;
+                }
                 return data;
             }
+            return defaultData();
+        }
+
+        function defaultData() {
             return {
                 requisitions: [],
                 suppliers: [
@@ -1566,7 +1592,8 @@
                 activity: [],
                 auditLog: [],
                 poCounter: 1000,
-                reqCounter: 100
+                reqCounter: 100,
+                supCounter: 3
             };
         }
 
@@ -1935,8 +1962,10 @@
                 alert('Invalid TRN format. Please use format: 000-000-000');
                 return;
             }
+            if (typeof appData.supCounter !== 'number') appData.supCounter = appData.suppliers.length;
+            appData.supCounter++;
             const sup = {
-                id: 'SUP-' + String(appData.suppliers.length + 1).padStart(3, '0'),
+                id: 'SUP-' + String(appData.supCounter).padStart(3, '0'),
                 name: sanitize(document.getElementById('supName').value),
                 trn: sanitize(trn),
                 contact: sanitize(document.getElementById('supContact').value),
@@ -2009,10 +2038,10 @@
         // PURCHASE ORDER GENERATION
         // ============================================
         function showGeneratePOModal() {
-            // Populate approved requisitions
+            // Populate approved requisitions only (POs must not bypass the approval step)
             const select = document.getElementById('poReqSelect');
             select.innerHTML = '<option value="">-- Select Requisition --</option>';
-            appData.requisitions.filter(r => r.status === 'Approved' || r.status === 'Submitted').forEach(r => {
+            appData.requisitions.filter(r => r.status === 'Approved' || r.status === 'Evaluated').forEach(r => {
                 select.innerHTML += `<option value="${r.id}">${r.id} - ${r.department} ($${r.totalValue.toLocaleString()})</option>`;
             });
 
@@ -2232,6 +2261,10 @@
 
         function openPrintWindow(title, bodyContent) {
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                alert('Unable to open the print window. Please allow popups for this site and try again.');
+                return;
+            }
             printWindow.document.write('<!DOCTYPE html><html><head><title>' + title + '</title><style>' + getPrintStyles() + '</style></head><body>' +
                 getPrintHeader(title) + bodyContent + getPrintFooter() +
                 '<script>window.onload = function() { window.print(); };<\/script></body></html>');

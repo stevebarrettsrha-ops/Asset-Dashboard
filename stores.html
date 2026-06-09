@@ -744,7 +744,7 @@
                                     <tr><th>Item Code</th><th>Description</th><th>Current Qty</th><th>Reorder Level</th><th>Date Added</th><th>Status</th><th>Stock Level</th></tr>
                                 </thead>
                                 <tbody id="lowStockTable">
-                                    <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-secondary);">All items adequately stocked</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-secondary);">All items adequately stocked</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1685,8 +1685,17 @@
         function loadData() {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
-                const data = JSON.parse(raw);
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch (e) {
+                    console.error('Corrupt stores data, resetting to defaults:', e);
+                    return defaultStoresData();
+                }
+                if (!data || typeof data !== 'object') return defaultStoresData();
                 // Backwards compatibility
+                if (!Array.isArray(data.items)) data.items = [];
+                if (!Array.isArray(data.transactions)) data.transactions = [];
                 if (!data.auditLog) data.auditLog = [];
                 if (!data.requisitions) data.requisitions = [];
                 if (!data.countHistory) data.countHistory = [];
@@ -1699,6 +1708,10 @@
                 });
                 return data;
             }
+            return defaultStoresData();
+        }
+
+        function defaultStoresData() {
             return {
                 items: [
                     { code: 'MED-001', description: 'Disposable Gloves (Latex)', category: 'Medical Supplies', unit: 'Box', qty: 250, reorderLevel: 100, maxLevel: 500, unitCost: 850, supplier: 'Jamaica Medical Supplies Ltd', location: 'Shelf A-1', notes: '', trackExpiry: false, shelfLife: 0, batches: [], dateAdded: '2025-04-15' },
@@ -2465,8 +2478,14 @@
 
             let adjustments = 0;
             let netVariance = 0;
-            counted.forEach((row, idx) => {
-                row.reason = document.getElementById('countReason-' + idx) ? document.getElementById('countReason-' + idx).value : '';
+            // Read reasons using each row's ORIGINAL index — the countReason-<idx>
+            // selects were created over the full stockCountData array, not the
+            // filtered "counted" subset, so the indices must match the full array.
+            stockCountData.forEach((row, idx) => {
+                const reasonEl = document.getElementById('countReason-' + idx);
+                row.reason = reasonEl ? reasonEl.value : '';
+            });
+            counted.forEach((row) => {
                 if (row.variance !== 0) {
                     const item = appData.items.find(i => i.code === row.code);
                     if (item) {
@@ -2725,7 +2744,7 @@
             } else if (type === 'reorder') {
                 title.textContent = 'Reorder Report';
                 const reorderItems = appData.items.filter(i => i.qty <= i.reorderLevel);
-                let rows = reorderItems.map(i => `<tr><td>${i.code}</td><td>${i.description}</td><td>${i.qty}</td><td>${i.reorderLevel}</td><td>${i.maxLevel - i.qty}</td><td>${i.supplier}</td></tr>`).join('');
+                let rows = reorderItems.map(i => `<tr><td>${i.code}</td><td>${i.description}</td><td>${i.qty}</td><td>${i.reorderLevel}</td><td>${Math.max(i.maxLevel - i.qty, i.reorderLevel * 2)}</td><td>${i.supplier}</td></tr>`).join('');
                 if (!rows) rows = '<tr><td colspan="6" style="text-align:center;padding:20px;">No items need reordering</td></tr>';
                 content.innerHTML = `<div class="table-container"><table><thead><tr><th>Code</th><th>Description</th><th>Current</th><th>Reorder Lvl</th><th>Suggested Qty</th><th>Supplier</th></tr></thead><tbody>${rows}</tbody></table></div>`;
             } else if (type === 'expiry') {
@@ -2814,6 +2833,10 @@
 
         function openStoresPrintWindow(title, bodyContent) {
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                alert('Unable to open the print window. Please allow popups for this site and try again.');
+                return;
+            }
             printWindow.document.write('<!DOCTYPE html><html><head><title>' + title + '</title><style>' + getStoresPrintStyles() + '</style></head><body>' +
                 getStoresPrintHeader(title) + bodyContent + getStoresPrintFooter() +
                 '<script>window.onload = function() { window.print(); };<\/script></body></html>');
@@ -4079,6 +4102,11 @@
 
                 appData.items.push(item);
                 existingCodes.add(code);
+                // Register any new category so it appears in filters/dropdowns and the
+                // Categories page (otherwise imported items reference phantom categories).
+                if (item.category && !appData.categories.includes(item.category)) {
+                    appData.categories.push(item.category);
+                }
                 imported++;
 
                 // Update progress
