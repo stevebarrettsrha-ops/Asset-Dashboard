@@ -6862,6 +6862,7 @@
                         <button class="btn save-btn" id="saveBtn" onclick="saveAllData()">💾 Save</button>
                         <button class="btn sync-btn" id="syncBtn" onclick="syncData()">🔄 Sync</button>
                         <button class="btn manage-assets-btn" onclick="openAssetModal()">➕ Manage Assets</button>
+                        <button class="btn" id="capitalizeBtn" onclick="openCapitalizationModal()" title="Capital items delivered in Procurement, awaiting capitalisation" style="display:none; background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);">🏗️ Capitalize <span id="capitalizeCount"></span></button>
                         <label style="display: flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 0.85em; color: rgba(255,255,255,0.9); cursor: pointer; white-space: nowrap;">
                             <input type="checkbox" class="exclude-disposed-toggle" onchange="toggleExcludeDisposed()" style="cursor: pointer;">
                             Exclude Disposed
@@ -10288,6 +10289,9 @@
 
                 // Initialize cloud sync
                 initializeCloudSync();
+
+                // Show the pending-capitalizations button if Procurement handed off items
+                try { updateCapitalizationButton(); } catch (e) { /* ignore */ }
 
                 // Show settings button
                 const settingsBtn = document.getElementById('settingsBtn');
@@ -15228,6 +15232,152 @@
             saveAssetsToStorage(assets);
             closeAssetModal();
             refreshAllViews();
+        }
+
+        // ============================================
+        // CAPITALIZATION INTAKE (handoff from Procurement)
+        // ============================================
+        function getAssetIntake() {
+            try {
+                const raw = localStorage.getItem('assetRegisterIntake');
+                const arr = raw ? JSON.parse(raw) : [];
+                return Array.isArray(arr) ? arr : [];
+            } catch (e) {
+                console.error('Corrupt assetRegisterIntake, resetting:', e);
+                return [];
+            }
+        }
+
+        function saveAssetIntake(list) {
+            localStorage.setItem('assetRegisterIntake', JSON.stringify(list));
+        }
+
+        function updateCapitalizationButton() {
+            const btn = document.getElementById('capitalizeBtn');
+            if (!btn) return;
+            const count = getAssetIntake().reduce((s, g) => s + ((g.items && g.items.length) || 0), 0);
+            const countEl = document.getElementById('capitalizeCount');
+            if (count > 0) {
+                btn.style.display = '';
+                if (countEl) countEl.textContent = '(' + count + ')';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function buildAssetFromIntakeLine(group, line) {
+            const dateIn = formatDateForDisplay(group.deliveryDate) || group.deliveryDate || '';
+            const unitPrice = parseFloat(line.unitPrice) || 0;
+            const qty = parseInt(line.qty) || 1;
+            const total = parseFloat(line.total) || (unitPrice * qty);
+            return {
+                id: generateAssetId(),
+                assetCode: 'CAP-' + (group.grn || group.poId || Date.now()),
+                dateIn: dateIn,
+                quantity: qty,
+                description: line.description || '',
+                supplier: group.supplierName || '',
+                department: '',
+                itemType: '',
+                category: '',
+                serialModel: '',
+                unitPrice: unitPrice,
+                totalPrice: total,
+                source: 'Procurement',
+                month: getMonthFromDate(dateIn) || '',
+                usefulLife: 0,
+                salvageValue: calcSalvageValue(total || unitPrice, ''),
+                depreciationMethod: 'straight',
+                comment: 'Capitalised from Procurement PO ' + (group.poId || '') + (group.grn ? ' / GRN ' + group.grn : ''),
+                priceConfirmed: true
+            };
+        }
+
+        function openCapitalizationModal() {
+            const existing = document.getElementById('capitalizationModal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'capitalizationModal';
+            modal.className = 'modal';
+            modal.style.cssText = 'display:flex; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:flex-start; justify-content:center; z-index:10000; overflow:auto; padding:30px 15px;';
+            modal.innerHTML = '<div style="background:var(--card-bg,#fff); color:var(--text-primary,#333); border-radius:12px; max-width:860px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,0.3);">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--border-color,#eee);">' +
+                '<h2 style="margin:0;">🏗️ Pending Capitalizations</h2>' +
+                '<button onclick="closeCapitalizationModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-secondary,#888);">&times;</button></div>' +
+                '<div style="padding:18px 22px;" id="capitalizationBody"></div></div>';
+            document.body.appendChild(modal);
+            renderCapitalizationModal();
+        }
+
+        function closeCapitalizationModal() {
+            const modal = document.getElementById('capitalizationModal');
+            if (modal) modal.remove();
+        }
+
+        function renderCapitalizationModal() {
+            const body = document.getElementById('capitalizationBody');
+            if (!body) return;
+            const intake = getAssetIntake();
+            if (intake.length === 0) {
+                body.innerHTML = '<p style="color:var(--text-secondary,#888); text-align:center; padding:20px;">No pending capitalizations. Capital-value items delivered in the Procurement system appear here for capitalisation.</p>';
+                return;
+            }
+            let html = '<p style="color:var(--text-secondary,#888); font-size:13px; margin-top:0;">These capital-value items were received in Procurement. "Capitalize" adds them to the asset register as draft entries (assign department, category and final asset codes afterwards).</p>';
+            intake.forEach((group, gi) => {
+                const lines = Array.isArray(group.items) ? group.items : [];
+                html += '<div style="border:1px solid var(--border-color,#e0e0e0); border-radius:8px; padding:14px; margin-bottom:14px;">';
+                html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">' +
+                    '<div><strong>' + escapeHtml(group.poId || 'Delivery') + '</strong>' +
+                    '<div style="font-size:13px; color:var(--text-secondary,#888); margin-top:3px;">Supplier: ' + escapeHtml(group.supplierName || 'N/A') + ' &nbsp;|&nbsp; GRN: ' + escapeHtml(group.grn || 'N/A') + ' &nbsp;|&nbsp; Delivered: ' + escapeHtml(group.deliveryDate || 'N/A') + '</div></div>' +
+                    '<div><button class="btn" style="background:linear-gradient(135deg,#16a085,#1abc9c);" onclick="capitalizeIntakeGroup(' + gi + ')">Capitalize All</button> ' +
+                    '<button class="btn" style="background:#c0392b;" onclick="dismissIntakeGroup(' + gi + ')">Dismiss</button></div></div>';
+                if (lines.length === 0) {
+                    html += '<p style="color:var(--text-secondary,#888);">No line items.</p>';
+                } else {
+                    html += '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="text-align:left; border-bottom:1px solid var(--border-color,#eee);"><th style="padding:6px;">Description</th><th style="padding:6px;">Qty</th><th style="padding:6px;">Unit Price</th><th style="padding:6px;">Total</th></tr></thead><tbody>';
+                    lines.forEach(line => {
+                        const up = parseFloat(line.unitPrice) || 0;
+                        const q = parseInt(line.qty) || 1;
+                        const tot = parseFloat(line.total) || up * q;
+                        html += '<tr style="border-bottom:1px solid var(--border-color,#f5f5f5);"><td style="padding:6px;">' + escapeHtml(line.description || '') + '</td><td style="padding:6px;">' + q + '</td><td style="padding:6px;">$' + up.toLocaleString() + '</td><td style="padding:6px;">$' + tot.toLocaleString() + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+                html += '</div>';
+            });
+            body.innerHTML = html;
+        }
+
+        function capitalizeIntakeGroup(gi) {
+            const intake = getAssetIntake();
+            const group = intake[gi];
+            if (!group) { renderCapitalizationModal(); return; }
+            const assets = loadAssetsFromStorage();
+            let created = 0;
+            (group.items || []).forEach(line => {
+                const a = buildAssetFromIntakeLine(group, line);
+                assets.push(a);
+                addAuditEntry(a.assetCode, 'Asset Created', a.department || '', 'Capitalised from Procurement delivery ' + (group.poId || ''));
+                created++;
+            });
+            saveAssetsToStorage(assets);
+            intake.splice(gi, 1);
+            saveAssetIntake(intake);
+            alert('✅ ' + created + ' asset(s) added to the register from ' + (group.poId || 'delivery') + '.\nAssign department, category and final asset codes as needed.');
+            renderCapitalizationModal();
+            updateCapitalizationButton();
+            refreshAllViews();
+        }
+
+        function dismissIntakeGroup(gi) {
+            const intake = getAssetIntake();
+            const group = intake[gi];
+            if (!group) { renderCapitalizationModal(); return; }
+            if (!confirm('Dismiss capitalisation for ' + (group.poId || 'this delivery') + ' without adding the items to the register?')) return;
+            intake.splice(gi, 1);
+            saveAssetIntake(intake);
+            renderCapitalizationModal();
+            updateCapitalizationButton();
         }
 
         function deleteCurrentAsset() {
@@ -27894,6 +28044,9 @@
             if (typeof selectedForMerge !== 'undefined') {
                 selectedForMerge = [];
             }
+
+            // Show/refresh the pending-capitalizations button (handoff from Procurement)
+            try { updateCapitalizationButton(); } catch (e) { /* defined later, ignore */ }
 
             // Refresh Dashboard (Asset Inventory table + KPIs + charts)
             if (typeof loadData === 'function') {

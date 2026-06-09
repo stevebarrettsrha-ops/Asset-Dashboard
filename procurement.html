@@ -1569,6 +1569,9 @@
         // ============================================
         const STORAGE_KEY = 'procurementData';
         const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
+        // Delivery lines at/above this unit price are capitalised into the Fixed Asset
+        // register; cheaper lines are treated as consumable stock and routed to Stores.
+        const CAPITALIZATION_THRESHOLD = 50000;
         let currentUser = null;
         let credentialsData = null;
 
@@ -2893,19 +2896,43 @@
             addActivity('Delivery received for ' + poId + ' (GRN: ' + delivery.grn + ')', 'Delivered');
             logActivity('Record Delivery', poId + ' delivered - GRN: ' + delivery.grn + ', Condition: ' + delivery.condition);
 
-            // Cross-system: notify stores
-            try {
-                const storesNotifications = JSON.parse(localStorage.getItem('storesDeliveryNotifications') || '[]');
-                storesNotifications.push({
-                    poId: poId,
-                    supplierName: po.supplier.name,
-                    items: po.items,
-                    deliveryDate: delivery.date,
-                    grn: delivery.grn,
-                    timestamp: new Date().toISOString()
-                });
-                localStorage.setItem('storesDeliveryNotifications', JSON.stringify(storesNotifications));
-            } catch (err) {}
+            // Cross-system routing: capital-value lines (unit price >= threshold) are
+            // capitalised into the Fixed Asset register; everything else is consumable
+            // stock routed to Stores. A PO can legitimately split across both.
+            const capitalItems = po.items.filter(it => (parseFloat(it.unitPrice) || 0) >= CAPITALIZATION_THRESHOLD);
+            const consumableItems = po.items.filter(it => (parseFloat(it.unitPrice) || 0) < CAPITALIZATION_THRESHOLD);
+
+            // Notify stores (consumables only)
+            if (consumableItems.length > 0) {
+                try {
+                    const storesNotifications = JSON.parse(localStorage.getItem('storesDeliveryNotifications') || '[]');
+                    storesNotifications.push({
+                        poId: poId,
+                        supplierName: po.supplier.name,
+                        items: consumableItems,
+                        deliveryDate: delivery.date,
+                        grn: delivery.grn,
+                        timestamp: new Date().toISOString()
+                    });
+                    localStorage.setItem('storesDeliveryNotifications', JSON.stringify(storesNotifications));
+                } catch (err) {}
+            }
+
+            // Hand capital items to the Fixed Asset register for capitalisation
+            if (capitalItems.length > 0) {
+                try {
+                    const assetIntake = JSON.parse(localStorage.getItem('assetRegisterIntake') || '[]');
+                    assetIntake.push({
+                        poId: poId,
+                        supplierName: po.supplier.name,
+                        items: capitalItems,
+                        deliveryDate: delivery.date,
+                        grn: delivery.grn,
+                        timestamp: new Date().toISOString()
+                    });
+                    localStorage.setItem('assetRegisterIntake', JSON.stringify(assetIntake));
+                } catch (err) {}
+            }
 
             saveData(appData);
             e.target.reset();
