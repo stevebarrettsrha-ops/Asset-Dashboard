@@ -14,6 +14,10 @@
     <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.1/dist/otpauth.umd.min.js"></script>
     <!-- Google Identity Services for OAuth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Inter web font (referenced throughout but previously never loaded) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -22,22 +26,23 @@
         }
 
         :root {
-            --primary-orange: #FF6B35;
-            --dark-orange: #E55934;
-            --primary-green: #2ECC71;
-            --dark-green: #27AE60;
-            --dark-gray: #2C3E50;
-            --light-gray: #ECF0F1;
-            --shadow: rgba(0, 0, 0, 0.1);
-            
+            /* Design System v2 — unified indigo accent (var names kept for compatibility) */
+            --primary-orange: #4F46E5;   /* now indigo: primary accent */
+            --dark-orange: #4338CA;      /* indigo (hover/dark) */
+            --primary-green: #16A34A;
+            --dark-green: #15803D;
+            --dark-gray: #0F172A;
+            --light-gray: #F1F5F9;
+            --shadow: rgba(15, 23, 42, 0.08);
+
             /* Light mode colors */
-            --bg-primary: #f5f7fa;
-            --bg-secondary: #e9ecef;
+            --bg-primary: #F1F5F9;
+            --bg-secondary: #E2E8F0;
             --bg-card: #ffffff;
-            --text-primary: #2C3E50;
-            --text-secondary: #7f8c8d;
-            --border-color: #e0e0e0;
-            --table-hover: #f8f9fa;
+            --text-primary: #0F172A;
+            --text-secondary: #64748B;
+            --border-color: #E2E8F0;
+            --table-hover: #F8FAFC;
 
             /* Modal styling variables */
             --space-2: 8px;
@@ -6051,6 +6056,66 @@
         .catalog-show-more:hover {
             background: var(--table-hover);
         }
+
+        /* ============================================================
+           DESIGN SYSTEM v2 — modern reskin (overrides, theme-aware)
+           Loaded last so it wins on equal specificity. Uses existing
+           CSS variables so dark mode continues to work unchanged.
+           ============================================================ */
+        body {
+            background: var(--bg-primary) !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Header: unified accent, flatter + softer */
+        .header {
+            border-radius: 16px !important;
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.18) !important;
+        }
+        .dashboard-title { letter-spacing: -0.02em; }
+
+        /* Cards & surfaces: 1px border + soft elevation instead of heavy shadow */
+        .kpi-card, .chart-card, .data-section, .month-card, .search-section,
+        .catalog-card, .feature-card, .tool-card, .import-card, .stat-card {
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+            border: 1px solid var(--border-color);
+        }
+        .kpi-card:hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10) !important;
+        }
+        .kpi-card.orange { border-left: 4px solid var(--primary-orange) !important; }
+        .kpi-card.green  { border-left: 4px solid var(--primary-green) !important; }
+
+        /* Tables: neutral sticky header, zebra rows, clear hover */
+        thead {
+            background: var(--bg-secondary) !important;
+        }
+        th {
+            color: var(--text-secondary) !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.4px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        tbody tr:nth-child(even) { background: var(--table-hover); }
+        tbody tr:hover { background: rgba(79, 70, 229, 0.07) !important; }
+        td { font-size: 0.9rem; }
+
+        /* Buttons: consistent radius + lift */
+        .btn { border-radius: 9px; }
+        .btn:hover { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12) !important; }
+
+        /* Pills/badges: slightly tighter, weight-600 */
+        .item-type-badge, .badge, .status-pill { font-weight: 600; letter-spacing: 0.1px; }
+
+        /* SVG nav icons (emoji replaced with inline line-icons) */
+        .sidebar-nav-icon svg { width: 19px; height: 19px; display: block; }
+        .sidebar-nav-icon svg * { stroke: currentColor; }
+
+        /* Inputs: indigo focus ring via variables (was orange) */
+        input:focus, select:focus, textarea:focus { outline: none; }
     </style>
 </head>
 <body>
@@ -6700,78 +6765,100 @@
             </div>
         </div>
 
+        <!-- Inline SVG icon sprite (replaces emoji nav icons) -->
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+            <defs>
+                <g id="i-base"></g>
+            </defs>
+            <symbol id="i-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+            <symbol id="i-monthly" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V3"/><path d="M3 21h18"/><rect x="6" y="11" width="3" height="7" rx="0.6"/><rect x="11" y="7" width="3" height="11" rx="0.6"/><rect x="16" y="13" width="3" height="5" rx="0.6"/></symbol>
+            <symbol id="i-tools" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h3M11 6h9M4 12h9M17 12h3M4 18h7M15 18h5"/><circle cx="9" cy="6" r="2.2"/><circle cx="15" cy="12" r="2.2"/><circle cx="13" cy="18" r="2.2"/></symbol>
+            <symbol id="i-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></symbol>
+            <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1A3.5 3.5 0 0 1 18 18z"/></symbol>
+            <symbol id="i-survey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 13l2 2 4-4"/></symbol>
+            <symbol id="i-register" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></symbol>
+            <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></symbol>
+            <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+            <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+            <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></symbol>
+            <symbol id="i-catalog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/><path d="M11 4v12"/></symbol>
+            <symbol id="i-parser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5l12 9M8 16.5L20 7.5"/></symbol>
+            <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M8 14l4-4 4 4"/><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/></symbol>
+            <symbol id="i-report" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M8 14h3M8 17h6"/></symbol>
+        </svg>
+
         <div class="sidebar-nav">
             <div class="sidebar-section-label">Main</div>
             <button class="sidebar-nav-item active" data-page="1" data-tooltip="Dashboard" onclick="sidebarNavigate(1)">
-                <span class="sidebar-nav-icon">&#x1F3E0;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-dashboard"/></svg></span>
                 <span class="sidebar-nav-text">Dashboard</span>
             </button>
             <button class="sidebar-nav-item" data-page="2" data-tooltip="Monthly Breakdown" onclick="sidebarNavigate(2)">
-                <span class="sidebar-nav-icon">&#x1F4CA;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-monthly"/></svg></span>
                 <span class="sidebar-nav-text">Monthly Breakdown</span>
             </button>
 
             <div class="sidebar-section-label">Tools</div>
             <button class="sidebar-nav-item" data-page="3" data-tooltip="Tools & Features" onclick="sidebarNavigate(3)">
-                <span class="sidebar-nav-icon">&#x1F6E0;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-tools"/></svg></span>
                 <span class="sidebar-nav-text">Tools & Features</span>
             </button>
             <button class="sidebar-nav-item" data-page="4" data-tooltip="Import Assets" onclick="sidebarNavigate(4)">
-                <span class="sidebar-nav-icon">&#x1F4E5;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-import"/></svg></span>
                 <span class="sidebar-nav-text">Import Assets</span>
             </button>
             <button class="sidebar-nav-item" data-page="5" data-tooltip="Google Drive Import" onclick="sidebarNavigate(5)">
-                <span class="sidebar-nav-icon">&#x2601;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-cloud"/></svg></span>
                 <span class="sidebar-nav-text">Google Drive Import</span>
             </button>
 
             <div class="sidebar-section-label">Records</div>
             <button class="sidebar-nav-item" data-page="6" data-tooltip="Board of Survey" onclick="sidebarNavigate(6)">
-                <span class="sidebar-nav-icon">&#x1F5D1;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-survey"/></svg></span>
                 <span class="sidebar-nav-text">Board of Survey</span>
             </button>
             <button class="sidebar-nav-item" data-page="7" data-tooltip="Asset Register" onclick="sidebarNavigate(7)">
-                <span class="sidebar-nav-icon">&#x1F4CB;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-register"/></svg></span>
                 <span class="sidebar-nav-text">Asset Register</span>
             </button>
             <button class="sidebar-nav-item" data-page="8" data-tooltip="Asset Code Lookup" onclick="sidebarNavigate(8)">
-                <span class="sidebar-nav-icon">&#x1F50D;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></span>
                 <span class="sidebar-nav-text">Asset Code Lookup</span>
             </button>
 
             <button class="sidebar-nav-item" data-page="10" data-tooltip="Bulk Categories" onclick="sidebarNavigate(10)">
-                <span class="sidebar-nav-icon">&#x1F4E6;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-layers"/></svg></span>
                 <span class="sidebar-nav-text">Bulk Categories</span>
             </button>
             <button class="sidebar-nav-item" data-page="11" data-tooltip="Duplicates Tracker" onclick="sidebarNavigate(11)">
-                <span class="sidebar-nav-icon">&#128203;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></span>
                 <span class="sidebar-nav-text">Duplicates Tracker</span>
             </button>
             <button class="sidebar-nav-item" data-page="12" data-tooltip="Asset Deletion" onclick="sidebarNavigate(12)">
-                <span class="sidebar-nav-icon">&#x1F5D1;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></span>
                 <span class="sidebar-nav-text">Asset Deletion</span>
             </button>
 
             <div class="sidebar-section-label">Reference</div>
             <button class="sidebar-nav-item" data-page="13" data-tooltip="Asset Catalog" onclick="sidebarNavigate(13)">
-                <span class="sidebar-nav-icon">&#x1F4E6;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-catalog"/></svg></span>
                 <span class="sidebar-nav-text">Asset Cost Catalog</span>
             </button>
 
             <button class="sidebar-nav-item" data-page="14" data-tooltip="Asset Code Parser" onclick="sidebarNavigate(14)">
-                <span class="sidebar-nav-icon">&#9986;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-parser"/></svg></span>
                 <span class="sidebar-nav-text">Asset Code Parser</span>
             </button>
 
             <div class="sidebar-section-label">Import</div>
             <button class="sidebar-nav-item" data-page="9" data-tooltip="BOS Upload" onclick="sidebarNavigate(9)">
-                <span class="sidebar-nav-icon">&#x1F4E4;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg></span>
                 <span class="sidebar-nav-text">BOS Upload</span>
             </button>
 
             <div class="sidebar-section-label">Reports</div>
             <button class="sidebar-nav-item" data-page="15" data-tooltip="Fiscal Year Report" onclick="sidebarNavigate(15)">
-                <span class="sidebar-nav-icon">&#x1F4C5;</span>
+                <span class="sidebar-nav-icon"><svg viewBox="0 0 24 24"><use href="#i-report"/></svg></span>
                 <span class="sidebar-nav-text">Fiscal Year Report</span>
             </button>
         </div>
