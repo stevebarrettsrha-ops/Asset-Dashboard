@@ -11607,10 +11607,11 @@
             // The owner keeps writing via OAuth; everyone else reads publicly.
             API_KEY: 'AIzaSyAjOOmMr92w3p2UTYP_YRH9falBoNrNu_s',
 
-            // Optional: fixed file ID of ASSET_DASHBOARD_BACKUP.json. Used as a
-            // reliable fallback when a non-owner account cannot discover the
-            // file via folder listing. Leave blank to auto-discover.
-            BACKUP_FILE_ID: ''
+            // Fixed file ID of ASSET_DASHBOARD_BACKUP.json. Required for
+            // non-owner accounts: link-shared files are NOT returned by folder
+            // listing, so they're resolved by direct ID instead. If the backup
+            // file is ever deleted and recreated, update this to the new ID.
+            BACKUP_FILE_ID: '1aA8SuU2i1biATizNn2bgs1gl4kGgEMg9'
         };
 
         // Cloud sync state
