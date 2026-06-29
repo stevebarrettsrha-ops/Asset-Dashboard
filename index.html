@@ -11316,20 +11316,7 @@
             document.getElementById('smartMergeModal').style.display = 'flex';
 
             try {
-                const response = await fetch(
-                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${googleAccessToken}`
-                        }
-                    }
-                );
-
-                if (!response.ok) {
-                    throw new Error('Failed to download backup');
-                }
-
-                const backupData = await response.json();
+                const backupData = await fetchCloudBackupData(cloudFileId);
 
                 if (!backupData.data || !backupData.version) {
                     throw new Error('Invalid backup file format');
@@ -11599,7 +11586,32 @@
             CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
             FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
             BACKUP_FILE_NAME: 'ASSET_DASHBOARD_BACKUP.json',
-            SCOPES: 'https://www.googleapis.com/auth/drive.file'
+            SCOPES: 'https://www.googleapis.com/auth/drive.file',
+
+            // --- Cross-account (public) read access -------------------------
+            // The OAuth scope above ('drive.file') only lets the signed-in
+            // account see files IT created with this app. That means a user who
+            // signs in with a *different* Google account cannot read the main
+            // account's backup, so "Sync from Cloud" fails with
+            // "Failed to download backup".
+            //
+            // To let ANY authenticated user sync FROM the main account's Drive,
+            // the backup is read as a link-shared (public) file using a Google
+            // Drive API key instead of the user's OAuth token. Two one-time
+            // steps are required:
+            //   1. In Google Drive, share the backup file (or its folder)
+            //      "Anyone with the link -> Viewer".
+            //   2. Create a Google Drive API key in the SAME Cloud project as
+            //      CLIENT_ID, restrict it to the "Google Drive API" and to your
+            //      app's HTTP referrer, and paste it below.
+            // The owner keeps writing via OAuth; everyone else reads publicly.
+            API_KEY: 'AIzaSyAjOOmMr92w3p2UTYP_YRH9falBoNrNu_s',
+
+            // Fixed file ID of ASSET_DASHBOARD_BACKUP.json. Required for
+            // non-owner accounts: link-shared files are NOT returned by folder
+            // listing, so they're resolved by direct ID instead. If the backup
+            // file is ever deleted and recreated, update this to the new ID.
+            BACKUP_FILE_ID: '1aA8SuU2i1biATizNn2bgs1gl4kGgEMg9'
         };
 
         // Cloud sync state
@@ -11957,20 +11969,18 @@
                     }
                 }
 
-                // Step 1: Download cloud data
+                // Step 1: Download cloud data (OAuth for the owner, public
+                // API-key fallback for other accounts reading the shared backup)
                 let cloudData = null;
                 if (cloudFileId) {
                     try {
-                        const dlResp = await fetch(
-                            `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
-                            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-                        );
-                        if (dlResp.status === 401) {
+                        const dlResp = await fetchBackupMediaResponse(cloudFileId);
+                        if (dlResp && dlResp.status === 401) {
                             console.log('[AutoSync] Token expired');
                             stopAutoSync();
                             return;
                         }
-                        if (dlResp.ok) {
+                        if (dlResp && dlResp.ok) {
                             cloudData = await dlResp.json();
                         }
                     } catch (e) {
@@ -12295,22 +12305,115 @@
             }
         }
 
-        // Find existing backup file
+        // ============================================
+        // CROSS-ACCOUNT (PUBLIC) DRIVE READ HELPERS
+        // The OAuth 'drive.file' scope only exposes files the signed-in account
+        // created with this app, so a different account cannot see the main
+        // account's backup. These helpers try the signed-in user's OAuth token
+        // first (the owner path, unchanged) and then fall back to a public read
+        // using GOOGLE_DRIVE_CONFIG.API_KEY, so ANY authenticated user can sync
+        // FROM the main account's link-shared backup.
+        // ============================================
+
+        // Is a public Drive API key configured for cross-account reads?
+        function hasPublicDriveKey() {
+            return !!(GOOGLE_DRIVE_CONFIG.API_KEY && GOOGLE_DRIVE_CONFIG.API_KEY.trim());
+        }
+
+        // GET a backup file's contents. Returns the fetch Response, or null when
+        // no usable access path exists. Tries OAuth (owner), then the public
+        // API-key path (other accounts reading the shared backup).
+        async function fetchBackupMediaResponse(fileId) {
+            if (googleAccessToken) {
+                try {
+                    const resp = await fetch(
+                        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+                        { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                    );
+                    // An expired/invalid token must be surfaced so the caller can
+                    // prompt a reconnect. 403/404 means this account simply can't
+                    // see the file (drive.file) — fall through to the public path.
+                    if (resp.status === 401) return resp;
+                    if (resp.ok) return resp;
+                } catch (e) {
+                    // Network error — try the public path before giving up.
+                }
+            }
+            if (hasPublicDriveKey()) {
+                return await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${encodeURIComponent(GOOGLE_DRIVE_CONFIG.API_KEY.trim())}`
+                );
+            }
+            return null;
+        }
+
+        // Download + parse the backup JSON for a file ID. Throws a clear,
+        // actionable error on failure.
+        async function fetchCloudBackupData(fileId) {
+            const resp = await fetchBackupMediaResponse(fileId);
+            if (!resp) {
+                throw new Error('Failed to download backup. To sync from a different Google account, set GOOGLE_DRIVE_CONFIG.API_KEY and share the backup "Anyone with the link".');
+            }
+            if (resp.status === 401) {
+                throw new Error('invalid_token');
+            }
+            if (!resp.ok) {
+                throw new Error(`Failed to download backup (HTTP ${resp.status}). Ensure the backup file is shared "Anyone with the link -> Viewer".`);
+            }
+            return await resp.json();
+        }
+
+        // List Drive files matching a query. Tries OAuth (owner) first, then the
+        // public API-key path so other accounts can enumerate the shared folder.
+        // Returns a parsed object with a `files` array (possibly empty).
+        async function driveListFiles(query, extraParams) {
+            const params = `q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)${extraParams || ''}`;
+            if (googleAccessToken) {
+                try {
+                    const resp = await fetch(
+                        `https://www.googleapis.com/drive/v3/files?${params}`,
+                        { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                    );
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        // Owner sees the file here. A non-owner gets an empty list
+                        // under drive.file — fall through to the public path.
+                        if (data.files && data.files.length > 0) return data;
+                    }
+                } catch (e) {
+                    // Fall through to the public path.
+                }
+            }
+            if (hasPublicDriveKey()) {
+                try {
+                    const resp = await fetch(
+                        `https://www.googleapis.com/drive/v3/files?${params}&key=${encodeURIComponent(GOOGLE_DRIVE_CONFIG.API_KEY.trim())}`
+                    );
+                    if (resp.ok) return await resp.json();
+                } catch (e) {
+                    // Fall through to the empty result.
+                }
+            }
+            return { files: [] };
+        }
+
         async function findExistingBackupFile() {
             try {
-                const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false`;
-                const response = await fetch(
-                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)`,
-                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-                );
+                // A configured fixed ID is the most reliable path for non-owner
+                // accounts (link-shared files are not always discoverable).
+                if (GOOGLE_DRIVE_CONFIG.BACKUP_FILE_ID && GOOGLE_DRIVE_CONFIG.BACKUP_FILE_ID.trim()) {
+                    cloudFileId = GOOGLE_DRIVE_CONFIG.BACKUP_FILE_ID.trim();
+                    localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
+                    console.log('Using configured backup file ID:', cloudFileId);
+                    return;
+                }
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.files && data.files.length > 0) {
-                        cloudFileId = data.files[0].id;
-                        localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
-                        console.log('Found existing backup file:', cloudFileId);
-                    }
+                const query = `name='${GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME}' and '${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false`;
+                const data = await driveListFiles(query);
+                if (data.files && data.files.length > 0) {
+                    cloudFileId = data.files[0].id;
+                    localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
+                    console.log('Found existing backup file:', cloudFileId);
                 }
             } catch (error) {
                 console.error('Error finding backup file:', error);
@@ -12635,14 +12738,7 @@
         // Shared by syncFromCloud() and the mandatory login sync gate.
         // Returns { restoredCount, backupData }. Throws on failure.
         async function downloadAndRestoreCloudBackup() {
-            const response = await fetch(
-                `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
-                { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-            );
-
-            if (!response.ok) throw new Error('Failed to download backup');
-
-            const backupData = await response.json();
+            const backupData = await fetchCloudBackupData(cloudFileId);
 
             if (!backupData.data || !backupData.version) {
                 throw new Error('Invalid backup file format');
@@ -12793,14 +12889,7 @@
 
             try {
                 const query = `'${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and mimeType='application/json' and trashed=false`;
-                const response = await fetch(
-                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`,
-                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-                );
-
-                if (!response.ok) throw new Error('Failed to list files');
-
-                const data = await response.json();
+                const data = await driveListFiles(query, '&orderBy=modifiedTime desc');
                 setCloudSyncing(false);
 
                 if (!data.files || data.files.length === 0) {
@@ -12878,14 +12967,7 @@
             setCloudSyncing(true);
 
             try {
-                const response = await fetch(
-                    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-                );
-
-                if (!response.ok) throw new Error('Failed to download file');
-
-                const backupData = await response.json();
+                const backupData = await fetchCloudBackupData(fileId);
 
                 if (!backupData.data || !backupData.version) {
                     throw new Error('Invalid backup file format');
@@ -13137,14 +13219,7 @@
                     return;
                 }
 
-                const response = await fetch(
-                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
-                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-                );
-
-                if (!response.ok) throw new Error('Failed to download backup');
-
-                const backupData = await response.json();
+                const backupData = await fetchCloudBackupData(cloudFileId);
 
                 if (!backupData.data || !backupData.version) {
                     throw new Error('Invalid backup file format');
