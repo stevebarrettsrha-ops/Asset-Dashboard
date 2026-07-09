@@ -1500,6 +1500,68 @@
             color: var(--primary-green);
         }
 
+        .month-comment-section {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .month-comment-label {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .month-comment-input {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--table-hover);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9em;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+
+        .month-comment-input:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+        }
+
+        .month-comment-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .month-comment-save-btn {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .month-comment-save-btn:hover {
+            opacity: 0.85;
+        }
+
+        .month-comment-status {
+            font-size: 0.78em;
+            color: var(--text-secondary);
+        }
+
         .loading {
             text-align: center;
             padding: 50px;
@@ -12011,6 +12073,7 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        monthComments: loadMonthComments(),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers // Backup local users (passwords are hashed)
                     }
@@ -12275,6 +12338,13 @@
                 });
                 if (settingsChanged) {
                     saveLocalUserSettings();
+                    dataChanged = true;
+                }
+            }
+
+            // Merge month comments from cloud (newest updatedAt wins per month)
+            if (cloudDataObj.monthComments) {
+                if (mergeMonthComments(cloudDataObj.monthComments)) {
                     dataChanged = true;
                 }
             }
@@ -12656,6 +12726,7 @@
                         disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                        monthComments: loadMonthComments(),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers // Backup local users (passwords are hashed)
                     }
@@ -12807,6 +12878,11 @@
             // Restore portal heading settings
             if (backupData.data.portalHeadingSettings) {
                 localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+            }
+
+            // Restore month comments (newest wins per month)
+            if (backupData.data.monthComments) {
+                mergeMonthComments(backupData.data.monthComments);
             }
 
             if (backupData.data.localUserSettings) {
@@ -13020,6 +13096,11 @@
                 // Restore portal heading settings
                 if (backupData.data.portalHeadingSettings) {
                     localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                }
+
+                // Restore month comments (newest wins per month)
+                if (backupData.data.monthComments) {
+                    mergeMonthComments(backupData.data.monthComments);
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -13288,6 +13369,11 @@
                 // Restore portal heading settings
                 if (backupData.data.portalHeadingSettings) {
                     localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                }
+
+                // Restore month comments (newest wins per month)
+                if (backupData.data.monthComments) {
+                    mergeMonthComments(backupData.data.monthComments);
                 }
 
                 if (backupData.data.localUserSettings) {
@@ -22041,6 +22127,16 @@
                 'DEC': 'December', 'JAN': 'January', 'FEB': 'February', 'MAR': 'March'
             };
 
+            // Include any saved comment for this month in the printed report
+            const monthComment = getMonthComment(month);
+            const commentEntry = loadMonthComments()[monthCommentKey(month)];
+            const commentHtml = monthComment ? `
+                    <div style="background: #fffbf0; border: 2px solid #FF6B35; border-radius: 8px; padding: 15px; margin: 20px 0; break-inside: avoid;">
+                        <h3 style="margin-top: 0; border-bottom: 2px solid #FF6B35; padding-bottom: 5px;">📝 Comments</h3>
+                        <p style="white-space: pre-wrap; margin: 10px 0 5px 0;">${escapeHtml(monthComment)}</p>
+                        ${commentEntry && commentEntry.updatedBy ? `<p style="font-size: 0.85em; color: #7f8c8d; margin: 5px 0 0 0;">— ${escapeHtml(commentEntry.updatedBy)}${commentEntry.updatedAt ? ', ' + new Date(commentEntry.updatedAt).toLocaleDateString() : ''}</p>` : ''}
+                    </div>` : '';
+
             // Build detailed asset table rows
             let tableRows = '';
             allItems.forEach(item => {
@@ -22226,6 +22322,8 @@
                         </div>
                     </div>
 
+                    ${commentHtml}
+
                     <h3>Detailed Asset Listing (${allItems.length} Items)</h3>
                     <table>
                         <thead>
@@ -22266,6 +22364,86 @@
             `);
             printWindow.document.close();
             printWindow.focus();
+        }
+
+        // ===== Month Comments (per fiscal year, synced with cloud backup) =====
+        const MONTH_COMMENTS_KEY = 'assetDashboardMonthComments';
+
+        function loadMonthComments() {
+            try {
+                return JSON.parse(localStorage.getItem(MONTH_COMMENTS_KEY) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveMonthCommentsToStorage(comments) {
+            localStorage.setItem(MONTH_COMMENTS_KEY, JSON.stringify(comments));
+        }
+
+        function monthCommentKey(month, fiscalYear) {
+            return (fiscalYear !== undefined ? fiscalYear : currentFiscalYear) + '-' + month;
+        }
+
+        function getMonthComment(month, fiscalYear) {
+            const entry = loadMonthComments()[monthCommentKey(month, fiscalYear)];
+            return entry && entry.text ? entry.text : '';
+        }
+
+        function saveMonthComment(month) {
+            const input = document.getElementById('monthComment_' + month);
+            if (!input) return;
+            const text = input.value.trim();
+            const comments = loadMonthComments();
+            const key = monthCommentKey(month);
+            if (text) {
+                comments[key] = {
+                    text: text,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.displayName || currentUser.username) : 'Unknown'
+                };
+            } else {
+                delete comments[key];
+            }
+            saveMonthCommentsToStorage(comments);
+
+            const status = document.getElementById('monthCommentStatus_' + month);
+            if (status) {
+                status.textContent = text ? '✓ Saved' : '✓ Cleared';
+                setTimeout(() => { status.textContent = buildMonthCommentStatusText(key); }, 2500);
+            }
+
+            // Flag data as changed so the next auto-sync pushes the comment to the cloud
+            if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+        }
+
+        function buildMonthCommentStatusText(key) {
+            const entry = loadMonthComments()[key];
+            if (!entry || !entry.text) return '';
+            const when = entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString() : '';
+            return 'Last updated' + (entry.updatedBy ? ' by ' + entry.updatedBy : '') + (when ? ' on ' + when : '');
+        }
+
+        // Merge cloud month comments into local (newest updatedAt wins per month)
+        function mergeMonthComments(cloudComments) {
+            if (!cloudComments || typeof cloudComments !== 'object') return false;
+            const local = loadMonthComments();
+            let changed = false;
+            Object.entries(cloudComments).forEach(([key, cloudEntry]) => {
+                if (!cloudEntry || !cloudEntry.text) return;
+                const localEntry = local[key];
+                if (!localEntry || (cloudEntry.updatedAt || '') > (localEntry.updatedAt || '')) {
+                    local[key] = cloudEntry;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                saveMonthCommentsToStorage(local);
+                if (typeof displayMonthlyBreakdown === 'function') {
+                    try { displayMonthlyBreakdown(); } catch (e) { /* page may not be rendered yet */ }
+                }
+            }
+            return changed;
         }
 
         function displayMonthlyBreakdown() {
@@ -22327,6 +22505,14 @@
                                 <div class="month-stat-value" style="color: var(--primary-orange);">${donatedStats.totalItems}</div>
                             </div>
                             ${categoryStatsHtml}
+                        </div>
+                        <div class="month-comment-section">
+                            <div class="month-comment-label">📝 Comments</div>
+                            <textarea class="month-comment-input" id="monthComment_${month}" placeholder="Add comments for ${month} ${actualYear}...">${escapeHtml(getMonthComment(month))}</textarea>
+                            <div class="month-comment-actions">
+                                <span class="month-comment-status" id="monthCommentStatus_${month}">${buildMonthCommentStatusText(monthCommentKey(month))}</span>
+                                <button class="month-comment-save-btn" onclick="saveMonthComment('${month}')">💾 Save Comment</button>
+                            </div>
                         </div>
                     </div>
                 `;
