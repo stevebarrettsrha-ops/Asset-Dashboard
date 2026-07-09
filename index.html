@@ -10121,6 +10121,28 @@
                 localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
                 console.log('Migrated local user display names');
             }
+
+            // Also fix names recorded on stored month comments (literal key:
+            // MONTH_COMMENTS_KEY is declared later in this script)
+            try {
+                const comments = JSON.parse(localStorage.getItem('assetDashboardMonthComments') || '{}');
+                let commentsChanged = false;
+                Object.values(comments).forEach(entry => {
+                    if (entry && entry.updatedBy) {
+                        const fixed = fixDisplayName(entry.updatedBy);
+                        if (fixed !== entry.updatedBy) {
+                            entry.updatedBy = fixed;
+                            commentsChanged = true;
+                        }
+                    }
+                });
+                if (commentsChanged) {
+                    localStorage.setItem('assetDashboardMonthComments', JSON.stringify(comments));
+                    console.log('Migrated month comment author names');
+                }
+            } catch (e) {
+                console.error('Error migrating month comment names:', e);
+            }
         })();
 
         // Track selected assets for merge
@@ -11508,7 +11530,7 @@
             document.getElementById('executeMergeBtn').disabled = false;
 
             const backupTime = new Date(backupData.timestamp).toLocaleString();
-            const savedBy = backupData.savedBy || 'Unknown';
+            const savedBy = fixDisplayName(backupData.savedBy) || 'Unknown';
             const localAssets = loadAssetsFromStorage();
 
             let summaryHtml = `
@@ -13169,9 +13191,9 @@
         function updateLastSavedByDisplay() {
             let text = 'Last saved by: --';
             if (lastSavedBy && cloudFileTimestamp) {
-                text = `Last saved by: ${lastSavedBy} (${getTimeAgo(new Date(cloudFileTimestamp))})`;
+                text = `Last saved by: ${fixDisplayName(lastSavedBy)} (${getTimeAgo(new Date(cloudFileTimestamp))})`;
             } else if (lastSavedBy) {
-                text = `Last saved by: ${lastSavedBy}`;
+                text = `Last saved by: ${fixDisplayName(lastSavedBy)}`;
             }
             document.querySelectorAll('.lastSavedByInfo').forEach(el => { el.textContent = text; });
         }
@@ -15780,6 +15802,31 @@
         // Auto-calculate total price
         // Start IndexedDB initialization as early as possible
         const _idbInitPromise = _initializeIDB().catch(err => console.warn('IndexedDB init failed:', err));
+
+        // After stored data loads, fix user names recorded on audit trail
+        // entries (e.g. renamed accounts) so history and reports show the
+        // current name.
+        _idbInitPromise.then(() => {
+            try {
+                const audit = loadAuditFromStorage();
+                let changed = false;
+                audit.forEach(entry => {
+                    if (entry && entry.user) {
+                        const fixed = fixDisplayName(entry.user);
+                        if (fixed !== entry.user) {
+                            entry.user = fixed;
+                            changed = true;
+                        }
+                    }
+                });
+                if (changed) {
+                    saveAuditToStorage(audit);
+                    console.log('Migrated audit trail user names');
+                }
+            } catch (e) {
+                console.error('Error migrating audit trail names:', e);
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             const quantityInput = document.getElementById('quantity');
@@ -20816,7 +20863,7 @@
                         <td>${escapeHtml(record.action)}</td>
                         <td>${escapeHtml(department || 'N/A')}</td>
                         <td>JMD ${valueDisplay}</td>
-                        <td>${escapeHtml(record.user)}</td>
+                        <td>${escapeHtml(fixDisplayName(record.user))}</td>
                         <td>${escapeHtml(record.notes || '')}</td>
                         <td>
                             <button class="btn-edit" onclick='deleteAuditEntry("${record.id}")' title="Delete Entry">🗑️</button>
@@ -21092,7 +21139,7 @@
                     entry.assetCode,
                     entry.description,
                     entry.action,
-                    entry.user,
+                    fixDisplayName(entry.user),
                     entry.department || '',
                     entry.notes || '',
                     entry.value || 0
@@ -21327,7 +21374,7 @@
                 }
 
                 const action = entry.action || 'N/A';
-                const user = entry.user || 'System';
+                const user = fixDisplayName(entry.user) || 'System';
                 const notes = entry.notes || '-';
                 const valueDisplay = value ? formatCurrency(parseFloat(value)) : '0.00';
 
@@ -22162,7 +22209,7 @@
                     <div style="background: #fffbf0; border: 2px solid #FF6B35; border-radius: 8px; padding: 15px; margin: 20px 0; break-inside: avoid;">
                         <h3 style="margin-top: 0; border-bottom: 2px solid #FF6B35; padding-bottom: 5px;">📝 Comments</h3>
                         <p style="white-space: pre-wrap; margin: 10px 0 5px 0;">${escapeHtml(monthComment)}</p>
-                        ${commentEntry && commentEntry.updatedBy ? `<p style="font-size: 0.85em; color: #7f8c8d; margin: 5px 0 0 0;">— ${escapeHtml(commentEntry.updatedBy)}${commentEntry.updatedAt ? ', ' + new Date(commentEntry.updatedAt).toLocaleDateString() : ''}</p>` : ''}
+                        ${commentEntry && commentEntry.updatedBy ? `<p style="font-size: 0.85em; color: #7f8c8d; margin: 5px 0 0 0;">— ${escapeHtml(fixDisplayName(commentEntry.updatedBy))}${commentEntry.updatedAt ? ', ' + new Date(commentEntry.updatedAt).toLocaleDateString() : ''}</p>` : ''}
                     </div>` : '';
 
             // Build detailed asset table rows
@@ -22449,7 +22496,7 @@
             const entry = loadMonthComments()[key];
             if (!entry || !entry.text) return '';
             const when = entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString() : '';
-            return 'Last updated' + (entry.updatedBy ? ' by ' + entry.updatedBy : '') + (when ? ' on ' + when : '');
+            return 'Last updated' + (entry.updatedBy ? ' by ' + fixDisplayName(entry.updatedBy) : '') + (when ? ' on ' + when : '');
         }
 
         // Merge cloud month comments into local (newest updatedAt wins per month)
@@ -22461,7 +22508,7 @@
                 if (!cloudEntry || !cloudEntry.text) return;
                 const localEntry = local[key];
                 if (!localEntry || (cloudEntry.updatedAt || '') > (localEntry.updatedAt || '')) {
-                    local[key] = cloudEntry;
+                    local[key] = { ...cloudEntry, updatedBy: fixDisplayName(cloudEntry.updatedBy) };
                     changed = true;
                 }
             });
@@ -25091,7 +25138,7 @@
                         <td>${escapeHtml(entry.files?.join(', ') || 'Unknown')}</td>
                         <td>${entry.sheets?.length || 0} sheet(s)</td>
                         <td><strong>${entry.assetsImported}</strong></td>
-                        <td>${escapeHtml(entry.user || 'Unknown')}</td>
+                        <td>${escapeHtml(fixDisplayName(entry.user) || 'Unknown')}</td>
                         <td><span style="color: var(--dark-green);">✅ ${entry.status}</span></td>
                     </tr>
                 `;
