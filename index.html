@@ -10096,6 +10096,33 @@
         }
         seedDefaultUsers();
 
+        // One-time display name corrections (old name -> new name). Applied to
+        // stored local users at startup and to any user object at login, so the
+        // fix works regardless of whether the account comes from local storage,
+        // the portal, or the Google Sheets credentials.
+        const DISPLAY_NAME_FIXES = {
+            'Steven X': 'Steve Barrett'
+        };
+
+        function fixDisplayName(name) {
+            return (name && DISPLAY_NAME_FIXES[name]) || name;
+        }
+
+        (function migrateLocalUserDisplayNames() {
+            let changed = false;
+            localUsers.forEach(u => {
+                const fixed = fixDisplayName(u.displayName);
+                if (fixed !== u.displayName) {
+                    u.displayName = fixed;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                localStorage.setItem('assetDashboardLocalUsers', JSON.stringify(localUsers));
+                console.log('Migrated local user display names');
+            }
+        })();
+
         // Track selected assets for merge
         let selectedForMerge = [];
         // Smart merge cloud data
@@ -10128,7 +10155,7 @@
                     const rawPassword = row[1] ? row[1].toString() : '';
                     parsed[row[0].toString().toLowerCase()] = {
                         passwordHash: await hashPassword(rawPassword),
-                        displayName: row[2] ? row[2].toString() : row[0].toString(),
+                        displayName: fixDisplayName(row[2] ? row[2].toString() : row[0].toString()),
                         role: row[3] ? row[3].toString() : 'User',
                         email: row[4] ? row[4].toString() : '',
                         canExport: row[5] ? (row[5].toString().toLowerCase() === 'true' || row[5] === true) : false,
@@ -10379,6 +10406,7 @@
         // Runs the login gates (optional/forced password change, then mandatory
         // cloud sync) before finishing the login and showing the dashboard.
         async function completeLogin(user) {
+            user.displayName = fixDisplayName(user.displayName);
             currentUser = user;
             console.log('Authenticated, running login gates for:', user.username);
 
