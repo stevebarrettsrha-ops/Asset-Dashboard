@@ -1,3 +1,7 @@
+/* Bump this whenever the seed data below changes so the Location
+   Records page refreshes cached seed data in the browser. */
+var LOCATIONS_SEED_VERSION = '2';
+
 /* ============================================================
    Location Records — seed data
    Departments, rooms and every asset line seeded directly from
