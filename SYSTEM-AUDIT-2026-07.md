@@ -47,6 +47,13 @@ All changes were verified in a headless browser: pages load with no JS errors, s
 
 ---
 
+## 2b. Second pass — cross-page consistency (implemented & verified)
+
+- **Category bucketing** — added `isMedicalCategory()` so the dashboard's Medical vs Furniture split treats both `Medical Equipment` and `Industrial Medical Equipment` as medical, matching the category-aware views. Applied to the dashboard aggregation and the sheet-import stats (which used two different medical checks).
+- **BOS active/disposed double-count** — assets created from Board-of-Survey/disposal records (BOS import with "add to inventory", and `syncBosAssets`) are flagged `disposed: true` and excluded from all active totals (dashboard, register stats, register print, category print) unconditionally, so an item is no longer counted as both active and disposed. They still appear in the register/category lists (marked). *(Verified: register shows 2 assets/JMD 200, not 3/700.)*
+- **Procurement → Stores delivery handoff** — Stores now has a "Pending Deliveries" page that consumes the `storesDeliveryNotifications` Procurement writes: it lists deliveries, and "Receive into Inventory" matches PO lines to stores items by description (incrementing qty or creating a new item), logs receive transactions, and clears the notification. A sidebar badge shows the pending count. *(Verified end-to-end.)*
+- **index ↔ locations reconciliation** — added a "Reconcile Locations" report on the Asset Register that cross-references the asset codes in the Location Records against the register (read-only): counts of linked / orphan / no-code items and register assets with no location, plus description-based suggested matches for orphan codes. Surfaces the drift between the two stores without editing either. *(Verified.)*
+
 ## 3. Open findings — recommendations (not yet applied)
 
 These are real but either change displayed numbers (needing a business decision) or are larger structural/security items. Ordered by impact.
@@ -60,14 +67,9 @@ The "exclude disposed assets" toggle is honored by some views but not others:
 So with the toggle **off**, the Fiscal Year Report shows lower totals than the register; with the toggle **on**, the Category report shows higher totals than the register. Separately, BOS import / `syncBosAssets()` can represent one item as **both** an active asset **and** a disposal record (double-count).
 **Recommended:** make the toggle a single global rule that every view honors (Fiscal Year Report and Category print included), or treat "disposed" as removed from all *active* aggregates everywhere. Either unifies the numbers — but both change some displayed totals, so the intended rule should be confirmed first.
 
-### B. Dashboard "Medical vs Furniture" split is a hardcoded binary
-The dashboard buckets everything that isn't exactly `"Medical Equipment"` as "furniture", so `"Industrial Medical Equipment"`, `"Electronics"`, etc. land under furniture — disagreeing with the register/category views that group by the real category. **Recommended:** a single `getCategoryBucket()` helper used by the dashboard KPIs, charts, and every grouped aggregate.
-
-### C. Cross-module / security items
-- **Procurement → Stores delivery handoff is a dead write:** procurement writes `storesDeliveryNotifications` but stores never reads it, so received goods never flow into inventory. Either implement a stores-side "pending deliveries to receive" queue or remove the write.
-- **Portal "Account Settings" opens with no authentication** and user passwords are stored/displayed in **plaintext** in `portalUserAccounts`. Recommend gating the panel and hashing at rest.
-- **Login case/precedence differ** between stores (portal-first, lowercased) and procurement (Sheet-first, case-sensitive) for the same credentials. Recommend a single normalized username comparison and documented precedence. *(Auth-flow change — left untouched pending confirmation as it's high blast-radius.)*
-- **index ↔ locations asset drift:** the register (`assetInventoryData`, IndexedDB) and location records (`hospitalLocationRecords`, localStorage) describe the same assets with **different asset-code formats** and no sync. Recommend one canonical code and a defined source of truth.
+### C. Cross-module / security items *(remaining)*
+- **Portal "Account Settings" opens with no authentication** and user passwords are stored/displayed in **plaintext** in `portalUserAccounts`. Recommend gating the panel and hashing at rest. *(Left untouched — security redesign, high blast-radius; not selected for this pass.)*
+- **Login case/precedence differ** between stores (portal-first, lowercased) and procurement (Sheet-first, case-sensitive) for the same credentials. Recommend a single normalized username comparison and documented precedence. *(Auth-flow change — left untouched pending confirmation.)*
 
 ### D. Consistent by design (verified OK)
 `portalUserAccounts`, `portalHeadingSettings`, and the Google OAuth token keys have consistent schemas across all pages; depreciation/salvage math is centralized; no base64/image blobs are written to storage anywhere.

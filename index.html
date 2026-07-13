@@ -8405,6 +8405,7 @@
                         <button class="btn monthly-view-btn" onclick="applyRegisterMultiCodeSplit()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">✅ Apply Selected Splits</button>
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
+                        <button class="btn monthly-view-btn" onclick="reconcileLocations()" style="background: linear-gradient(135deg, #2980b9, #3498db);" title="Cross-reference asset codes in the Location Records against this register">🔗 Reconcile Locations</button>
                         <button class="btn monthly-view-btn" onclick="removeEmptyAssetsFromRegister()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Remove Empty Assets</button>
                     </div>
                 </div>
@@ -29249,6 +29250,130 @@
         }
 
         // Export asset register
+        // ============================================
+        // LOCATION RECORDS RECONCILIATION
+        // Cross-references the asset codes used in the Location Records page
+        // (localStorage 'hospitalLocationRecords') against this asset register,
+        // surfacing drift between the two stores. Read-only — it never edits
+        // either dataset.
+        // ============================================
+        function reconcileLocations() {
+            let db;
+            try { db = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); }
+            catch (e) { db = null; }
+            if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
+                alert('No saved Location Records found.\n\nOpen the Location Records page first (it seeds and saves the records to this browser), then run the reconciliation.');
+                return;
+            }
+
+            // Flatten every location item that carries an asset code
+            const locItems = [];
+            db.departments.forEach(dep => {
+                (dep.rooms || []).forEach(room => {
+                    (room.items || []).forEach(it => {
+                        locItems.push({
+                            dept: dep.name || '', room: room.title || '',
+                            item: it.item || '', description: it.description || '',
+                            code: (it.assetCode || '').trim()
+                        });
+                    });
+                });
+            });
+
+            const norm = c => (c || '').toUpperCase().replace(/\s+/g, '');
+            const assets = loadAssetsFromStorage();
+            const registerByCode = new Map();
+            assets.forEach(a => { if (a.assetCode) registerByCode.set(norm(a.assetCode), a); });
+
+            const withCode = locItems.filter(l => l.code);
+            const noCode = locItems.filter(l => !l.code);
+            const linked = [];
+            const orphans = [];
+            const referencedCodes = new Set();
+            withCode.forEach(l => {
+                const key = norm(l.code);
+                if (registerByCode.has(key)) { linked.push(l); referencedCodes.add(key); }
+                else orphans.push(l);
+            });
+
+            // Register assets not referenced by any location record
+            const unreferencedAssets = assets.filter(a => a.assetCode && !referencedCodes.has(norm(a.assetCode)));
+
+            // Suggest a register match by description for orphan / no-code items
+            const suggestFor = (desc) => {
+                if (!desc) return null;
+                let best = null, bestScore = 0;
+                assets.forEach(a => {
+                    const hay = (a.description || '') + ' ' + (a.itemType || '');
+                    const score = stringSimilarity(desc, hay);
+                    if (score > bestScore) { bestScore = score; best = a; }
+                });
+                return bestScore >= 0.6 ? { asset: best, score: bestScore } : null;
+            };
+
+            const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s => String(s == null ? '' : s));
+            const orphanRows = orphans.slice(0, 200).map(l => {
+                const s = suggestFor(l.description || l.item);
+                return '<tr>' +
+                    '<td>' + esc(l.dept) + ' &rsaquo; ' + esc(l.room) + '</td>' +
+                    '<td>' + esc(l.item || l.description) + '</td>' +
+                    '<td><code>' + esc(l.code) + '</code></td>' +
+                    '<td>' + (s ? esc(s.asset.assetCode) + ' <span style="color:#888;">(' + Math.round(s.score * 100) + '% desc match)</span>' : '<span style="color:#aaa;">—</span>') + '</td>' +
+                    '</tr>';
+            }).join('');
+
+            const html =
+                '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">' +
+                    reconTile('Location items', locItems.length, '#34495e') +
+                    reconTile('With asset code', withCode.length, '#2980b9') +
+                    reconTile('Linked to register', linked.length, '#27ae60') +
+                    reconTile('Orphan codes', orphans.length, orphans.length ? '#e74c3c' : '#27ae60') +
+                    reconTile('No code', noCode.length, noCode.length ? '#e67e22' : '#27ae60') +
+                    reconTile('Register assets w/o location', unreferencedAssets.length, '#7f8c8d') +
+                '</div>' +
+                '<p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:10px;">' +
+                    'Location Records and this Asset Register are separate stores using different code formats. ' +
+                    '<strong>Orphan codes</strong> are asset codes on location items that do not exist in the register (the two have drifted, or use different code schemes). ' +
+                    'Suggested matches are by item description only.' +
+                '</p>' +
+                (orphans.length ?
+                    '<div style="overflow:auto; max-height:45vh; border:1px solid var(--border-color); border-radius:8px;">' +
+                    '<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">' +
+                    '<thead><tr style="position:sticky; top:0; background:var(--bg-secondary);">' +
+                        '<th style="text-align:left; padding:8px;">Location</th>' +
+                        '<th style="text-align:left; padding:8px;">Item</th>' +
+                        '<th style="text-align:left; padding:8px;">Code (not in register)</th>' +
+                        '<th style="text-align:left; padding:8px;">Suggested register match (by description)</th>' +
+                    '</tr></thead><tbody>' + orphanRows + '</tbody></table></div>' +
+                    (orphans.length > 200 ? '<p style="color:#888; font-size:0.8rem; margin-top:6px;">Showing first 200 of ' + orphans.length + ' orphan codes.</p>' : '')
+                    : '<p style="color:#27ae60; font-weight:600;">✓ Every location asset code was found in the register — no orphan codes.</p>');
+
+            showReconcileModal(html);
+        }
+
+        function reconTile(label, value, color) {
+            return '<div style="flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border-color); border-left:4px solid ' + color + '; border-radius:8px; padding:12px;">' +
+                '<div style="font-size:1.6rem; font-weight:700; color:' + color + ';">' + value + '</div>' +
+                '<div style="font-size:0.78rem; color:var(--text-secondary);">' + label + '</div></div>';
+        }
+
+        function showReconcileModal(innerHtml) {
+            let overlay = document.getElementById('locationReconcileModal');
+            if (overlay) overlay.remove();
+            overlay = document.createElement('div');
+            overlay.id = 'locationReconcileModal';
+            overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px;';
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML =
+                '<div style="background:var(--bg-card, #fff); color:var(--text-primary, #000); border-radius:12px; max-width:1000px; width:100%; max-height:88vh; overflow:auto; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">' +
+                        '<h2 style="margin:0;">🔗 Location ↔ Register Reconciliation</h2>' +
+                        '<button onclick="document.getElementById(\'locationReconcileModal\').remove()" style="background:#e74c3c; color:#fff; border:none; border-radius:6px; width:32px; height:32px; cursor:pointer; font-size:1.1rem;">&times;</button>' +
+                    '</div>' + innerHtml +
+                '</div>';
+            document.body.appendChild(overlay);
+        }
+
         function exportAssetRegister() {
             if (filteredRegisterData.length === 0) {
                 alert('No assets to export.');
