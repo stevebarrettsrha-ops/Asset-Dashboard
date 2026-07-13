@@ -1017,13 +1017,102 @@
             try {
                 const data = JSON.parse(ev.target.result);
                 if (!data || !Array.isArray(data.departments)) throw new Error('bad');
-                confirmModalGeneric('Restore records?', 'This replaces all current records with the backup file.', 'Restore', () => {
-                    db = data; save(); goHome(); toast('Records restored', 'success');
-                });
+                const roomCount = data.departments.reduce((s, d) => s + (d.rooms ? d.rooms.length : 0), 0);
+                importChoiceModal(data, data.departments.length + ' departments, ' + roomCount + ' rooms');
             } catch (err) { toast('Invalid backup file', 'error'); }
         };
         reader.readAsText(file);
         e.target.value = '';
+    }
+
+    // Restore dialog: let the user Merge (add without deleting) or Replace.
+    function importChoiceModal(data, summary) {
+        document.getElementById('modalBox').innerHTML = `
+            <h3>Restore from backup</h3>
+            <p class="sub">The file contains ${esc(summary)}.<br><br>
+            <b>Merge</b> adds new departments, rooms and items to your current records — nothing you already have is removed.<br>
+            <b>Replace</b> discards your current records and keeps only the file.</p>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-ghost" id="importReplaceBtn">Replace</button>
+                <button class="btn btn-primary" id="importMergeBtn">Merge</button>
+            </div>`;
+        openModal();
+        document.getElementById('importMergeBtn').onclick = () => {
+            closeModal();
+            const r = mergeIntoDb(data); save(); goHome();
+            toast('Merged: +' + r.addedDepts + ' depts, +' + r.addedRooms + ' rooms, +' + r.addedItems + ' items', 'success');
+        };
+        document.getElementById('importReplaceBtn').onclick = () => {
+            closeModal();
+            db = data; save(); goHome(); toast('Records replaced', 'success');
+        };
+    }
+
+    /* ============================================================
+       Merge a backup into the current records without deleting.
+       - Departments are matched by name, rooms by title.
+       - New departments/rooms are added outright (with fresh ids).
+       - For a room present on both sides, items are combined so that
+         each distinct item (item + description + assetCode + remarks)
+         ends up with the larger of the two counts. This preserves the
+         user's own entries, fills in anything missing, keeps legitimate
+         duplicates, and is idempotent (re-importing adds nothing new).
+    ============================================================ */
+    function _itemSig(it) {
+        return [it.item, it.description, it.assetCode, it.remarks]
+            .map(s => String(s == null ? '' : s).trim().toLowerCase()).join('||');
+    }
+    function _countAllItems() {
+        return db.departments.reduce((s, d) => s + d.rooms.reduce((t, r) => t + (r.items ? r.items.length : 0), 0), 0);
+    }
+    function _freshRoom(room) {
+        return {
+            id: uid('room'), title: room.title || '',
+            verifiedBy: room.verifiedBy || '', dateUpdated: room.dateUpdated || '', note: room.note || '',
+            items: (room.items || []).map(it => ({
+                id: uid('item'), item: it.item || '', description: it.description || '',
+                assetCode: it.assetCode || '', remarks: it.remarks || ''
+            }))
+        };
+    }
+    function _mergeRoomItems(existingRoom, incomingRoom) {
+        existingRoom.items = existingRoom.items || [];
+        const existingCounts = {};
+        existingRoom.items.forEach(it => { const s = _itemSig(it); existingCounts[s] = (existingCounts[s] || 0) + 1; });
+        const incGroups = {};
+        (incomingRoom.items || []).forEach(it => { const s = _itemSig(it); (incGroups[s] = incGroups[s] || []).push(it); });
+        Object.keys(incGroups).forEach(s => {
+            const deficit = incGroups[s].length - (existingCounts[s] || 0);
+            for (let i = 0; i < deficit; i++) {
+                const src = incGroups[s][i];
+                existingRoom.items.push({
+                    id: uid('item'), item: src.item || '', description: src.description || '',
+                    assetCode: src.assetCode || '', remarks: src.remarks || ''
+                });
+            }
+        });
+    }
+    function mergeIntoDb(incoming) {
+        const norm = s => String(s == null ? '' : s).trim().toLowerCase();
+        let addedDepts = 0, addedRooms = 0;
+        const itemsBefore = _countAllItems();
+        (incoming.departments || []).forEach(incDept => {
+            let dept = db.departments.find(d => norm(d.name) === norm(incDept.name));
+            if (!dept) {
+                dept = {
+                    id: uid('dept'), name: incDept.name || '', icon: incDept.icon || '🏢',
+                    location: incDept.location || incDept.name || '', note: incDept.note || '', rooms: []
+                };
+                db.departments.push(dept); addedDepts++;
+            }
+            (incDept.rooms || []).forEach(incRoom => {
+                const room = dept.rooms.find(r => norm(r.title) === norm(incRoom.title));
+                if (!room) { dept.rooms.push(_freshRoom(incRoom)); addedRooms++; }
+                else { _mergeRoomItems(room, incRoom); }
+            });
+        });
+        return { addedDepts, addedRooms, addedItems: _countAllItems() - itemsBefore };
     }
     function confirmModalGeneric(title, msg, btnLabel, onYes) {
         document.getElementById('modalBox').innerHTML = `
