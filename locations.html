@@ -255,6 +255,27 @@
         .col-act { width: 40px; text-align: center; }
         .row-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 8px; }
         .row-del:hover { opacity: 1; }
+        /* Asset Code cell: textarea + lookup button */
+        .assetcode-cell { display: flex; align-items: stretch; }
+        .assetcode-cell .cell-input { flex: 1; }
+        .assetcode-lookup { background: none; border: none; border-left: 1px solid #e2e6ea; cursor: pointer; font-size: 0.9rem; padding: 0 8px; opacity: 0.65; }
+        .assetcode-lookup:hover { opacity: 1; background: #f0f4f8; }
+        /* Asset code lookup pop-up */
+        .acp-overlay { position: fixed; inset: 0; background: rgba(20,25,45,0.55); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+        .acp-overlay.open { display: flex; }
+        .acp-box { background: #fff; border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
+        .acp-head { background: linear-gradient(135deg, #16a085, #1abc9c); color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .acp-head h3 { margin: 0; font-size: 1.1rem; }
+        .acp-close { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; opacity: 0.85; }
+        .acp-close:hover { opacity: 1; }
+        .acp-body { padding: 18px 20px; overflow: hidden; display: flex; flex-direction: column; }
+        .acp-search { width: 100%; padding: 10px 12px; border: 1px solid #d7dde3; border-radius: 10px; font-size: 0.9rem; margin-bottom: 8px; }
+        .acp-hint { font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 10px; }
+        .acp-list { overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; }
+        .acp-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 9px 14px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .acp-row:hover { background: rgba(26,188,156,0.10); }
+        .acp-badge { font-size: 0.72rem; background: #e8f0f5; color: #2c3e50; border-radius: 6px; padding: 2px 7px; }
+        .acp-badge.new { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; }
         .add-row-btn { margin-top: 12px; }
         .rec-footer-note {
             margin-top: 26px; padding: 14px 16px; border: 1px solid #e6d3b3; background: #fdf6e3;
@@ -394,6 +415,7 @@
                 <button class="hbtn" onclick="exportData()" title="Download a backup of all records">⬇️ Backup</button>
                 <button class="hbtn" onclick="document.getElementById('importFile').click()" title="Restore records from a backup file">⬆️ Restore</button>
                 <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+                <button class="hbtn" onclick="openLocAssetCodePicker(null)" title="Browse the standard asset code reference">🔍 Asset Codes</button>
                 <a class="hbtn solid" href="index.html">← Dashboard</a>
                 <a class="hbtn" href="portal.html">Portal</a>
             </div>
@@ -437,10 +459,27 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- ===== Asset code lookup pop-up ===== -->
+    <div class="acp-overlay" id="acpOverlay">
+        <div class="acp-box">
+            <div class="acp-head">
+                <h3>🔍 Asset Code Reference</h3>
+                <button class="acp-close" onclick="closeLocPicker()" title="Close">&times;</button>
+            </div>
+            <div class="acp-body">
+                <input type="text" class="acp-search" id="acpSearch" placeholder="Search by code or description..." oninput="renderLocPickerList()">
+                <p class="acp-hint" id="acpHint"></p>
+                <div class="acp-list" id="acpList" style="max-height:52vh;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Letterhead logos for the official Location Record form -->
     <script src="locations-assets.js"></script>
     <!-- Seed data (departments & rooms scaffolded from the hospital records) -->
     <script src="locations-seed.js"></script>
+    <!-- Shared asset code reference (same list as the Asset Manager dashboard) -->
+    <script src="asset-codes.js"></script>
 
     <script>
     /* ============================================================
@@ -699,13 +738,73 @@
             <td class="col-num">${i + 1}</td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
-            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea></td>
+            <td><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
             <td class="col-act"><button class="row-del" title="Delete row" onclick="deleteItem('${it.id}')">✕</button></td>
         </tr>`;
     }
 
     function autoGrow(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
+
+    /* ============================================================
+       Asset code lookup pop-up (shared reference from asset-codes.js)
+       Called with an item id  -> pick mode (fills that row's Asset Code).
+       Called with null         -> browse mode (click copies the code).
+    ============================================================ */
+    let _acpTargetItem = null;
+    function _allAssetCodes() {
+        if (typeof window.getAssetCodesShared !== 'function') return [];
+        return [
+            ...window.getAssetCodesShared('1998').map(i => ({ ...i, year: '1998' })),
+            ...window.getAssetCodesShared('1997').map(i => ({ ...i, year: '1997' })),
+            ...window.getAssetCodesShared('new').map(i => ({ ...i, year: 'new' }))
+        ].sort((a, b) => a.desc.localeCompare(b.desc));
+    }
+    function openLocAssetCodePicker(itemId) {
+        _acpTargetItem = itemId || null;
+        const hint = document.getElementById('acpHint');
+        hint.textContent = _acpTargetItem
+            ? 'Click a code to insert it into this Asset Code field.'
+            : 'Browse the standard asset code reference. Click a row to copy the code.';
+        document.getElementById('acpSearch').value = '';
+        renderLocPickerList();
+        document.getElementById('acpOverlay').classList.add('open');
+        setTimeout(() => document.getElementById('acpSearch').focus(), 50);
+    }
+    function closeLocPicker() {
+        document.getElementById('acpOverlay').classList.remove('open');
+        _acpTargetItem = null;
+    }
+    function renderLocPickerList() {
+        const listEl = document.getElementById('acpList');
+        const term = (document.getElementById('acpSearch').value || '').toLowerCase().trim();
+        const all = _allAssetCodes();
+        if (!all.length) { listEl.innerHTML = '<div style="padding:18px;text-align:center;color:#7078a0;font-size:0.85rem;">Asset code list unavailable.</div>'; return; }
+        const filtered = term ? all.filter(i => i.code.toLowerCase().includes(term) || i.desc.toLowerCase().includes(term)) : all;
+        if (!filtered.length) { listEl.innerHTML = '<div style="padding:18px;text-align:center;color:#7078a0;font-size:0.85rem;">No matching asset codes.</div>'; return; }
+        const rows = filtered.slice(0, 500).map(i => {
+            const label = i.year === 'new' ? 'New' : i.year;
+            const badgeCls = i.year === 'new' ? 'acp-badge new' : 'acp-badge';
+            return `<div class="acp-row" onclick="pickLocAssetCode(this)" data-code="${escAttr(i.code)}" data-desc="${escAttr(i.desc)}">`
+                + `<span><strong>${esc(i.code)}</strong> &nbsp; ${esc(i.desc)}</span><span class="${badgeCls}">${label}</span></div>`;
+        });
+        if (filtered.length > 500) rows.push('<div style="padding:10px 14px;color:#7078a0;font-size:0.8rem;">Showing first 500 of ' + filtered.length + '. Refine your search to see more.</div>');
+        listEl.innerHTML = rows.join('');
+    }
+    function pickLocAssetCode(rowEl) {
+        const code = rowEl.getAttribute('data-code') || '';
+        const desc = rowEl.getAttribute('data-desc') || '';
+        if (_acpTargetItem) {
+            updateItem(_acpTargetItem, 'assetCode', code);
+            const tr = document.querySelector('tr[data-id="' + _acpTargetItem + '"]');
+            if (tr) { const tas = tr.querySelectorAll('textarea.cell-input'); if (tas[2]) { tas[2].value = code; autoGrow(tas[2]); } }
+            closeLocPicker();
+        } else {
+            try { if (navigator.clipboard) navigator.clipboard.writeText(code); } catch (e) {}
+            rowEl.style.background = 'rgba(26,188,156,0.22)';
+            document.getElementById('acpHint').textContent = 'Copied "' + code + ' - ' + desc + '" to clipboard.';
+        }
+    }
 
     /* ============================================================
        Navigation
@@ -1138,7 +1237,7 @@
         t._t = setTimeout(() => t.className = 'toast', 2200);
     }
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeModal(); closePreview(); }
+        if (e.key === 'Escape') { closeModal(); closePreview(); closeLocPicker(); }
     });
 
     /* ============================================================
