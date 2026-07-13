@@ -9803,6 +9803,8 @@
             width: 760px; min-height: 980px; margin: 0 auto; background: #ffffff; color: #000;
             padding: 40px 44px; box-shadow: 0 4px 18px rgba(0,0,0,0.18); font-family: "Calibri", "Segoe UI", Arial, sans-serif;
             box-sizing: border-box;
+            /* Ensure the grey column shading and info box actually render when printing */
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
         .f7c-form-code { text-align: right; font-size: 11px; font-weight: 700; margin-bottom: 18px; }
         .f7c-title { text-align: center; font-family: "Haettenschweiler", "Arial Narrow", "Impact", sans-serif; font-weight: 400; font-size: 40px; letter-spacing: 1px; line-height: 1; }
@@ -9821,12 +9823,18 @@
             color: #000 !important; text-transform: none !important; letter-spacing: 0 !important; min-width: 0 !important;
             font-weight: 400; line-height: 1.2;
         }
-        .f7c-table th { background: #d9d9d9 !important; font-weight: 700 !important; text-align: center !important; border-top: 2px solid #000 !important; overflow-wrap: normal !important; }
+        .f7c-table th { background: #fff !important; font-weight: 700 !important; text-align: left !important; border-top: 2px solid #000 !important; overflow-wrap: normal !important; }
         .f7c-table td { text-align: left; }
         .f7c-table td.f7c-c { text-align: center; }
+        /* Discrepancy / Observations / Recommendation columns are shaded grey in
+           both header and data rows, exactly like the official Form 7C. */
+        .f7c-table th:nth-child(5), .f7c-table th:nth-child(6), .f7c-table th:nth-child(7),
+        .f7c-table td:nth-child(5), .f7c-table td:nth-child(6), .f7c-table td:nth-child(7) { background: #d9d9d9 !important; }
         .f7c-table tbody tr { height: 34px; }
-        .f7c-table col.c-desc { width: 16%; } .f7c-table col.c-inv { width: 15%; } .f7c-table col.c-qty { width: 9%; }
-        .f7c-table col.c-price { width: 12%; } .f7c-table col.c-disc { width: 13%; } .f7c-table col.c-obs { width: 15%; } .f7c-table col.c-rec { width: 20%; }
+        /* Column widths mirror the official template proportions (B..H) so
+           'Purchase Price'/'Recommendation' don't wrap and the layout matches. */
+        .f7c-table col.c-desc { width: 17.2%; } .f7c-table col.c-inv { width: 15.2%; } .f7c-table col.c-qty { width: 10.3%; }
+        .f7c-table col.c-price { width: 14.3%; } .f7c-table col.c-disc { width: 13.5%; } .f7c-table col.c-obs { width: 12.7%; } .f7c-table col.c-rec { width: 16.8%; }
         .f7c-cert { background: #d9d9d9; margin-top: 30px; padding: 14px 16px; font-size: 12px; }
         .f7c-cert p { margin: 0 0 8px; }
         .f7c-sig-row { display: flex; justify-content: space-between; gap: 30px; margin: 18px 0 6px; }
@@ -17631,56 +17639,83 @@
             const medium = { style: 'medium', color: { rgb: '000000' } };
             const allThin = { top: thin, bottom: thin, left: thin, right: thin };
 
+            const dotted = { style: 'dotted', color: { rgb: '000000' } };
             const ws = {};
             function setCell(addr, value, style) { ws[addr] = form7cStyledCell(value, style); }
 
             // Title block
-            setCell('B1', 'Government of Jamaica', { font: { name: 'Haettenschweiler', sz: 36 }, alignment: { horizontal: 'center', vertical: 'center' } });
+            setCell('B1', 'Government of Jamaica', { font: { name: 'Haettenschweiler', sz: 36 }, alignment: { horizontal: 'center' } });
             setCell('D2', 'Boarded Items', { font: { name: 'Engravers MT', sz: 12 }, alignment: { horizontal: 'center' } });
 
-            // Info box (labels in B, values in C) with grey fill
+            // Info box (labels 12pt in B, values 11pt in C) with grey fill
             const infoStyle = { font: { name: 'Calibri', sz: 12 }, fill: { fgColor: { rgb: grey } }, alignment: { vertical: 'center' } };
-            const infoValStyle = { font: { name: 'Calibri', sz: 11 }, fill: { fgColor: { rgb: grey } }, alignment: { vertical: 'center' } };
+            const infoValStyle = { font: { name: 'Calibri', sz: 11 }, fill: { fgColor: { rgb: grey } } };
             setCell('B2', 'File #:', infoStyle);       setCell('C2', d.fileNo || '', infoValStyle);
             setCell('B3', 'Encl #:', infoStyle);       setCell('C3', d.enclNo || '', infoValStyle);
             setCell('B4', 'Ref. #:', infoStyle);       setCell('C4', d.refNo || '', infoValStyle);
             setCell('B5', 'Request Date: ', infoStyle); setCell('C5', form7cFmtDate(d.requestDate), infoValStyle);
 
-            // Inspected at + inspection date
+            // Inspected-at line (E7:H7 merged, dotted underline) + inspection date
             setCell('B7', 'Inspected by Asset Management & Disposal Services Branch at:', { font: { name: 'Calibri', sz: 10.2, bold: true } });
-            setCell('E7', d.location || '', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'left', vertical: 'center' } });
-            setCell('G8', 'Inspection Date:', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'right', vertical: 'center' } });
-            setCell('H8', form7cFmtDate(d.inspectionDate), { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'left', vertical: 'center' } });
+            setCell('E7', d.location || '', { font: { name: 'Calibri', sz: 12 }, border: { bottom: dotted } });
+            setCell('F7', '', { border: { bottom: dotted } });
+            setCell('G7', '', { border: { bottom: dotted } });
+            setCell('H7', '', { border: { bottom: dotted } });
+            // Second (blank) fill-in line under B8:E8, and the inspection-date row
+            setCell('B8', '', { font: { name: 'Times New Roman', sz: 12 }, border: { bottom: dotted } });
+            setCell('C8', '', { border: { bottom: dotted } });
+            setCell('D8', '', { border: { bottom: dotted } });
+            setCell('E8', '', { border: { bottom: dotted } });
+            setCell('F8', '', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'right' }, border: { top: dotted } });
+            setCell('G8', 'Inspection Date:', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'left' }, border: { top: dotted } });
+            setCell('H8', form7cFmtDate(d.inspectionDate), { font: { name: 'Calibri', sz: 12 } });
 
-            // Header row (row 10)
-            const headers = ['Description', 'Inventory #', 'Quantity', 'Purchase Price', 'Discrepancy', 'Observations', 'Recommendation'];
-            const headerCols = ['B', 'C', 'D', 'E', 'F', 'G', 'H'];
-            headers.forEach(function(h, idx) {
-                const isFirst = idx === 0, isLast = idx === headers.length - 1;
-                setCell(headerCols[idx] + '10', h, {
+            // Header row (row 10). Exactly matches the template:
+            //  - B–E have NO fill, F–H are grey
+            //  - medium top border across; medium left only on B; medium right on each; no bottom border
+            //  - alignment: B,C,H general(left); D,E,F centre; G left
+            const headerDefs = [
+                { c: 'B', t: 'Description',    grey: false, h: null },
+                { c: 'C', t: 'Inventory #',    grey: false, h: null },
+                { c: 'D', t: 'Quantity',       grey: false, h: 'center' },
+                { c: 'E', t: 'Purchase Price', grey: false, h: 'center' },
+                { c: 'F', t: 'Discrepancy',    grey: true,  h: 'center' },
+                { c: 'G', t: 'Observations',   grey: true,  h: 'left' },
+                { c: 'H', t: 'Recommendation', grey: true,  h: null }
+            ];
+            headerDefs.forEach(function(hd, idx) {
+                const align = { vertical: 'center', wrapText: true };
+                if (hd.h) align.horizontal = hd.h;
+                const style = {
                     font: { name: 'Calibri', sz: 12, bold: true },
-                    fill: { fgColor: { rgb: grey } },
-                    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-                    border: { top: medium, bottom: thin, left: isFirst ? medium : thin, right: isLast ? medium : thin }
-                });
+                    alignment: align,
+                    border: { top: medium, right: medium, left: (idx === 0 ? medium : undefined) }
+                };
+                if (hd.grey) style.fill = { fgColor: { rgb: grey } };
+                setCell(hd.c + '10', hd.t, style);
             });
 
             // Data rows (start row 11). Match the template's minimum of 21 rows.
+            // Font 11; alignment: B,C,E,G,H left, D centre, F right; thin borders.
             const items = d.items || [];
             const rowCount = Math.max(21, items.length);
+            const dataAlignH = { B: 'left', C: 'left', D: 'center', E: 'left', F: 'right', G: 'left', H: 'left' };
             const rows = [{ hpt: 40.8 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 9.75 }, { hpt: 21.75 }, { hpt: 24.75 }, { hpt: 10.5 }, { hpt: 35.4 }];
             for (let r = 0; r < rowCount; r++) {
                 const rowNum = 11 + r;
                 const it = items[r] || form7cBlankItem();
-                const cellBorder = allThin;
-                setCell('B' + rowNum, it.description || '', { font: { name: 'Calibri', sz: 12 }, alignment: { vertical: 'center', wrapText: true }, border: cellBorder });
-                setCell('C' + rowNum, it.inventory || '', { font: { name: 'Calibri', sz: 12 }, alignment: { vertical: 'center', wrapText: true }, border: cellBorder });
-                setCell('D' + rowNum, it.quantity || '', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'center', vertical: 'center' }, border: cellBorder });
-                setCell('E' + rowNum, it.price || '', { font: { name: 'Calibri', sz: 12 }, alignment: { horizontal: 'center', vertical: 'center' }, border: cellBorder });
-                setCell('F' + rowNum, it.discrepancy || '', { font: { name: 'Calibri', sz: 12 }, alignment: { vertical: 'center', wrapText: true }, border: cellBorder });
-                setCell('G' + rowNum, it.observations || '', { font: { name: 'Calibri', sz: 12 }, alignment: { vertical: 'center', wrapText: true }, border: cellBorder });
-                setCell('H' + rowNum, it.recommendation || '', { font: { name: 'Calibri', sz: 12 }, alignment: { vertical: 'center', wrapText: true }, border: cellBorder });
-                rows.push({ hpt: 39.6 });
+                const vals = { B: it.description, C: it.inventory, D: it.quantity, E: it.price, F: it.discrepancy, G: it.observations, H: it.recommendation };
+                ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(function(col) {
+                    const style = {
+                        font: { name: 'Calibri', sz: 11 },
+                        alignment: { horizontal: dataAlignH[col], vertical: 'center', wrapText: true },
+                        border: allThin
+                    };
+                    // Discrepancy / Observations / Recommendation columns are shaded grey.
+                    if (col === 'F' || col === 'G' || col === 'H') style.fill = { fgColor: { rgb: grey } };
+                    setCell(col + rowNum, vals[col] || '', style);
+                });
+                rows.push({ hpt: rowNum === 24 ? 43.2 : 39.6 });
             }
 
             const lastRow = 10 + rowCount;
