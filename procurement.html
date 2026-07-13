@@ -1570,11 +1570,93 @@
             };
         }
 
+        // ============================================
+        // DURABLE STORAGE: IndexedDB (primary) + localStorage (fast cache)
+        // Purchase orders, quotations, deliveries and invoices grow over time
+        // and previously lived only in localStorage (~5MB cap → silent save
+        // failure once full). They now persist to IndexedDB with localStorage
+        // kept as a synchronous read cache.
+        // ============================================
+        const PROC_IDB_DB = 'ProcurementDB';
+        const PROC_IDB_STORE = 'kv';
+        let _procIdb = null;
+        let _procQuotaWarned = false;
+        let _procDirtyBeforeHydrate = false;
+
+        function _openProcIDB() {
+            if (_procIdb) return Promise.resolve(_procIdb);
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(PROC_IDB_DB, 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(PROC_IDB_STORE)) db.createObjectStore(PROC_IDB_STORE);
+                };
+                req.onsuccess = () => { _procIdb = req.result; _procIdb.onclose = () => { _procIdb = null; }; resolve(_procIdb); };
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function _idbGetProc(key) {
+            return _openProcIDB().then(db => new Promise((resolve, reject) => {
+                const r = db.transaction(PROC_IDB_STORE, 'readonly').objectStore(PROC_IDB_STORE).get(key);
+                r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+            }));
+        }
+        function _idbPutProc(key, value) {
+            return _openProcIDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(PROC_IDB_STORE, 'readwrite');
+                tx.objectStore(PROC_IDB_STORE).put(value, key);
+                tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+            }));
+        }
+
         function saveData(data) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            _procDirtyBeforeHydrate = true;
+            // Durable copy — IndexedDB (not subject to the ~5MB localStorage cap)
+            _idbPutProc(STORAGE_KEY, data).catch(e => console.error('[Procurement IDB] save failed:', e));
+            // Fast synchronous cache — localStorage, guarded against quota
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.error('[Procurement] localStorage cache write failed:', e);
+                if (!_procQuotaWarned) {
+                    _procQuotaWarned = true;
+                    alert('⚠️ Local storage is full. Your data is still being saved to the browser database (IndexedDB), ' +
+                          'but please export a backup to be safe.');
+                }
+            }
         }
 
         let appData = loadData();
+
+        // Hydrate from IndexedDB (durable source of truth) once the DOM is ready.
+        function _hydrateProcFromIDB() {
+            (async function() {
+                try {
+                    const durable = await _idbGetProc(STORAGE_KEY);
+                    if (durable && !_procDirtyBeforeHydrate) {
+                        if (!durable.auditLog) durable.auditLog = [];
+                        if (!durable.quotations) durable.quotations = [];
+                        if (!durable.evaluations) durable.evaluations = [];
+                        if (!durable.deliveries) durable.deliveries = [];
+                        if (!durable.invoices) durable.invoices = [];
+                        if (!durable.purchaseOrders) durable.purchaseOrders = [];
+                        if (!durable.requisitions) durable.requisitions = [];
+                        appData = durable;
+                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch (e) {}
+                        if (typeof refreshAll === 'function') refreshAll();
+                    } else if (durable === undefined || durable === null) {
+                        await _idbPutProc(STORAGE_KEY, appData);
+                    }
+                } catch (e) {
+                    console.warn('[Procurement] IndexedDB hydrate skipped:', e);
+                }
+            })();
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', _hydrateProcFromIDB);
+        } else {
+            _hydrateProcFromIDB();
+        }
 
         // ============================================
         // XSS PROTECTION
