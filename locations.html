@@ -222,7 +222,13 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.06); max-width: 900px; margin: 0 auto;
             padding: 40px 46px;
         }
-        .rec-title { text-align: center; font-size: 1.35rem; font-weight: 700; letter-spacing: 2px; margin-bottom: 26px; }
+        .ed-letterhead { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 2px solid var(--light-gray); }
+        .ed-letterhead img { height: 54px; width: auto; }
+        .ed-letterhead .ed-lh-srha { height: 50px; }
+        .ed-lh-text { flex: 1; text-align: center; }
+        .ed-lh-title { font-size: 1.15rem; font-weight: 800; color: #1F6FB2; line-height: 1.15; }
+        .ed-lh-tagline { font-size: 0.78rem; font-weight: 700; color: #1F6FB2; margin-top: 3px; }
+        .rec-title { text-align: center; font-size: 1.3rem; font-weight: 700; letter-spacing: 1px; margin-bottom: 22px; }
         .rec-fields { margin-bottom: 22px; }
         .rec-field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .rec-field-row label { font-weight: 700; min-width: 170px; font-size: 0.92rem; }
@@ -294,19 +300,34 @@
         /* ===== Print / Preview ===== */
         #printArea { display: none; }
         .print-record {
-            font-family: 'Times New Roman', Georgia, serif;
+            font-family: Cambria, 'Times New Roman', Georgia, serif;
             color: #000; background: #fff;
         }
-        .print-record .pr-title { text-align: center; font-size: 15pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 22px; }
-        .print-record .pr-field { margin-bottom: 8px; font-size: 11pt; }
-        .print-record .pr-field .k { font-weight: bold; display: inline-block; }
-        .print-record table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-        .print-record th, .print-record td { border: 1px solid #000; padding: 6px 8px; font-size: 10.5pt; text-align: left; vertical-align: top; }
-        .print-record th { background: #eee; font-weight: bold; }
-        .print-record .pr-note {
-            margin-top: 26px; border: 1px solid #000; padding: 10px 14px;
-            font-style: italic; font-size: 10pt; text-align: center;
+        /* Letterhead */
+        .print-record .pr-letterhead {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; margin-bottom: 18px;
         }
+        .print-record .pr-lh-moh { height: 62px; width: auto; }
+        .print-record .pr-lh-srha { height: 62px; width: auto; }
+        .print-record .pr-lh-text { flex: 1; text-align: center; }
+        .print-record .pr-lh-title { font-size: 17pt; font-weight: bold; color: #1F6FB2; line-height: 1.1; }
+        .print-record .pr-lh-tagline { font-size: 10pt; font-weight: bold; color: #1F6FB2; margin-top: 4px; }
+        .print-record .pr-title { text-align: center; font-size: 13pt; font-weight: bold; margin: 10px 0 14px; }
+        /* Single bordered table: fields box + item grid */
+        .print-record table.pr-table { width: 100%; border-collapse: collapse; }
+        .print-record table.pr-table td,
+        .print-record table.pr-table th { border: 1px solid #000; padding: 5px 7px; font-size: 11pt; text-align: left; vertical-align: top; }
+        .print-record .pr-fields-row td { padding: 10px 9px 12px; }
+        .print-record .pr-field { font-size: 12pt; margin-bottom: 10px; }
+        .print-record .pr-field:last-child { margin-bottom: 0; }
+        .print-record .pr-field .k { font-weight: bold; }
+        .print-record .pr-head-row th { font-weight: bold; background: #fff; }
+        .print-record .pr-note {
+            margin-top: 22px; font-style: italic; font-weight: bold; font-size: 11pt;
+            line-height: 1.5;
+        }
+        .print-record .pr-pagefoot { text-align: center; font-size: 9pt; color: #444; margin-top: 26px; }
 
         /* Preview modal (on-screen live preview) */
         .preview-overlay {
@@ -405,6 +426,8 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- Letterhead logos for the official Location Record form -->
+    <script src="locations-assets.js"></script>
     <!-- Seed data (departments & rooms scaffolded from the hospital records) -->
     <script src="locations-seed.js"></script>
 
@@ -424,7 +447,23 @@
     ============================================================ */
 
     const STORAGE_KEY = 'hospitalLocationRecords';
-    const APPROVAL_NOTE = 'Approval should be sought from Fixed Asset Manager/Officer concerning relocation/transfers from this department/location before the item is moved.';
+    const APPROVAL_NOTE = 'Approval should be sought from Inventory and Fixed Asset Manager/ Officer concerning relocation/transfers from this department/location before the item is moved.';
+    const MIN_PRINT_ROWS = 12; // blank rows to match the official one-page form
+
+    // Official SRHA letterhead used at the top of every printed/preview record
+    function letterheadHtml() {
+        const moh = (typeof LOGO_MOH !== 'undefined') ? LOGO_MOH : '';
+        const srha = (typeof LOGO_SRHA !== 'undefined') ? LOGO_SRHA : '';
+        return `
+        <div class="pr-letterhead">
+            <img class="pr-lh-moh" src="${moh}" alt="Ministry of Health &amp; Wellness">
+            <div class="pr-lh-text">
+                <div class="pr-lh-title">Southern Regional Health Authority</div>
+                <div class="pr-lh-tagline">Compassion | Accountability | Respect | Efficiency</div>
+            </div>
+            <img class="pr-lh-srha" src="${srha}" alt="SRHA">
+        </div>`;
+    }
 
     let db = { departments: [] };
     let selectedDeptId = null;
@@ -595,7 +634,15 @@
                 <span class="save-hint" id="saveHint" style="margin-left:auto;align-self:center;">All changes save automatically</span>
             </div>
             <div class="record-sheet">
-                <div class="rec-title">LOCATION RECORDS</div>
+                <div class="ed-letterhead">
+                    <img src="${(typeof LOGO_MOH!=='undefined')?LOGO_MOH:''}" alt="Ministry of Health &amp; Wellness">
+                    <div class="ed-lh-text">
+                        <div class="ed-lh-title">Southern Regional Health Authority</div>
+                        <div class="ed-lh-tagline">Compassion | Accountability | Respect | Efficiency</div>
+                    </div>
+                    <img src="${(typeof LOGO_SRHA!=='undefined')?LOGO_SRHA:''}" alt="SRHA" class="ed-lh-srha">
+                </div>
+                <div class="rec-title">LOCATION RECORD</div>
                 <div class="rec-fields">
                     <div class="rec-field-row"><label>Location:</label><input type="text" value="${escAttr(d.name)}" onchange="updateDeptName('${d.id}', this.value)"></div>
                     <div class="rec-field-row"><label>Room Title:</label><input type="text" value="${escAttr(r.title)}" onchange="updateRoomField('${r.id}','title',this.value)"></div>
@@ -826,26 +873,44 @@
        PRINT / PREVIEW  (matches the attached PDF form)
     ============================================================ */
     function recordHtml(dept, room) {
-        const items = room.items || [];
-        const rows = items.length ? items.map((it, i) => `
+        const items = (room.items || []);
+        let rows = items.map(it => `
             <tr>
                 <td>${esc(it.item||'')}</td>
                 <td>${esc(it.description||'')}</td>
                 <td>${esc(it.assetCode||'')}</td>
                 <td>${esc(it.remarks||'')}</td>
-            </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;font-style:italic;">No items recorded.</td></tr>`;
+            </tr>`).join('');
+        // Pad with blank rows so the sheet matches the official one-page form
+        const pad = Math.max(0, MIN_PRINT_ROWS - items.length);
+        for (let i = 0; i < pad; i++) {
+            rows += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+        }
         return `
         <div class="print-record">
-            <div class="pr-title">LOCATION RECORDS</div>
-            <div class="pr-field"><span class="k">Location:</span> ${esc(dept.name)}</div>
-            <div class="pr-field"><span class="k">Room Title:</span> ${esc(room.title)}</div>
-            <div class="pr-field"><span class="k">Verified by and date:</span> ${esc(room.verifiedBy||'')}</div>
-            <div class="pr-field"><span class="k">Date updated:</span> ${esc(room.dateUpdated||'')}</div>
-            <table>
-                <thead><tr><th style="width:24%">Item</th><th style="width:34%">Description/Make</th><th style="width:21%">Asset Code</th><th style="width:21%">Remarks</th></tr></thead>
-                <tbody>${rows}</tbody>
+            ${letterheadHtml()}
+            <div class="pr-title">LOCATION RECORD</div>
+            <table class="pr-table">
+                <tbody>
+                    <tr class="pr-fields-row">
+                        <td colspan="4">
+                            <div class="pr-field"><span class="k">Location:</span> ${esc(dept.name)}</div>
+                            <div class="pr-field"><span class="k">Room Title:</span> ${esc(room.title)}</div>
+                            <div class="pr-field"><span class="k">Verified by and date:</span> ${esc(room.verifiedBy||'')}</div>
+                            <div class="pr-field"><span class="k">Date updated:</span> ${esc(room.dateUpdated||'')}</div>
+                        </td>
+                    </tr>
+                    <tr class="pr-head-row">
+                        <th style="width:27.4%">Item</th>
+                        <th style="width:22.6%">Description/Make</th>
+                        <th style="width:22.9%">Asset Code</th>
+                        <th style="width:27.1%">Remarks</th>
+                    </tr>
+                    ${rows}
+                </tbody>
             </table>
-            <div class="pr-note">${esc(APPROVAL_NOTE)}</div>
+            <div class="pr-note"><em>${esc(APPROVAL_NOTE)}</em></div>
+            <div class="pr-pagefoot">Page 1 of 1</div>
         </div>`;
     }
 
