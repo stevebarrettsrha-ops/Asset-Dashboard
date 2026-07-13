@@ -304,22 +304,30 @@
             color: #000; background: #fff;
         }
         /* Letterhead */
+        /* Kept compact so the repeating <thead> stays under Chromium's
+           table-header-group height limit (~25% of the page) and reprints
+           the letterhead + room/dept section on every page. */
         .print-record .pr-letterhead {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 14px; margin-bottom: 18px;
+            gap: 14px; margin-bottom: 8px;
         }
-        .print-record .pr-lh-moh { height: 62px; width: auto; }
-        .print-record .pr-lh-srha { height: 62px; width: auto; }
+        .print-record .pr-lh-moh { height: 48px; width: auto; }
+        .print-record .pr-lh-srha { height: 46px; width: auto; }
         .print-record .pr-lh-text { flex: 1; text-align: center; }
-        .print-record .pr-lh-title { font-size: 17pt; font-weight: bold; color: #1F6FB2; line-height: 1.1; }
-        .print-record .pr-lh-tagline { font-size: 10pt; font-weight: bold; color: #1F6FB2; margin-top: 4px; }
-        .print-record .pr-title { text-align: center; font-size: 13pt; font-weight: bold; margin: 10px 0 14px; }
-        /* Single bordered table: fields box + item grid */
+        .print-record .pr-lh-title { font-size: 15pt; font-weight: bold; color: #1F6FB2; line-height: 1.1; }
+        .print-record .pr-lh-tagline { font-size: 9pt; font-weight: bold; color: #1F6FB2; margin-top: 3px; }
+        .print-record .pr-title { text-align: center; font-size: 12pt; font-weight: bold; margin: 2px 0 8px; }
+        /* Single bordered table: letterhead + fields box + item grid.
+           thead (letterhead, title, fields, column headers) repeats on every printed page. */
         .print-record table.pr-table { width: 100%; border-collapse: collapse; }
+        .print-record table.pr-table thead { display: table-header-group; }
         .print-record table.pr-table td,
         .print-record table.pr-table th { border: 1px solid #000; padding: 5px 7px; font-size: 11pt; text-align: left; vertical-align: top; }
-        .print-record .pr-fields-row td { padding: 10px 9px 12px; }
-        .print-record .pr-field { font-size: 12pt; margin-bottom: 10px; }
+        /* Letterhead & title rows sit above the box — no borders */
+        .print-record table.pr-table .pr-lh-row td { border: none; padding: 0 0 4px; }
+        .print-record table.pr-table .pr-title-row td { border: none; padding: 0 0 6px; }
+        .print-record .pr-fields-row td { padding: 7px 9px 8px; }
+        .print-record .pr-field { font-size: 11pt; margin-bottom: 5px; }
         .print-record .pr-field:last-child { margin-bottom: 0; }
         .print-record .pr-field .k { font-weight: bold; }
         .print-record .pr-head-row th { font-weight: bold; background: #fff; }
@@ -357,12 +365,14 @@
         }
 
         @media print {
-            body * { visibility: hidden; }
-            #printArea, #printArea * { visibility: visible; }
-            #printArea { display: block; position: absolute; left: 0; top: 0; width: 100%; }
+            /* Hide the app chrome and let #printArea flow in normal document
+               order so the table's repeating <thead> (letterhead + room/dept
+               section + column headers) prints on every page. */
+            body > *:not(#printArea) { display: none !important; }
+            #printArea { display: block !important; }
             .print-record { page-break-after: always; padding: 0; }
             .print-record:last-child { page-break-after: auto; }
-            @page { size: A4; margin: 18mm 16mm; }
+            @page { size: A4; margin: 14mm; }
         }
     </style>
 </head>
@@ -888,10 +898,10 @@
         }
         return `
         <div class="print-record">
-            ${letterheadHtml()}
-            <div class="pr-title">LOCATION RECORD</div>
             <table class="pr-table">
-                <tbody>
+                <thead>
+                    <tr class="pr-lh-row"><td colspan="4">${letterheadHtml()}</td></tr>
+                    <tr class="pr-title-row"><td colspan="4"><div class="pr-title">LOCATION RECORD</div></td></tr>
                     <tr class="pr-fields-row">
                         <td colspan="4">
                             <div class="pr-field"><span class="k">Location:</span> ${esc(dept.name)}</div>
@@ -906,8 +916,8 @@
                         <th style="width:22.9%">Asset Code</th>
                         <th style="width:27.1%">Remarks</th>
                     </tr>
-                    ${rows}
-                </tbody>
+                </thead>
+                <tbody>${rows}</tbody>
             </table>
             <div class="pr-note"><em>${esc(APPROVAL_NOTE)}</em></div>
             <div class="pr-pagefoot">Page 1 of 1</div>
