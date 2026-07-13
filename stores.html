@@ -651,6 +651,10 @@
                     <a class="sidebar-item" data-page="receive" onclick="showPage('receive')">
                         <span class="icon">&#x1f4e5;</span> Receive Stock
                     </a>
+                    <a class="sidebar-item" data-page="pendingDeliveries" onclick="showPage('pendingDeliveries')">
+                        <span class="icon">&#x1f6a9;</span> Pending Deliveries
+                        <span id="pendingDeliveryBadge" style="display:none; background:#e74c3c; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700; margin-left:6px;"></span>
+                    </a>
                     <a class="sidebar-item" data-page="issue" onclick="showPage('issue')">
                         <span class="icon">&#x1f4e4;</span> Issue Stock
                     </a>
@@ -965,6 +969,17 @@
                                 <button type="submit" class="btn btn-success">Record Receipt</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Pending Deliveries (from Procurement) -->
+                <div class="page" id="page-pendingDeliveries">
+                    <div class="page-header">
+                        <h1>Pending Deliveries</h1>
+                        <p>Deliveries recorded in Procurement, awaiting receipt into stores inventory</p>
+                    </div>
+                    <div class="card">
+                        <div id="pendingDeliveriesContainer"></div>
                     </div>
                 </div>
 
@@ -2020,6 +2035,7 @@
             if (item) item.classList.add('active');
 
             // Refresh dropdowns when navigating to receive/issue/requisitions
+            if (pageId === 'pendingDeliveries') renderPendingDeliveries();
             if (pageId === 'receive' || pageId === 'issue') populateItemDropdowns();
             if (pageId === 'requisitions') { populateReqDropdown(); renderRequisitions(); }
             if (pageId === 'expiryAlerts') renderExpiryAlerts();
@@ -2247,6 +2263,139 @@
             e.target.reset();
             alert('Stock received successfully! ' + qty + ' units of ' + item.description + ' added.');
             refreshAll();
+        }
+
+        // ============================================
+        // PENDING DELIVERIES (from Procurement)
+        // Consumes the storesDeliveryNotifications that Procurement writes when
+        // a delivery is recorded, and receives the goods into stores inventory.
+        // ============================================
+        const DELIVERY_NOTIF_KEY = 'storesDeliveryNotifications';
+
+        function getPendingDeliveries() {
+            try { return JSON.parse(localStorage.getItem(DELIVERY_NOTIF_KEY) || '[]'); }
+            catch (e) { return []; }
+        }
+        function savePendingDeliveries(list) {
+            try { localStorage.setItem(DELIVERY_NOTIF_KEY, JSON.stringify(list)); }
+            catch (e) { console.error('[Stores] pending deliveries save failed:', e); }
+        }
+        function updatePendingDeliveryBadge() {
+            const n = getPendingDeliveries().length;
+            const el = document.getElementById('pendingDeliveryBadge');
+            if (el) { el.textContent = n ? n : ''; el.style.display = n ? 'inline-block' : 'none'; }
+        }
+
+        // Generate a unique stores item code for goods that don't match an
+        // existing item (Procurement PO lines carry no stores item code).
+        function generateStoresItemCode() {
+            let n = (appData.itemCounter || appData.items.length) + 1;
+            let code;
+            do { code = 'PROC-' + String(n).padStart(3, '0'); n++; }
+            while (appData.items.some(i => i.code === code));
+            appData.itemCounter = n;
+            return code;
+        }
+
+        function renderPendingDeliveries() {
+            updatePendingDeliveryBadge();
+            const container = document.getElementById('pendingDeliveriesContainer');
+            if (!container) return;
+            const list = getPendingDeliveries();
+            if (!list.length) {
+                container.innerHTML = '<p style="color:#888; padding:20px; text-align:center;">No pending deliveries. Deliveries recorded in the Procurement system will appear here to be received into inventory.</p>';
+                return;
+            }
+            container.innerHTML = list.map((d, idx) => {
+                const items = Array.isArray(d.items) ? d.items : [];
+                const rows = items.map(li => {
+                    const desc = (li.description || '').trim();
+                    const match = appData.items.find(it => (it.description || '').trim().toLowerCase() === desc.toLowerCase());
+                    return '<tr>' +
+                        '<td>' + escapeHtmlStores(desc || '(no description)') + '</td>' +
+                        '<td style="text-align:center;">' + (parseInt(li.qty) || 0) + '</td>' +
+                        '<td>' + escapeHtmlStores(li.unit || '') + '</td>' +
+                        '<td style="text-align:right;">' + (parseFloat(li.unitPrice) || 0).toLocaleString() + '</td>' +
+                        '<td>' + (match ? '<span style="color:#27ae60;">Updates ' + escapeHtmlStores(match.code) + '</span>' : '<span style="color:#2980b9;">New item</span>') + '</td>' +
+                        '</tr>';
+                }).join('');
+                return '<div style="border:1px solid #e0e0e0; border-radius:8px; padding:16px; margin-bottom:16px;">' +
+                    '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">' +
+                        '<div><strong>PO ' + escapeHtmlStores(d.poId || '') + '</strong> &middot; ' + escapeHtmlStores(d.supplierName || 'Unknown supplier') +
+                            (d.grn ? ' &middot; GRN ' + escapeHtmlStores(d.grn) : '') +
+                            (d.deliveryDate ? ' &middot; ' + escapeHtmlStores(d.deliveryDate) : '') + '</div>' +
+                        '<div>' +
+                            '<button class="btn btn-success" style="padding:6px 14px;" onclick="receiveDelivery(' + idx + ')">Receive into Inventory</button> ' +
+                            '<button class="btn" style="padding:6px 14px; background:#eee;" onclick="dismissDelivery(' + idx + ')">Dismiss</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<table class="data-table" style="width:100%;"><thead><tr>' +
+                        '<th>Description</th><th style="text-align:center;">Qty</th><th>Unit</th><th style="text-align:right;">Unit Price</th><th>Action on receive</th>' +
+                    '</tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:#888;">No line items</td></tr>') + '</tbody></table>' +
+                '</div>';
+            }).join('');
+        }
+
+        // Minimal HTML escaper (stores.html has no shared escapeHtml)
+        function escapeHtmlStores(s) {
+            const d = document.createElement('div');
+            d.textContent = (s == null ? '' : String(s));
+            return d.innerHTML;
+        }
+
+        function receiveDelivery(idx) {
+            const list = getPendingDeliveries();
+            const d = list[idx];
+            if (!d) return;
+            const items = Array.isArray(d.items) ? d.items : [];
+            if (!confirm('Receive all ' + items.length + ' item(s) from PO ' + (d.poId || '') + ' into inventory?')) return;
+            const today = new Date().toISOString().split('T')[0];
+            let created = 0, updated = 0;
+            items.forEach(li => {
+                const desc = (li.description || '').trim();
+                if (!desc) return;
+                const qty = parseInt(li.qty) || 0;
+                let item = appData.items.find(it => (it.description || '').trim().toLowerCase() === desc.toLowerCase());
+                if (item) {
+                    item.qty += qty;
+                    updated++;
+                } else {
+                    item = {
+                        code: generateStoresItemCode(), description: desc, category: 'General',
+                        unit: li.unit || 'Each', qty: qty, reorderLevel: 0, maxLevel: 0,
+                        unitCost: parseFloat(li.unitPrice) || 0, supplier: d.supplierName || '',
+                        location: '', notes: 'From PO ' + (d.poId || ''), trackExpiry: false,
+                        shelfLife: 0, batches: [], dateAdded: today
+                    };
+                    appData.items.push(item);
+                    created++;
+                }
+                appData.transactions.push({
+                    date: d.deliveryDate || today, type: 'Received', itemCode: item.code,
+                    description: item.description, qty: qty, department: d.supplierName || 'N/A',
+                    reference: 'PO ' + (d.poId || '') + (d.grn ? ' / GRN ' + d.grn : ''),
+                    by: 'Procurement', batchNo: '', expiryDate: '',
+                    notes: 'Auto-received from Procurement delivery', timestamp: new Date().toISOString()
+                });
+            });
+            list.splice(idx, 1);
+            savePendingDeliveries(list);
+            saveData(appData);
+            if (typeof logActivity === 'function') logActivity('Receive Delivery', 'Received PO ' + (d.poId || '') + ' (' + updated + ' updated, ' + created + ' new)');
+            updatePendingDeliveryBadge();
+            renderPendingDeliveries();
+            refreshAll();
+            alert('Delivery received: ' + updated + ' existing item(s) updated, ' + created + ' new item(s) created.');
+        }
+
+        function dismissDelivery(idx) {
+            const list = getPendingDeliveries();
+            if (!list[idx]) return;
+            if (!confirm('Dismiss this delivery notification without receiving it?')) return;
+            list.splice(idx, 1);
+            savePendingDeliveries(list);
+            updatePendingDeliveryBadge();
+            renderPendingDeliveries();
         }
 
         // ============================================
@@ -4206,6 +4355,8 @@
         // REFRESH ALL
         // ============================================
         function refreshAll() {
+            // Keep the pending-deliveries badge in sync
+            if (typeof updatePendingDeliveryBadge === 'function') updatePendingDeliveryBadge();
             // Stats
             const totalValue = appData.items.reduce((s, i) => s + i.qty * i.unitCost, 0);
             const lowStock = appData.items.filter(i => i.qty > 0 && i.qty <= i.reorderLevel);
