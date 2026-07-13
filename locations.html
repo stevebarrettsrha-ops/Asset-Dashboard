@@ -489,14 +489,29 @@
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
         catch (e) { toast('Could not save (storage full?)', 'error'); }
     }
+    const SEED_VERSION_KEY = 'hospitalLocationRecordsSeedVersion';
+    function currentSeedVersion() {
+        return (typeof LOCATIONS_SEED_VERSION !== 'undefined') ? String(LOCATIONS_SEED_VERSION) : '1';
+    }
     function load() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
             try { db = JSON.parse(raw); }
             catch (e) { db = { departments: [] }; }
         }
-        if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
-            db = { departments: (typeof SEED_DEPARTMENTS === 'function') ? SEED_DEPARTMENTS() : [] };
+        const storedVersion = localStorage.getItem(SEED_VERSION_KEY);
+        const needSeed = !db || !Array.isArray(db.departments) || db.departments.length === 0;
+        // Refresh cached seed data when a newer seed ships. This is what makes
+        // updated departments/rooms appear for users whose browser still holds
+        // an older seed (the app otherwise only seeds when storage is empty).
+        const seedOutdated = storedVersion !== currentSeedVersion();
+        if ((needSeed || seedOutdated) && typeof SEED_DEPARTMENTS === 'function') {
+            // Preserve whatever was stored before, as a one-time safety backup.
+            if (raw && seedOutdated) {
+                try { localStorage.setItem(STORAGE_KEY + '_backup_v' + (storedVersion || '1'), raw); } catch (e) {}
+            }
+            db = { departments: SEED_DEPARTMENTS() };
+            localStorage.setItem(SEED_VERSION_KEY, currentSeedVersion());
             save();
         }
     }

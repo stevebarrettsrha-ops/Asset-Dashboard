@@ -5507,6 +5507,10 @@
             padding: 25px;
         }
 
+        .asset-code-picker-row:hover {
+            background: rgba(26, 188, 156, 0.10) !important;
+        }
+
         .asset-code-form-group {
             margin-bottom: 18px;
         }
@@ -6476,7 +6480,10 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="assetCode">Asset Code *</label>
-                        <input type="text" id="assetCode" required placeholder="MPH-MS-190-01-2025">
+                        <div style="display: flex; gap: 5px; align-items: flex-start;">
+                            <input type="text" id="assetCode" required placeholder="MPH-MS-190-01-2025" style="flex: 1;">
+                            <button type="button" class="btn-secondary" onclick="openAssetCodePicker('assetCode')" title="Look up a standard asset code" style="padding: 8px 12px; flex-shrink: 0;">🔍</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="dateIn">Date In *</label>
@@ -8630,6 +8637,7 @@
                 </div>
 
                 <div class="page-action-bar">
+                    <button class="btn manage-assets-btn" onclick="openAssetCodePicker()" style="background: linear-gradient(135deg, #2980b9, #3498db);">🔍 Pop-up List</button>
                     <button class="btn manage-assets-btn" id="addAssetCodeBtn" onclick="openAddAssetCodeModal()">➕ Add Asset Code</button>
                 </div>
             </div>
@@ -9956,6 +9964,21 @@
         </div>
     </div>
 
+    <!-- Asset Code Reference Pop-up (browse from Lookup page, or pick into a form) -->
+    <div class="asset-code-modal" id="assetCodePickerModal">
+        <div class="asset-code-modal-content" style="max-width: 640px;">
+            <div class="asset-code-modal-header">
+                <h2 id="assetCodePickerTitle">🔍 Asset Code Reference</h2>
+                <button class="asset-code-modal-close" onclick="closeAssetCodePicker()">&times;</button>
+            </div>
+            <div class="asset-code-modal-body">
+                <input type="text" id="assetCodePickerSearch" class="asset-code-search-box" placeholder="Search by code or description..." oninput="renderAssetCodePickerList()" style="width: 100%; margin-bottom: 10px;">
+                <p id="assetCodePickerHint" style="font-size: 0.82rem; color: var(--text-secondary, #7078a0); margin: 0 0 10px;"></p>
+                <div id="assetCodePickerList" style="max-height: 52vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Disposal Modal -->
     <div class="disposal-modal" id="disposalModal">
         <div class="disposal-modal-content">
@@ -10216,6 +10239,65 @@
         let currentUser = null;
         let credentialsData = null;
         let pendingTwoFAUser = null;
+
+        // ── Persisted login session ──────────────────────────────────
+        // Login state normally lives only in `currentUser`, which is lost
+        // whenever the page reloads or the user navigates to another page
+        // (e.g. Location Records → Dashboard). We persist a lightweight,
+        // secret-free session so an active login survives navigation and the
+        // user isn't bounced to the sign-in screen while the session is valid.
+        const LOGIN_SESSION_KEY = 'assetDashboardLoginSession';
+        const LOGIN_SESSION_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+        function persistLoginSession(user) {
+            try {
+                // Never store secrets in the session snapshot
+                const { passwordHash, password, twoFactorSecret, backupCodes, ...safe } = user || {};
+                const session = { user: safe, expiry: Date.now() + LOGIN_SESSION_DURATION_MS };
+                localStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session));
+            } catch (e) { console.warn('Could not persist login session:', e); }
+        }
+
+        function clearLoginSession() {
+            try { localStorage.removeItem(LOGIN_SESSION_KEY); } catch (e) {}
+        }
+
+        function getValidLoginSession() {
+            try {
+                const raw = localStorage.getItem(LOGIN_SESSION_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (!session || !session.user || !session.expiry) return null;
+                if (Date.now() > session.expiry) { clearLoginSession(); return null; }
+                return session;
+            } catch (e) { return null; }
+        }
+
+        // Restore an active session on page load — skips the login screen and
+        // the mandatory login-sync gate (which already ran when the session
+        // was first established).
+        async function restoreLoginSession() {
+            const session = getValidLoginSession();
+            if (!session) return false;
+            currentUser = session.user;
+            // 2FA details are kept in their own store, not in the session
+            try {
+                const twoFA = getUserTwoFASettings(currentUser.username);
+                if (twoFA) {
+                    currentUser.twoFactorEnabled = twoFA.twoFactorEnabled || false;
+                    currentUser.twoFactorSecret = twoFA.twoFactorSecret || null;
+                    currentUser.backupCodes = twoFA.backupCodes || null;
+                }
+            } catch (e) {}
+            try {
+                await finishLogin();
+                return true;
+            } catch (e) {
+                console.error('Session restore failed:', e);
+                clearLoginSession();
+                return false;
+            }
+        }
 
         // Local users storage (for users created by admin)
         let localUsers;
@@ -10670,6 +10752,10 @@
                 const settingsBtn = document.getElementById('settingsBtn');
                 if (settingsBtn) settingsBtn.style.display = 'block';
 
+                // Persist the session so navigating between pages doesn't
+                // force a re-login while the session is still valid.
+                persistLoginSession(currentUser);
+
                 console.log('Login successful for:', user.username);
 
             } catch (error) {
@@ -10736,6 +10822,7 @@
 
                 currentUser = null;
                 pendingTwoFAUser = null;
+                clearLoginSession();
                 document.getElementById('dashboardContainer').style.display = 'none';
                 const nightBtn = document.getElementById('nightModeBtn');
                 if (nightBtn) nightBtn.style.display = 'none';
@@ -12854,6 +12941,7 @@
             _inMandatoryLoginSync = false;
             closeMandatoryLoginSyncModal();
             currentUser = null;
+            clearLoginSession();
             const loginForm = document.getElementById('loginForm');
             if (loginForm) loginForm.reset();
             document.getElementById('loginStep1').style.display = 'block';
@@ -16092,6 +16180,10 @@
             if (quantityInput) quantityInput.addEventListener('input', updateTotalPrice);
             if (unitPriceInput) unitPriceInput.addEventListener('input', updateTotalPrice);
 
+            // Restore an active login session (if any) so returning to the
+            // dashboard from another page doesn't force a re-login.
+            restoreLoginSession();
+
             // ── Auto-calculate salvage value based on cost & category ──
             const salvageInput = document.getElementById('assetSalvageValue');
             const salvageHint = document.getElementById('salvageAutoHint');
@@ -19260,6 +19352,86 @@
             animateCountUp(document.getElementById('assetCode1997Count'), count1997);
             animateCountUp(document.getElementById('assetCodeNewCount'), countNew);
             animateCountUp(document.getElementById('assetCodeTotalCount'), count1998 + count1997 + countNew);
+        }
+
+        // ============================================================
+        // Asset Code Reference Pop-up (reusable browse + pick modal)
+        // Opened with no argument  -> browse mode (click copies the code).
+        // Opened with an input id   -> pick mode (click fills that field).
+        // ============================================================
+        let _assetCodePickerTarget = null;
+
+        function openAssetCodePicker(targetInputId) {
+            _assetCodePickerTarget = targetInputId || null;
+            const modal = document.getElementById('assetCodePickerModal');
+            const hint = document.getElementById('assetCodePickerHint');
+            const search = document.getElementById('assetCodePickerSearch');
+            if (hint) hint.textContent = _assetCodePickerTarget
+                ? 'Click a code to insert it into the form.'
+                : 'Browse the full asset code reference. Click a row to copy the code.';
+            if (search) search.value = '';
+            renderAssetCodePickerList();
+            if (modal) modal.style.display = 'flex';
+            if (search) setTimeout(() => search.focus(), 50);
+        }
+
+        function closeAssetCodePicker() {
+            const modal = document.getElementById('assetCodePickerModal');
+            if (modal) modal.style.display = 'none';
+            _assetCodePickerTarget = null;
+        }
+
+        function renderAssetCodePickerList() {
+            const listEl = document.getElementById('assetCodePickerList');
+            if (!listEl) return;
+            const searchEl = document.getElementById('assetCodePickerSearch');
+            const term = (searchEl ? searchEl.value : '').toLowerCase().trim();
+            const all = [
+                ...getAssetCodes('1998').map(i => ({ ...i, year: '1998' })),
+                ...getAssetCodes('1997').map(i => ({ ...i, year: '1997' })),
+                ...getAssetCodes('new').map(i => ({ ...i, year: 'new' }))
+            ].sort((a, b) => a.desc.localeCompare(b.desc));
+            const filtered = term
+                ? all.filter(i => i.code.toLowerCase().includes(term) || i.desc.toLowerCase().includes(term))
+                : all;
+
+            if (!filtered.length) {
+                listEl.innerHTML = '<div style="padding:18px;text-align:center;color:#7078a0;font-size:0.85rem;">No matching asset codes.</div>';
+                return;
+            }
+
+            const rows = filtered.slice(0, 500).map(i => {
+                const badge = '<span class="year-badge" style="font-size:0.75em;' + getYearBadgeStyle(i.year) + '">' + getYearLabel(i.year) + '</span>';
+                const codeAttr = String(i.code).replace(/"/g, '&quot;');
+                const descAttr = String(i.desc).replace(/"/g, '&quot;');
+                return '<div class="asset-code-picker-row" onclick="pickAssetCode(this)" data-code="' + codeAttr + '" data-desc="' + descAttr + '" '
+                    + 'style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 14px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.05);">'
+                    + '<span><strong>' + escapeHtml(i.code) + '</strong> &nbsp; ' + escapeHtml(i.desc) + '</span>' + badge + '</div>';
+            });
+            if (filtered.length > 500) {
+                rows.push('<div style="padding:10px 14px;color:#7078a0;font-size:0.8rem;">Showing first 500 of ' + filtered.length + '. Refine your search to see more.</div>');
+            }
+            listEl.innerHTML = rows.join('');
+        }
+
+        function pickAssetCode(rowEl) {
+            const code = rowEl.getAttribute('data-code') || '';
+            const desc = rowEl.getAttribute('data-desc') || '';
+            if (_assetCodePickerTarget) {
+                const input = document.getElementById(_assetCodePickerTarget);
+                if (input) {
+                    input.value = code;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                closeAssetCodePicker();
+            } else {
+                // Browse mode: copy the code to the clipboard for easy reuse
+                try { if (navigator.clipboard) navigator.clipboard.writeText(code); } catch (e) {}
+                rowEl.style.background = 'rgba(26,188,156,0.20)';
+                const hint = document.getElementById('assetCodePickerHint');
+                if (hint) hint.textContent = 'Copied "' + code + ' - ' + desc + '" to clipboard.';
+            }
         }
 
         // Admin: Open modal to add a new asset code
