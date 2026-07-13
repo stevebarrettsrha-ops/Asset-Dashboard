@@ -9849,6 +9849,7 @@
 
                 <div class="page-action-bar">
                     <button class="btn monthly-view-btn" onclick="sidebarNavigate(6)" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6);">&#8592; Back to Board of Survey</button>
+                    <button class="btn monthly-view-btn" onclick="form7cPopulateFromBOS()" style="background: linear-gradient(135deg, #2980b9, #3498db);">&#128229; Populate from Board of Survey</button>
                     <button class="btn monthly-view-btn" onclick="form7cExportExcel()" style="background: linear-gradient(135deg, #27ae60, #219a52);">&#128229; Export Excel</button>
                     <button class="btn monthly-view-btn" onclick="form7cPrint()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">&#128424;&#65039; Print / PDF</button>
                     <button class="btn monthly-view-btn" onclick="form7cClear()" style="background: linear-gradient(135deg, #e67e22, #d35400);">&#128260; Clear</button>
@@ -17442,6 +17443,45 @@
             form7cSave();
             form7cRenderEditor();
             form7cRenderPreview();
+        }
+
+        // Seed the Boarded Items list from existing Board of Survey disposal
+        // records, so the official Form 7C reflects the app's disposal ledger
+        // instead of being a fully separate worksheet.
+        function form7cPopulateFromBOS() {
+            const records = (typeof DISPOSAL_STORAGE_KEY !== 'undefined' ? (_dbGet(DISPOSAL_STORAGE_KEY) || []) : []);
+            if (!records.length) {
+                alert('No Board of Survey disposal records found to populate from.');
+                return;
+            }
+            const existingItems = (form7cData.items || []).filter(function(it) {
+                return it.description || it.inventory || it.observations || it.recommendation;
+            });
+            if (existingItems.length && !confirm('Replace the current ' + existingItems.length +
+                ' item(s) with ' + records.length + ' record(s) from the Board of Survey?')) {
+                return;
+            }
+            const mapRec = function(method) {
+                if (!method) return '';
+                const m = FORM7C_RECOMMENDATIONS.find(function(r) { return r.toLowerCase() === String(method).toLowerCase(); });
+                return m || '';
+            };
+            form7cData.items = records.map(function(r) {
+                return {
+                    description: r.assetDescription || '',
+                    inventory: r.assetCode || '',
+                    quantity: r.quantity ? String(r.quantity) : '1',
+                    price: r.originalValue ? String(r.originalValue) : '',
+                    discrepancy: '',
+                    observations: r.reason || r.remarks || '',
+                    recommendation: mapRec(r.method)
+                };
+            });
+            if (!form7cData.items.length) form7cData.items = [form7cBlankItem()];
+            form7cSave();
+            form7cRenderEditor();
+            form7cRenderPreview();
+            alert('Populated ' + records.length + ' item(s) from the Board of Survey.');
         }
 
         function form7cClear() {

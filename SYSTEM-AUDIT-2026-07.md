@@ -41,6 +41,7 @@ These modules stored their **entire growing dataset** (inventory items, transact
 - **`refreshAllViews`** now also refreshes the Fiscal Year Report when it is the active page.
 - **`removeDisposalRecordsForAsset`** now prefers precise `assetId` matching and only falls back to code matching for records with no `assetId`, so deleting one duplicate can no longer wipe another asset's disposal record that shares the same code.
 - Dashboard aggregation coerces `quantity`/`totalPrice` to numbers, preventing a single bad value from turning totals into `NaN`.
+- **Form 7C ↔ Board of Survey link:** added a "Populate from Board of Survey" button so the Boarded Items form can seed itself from the disposal ledger (description, asset code, original value, reason, method → recommendation) instead of being fully standalone.
 
 All changes were verified in a headless browser: pages load with no JS errors, storage round-trips (including crash-recovery and IndexedDB-after-wipe), and the edited functions run cleanly.
 
@@ -62,7 +63,6 @@ The dashboard buckets everything that isn't exactly `"Medical Equipment"` as "fu
 - **Portal "Account Settings" opens with no authentication** and user passwords are stored/displayed in **plaintext** in `portalUserAccounts`. Recommend gating the panel and hashing at rest.
 - **Login case/precedence differ** between stores (portal-first, lowercased) and procurement (Sheet-first, case-sensitive) for the same credentials. Recommend a single normalized username comparison and documented precedence. *(Auth-flow change — left untouched pending confirmation as it's high blast-radius.)*
 - **index ↔ locations asset drift:** the register (`assetInventoryData`, IndexedDB) and location records (`hospitalLocationRecords`, localStorage) describe the same assets with **different asset-code formats** and no sync. Recommend one canonical code and a defined source of truth.
-- **Form 7C (Boarded Items) is a standalone worksheet** with no link to the disposal ledger. Optional enhancement: a "Populate from Board of Survey" action to seed it from disposal records.
 
 ### D. Consistent by design (verified OK)
 `portalUserAccounts`, `portalHeadingSettings`, and the Google OAuth token keys have consistent schemas across all pages; depreciation/salvage math is centralized; no base64/image blobs are written to storage anywhere.
