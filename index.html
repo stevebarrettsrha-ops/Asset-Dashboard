@@ -14236,7 +14236,8 @@
             AUDIT_STORAGE_KEY,
             ASSET_DELETED_IDS_KEY,
             'assetDisposalRecords',
-            'assetDisposalDeletedIds'
+            'assetDisposalDeletedIds',
+            'qrCodeRegistry'
         ]);
 
         // In-memory cache for IndexedDB-backed data
@@ -14284,12 +14285,69 @@
             }));
         }
 
+        // Durability state:
+        //  _dbDirty   – keys written before IDB init finished (flushed after init)
+        //  _dbPending – keys whose latest IDB write has not yet confirmed committed.
+        //               Used to write a synchronous crash-recovery backup on tab hide.
+        //  _dbStorageErrorShown – ensures the "storage failed" warning shows only once.
+        const _dbDirty = new Set();
+        const _dbPending = new Set();
+        let _dbStorageErrorShown = false;
+        const _DB_FLUSH_PREFIX = '__idbflush_';
+
+        // Persist one key to IndexedDB, tracking commit status so tab-close can
+        // back up any not-yet-committed write and so genuine failures surface.
+        function _persistToIDB(key, value) {
+            _dbPending.add(key);
+            _idbSet(key, value).then(() => {
+                _dbPending.delete(key);
+                // Committed durably – drop any crash-recovery backup.
+                try { localStorage.removeItem(_DB_FLUSH_PREFIX + key); } catch (e) {}
+            }).catch(err => {
+                _dbPending.delete(key);
+                console.error(`[IDB] Write error for "${key}":`, err);
+                // Fallback to localStorage (guarded – the large keys can exceed quota).
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (lsErr) {
+                    console.error(`[IDB] localStorage fallback failed for "${key}":`, lsErr);
+                    if (!_dbStorageErrorShown) {
+                        _dbStorageErrorShown = true;
+                        try {
+                            alert('⚠️ Storage error: your most recent changes may not have been saved.\n\n' +
+                                  'Please export a backup (Export button) and reload the page. ' +
+                                  'If this keeps happening, the browser\'s storage may be full or blocked.');
+                        } catch (e) {}
+                    }
+                }
+            });
+        }
+
         // Initialize: load large data from IndexedDB, migrate from localStorage if needed
         async function _initializeIDB() {
             try {
                 for (const key of IDB_KEYS) {
+                    // A write that happened before init must not be clobbered by the
+                    // value we load from disk.
+                    if (_dbDirty.has(key)) continue;
+
                     let data = await _idbGet(key);
-                    if (data === undefined || data === null) {
+
+                    // Crash-recovery: a backup exists only if a write was still
+                    // in flight when the tab last closed – prefer it over the
+                    // possibly-older committed IDB value.
+                    let recovered = null;
+                    try {
+                        const flush = localStorage.getItem(_DB_FLUSH_PREFIX + key);
+                        if (flush) recovered = JSON.parse(flush);
+                    } catch (e) { recovered = null; }
+
+                    if (recovered !== null) {
+                        data = recovered;
+                        try { await _idbSet(key, data); } catch (e) {}
+                        try { localStorage.removeItem(_DB_FLUSH_PREFIX + key); } catch (e) {}
+                        console.log(`[IDB] Recovered "${key}" from crash-safe backup`);
+                    } else if (data === undefined || data === null) {
                         // Migrate from localStorage on first run
                         const lsData = localStorage.getItem(key);
                         if (lsData) {
@@ -14309,8 +14367,15 @@
                 _idbReady = true;
                 console.log('[IDB] IndexedDB storage initialized');
 
-                // Re-initialize deletedAssetIds from the migrated cache
+                // Flush any writes that were issued before init completed.
+                _dbDirty.forEach(key => _persistToIDB(key, _dbCache[key]));
+                _dbDirty.clear();
+
+                // Re-initialize the in-memory tombstone Sets from the loaded cache.
                 deletedAssetIds = new Set(_dbCache[ASSET_DELETED_IDS_KEY] || []);
+                if (typeof disposalDeletedIds !== 'undefined') {
+                    disposalDeletedIds = new Set(_dbCache[DISPOSAL_DELETED_IDS_KEY] || []);
+                }
             } catch (error) {
                 console.error('[IDB] IndexedDB init failed, falling back to localStorage:', error);
                 for (const key of IDB_KEYS) {
@@ -14322,6 +14387,7 @@
                     }
                 }
                 _idbReady = true;
+                _dbDirty.clear();
             }
         }
 
@@ -14341,17 +14407,28 @@
         function _dbSet(key, value) {
             _dbCache[key] = value;
             if (_idbReady) {
-                _idbSet(key, value).catch(err => {
-                    console.error(`[IDB] Write error for "${key}":`, err);
-                    // Fallback: try localStorage
-                    try {
-                        localStorage.setItem(key, JSON.stringify(value));
-                    } catch (lsErr) {
-                        console.error(`[IDB] localStorage fallback also failed for "${key}":`, lsErr);
-                    }
-                });
+                _persistToIDB(key, value);
+            } else {
+                // Init not finished yet – remember to flush this once it is.
+                _dbDirty.add(key);
             }
         }
+
+        // On tab hide / unload, synchronously back up any write that hasn't yet
+        // confirmed it committed to IndexedDB, so a hard close can't lose it.
+        // Backups are removed as soon as the async write confirms (see _persistToIDB).
+        function _dbFlushOnHide() {
+            _dbPending.forEach(key => {
+                if (_dbCache[key] === undefined) return;
+                try {
+                    localStorage.setItem(_DB_FLUSH_PREFIX + key, JSON.stringify(_dbCache[key]));
+                } catch (e) { /* quota: IDB write likely still commits; nothing else we can do */ }
+            });
+        }
+        window.addEventListener('pagehide', _dbFlushOnHide);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') _dbFlushOnHide();
+        });
 
         // ============================================
         // CATEGORY-BASED SALVAGE VALUE PERCENTAGES
@@ -20054,15 +20131,17 @@
         // QR CODE REGISTRY (Persistent Storage)
         // ============================================
 
-        // Load QR code registry from localStorage
+        // Load QR code registry (IndexedDB-backed via the _dbGet cache).
+        // Stored as an object keyed by lowercased asset code.
         function loadQRRegistry() {
-            const stored = localStorage.getItem('qrCodeRegistry');
-            return stored ? JSON.parse(stored) : {};
+            const reg = _dbGet('qrCodeRegistry');
+            return (reg && typeof reg === 'object' && !Array.isArray(reg)) ? reg : {};
         }
 
-        // Save QR code registry to localStorage
+        // Save QR code registry to IndexedDB (durable, not subject to the ~5MB
+        // localStorage quota that this growing dataset used to risk).
         function saveQRRegistry(registry) {
-            localStorage.setItem('qrCodeRegistry', JSON.stringify(registry));
+            _dbSet('qrCodeRegistry', registry);
         }
 
         // Register a QR code with asset data
@@ -21947,46 +22026,50 @@
                     dataStore.allItems.push(asset);
 
                     const assetCategory = asset.category || 'Medical Equipment';
+                    // Coerce numerics so a non-numeric quantity/price can't turn every
+                    // downstream total into NaN.
+                    const qty = Number(asset.quantity) || 0;
+                    const price = Number(asset.totalPrice) || 0;
 
                     // Add to monthly data
                     if (dataStore.monthly[asset.month]) {
                         const mStats = dataStore.monthly[asset.month].stats;
                         dataStore.monthly[asset.month].items.push(asset);
-                        mStats.totalItems += asset.quantity;
-                        mStats.totalValue += asset.totalPrice;
+                        mStats.totalItems += qty;
+                        mStats.totalValue += price;
 
                         if (isMedical) {
-                            mStats.medicalEquipment += asset.quantity;
-                            mStats.medicalValue += asset.totalPrice;
+                            mStats.medicalEquipment += qty;
+                            mStats.medicalValue += price;
                         } else {
-                            mStats.furniture += asset.quantity;
-                            mStats.furnitureValue += asset.totalPrice;
+                            mStats.furniture += qty;
+                            mStats.furnitureValue += price;
                         }
 
                         // Per-category stats
                         if (!mStats.categoryStats) mStats.categoryStats = {};
                         if (!mStats.categoryStats[assetCategory]) mStats.categoryStats[assetCategory] = { count: 0, value: 0 };
-                        mStats.categoryStats[assetCategory].count += asset.quantity;
-                        mStats.categoryStats[assetCategory].value += asset.totalPrice;
+                        mStats.categoryStats[assetCategory].count += qty;
+                        mStats.categoryStats[assetCategory].value += price;
                     }
 
                     // Update totals
-                    dataStore.totals.totalItems += asset.quantity;
-                    dataStore.totals.totalValue += asset.totalPrice;
+                    dataStore.totals.totalItems += qty;
+                    dataStore.totals.totalValue += price;
 
                     if (isMedical) {
-                        dataStore.totals.medicalEquipment += asset.quantity;
-                        dataStore.totals.medicalValue += asset.totalPrice;
+                        dataStore.totals.medicalEquipment += qty;
+                        dataStore.totals.medicalValue += price;
                     } else {
-                        dataStore.totals.furniture += asset.quantity;
-                        dataStore.totals.furnitureValue += asset.totalPrice;
+                        dataStore.totals.furniture += qty;
+                        dataStore.totals.furnitureValue += price;
                     }
 
                     // Per-category totals
                     if (!dataStore.totals.categoryStats) dataStore.totals.categoryStats = {};
                     if (!dataStore.totals.categoryStats[assetCategory]) dataStore.totals.categoryStats[assetCategory] = { count: 0, value: 0 };
-                    dataStore.totals.categoryStats[assetCategory].count += asset.quantity;
-                    dataStore.totals.categoryStats[assetCategory].value += asset.totalPrice;
+                    dataStore.totals.categoryStats[assetCategory].count += qty;
+                    dataStore.totals.categoryStats[assetCategory].value += price;
                 });
 
                 combineAndDisplayData();
@@ -25515,10 +25598,8 @@
             }
         }
 
-        // Generate unique asset ID
-        function generateAssetId() {
-            return 'asset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
+        // NOTE: generateAssetId() is defined once, earlier (identical body).
+        // Duplicate removed for hygiene.
 
         // Get month abbreviation from date
         function getMonthFromDate(dateStr) {
@@ -26192,8 +26273,12 @@
                 const removedIds = [];
 
                 const filtered = disposals.filter(record => {
-                    const matchById = assetId && record.assetId === assetId;
-                    const matchByCode = record.assetCode === assetCode;
+                    // Prefer a precise id match. Fall back to code matching ONLY for
+                    // records that carry no assetId of their own (e.g. BOS-imported),
+                    // so deleting one duplicate never wipes a different asset's
+                    // disposal record that merely shares the same asset code.
+                    const matchById = assetId && record.assetId && record.assetId === assetId;
+                    const matchByCode = !record.assetId && record.assetCode === assetCode;
                     if (matchById || matchByCode) {
                         removedIds.push(record.id);
                         return false;
@@ -29088,6 +29173,13 @@
                     try { scanMultiCodeAssets(); } catch(e) { console.error('Error refreshing asset code parser:', e); }
                 }
             }
+            // Refresh Fiscal Year Report if active (keeps its totals in sync with edits)
+            if (typeof generateFiscalYearReport === 'function') {
+                const page15 = document.getElementById('page15');
+                if (page15 && page15.classList.contains('active')) {
+                    try { generateFiscalYearReport(); } catch(e) { console.error('Error refreshing fiscal year report:', e); }
+                }
+            }
         }
 
         // Export asset register
@@ -29830,11 +29922,9 @@
             refreshAllViews();
         }
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
+        // NOTE: escapeHtml() is defined once, earlier (it also escapes single
+        // quotes). This weaker duplicate was removed so all callers get the
+        // attribute-safe version.
 
         function previewBulkAssetCode() {
             if (bulkSelectedIds.size === 0) {
@@ -29963,31 +30053,9 @@
         }
 
         // Simple fuzzy similarity (Dice coefficient on bigrams)
-        function stringSimilarity(a, b) {
-            a = a.toLowerCase().trim();
-            b = b.toLowerCase().trim();
-            if (a === b) return 1;
-            if (a.length < 2 || b.length < 2) return 0;
-
-            const bigrams = (str) => {
-                const set = new Map();
-                for (let i = 0; i < str.length - 1; i++) {
-                    const bg = str.substring(i, i + 2);
-                    set.set(bg, (set.get(bg) || 0) + 1);
-                }
-                return set;
-            };
-
-            const bg1 = bigrams(a);
-            const bg2 = bigrams(b);
-            let matches = 0;
-
-            for (const [bg, count] of bg1) {
-                if (bg2.has(bg)) matches += Math.min(count, bg2.get(bg));
-            }
-
-            return (2 * matches) / (a.length - 1 + b.length - 1);
-        }
+        // NOTE: stringSimilarity() is defined once, earlier (near normalizeForMatch).
+        // The earlier definition is null-safe and punctuation-insensitive; this
+        // duplicate was removed so duplicate-detection behaviour is deterministic.
 
         function scanForDuplicates() {
             const startTime = performance.now();
@@ -30328,8 +30396,9 @@
                 const assets = categoryGroups[cat];
                 const totalValue = assets.reduce((s, a) => s + (parseFloat(a.totalPrice) || 0), 0);
                 const totalAssets = assets.reduce((s, a) => s + (a.quantity || 1), 0);
-                const purchased = assets.filter(a => a.source === 'Purchased').length;
-                const donated = assets.filter(a => a.source === 'Donated').length;
+                // Count by summed quantity (consistent with register/dashboard), not row count
+                const purchased = assets.filter(a => a.source === 'Purchased').reduce((s, a) => s + (a.quantity || 1), 0);
+                const donated = assets.filter(a => a.source === 'Donated').reduce((s, a) => s + (a.quantity || 1), 0);
 
                 const rows = assets.map((asset, i) => {
                     const isDisposed = disposedAssetCodes.has(asset.assetCode);
