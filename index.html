@@ -17391,6 +17391,24 @@
             return { description: '', inventory: '', quantity: '', price: '', discrepancy: '', observations: '', recommendation: '' };
         }
 
+        // Items are always presented alphabetically by description on the BOS
+        // List (preview, print and Excel export), regardless of entry order.
+        // Blank rows sort to the end; entry order is the tiebreak. The editor
+        // itself keeps entry order so typing isn't disrupted.
+        function form7cSortedItems() {
+            return (form7cData.items || [])
+                .map(function(it, i) { return { it: it, i: i }; })
+                .sort(function(a, b) {
+                    const da = (a.it.description || '').trim().toLowerCase();
+                    const db = (b.it.description || '').trim().toLowerCase();
+                    if (!da && !db) return a.i - b.i;
+                    if (!da) return 1;
+                    if (!db) return -1;
+                    return da.localeCompare(db) || (a.i - b.i);
+                })
+                .map(function(x) { return x.it; });
+        }
+
         function form7cDefaultData() {
             return {
                 fileNo: '', enclNo: '', refNo: '', requestDate: '',
@@ -17559,7 +17577,7 @@
             const doc = document.getElementById('f7cDoc');
             if (!doc) return;
             const d = form7cData;
-            const items = d.items || [];
+            const items = form7cSortedItems();
             // Show entered items plus a couple of trailing blank rows for the classic form look
             const hasContent = items.some(function(it) {
                 return (it.description || it.inventory || it.quantity || it.observations || it.recommendation);
@@ -17697,7 +17715,8 @@
 
             // Data rows (start row 11). Match the template's minimum of 21 rows.
             // Font 11; alignment: B,C,E,G,H left, D centre, F right; thin borders.
-            const items = d.items || [];
+            // Items are sorted alphabetically by description (same as the preview).
+            const items = form7cSortedItems();
             const rowCount = Math.max(21, items.length);
             const dataAlignH = { B: 'left', C: 'left', D: 'center', E: 'left', F: 'right', G: 'left', H: 'left' };
             const rows = [{ hpt: 40.8 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 15.6 }, { hpt: 9.75 }, { hpt: 21.75 }, { hpt: 24.75 }, { hpt: 10.5 }, { hpt: 35.4 }];
