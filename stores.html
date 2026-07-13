@@ -1722,9 +1722,97 @@
             };
         }
 
-        function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+        // ============================================
+        // DURABLE STORAGE: IndexedDB (primary) + localStorage (fast cache)
+        // The stores dataset (transactions, batches, count history) grows over
+        // time and previously lived only in localStorage, which is capped at
+        // ~5MB per origin — so a busy store could silently fail to save. It now
+        // persists to IndexedDB (effectively uncapped) with localStorage kept as
+        // a synchronous read cache.
+        // ============================================
+        const STORES_IDB_DB = 'StoresDB';
+        const STORES_IDB_STORE = 'kv';
+        let _storesIdb = null;
+        let _storesQuotaWarned = false;
+        let _storesDirtyBeforeHydrate = false;
+
+        function _openStoresIDB() {
+            if (_storesIdb) return Promise.resolve(_storesIdb);
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(STORES_IDB_DB, 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORES_IDB_STORE)) db.createObjectStore(STORES_IDB_STORE);
+                };
+                req.onsuccess = () => { _storesIdb = req.result; _storesIdb.onclose = () => { _storesIdb = null; }; resolve(_storesIdb); };
+                req.onerror = () => reject(req.error);
+            });
+        }
+        function _idbGetStores(key) {
+            return _openStoresIDB().then(db => new Promise((resolve, reject) => {
+                const r = db.transaction(STORES_IDB_STORE, 'readonly').objectStore(STORES_IDB_STORE).get(key);
+                r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+            }));
+        }
+        function _idbPutStores(key, value) {
+            return _openStoresIDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(STORES_IDB_STORE, 'readwrite');
+                tx.objectStore(STORES_IDB_STORE).put(value, key);
+                tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+            }));
+        }
+
+        function saveData(data) {
+            _storesDirtyBeforeHydrate = true;
+            // Durable copy — IndexedDB (not subject to the ~5MB localStorage cap)
+            _idbPutStores(STORAGE_KEY, data).catch(e => console.error('[Stores IDB] save failed:', e));
+            // Fast synchronous cache — localStorage, guarded against quota
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.error('[Stores] localStorage cache write failed:', e);
+                if (!_storesQuotaWarned) {
+                    _storesQuotaWarned = true;
+                    alert('⚠️ Local storage is full. Your data is still being saved to the browser database (IndexedDB), ' +
+                          'but please export a backup to be safe.');
+                }
+            }
+        }
 
         let appData = loadData();
+
+        // Hydrate from IndexedDB (the durable source of truth) once the DOM is
+        // ready. localStorage is only a fast first-paint cache; if it was evicted
+        // or a prior save hit quota, IndexedDB still holds the complete data.
+        function _hydrateStoresFromIDB() {
+            (async function() {
+                try {
+                    const durable = await _idbGetStores(STORAGE_KEY);
+                    if (durable && !_storesDirtyBeforeHydrate) {
+                        // Ensure expected collections exist (defensive against older shapes)
+                        if (!Array.isArray(durable.items)) durable.items = appData.items || [];
+                        if (!durable.transactions) durable.transactions = [];
+                        if (!durable.auditLog) durable.auditLog = [];
+                        if (!durable.requisitions) durable.requisitions = [];
+                        if (!durable.countHistory) durable.countHistory = [];
+                        if (!durable.categories) durable.categories = appData.categories;
+                        appData = durable;
+                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch (e) {}
+                        if (typeof refreshAll === 'function') refreshAll();
+                    } else if (durable === undefined || durable === null) {
+                        // First run under IndexedDB — seed it from the current data
+                        await _idbPutStores(STORAGE_KEY, appData);
+                    }
+                } catch (e) {
+                    console.warn('[Stores] IndexedDB hydrate skipped:', e);
+                }
+            })();
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', _hydrateStoresFromIDB);
+        } else {
+            _hydrateStoresFromIDB();
+        }
 
         // ============================================
         // XSS PROTECTION
