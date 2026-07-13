@@ -14505,6 +14505,15 @@
             'Office Furniture'
         ];
 
+        // Canonical bucketing for the Dashboard's Medical vs (Furniture/other)
+        // split. Both 'Medical Equipment' and 'Industrial Medical Equipment'
+        // are medical; everything else falls into the non-medical bucket. Used
+        // everywhere the medical/furniture KPI is computed so the dashboard
+        // agrees with the category-aware views.
+        function isMedicalCategory(category) {
+            return !!category && /medical/i.test(String(category));
+        }
+
         // ─── Auto-Categorization: Keyword-to-Category Mapping ───
         // Each entry maps a category name to an array of keywords.
         // When the user types in the Description or Item Type fields,
@@ -22030,6 +22039,9 @@
 
                 // Filter assets by current fiscal year (and optionally exclude disposed)
                 const assets = allAssets.filter(asset => {
+                    // Assets explicitly flagged disposed (from Board of Survey) never
+                    // count as active inventory, regardless of the toggle.
+                    if (isDisposedAsset(asset)) return false;
                     const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
                     // Only include assets with a determinable fiscal year that matches
                     // Assets with null fiscal year (unparseable dates) are excluded
@@ -22059,7 +22071,7 @@
                         }
                     }
 
-                    const isMedical = asset.category === 'Medical Equipment';
+                    const isMedical = isMedicalCategory(asset.category);
                     const dataStore = asset.source === 'Purchased' ? purchasedData : donatedData;
 
                     // Add to all items
@@ -22273,9 +22285,9 @@
                     const quantity = parseInt(row[2]) || 1;
                     
                     const itemType = row[6] ? row[6].toString().trim() : '';
-                    const isMedical = itemType.toLowerCase().includes('medical');
                     // Determine the actual category from the item type column
                     const actualCategory = determineSpreadsheetCategory(itemType);
+                    const isMedical = isMedicalCategory(actualCategory);
                     
                     let assetCode = String(row[0]).trim();
                     
@@ -25844,6 +25856,15 @@
             return new Set(disposedRecords.map(r => r.assetCode));
         }
 
+        // An asset explicitly flagged disposed (created from a Board-of-Survey /
+        // disposal record). These are disposed by definition and must never
+        // count toward ACTIVE inventory totals, regardless of the
+        // "exclude disposed" toggle — otherwise the same item is counted once as
+        // active and once as a disposal record (double-count).
+        function isDisposedAsset(asset) {
+            return !!(asset && asset.disposed === true);
+        }
+
         // Load disposal records from localStorage
         function loadDisposalRecords() {
             try {
@@ -27653,7 +27674,11 @@
                             itemType: p.description,
                             salvageValue: calcSalvageValue(unitValue, _bosCategory),
                             depreciationMethod: 'straight',
-                            bosAsset: true
+                            bosAsset: true,
+                            // This asset was created from a Board-of-Survey/disposal
+                            // record, so it is disposed by definition. Flagged so it
+                            // is never double-counted as active inventory.
+                            disposed: true
                         };
 
                         existingAssets.push(newAsset);
@@ -27931,9 +27956,10 @@
         // Update register statistics
         function updateRegisterStats() {
             const disposedCodes = excludeDisposedAssets ? getDisposedAssetCodes() : null;
-            const statsData = disposedCodes
-                ? assetRegisterData.filter(a => !disposedCodes.has(a.assetCode))
-                : assetRegisterData;
+            // Board-of-Survey (flagged-disposed) assets never count toward the
+            // active totals, regardless of the toggle, to avoid double-counting.
+            const statsData = assetRegisterData.filter(a =>
+                !isDisposedAsset(a) && (!disposedCodes || !disposedCodes.has(a.assetCode)));
             const totalAssets = statsData.reduce((sum, a) => sum + (a.quantity || 1), 0);
             const totalValue = statsData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
             const purchasedCount = statsData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
@@ -29276,12 +29302,15 @@
             const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             const disposedAssetCodes = new Set(disposedRecords.map(r => r.assetCode));
 
-            // Calculate totals (sum quantities to be consistent with dashboard KPIs)
-            const totalAssets = filteredRegisterData.reduce((sum, a) => sum + (a.quantity || 1), 0);
-            const totalValue = filteredRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
-            const purchasedCount = filteredRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
-            const donatedCount = filteredRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
-            const disposedCount = filteredRegisterData.filter(a => disposedAssetCodes.has(a.assetCode)).reduce((sum, a) => sum + (a.quantity || 1), 0);
+            // Calculate totals (sum quantities to be consistent with dashboard KPIs).
+            // Flagged-disposed (Board of Survey) assets are listed but excluded from
+            // the active totals so they aren't double-counted.
+            const activeRegisterData = filteredRegisterData.filter(a => !isDisposedAsset(a));
+            const totalAssets = activeRegisterData.reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const totalValue = activeRegisterData.reduce((sum, a) => sum + (parseFloat(a.totalPrice) || 0), 0);
+            const purchasedCount = activeRegisterData.filter(a => a.source === 'Purchased').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const donatedCount = activeRegisterData.filter(a => a.source === 'Donated').reduce((sum, a) => sum + (a.quantity || 1), 0);
+            const disposedCount = filteredRegisterData.filter(a => isDisposedAsset(a) || disposedAssetCodes.has(a.assetCode)).reduce((sum, a) => sum + (a.quantity || 1), 0);
 
             // Generate table rows
             const tableRows = filteredRegisterData.map((asset, index) => {
@@ -29650,7 +29679,10 @@
                         itemType: d.assetDescription || '',
                         salvageValue: calcSalvageValue(unitValue, category),
                         depreciationMethod: 'straight',
-                        bosAsset: true
+                        bosAsset: true,
+                        // Synced from a disposal record → disposed by definition.
+                        // Flagged so it is never double-counted as active inventory.
+                        disposed: true
                     };
 
                     existingAssets.push(newAsset);
@@ -30434,11 +30466,14 @@
             // Build category pages
             let categoryPages = sortedCategories.map(cat => {
                 const assets = categoryGroups[cat];
-                const totalValue = assets.reduce((s, a) => s + (parseFloat(a.totalPrice) || 0), 0);
-                const totalAssets = assets.reduce((s, a) => s + (a.quantity || 1), 0);
+                // Exclude flagged-disposed (Board of Survey) assets from the totals
+                // so they aren't double-counted; they still appear as listed rows.
+                const activeAssets = assets.filter(a => !isDisposedAsset(a));
+                const totalValue = activeAssets.reduce((s, a) => s + (parseFloat(a.totalPrice) || 0), 0);
+                const totalAssets = activeAssets.reduce((s, a) => s + (a.quantity || 1), 0);
                 // Count by summed quantity (consistent with register/dashboard), not row count
-                const purchased = assets.filter(a => a.source === 'Purchased').reduce((s, a) => s + (a.quantity || 1), 0);
-                const donated = assets.filter(a => a.source === 'Donated').reduce((s, a) => s + (a.quantity || 1), 0);
+                const purchased = activeAssets.filter(a => a.source === 'Purchased').reduce((s, a) => s + (a.quantity || 1), 0);
+                const donated = activeAssets.filter(a => a.source === 'Donated').reduce((s, a) => s + (a.quantity || 1), 0);
 
                 const rows = assets.map((asset, i) => {
                     const isDisposed = disposedAssetCodes.has(asset.assetCode);
