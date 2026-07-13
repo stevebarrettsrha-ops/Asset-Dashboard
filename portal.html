@@ -185,6 +185,10 @@
             background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
         }
 
+        .card-strip.locations {
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+        }
+
         /* Card Body */
         .card-body {
             padding: 35px 30px;
@@ -228,6 +232,11 @@
         .card-icon.assets {
             background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(229, 89, 52, 0.15));
             color: #FF6B35;
+        }
+
+        .card-icon.locations {
+            background: linear-gradient(135deg, rgba(22, 160, 133, 0.15), rgba(26, 188, 156, 0.15));
+            color: #16a085;
         }
 
         .card-title {
@@ -296,6 +305,10 @@
 
         .card-btn.assets {
             background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
+        }
+
+        .card-btn.locations {
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
         }
 
         .card-btn:hover {
@@ -1188,6 +1201,34 @@
                         <span class="feature-tag">Audit Trail</span>
                     </div>
                     <a class="card-btn assets" href="index.html">
+                        Launch System <span class="arrow">&rarr;</span>
+                    </a>
+                    <div class="card-status">
+                        <span class="status-dot"></span>
+                        System Online
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Records Card -->
+            <div class="login-card" onclick="attemptDashboardLogin('locations.html')">
+                <div class="card-strip locations"></div>
+                <div class="card-body">
+                    <div class="card-icon locations">
+                        📍
+                    </div>
+                    <div class="card-dept">Operations/Administration Department</div>
+                    <h2 class="card-title">Location Records</h2>
+                    <p class="card-description">
+                        Create and manage a location record for every department, ward and room in the hospital. Record the items in each room and print official location record sheets.
+                    </p>
+                    <div class="card-features">
+                        <span class="feature-tag">Departments &amp; Wards</span>
+                        <span class="feature-tag">Room Records</span>
+                        <span class="feature-tag">Item Listing</span>
+                        <span class="feature-tag">Print / PDF</span>
+                    </div>
+                    <a class="card-btn locations" href="locations.html">
                         Launch System <span class="arrow">&rarr;</span>
                     </a>
                     <div class="card-status">

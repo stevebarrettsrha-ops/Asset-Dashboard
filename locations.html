@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Records - May Pen Hospital</title>
+    <style>
+        :root {
+            --primary-orange: #FF6B35;
+            --dark-orange: #E55934;
+            --primary-green: #2ECC71;
+            --dark-green: #27AE60;
+            --dark-gray: #2C3E50;
+            --light-gray: #ECF0F1;
+            --bg-primary: #f5f7fa;
+            --bg-card: #ffffff;
+            --text-primary: #2C3E50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e0e0e0;
+            --table-hover: #f8f9fa;
+            --sidebar-bg-1: #1a1f36;
+            --sidebar-bg-2: #252b48;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ===== Top Header ===== */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: #fff;
+            padding: 18px 28px;
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.25);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .app-header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .app-title-wrap { display: flex; align-items: center; gap: 14px; }
+        .app-title-icon { font-size: 2rem; }
+        .app-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+        .app-subtitle { font-size: 0.82rem; opacity: 0.92; margin-top: 2px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .hbtn {
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 9px 15px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 0.86rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+        .hbtn:hover { background: rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
+        .hbtn.solid { background: #fff; color: var(--dark-orange); }
+        .hbtn.solid:hover { background: #fff7f4; }
+
+        /* ===== Layout ===== */
+        .layout { display: flex; min-height: calc(100vh - 78px); }
+        .dept-panel {
+            width: 300px;
+            background: linear-gradient(180deg, var(--sidebar-bg-1) 0%, var(--sidebar-bg-2) 100%);
+            color: #c4c9e2;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .dept-panel-header {
+            padding: 16px 18px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .dept-panel-header h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; color: #8891bd; }
+        .dept-add-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none; color: #fff;
+            width: 28px; height: 28px; border-radius: 7px;
+            cursor: pointer; font-size: 1.1rem; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dept-add-btn:hover { background: var(--primary-orange); }
+        .dept-search {
+            margin: 4px 14px 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+        .dept-search::placeholder { color: #7078a0; }
+        .dept-list { flex: 1; overflow-y: auto; padding: 0 10px 16px; }
+        .dept-item {
+            display: flex; align-items: center; gap: 11px;
+            padding: 11px 12px; border-radius: 10px;
+            cursor: pointer; transition: all 0.15s; margin-bottom: 3px;
+        }
+        .dept-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+        .dept-item.active {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%);
+            color: #fff; box-shadow: 0 4px 12px rgba(255,107,53,0.3);
+        }
+        .dept-item-icon {
+            width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem; background: rgba(255,255,255,0.08);
+        }
+        .dept-item.active .dept-item-icon { background: rgba(255,255,255,0.22); }
+        .dept-item-body { flex: 1; min-width: 0; }
+        .dept-item-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dept-item-meta { font-size: 0.72rem; opacity: 0.75; margin-top: 1px; }
+
+        .content { flex: 1; padding: 26px 32px; overflow-x: hidden; }
+
+        /* ===== Cards / grids ===== */
+        .breadcrumb { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; }
+        .breadcrumb a { color: var(--primary-orange); cursor: pointer; text-decoration: none; font-weight: 600; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .section-head {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+        }
+        .section-title { font-size: 1.5rem; font-weight: 700; }
+        .section-desc { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .btn {
+            border: none; border-radius: 9px; padding: 10px 16px;
+            font-size: 0.86rem; font-weight: 600; cursor: pointer;
+            font-family: inherit; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 7px;
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-orange) 0%, var(--dark-orange) 100%); color: #fff; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,107,53,0.3); }
+        .btn-green { background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%); color: #fff; }
+        .btn-green:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(46,204,113,0.3); }
+        .btn-ghost { background: #fff; color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-ghost:hover { background: var(--table-hover); border-color: #cbd3da; }
+        .btn-danger { background: #fff; color: var(--danger); border: 1px solid #f3c7c2; }
+        .btn-danger:hover { background: #fdeeec; }
+        .btn-sm { padding: 6px 11px; font-size: 0.78rem; }
+
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .room-card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 18px; cursor: pointer;
+            transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .room-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+            background: linear-gradient(180deg, var(--primary-orange), var(--dark-orange));
+        }
+        .room-card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.1); border-color: var(--primary-orange); }
+        .room-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; padding-left: 4px; }
+        .room-card .room-loc { font-size: 0.78rem; color: var(--text-secondary); padding-left: 4px; }
+        .room-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-left: 4px; }
+        .room-chip {
+            background: var(--light-gray); color: var(--dark-gray);
+            font-size: 0.72rem; font-weight: 600; padding: 4px 9px; border-radius: 20px;
+        }
+        .room-chip.has-items { background: rgba(46,204,113,0.15); color: var(--dark-green); }
+
+        .add-tile {
+            background: #fff; border: 2px dashed var(--border-color); border-radius: 14px;
+            padding: 18px; cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 8px; min-height: 118px;
+            color: var(--text-secondary); font-weight: 600; transition: all 0.2s;
+        }
+        .add-tile:hover { border-color: var(--primary-orange); color: var(--primary-orange); background: #fff8f5; }
+        .add-tile .plus { font-size: 1.8rem; line-height: 1; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+        .empty-state .big { font-size: 3rem; margin-bottom: 10px; }
+
+        /* Dashboard stat tiles */
+        .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 26px; }
+        .stat-tile { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px 18px; }
+        .stat-tile .num { font-size: 1.8rem; font-weight: 800; color: var(--primary-orange); }
+        .stat-tile .lbl { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
+
+        .dept-overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .dept-overview-card {
+            background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px;
+            padding: 20px; cursor: pointer; transition: all 0.2s; display: flex; gap: 14px; align-items: center;
+        }
+        .dept-overview-card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.1); border-color: var(--primary-orange); }
+        .dept-overview-icon {
+            width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+            background: linear-gradient(135deg, rgba(255,107,53,0.12), rgba(229,89,52,0.12));
+        }
+        .dept-overview-card h3 { font-size: 1.05rem; font-weight: 700; }
+        .dept-overview-card p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; }
+
+        /* ===== Record editor (matches PDF form) ===== */
+        .record-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+        .record-sheet {
+            background: #fff; border: 1px solid var(--border-color); border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); max-width: 900px; margin: 0 auto;
+            padding: 40px 46px;
+        }
+        .rec-title { text-align: center; font-size: 1.35rem; font-weight: 700; letter-spacing: 2px; margin-bottom: 26px; }
+        .rec-fields { margin-bottom: 22px; }
+        .rec-field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .rec-field-row label { font-weight: 700; min-width: 170px; font-size: 0.92rem; }
+        .rec-field-row input {
+            flex: 1; border: none; border-bottom: 1px solid #cbd3da; padding: 5px 4px;
+            font-size: 0.92rem; font-family: inherit; color: var(--text-primary); background: transparent;
+        }
+        .rec-field-row input:focus { outline: none; border-bottom-color: var(--primary-orange); }
+
+        table.items-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        table.items-table th {
+            background: var(--dark-gray); color: #fff; text-align: left;
+            padding: 9px 10px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--dark-gray);
+        }
+        table.items-table td { border: 1px solid #d7dde3; padding: 0; vertical-align: top; }
+        table.items-table td .cell-input {
+            width: 100%; border: none; padding: 8px 10px; font-size: 0.86rem;
+            font-family: inherit; background: transparent; color: var(--text-primary); resize: none;
+            min-height: 38px; line-height: 1.35;
+        }
+        table.items-table td .cell-input:focus { outline: 2px solid rgba(255,107,53,0.35); outline-offset: -2px; background: #fff8f5; }
+        table.items-table tr:nth-child(even) td { background: #fafbfc; }
+        .col-num { width: 34px; text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 8px 4px !important; }
+        .col-act { width: 40px; text-align: center; }
+        .row-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 8px; }
+        .row-del:hover { opacity: 1; }
+        .add-row-btn { margin-top: 12px; }
+        .rec-footer-note {
+            margin-top: 26px; padding: 14px 16px; border: 1px solid #e6d3b3; background: #fdf6e3;
+            border-radius: 8px; font-size: 0.82rem; font-style: italic; color: #8a6d3b; line-height: 1.5;
+        }
+        .save-hint { font-size: 0.8rem; color: var(--text-secondary); }
+        .save-hint.saved { color: var(--dark-green); font-weight: 600; }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(20,25,45,0.55); backdrop-filter: blur(2px);
+            display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff; border-radius: 16px; width: 100%; max-width: 460px;
+            padding: 26px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+        }
+        .modal h3 { font-size: 1.2rem; margin-bottom: 6px; }
+        .modal p.sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 18px; }
+        .modal label { display: block; font-size: 0.82rem; font-weight: 600; margin: 14px 0 6px; }
+        .modal input, .modal select, .modal textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid var(--border-color);
+            border-radius: 9px; font-size: 0.9rem; font-family: inherit;
+        }
+        .modal input:focus, .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--primary-orange); }
+        .icon-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+        .icon-opt { width: 42px; height: 42px; border-radius: 10px; border: 2px solid var(--border-color); background: #fff; font-size: 1.3rem; cursor: pointer; }
+        .icon-opt.sel { border-color: var(--primary-orange); background: #fff3ee; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(120px);
+            background: var(--dark-gray); color: #fff; padding: 12px 22px; border-radius: 30px;
+            font-size: 0.88rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 2000; transition: transform 0.3s; opacity: 0.98;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { background: var(--dark-green); }
+        .toast.error { background: var(--danger); }
+
+        /* ===== Print / Preview ===== */
+        #printArea { display: none; }
+        .print-record {
+            font-family: 'Times New Roman', Georgia, serif;
+            color: #000; background: #fff;
+        }
+        .print-record .pr-title { text-align: center; font-size: 15pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 22px; }
+        .print-record .pr-field { margin-bottom: 8px; font-size: 11pt; }
+        .print-record .pr-field .k { font-weight: bold; display: inline-block; }
+        .print-record table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+        .print-record th, .print-record td { border: 1px solid #000; padding: 6px 8px; font-size: 10.5pt; text-align: left; vertical-align: top; }
+        .print-record th { background: #eee; font-weight: bold; }
+        .print-record .pr-note {
+            margin-top: 26px; border: 1px solid #000; padding: 10px 14px;
+            font-style: italic; font-size: 10pt; text-align: center;
+        }
+
+        /* Preview modal (on-screen live preview) */
+        .preview-overlay {
+            position: fixed; inset: 0; background: rgba(20,25,45,0.6); z-index: 1500;
+            display: none; flex-direction: column; padding: 0;
+        }
+        .preview-overlay.open { display: flex; }
+        .preview-bar {
+            background: var(--dark-gray); color: #fff; padding: 12px 22px;
+            display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+        }
+        .preview-bar h3 { font-size: 1.05rem; }
+        .preview-scroll { flex: 1; overflow-y: auto; padding: 26px; }
+        .preview-page {
+            background: #fff; width: 210mm; max-width: 100%; margin: 0 auto 24px;
+            padding: 22mm 20mm; box-shadow: 0 6px 24px rgba(0,0,0,0.3); box-sizing: border-box;
+        }
+
+        @media (max-width: 820px) {
+            .dept-panel { width: 100%; position: static; }
+            .layout { flex-direction: column; }
+            .dept-list { max-height: 220px; }
+            .record-sheet { padding: 24px 18px; }
+            .rec-field-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+            .rec-field-row label { min-width: 0; }
+            .rec-field-row input { width: 100%; }
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { display: block; position: absolute; left: 0; top: 0; width: 100%; }
+            .print-record { page-break-after: always; padding: 0; }
+            .print-record:last-child { page-break-after: auto; }
+            @page { size: A4; margin: 18mm 16mm; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== Header ===== -->
+    <header class="app-header">
+        <div class="app-header-top">
+            <div class="app-title-wrap">
+                <span class="app-title-icon">🏥</span>
+                <div>
+                    <div class="app-title">Location Records</div>
+                    <div class="app-subtitle">May Pen Hospital • Southern Regional Health Authority</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="hbtn" onclick="openPreview('all')" title="Live preview of every department record">👁️ Live Preview</button>
+                <button class="hbtn" onclick="printRecords('all')" title="Print / Save all records as PDF">🖨️ Print All (PDF)</button>
+                <button class="hbtn" onclick="exportData()" title="Download a backup of all records">⬇️ Backup</button>
+                <button class="hbtn" onclick="document.getElementById('importFile').click()" title="Restore records from a backup file">⬆️ Restore</button>
+                <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+                <a class="hbtn solid" href="index.html">← Dashboard</a>
+                <a class="hbtn" href="portal.html">Portal</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout">
+        <!-- ===== Department panel ===== -->
+        <aside class="dept-panel">
+            <div class="dept-panel-header">
+                <h2>Departments &amp; Wards</h2>
+                <button class="dept-add-btn" title="Add department" onclick="openDeptModal()">+</button>
+            </div>
+            <input type="text" class="dept-search" id="deptSearch" placeholder="🔍 Search records..." oninput="onSearch()">
+            <div class="dept-list" id="deptList"></div>
+        </aside>
+
+        <!-- ===== Main content ===== -->
+        <main class="content" id="content"></main>
+    </div>
+
+    <!-- Hidden print target -->
+    <div id="printArea"></div>
+
+    <!-- ===== Live preview overlay ===== -->
+    <div class="preview-overlay" id="previewOverlay">
+        <div class="preview-bar">
+            <h3 id="previewTitle">Live Preview</h3>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-green" id="previewPrintBtn" onclick="printFromPreview()">🖨️ Print / Save PDF</button>
+                <button class="btn btn-ghost" onclick="closePreview()">✕ Close</button>
+            </div>
+        </div>
+        <div class="preview-scroll" id="previewScroll"></div>
+    </div>
+
+    <!-- ===== Generic modal ===== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalBox"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Seed data (departments & rooms scaffolded from the hospital records) -->
+    <script src="locations-seed.js"></script>
+
+    <script>
+    /* ============================================================
+       LOCATION RECORDS  —  May Pen Hospital
+       Data model (localStorage key: hospitalLocationRecords)
+       {
+         departments: [
+           { id, name, icon, location, note,
+             rooms: [
+               { id, title, verifiedBy, dateUpdated, note,
+                 items: [ { id, item, description, assetCode, remarks } ] }
+             ] }
+         ]
+       }
+    ============================================================ */
+
+    const STORAGE_KEY = 'hospitalLocationRecords';
+    const APPROVAL_NOTE = 'Approval should be sought from Fixed Asset Manager/Officer concerning relocation/transfers from this department/location before the item is moved.';
+
+    let db = { departments: [] };
+    let selectedDeptId = null;
+    let selectedRoomId = null;
+    let searchTerm = '';
+
+    /* ---------- ID helper ---------- */
+    function uid(prefix) { return (prefix || 'id') + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7); }
+
+    /* ---------- Persistence ---------- */
+    function save() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+        catch (e) { toast('Could not save (storage full?)', 'error'); }
+    }
+    function load() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+            try { db = JSON.parse(raw); }
+            catch (e) { db = { departments: [] }; }
+        }
+        if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
+            db = { departments: (typeof SEED_DEPARTMENTS === 'function') ? SEED_DEPARTMENTS() : [] };
+            save();
+        }
+    }
+
+    /* ---------- Lookups ---------- */
+    function getDept(id) { return db.departments.find(d => d.id === id); }
+    function getRoom(dept, id) { return dept ? dept.rooms.find(r => r.id === id) : null; }
+    function totalItems(dept) { return dept.rooms.reduce((s, r) => s + (r.items ? r.items.length : 0), 0); }
+
+    /* ============================================================
+       RENDER: department panel
+    ============================================================ */
+    function renderDeptList() {
+        const list = document.getElementById('deptList');
+        const term = searchTerm.toLowerCase();
+        let depts = db.departments;
+        list.innerHTML = '';
+        depts.forEach(d => {
+            if (term && !deptMatches(d, term)) return;
+            const div = document.createElement('div');
+            div.className = 'dept-item' + (d.id === selectedDeptId ? ' active' : '');
+            div.onclick = () => selectDept(d.id);
+            div.innerHTML = `
+                <div class="dept-item-icon">${d.icon || '🏢'}</div>
+                <div class="dept-item-body">
+                    <div class="dept-item-name">${esc(d.name)}</div>
+                    <div class="dept-item-meta">${d.rooms.length} room${d.rooms.length !== 1 ? 's' : ''} • ${totalItems(d)} items</div>
+                </div>`;
+            list.appendChild(div);
+        });
+        if (!list.children.length) {
+            list.innerHTML = `<div style="padding:18px;color:#7078a0;font-size:0.85rem;text-align:center;">No matching records.</div>`;
+        }
+    }
+
+    function deptMatches(d, term) {
+        if (d.name.toLowerCase().includes(term)) return true;
+        return d.rooms.some(r => r.title.toLowerCase().includes(term)
+            || (r.items || []).some(it =>
+                (it.item || '').toLowerCase().includes(term) ||
+                (it.description || '').toLowerCase().includes(term) ||
+                (it.assetCode || '').toLowerCase().includes(term)));
+    }
+
+    /* ============================================================
+       RENDER: main content
+    ============================================================ */
+    function render() {
+        renderDeptList();
+        const c = document.getElementById('content');
+        if (selectedDeptId && selectedRoomId) { renderRoom(c); }
+        else if (selectedDeptId) { renderDept(c); }
+        else { renderHome(c); }
+    }
+
+    /* ---- Home / overview ---- */
+    function renderHome(c) {
+        const deptCount = db.departments.length;
+        const roomCount = db.departments.reduce((s, d) => s + d.rooms.length, 0);
+        const itemCount = db.departments.reduce((s, d) => s + totalItems(d), 0);
+        let cards = db.departments.map(d => `
+            <div class="dept-overview-card" onclick="selectDept('${d.id}')">
+                <div class="dept-overview-icon">${d.icon || '🏢'}</div>
+                <div>
+                    <h3>${esc(d.name)}</h3>
+                    <p>${d.rooms.length} room${d.rooms.length !== 1 ? 's' : ''} • ${totalItems(d)} recorded items</p>
+                </div>
+            </div>`).join('');
+        c.innerHTML = `
+            <div class="section-head">
+                <div>
+                    <div class="section-title">Hospital Location Records</div>
+                    <div class="section-desc">Create and manage a location record for every department, ward and room. Select a department to begin.</div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openDeptModal()">＋ Add Department</button>
+                    <button class="btn btn-ghost" onclick="openPreview('all')">👁️ Live Preview All</button>
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-tile"><div class="num">${deptCount}</div><div class="lbl">Departments / Wards</div></div>
+                <div class="stat-tile"><div class="num">${roomCount}</div><div class="lbl">Rooms / Areas</div></div>
+                <div class="stat-tile"><div class="num">${itemCount}</div><div class="lbl">Recorded Items</div></div>
+            </div>
+            <div class="dept-overview-grid">${cards}</div>`;
+    }
+
+    /* ---- Department view (rooms) ---- */
+    function renderDept(c) {
+        const d = getDept(selectedDeptId);
+        if (!d) { selectedDeptId = null; return renderHome(c); }
+        const term = searchTerm.toLowerCase();
+        let rooms = d.rooms;
+        let roomCards = rooms.map(r => {
+            const n = (r.items || []).length;
+            if (term && !r.title.toLowerCase().includes(term) &&
+                !(r.items || []).some(it => (it.item||'').toLowerCase().includes(term) || (it.description||'').toLowerCase().includes(term) || (it.assetCode||'').toLowerCase().includes(term)))
+                return '';
+            return `
+            <div class="room-card" onclick="selectRoom('${r.id}')">
+                <h3>${esc(r.title)}</h3>
+                <div class="room-loc">${esc(d.name)}</div>
+                <div class="room-card-foot">
+                    <span class="room-chip ${n ? 'has-items' : ''}">${n} item${n !== 1 ? 's' : ''}</span>
+                    <span style="font-size:0.72rem;color:var(--text-secondary);">${r.dateUpdated ? esc(r.dateUpdated) : 'No date'}</span>
+                </div>
+            </div>`;
+        }).join('');
+        c.innerHTML = `
+            <div class="breadcrumb"><a onclick="goHome()">All Departments</a> › <strong>${esc(d.name)}</strong></div>
+            <div class="section-head">
+                <div>
+                    <div class="section-title">${d.icon || '🏢'} ${esc(d.name)}</div>
+                    <div class="section-desc">${d.rooms.length} room${d.rooms.length !== 1 ? 's' : ''} in this department • Each room is its own location record.</div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openRoomModal()">＋ Add Room</button>
+                    <button class="btn btn-ghost" onclick="openPreview('dept','${d.id}')">👁️ Preview</button>
+                    <button class="btn btn-ghost" onclick="printRecords('dept','${d.id}')">🖨️ Print Dept</button>
+                    <button class="btn btn-ghost" onclick="openDeptModal('${d.id}')">✎ Edit</button>
+                    <button class="btn btn-danger" onclick="deleteDept('${d.id}')">🗑 Delete</button>
+                </div>
+            </div>
+            <div class="card-grid">
+                ${roomCards}
+                <div class="add-tile" onclick="openRoomModal()">
+                    <span class="plus">＋</span><span>Add Room</span>
+                </div>
+            </div>`;
+    }
+
+    /* ---- Room record editor ---- */
+    function renderRoom(c) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        if (!r) { selectedRoomId = null; return renderDept(c); }
+        let rows = (r.items || []).map((it, i) => rowHtml(it, i)).join('');
+        c.innerHTML = `
+            <div class="breadcrumb"><a onclick="goHome()">All Departments</a> › <a onclick="selectDept('${d.id}')">${esc(d.name)}</a> › <strong>${esc(r.title)}</strong></div>
+            <div class="record-toolbar">
+                <button class="btn btn-green" onclick="printRecords('room','${d.id}','${r.id}')">🖨️ Print this Record (PDF)</button>
+                <button class="btn btn-ghost" onclick="openPreview('room','${d.id}','${r.id}')">👁️ Preview</button>
+                <button class="btn btn-ghost" onclick="selectDept('${d.id}')">← Back to ${esc(d.name)}</button>
+                <button class="btn btn-ghost" onclick="openRoomModal('${r.id}')">✎ Rename Room</button>
+                <button class="btn btn-danger" onclick="deleteRoom('${r.id}')">🗑 Delete Room</button>
+                <span class="save-hint" id="saveHint" style="margin-left:auto;align-self:center;">All changes save automatically</span>
+            </div>
+            <div class="record-sheet">
+                <div class="rec-title">LOCATION RECORDS</div>
+                <div class="rec-fields">
+                    <div class="rec-field-row"><label>Location:</label><input type="text" value="${escAttr(d.name)}" onchange="updateDeptName('${d.id}', this.value)"></div>
+                    <div class="rec-field-row"><label>Room Title:</label><input type="text" value="${escAttr(r.title)}" onchange="updateRoomField('${r.id}','title',this.value)"></div>
+                    <div class="rec-field-row"><label>Verified by and date:</label><input type="text" value="${escAttr(r.verifiedBy||'')}" placeholder="Name & date" onchange="updateRoomField('${r.id}','verifiedBy',this.value)"></div>
+                    <div class="rec-field-row"><label>Date updated:</label><input type="text" value="${escAttr(r.dateUpdated||'')}" placeholder="e.g. Thursday, 24 October 2024" onchange="updateRoomField('${r.id}','dateUpdated',this.value)"></div>
+                </div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="col-num">#</th>
+                            <th style="width:22%">Item</th>
+                            <th style="width:34%">Description/Make</th>
+                            <th style="width:20%">Asset Code</th>
+                            <th style="width:20%">Remarks</th>
+                            <th class="col-act"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">${rows}</tbody>
+                </table>
+                <button class="btn btn-primary btn-sm add-row-btn" onclick="addItem()">＋ Add Item Row</button>
+                <div class="rec-footer-note">⚠️ ${APPROVAL_NOTE}</div>
+            </div>`;
+    }
+
+    function rowHtml(it, i) {
+        return `
+        <tr data-id="${it.id}">
+            <td class="col-num">${i + 1}</td>
+            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
+            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
+            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea></td>
+            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
+            <td class="col-act"><button class="row-del" title="Delete row" onclick="deleteItem('${it.id}')">✕</button></td>
+        </tr>`;
+    }
+
+    function autoGrow(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
+
+    /* ============================================================
+       Navigation
+    ============================================================ */
+    function goHome() { selectedDeptId = null; selectedRoomId = null; render(); }
+    function selectDept(id) { selectedDeptId = id; selectedRoomId = null; render(); window.scrollTo(0,0); }
+    function selectRoom(id) { selectedRoomId = id; render(); window.scrollTo(0,0); document.querySelectorAll('.cell-input').forEach(autoGrow); }
+
+    function onSearch() {
+        searchTerm = document.getElementById('deptSearch').value.trim();
+        render();
+    }
+
+    /* ============================================================
+       CRUD — departments
+    ============================================================ */
+    const ICONS = ['🏢','🛏️','🩺','🗂️','🏛️','🚑','🧪','💊','🔬','🩻','🍽️','🚿','👮','📞','🚗','🧯','⚙️','📋'];
+
+    function openDeptModal(id) {
+        const editing = id ? getDept(id) : null;
+        const chosen = editing ? editing.icon : '🏢';
+        document.getElementById('modalBox').innerHTML = `
+            <h3>${editing ? 'Edit Department' : 'Add Department / Ward'}</h3>
+            <p class="sub">${editing ? 'Update the department details.' : 'Create a new department or ward section.'}</p>
+            <label>Department / Ward name</label>
+            <input type="text" id="mDeptName" value="${editing ? escAttr(editing.name) : ''}" placeholder="e.g. Male Medical Ward">
+            <label>Icon</label>
+            <div class="icon-picker" id="mIconPicker">
+                ${ICONS.map(ic => `<button type="button" class="icon-opt ${ic===chosen?'sel':''}" onclick="pickIcon(this)">${ic}</button>`).join('')}
+            </div>
+            <label>Note (optional)</label>
+            <input type="text" id="mDeptNote" value="${editing ? escAttr(editing.note||'') : ''}" placeholder="Floor / building / description">
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDept(${editing ? `'${id}'` : 'null'})">${editing ? 'Save' : 'Create'}</button>
+            </div>`;
+        openModal();
+        setTimeout(() => document.getElementById('mDeptName').focus(), 50);
+    }
+    function pickIcon(btn) {
+        btn.parentNode.querySelectorAll('.icon-opt').forEach(b => b.classList.remove('sel'));
+        btn.classList.add('sel');
+    }
+    function saveDept(id) {
+        const name = document.getElementById('mDeptName').value.trim();
+        if (!name) { toast('Enter a department name', 'error'); return; }
+        const iconEl = document.querySelector('#mIconPicker .icon-opt.sel');
+        const icon = iconEl ? iconEl.textContent : '🏢';
+        const note = document.getElementById('mDeptNote').value.trim();
+        if (id) {
+            const d = getDept(id);
+            d.name = name; d.icon = icon; d.note = note;
+            toast('Department updated', 'success');
+        } else {
+            const d = { id: uid('dept'), name, icon, location: name, note, rooms: [] };
+            db.departments.push(d);
+            selectedDeptId = d.id;
+            toast('Department added', 'success');
+        }
+        save(); closeModal(); render();
+    }
+    function deleteDept(id) {
+        const d = getDept(id);
+        confirmModal(`Delete “${d.name}”?`, `This removes the department and all ${d.rooms.length} room record(s). This cannot be undone.`, () => {
+            db.departments = db.departments.filter(x => x.id !== id);
+            if (selectedDeptId === id) { selectedDeptId = null; selectedRoomId = null; }
+            save(); render(); toast('Department deleted', 'success');
+        });
+    }
+    function updateDeptName(id, val) {
+        const d = getDept(id); if (!d) return;
+        d.name = val.trim() || d.name; d.location = d.name; save(); renderDeptList();
+    }
+
+    /* ============================================================
+       CRUD — rooms
+    ============================================================ */
+    function openRoomModal(id) {
+        const d = getDept(selectedDeptId);
+        const editing = id ? getRoom(d, id) : null;
+        document.getElementById('modalBox').innerHTML = `
+            <h3>${editing ? 'Rename Room' : 'Add Room'}</h3>
+            <p class="sub">Department: <strong>${esc(d.name)}</strong></p>
+            <label>Room title</label>
+            <input type="text" id="mRoomTitle" value="${editing ? escAttr(editing.title) : ''}" placeholder="e.g. Room IA-068 (Patient Bay)">
+            <label>Date updated (optional)</label>
+            <input type="text" id="mRoomDate" value="${editing ? escAttr(editing.dateUpdated||'') : ''}" placeholder="e.g. Thursday, 24 October 2024">
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRoom(${editing ? `'${id}'` : 'null'})">${editing ? 'Save' : 'Create'}</button>
+            </div>`;
+        openModal();
+        setTimeout(() => document.getElementById('mRoomTitle').focus(), 50);
+    }
+    function saveRoom(id) {
+        const d = getDept(selectedDeptId);
+        const title = document.getElementById('mRoomTitle').value.trim();
+        if (!title) { toast('Enter a room title', 'error'); return; }
+        const date = document.getElementById('mRoomDate').value.trim();
+        if (id) {
+            const r = getRoom(d, id); r.title = title; r.dateUpdated = date;
+            toast('Room updated', 'success');
+        } else {
+            const r = { id: uid('room'), title, verifiedBy: '', dateUpdated: date, note: '', items: [] };
+            d.rooms.push(r);
+            selectedRoomId = r.id;
+            toast('Room added', 'success');
+        }
+        save(); closeModal(); render();
+    }
+    function deleteRoom(id) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, id);
+        confirmModal(`Delete “${r.title}”?`, `This removes the room record and its ${(r.items||[]).length} item(s). This cannot be undone.`, () => {
+            d.rooms = d.rooms.filter(x => x.id !== id);
+            if (selectedRoomId === id) selectedRoomId = null;
+            save(); render(); toast('Room deleted', 'success');
+        });
+    }
+    function updateRoomField(id, field, val) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, id); if (!r) return;
+        r[field] = val; save(); flashSaved();
+        if (field === 'title') renderDeptList();
+    }
+
+    /* ============================================================
+       CRUD — items
+    ============================================================ */
+    function addItem() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        r.items = r.items || [];
+        const it = { id: uid('item'), item: '', description: '', assetCode: '', remarks: '' };
+        r.items.push(it);
+        save();
+        const body = document.getElementById('itemsBody');
+        const tmp = document.createElement('tbody');
+        tmp.innerHTML = rowHtml(it, r.items.length - 1);
+        const tr = tmp.firstElementChild;
+        body.appendChild(tr);
+        const first = tr.querySelector('.cell-input');
+        if (first) first.focus();
+        renderDeptList();
+    }
+    function updateItem(id, field, val) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const it = r.items.find(x => x.id === id); if (!it) return;
+        it[field] = val; save(); flashSaved();
+    }
+    function deleteItem(id) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        r.items = r.items.filter(x => x.id !== id);
+        save(); renderRoom(document.getElementById('content'));
+        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        renderDeptList();
+    }
+
+    function flashSaved() {
+        const h = document.getElementById('saveHint');
+        if (!h) return;
+        h.textContent = '✓ Saved';
+        h.classList.add('saved');
+        clearTimeout(h._t);
+        h._t = setTimeout(() => { h.textContent = 'All changes save automatically'; h.classList.remove('saved'); }, 1500);
+    }
+
+    /* ============================================================
+       Modal helpers
+    ============================================================ */
+    function openModal() { document.getElementById('modalOverlay').classList.add('open'); }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+    function confirmModal(title, msg, onYes) {
+        document.getElementById('modalBox').innerHTML = `
+            <h3>${esc(title)}</h3>
+            <p class="sub">${esc(msg)}</p>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-danger" id="confirmYes">Delete</button>
+            </div>`;
+        openModal();
+        document.getElementById('confirmYes').onclick = () => { closeModal(); onYes(); };
+    }
+    document.getElementById('modalOverlay').addEventListener('click', e => {
+        if (e.target.id === 'modalOverlay') closeModal();
+    });
+
+    /* ============================================================
+       PRINT / PREVIEW  (matches the attached PDF form)
+    ============================================================ */
+    function recordHtml(dept, room) {
+        const items = room.items || [];
+        const rows = items.length ? items.map((it, i) => `
+            <tr>
+                <td>${esc(it.item||'')}</td>
+                <td>${esc(it.description||'')}</td>
+                <td>${esc(it.assetCode||'')}</td>
+                <td>${esc(it.remarks||'')}</td>
+            </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;font-style:italic;">No items recorded.</td></tr>`;
+        return `
+        <div class="print-record">
+            <div class="pr-title">LOCATION RECORDS</div>
+            <div class="pr-field"><span class="k">Location:</span> ${esc(dept.name)}</div>
+            <div class="pr-field"><span class="k">Room Title:</span> ${esc(room.title)}</div>
+            <div class="pr-field"><span class="k">Verified by and date:</span> ${esc(room.verifiedBy||'')}</div>
+            <div class="pr-field"><span class="k">Date updated:</span> ${esc(room.dateUpdated||'')}</div>
+            <table>
+                <thead><tr><th style="width:24%">Item</th><th style="width:34%">Description/Make</th><th style="width:21%">Asset Code</th><th style="width:21%">Remarks</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="pr-note">${esc(APPROVAL_NOTE)}</div>
+        </div>`;
+    }
+
+    function collectRecords(scope, deptId, roomId) {
+        const out = [];
+        if (scope === 'room') {
+            const d = getDept(deptId); const r = getRoom(d, roomId);
+            if (d && r) out.push(recordHtml(d, r));
+        } else if (scope === 'dept') {
+            const d = getDept(deptId);
+            if (d) d.rooms.forEach(r => out.push(recordHtml(d, r)));
+        } else {
+            db.departments.forEach(d => d.rooms.forEach(r => out.push(recordHtml(d, r))));
+        }
+        return out.join('');
+    }
+
+    function printRecords(scope, deptId, roomId) {
+        const html = collectRecords(scope, deptId, roomId);
+        if (!html) { toast('Nothing to print', 'error'); return; }
+        document.getElementById('printArea').innerHTML = html;
+        setTimeout(() => window.print(), 60);
+    }
+
+    let previewScope = null, previewArgs = [];
+    function openPreview(scope, deptId, roomId) {
+        previewScope = scope; previewArgs = [deptId, roomId];
+        const html = collectRecords(scope, deptId, roomId);
+        const scroll = document.getElementById('previewScroll');
+        const title = document.getElementById('previewTitle');
+        if (!html) { toast('Nothing to preview', 'error'); return; }
+        scroll.innerHTML = collectPreviewPages(scope, deptId, roomId);
+        title.textContent = scope === 'room' ? 'Live Preview — Room Record'
+                          : scope === 'dept' ? 'Live Preview — ' + (getDept(deptId) ? getDept(deptId).name : 'Department')
+                          : 'Live Preview — All Department Records';
+        document.getElementById('previewOverlay').classList.add('open');
+    }
+    function collectPreviewPages(scope, deptId, roomId) {
+        let pages = [];
+        const wrap = h => `<div class="preview-page">${h}</div>`;
+        if (scope === 'room') {
+            const d = getDept(deptId); const r = getRoom(d, roomId);
+            if (d && r) pages.push(wrap(recordHtml(d, r)));
+        } else if (scope === 'dept') {
+            const d = getDept(deptId);
+            if (d) { if (!d.rooms.length) pages.push(wrap('<p style="text-align:center;color:#888;">No rooms in this department yet.</p>')); d.rooms.forEach(r => pages.push(wrap(recordHtml(d, r)))); }
+        } else {
+            db.departments.forEach(d => d.rooms.forEach(r => pages.push(wrap(recordHtml(d, r)))));
+            if (!pages.length) pages.push(wrap('<p style="text-align:center;color:#888;">No records yet.</p>'));
+        }
+        return pages.join('');
+    }
+    function closePreview() { document.getElementById('previewOverlay').classList.remove('open'); }
+    function printFromPreview() {
+        printRecords(previewScope, previewArgs[0], previewArgs[1]);
+    }
+
+    /* ============================================================
+       Backup / Restore
+    ============================================================ */
+    function exportData() {
+        const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'location-records-backup.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast('Backup downloaded', 'success');
+    }
+    function importData(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if (!data || !Array.isArray(data.departments)) throw new Error('bad');
+                confirmModalGeneric('Restore records?', 'This replaces all current records with the backup file.', 'Restore', () => {
+                    db = data; save(); goHome(); toast('Records restored', 'success');
+                });
+            } catch (err) { toast('Invalid backup file', 'error'); }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    }
+    function confirmModalGeneric(title, msg, btnLabel, onYes) {
+        document.getElementById('modalBox').innerHTML = `
+            <h3>${esc(title)}</h3><p class="sub">${esc(msg)}</p>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="confirmYes2">${esc(btnLabel)}</button>
+            </div>`;
+        openModal();
+        document.getElementById('confirmYes2').onclick = () => { closeModal(); onYes(); };
+    }
+
+    /* ============================================================
+       Utils
+    ============================================================ */
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escAttr(s) { return esc(s).replace(/"/g,'&quot;'); }
+    function toast(msg, type) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast show ' + (type || '');
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.className = 'toast', 2200);
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); closePreview(); }
+    });
+
+    /* ============================================================
+       Init
+    ============================================================ */
+    load();
+    render();
+    </script>
+</body>
+</html>
