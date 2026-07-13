@@ -52,8 +52,13 @@ All changes were verified in a headless browser: pages load with no JS errors, s
 These are real but either change displayed numbers (needing a business decision) or are larger structural/security items. Ordered by impact.
 
 ### A. Disposal-accounting is applied inconsistently across views *(needs decision)*
-Disposed assets are excluded **only when a toggle is on** in the Dashboard and Register, but **always** in the Fiscal Year Report, and **never** in the printed Register/Category totals (which tag rows "DISPOSED" but still add their value). BOS import / `syncBosAssets()` can also represent one item as **both** an active asset **and** a disposal record. The result: the same data yields different totals in different views.
-**Recommended:** treat "disposed" as removed from all *active* aggregates everywhere (the toggle then only affects row visibility/greying), and represent a boarded/disposed item once (flag the asset rather than keeping an active copy). *This changes displayed totals, so confirm the intended rule first.*
+The "exclude disposed assets" toggle is honored by some views but not others:
+- **Dashboard, Asset Register (screen), and Register print** all honor the toggle (they exclude disposed when it is on, include it when off — these three are consistent with each other).
+- **Fiscal Year Report** *always* excludes disposed, regardless of the toggle.
+- **Category print report** *never* excludes disposed — it totals all assets in each category (tagging disposed rows but still adding their value), ignoring the toggle entirely.
+
+So with the toggle **off**, the Fiscal Year Report shows lower totals than the register; with the toggle **on**, the Category report shows higher totals than the register. Separately, BOS import / `syncBosAssets()` can represent one item as **both** an active asset **and** a disposal record (double-count).
+**Recommended:** make the toggle a single global rule that every view honors (Fiscal Year Report and Category print included), or treat "disposed" as removed from all *active* aggregates everywhere. Either unifies the numbers — but both change some displayed totals, so the intended rule should be confirmed first.
 
 ### B. Dashboard "Medical vs Furniture" split is a hardcoded binary
 The dashboard buckets everything that isn't exactly `"Medical Equipment"` as "furniture", so `"Industrial Medical Equipment"`, `"Electronics"`, etc. land under furniture — disagreeing with the register/category views that group by the real category. **Recommended:** a single `getCategoryBucket()` helper used by the dashboard KPIs, charts, and every grouped aggregate.
