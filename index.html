@@ -6866,6 +6866,10 @@
                 <span class="sidebar-nav-icon">&#x1F4DD;</span>
                 <span class="sidebar-nav-text">Boarded Items List</span>
             </button>
+            <button class="sidebar-nav-item" data-page="17" data-tooltip="Boarded Items – Saved Forms (Form 7C)" onclick="sidebarNavigate(17)">
+                <span class="sidebar-nav-icon">&#x1F4C1;</span>
+                <span class="sidebar-nav-text">Saved Boarded Forms</span>
+            </button>
             <button class="sidebar-nav-item" data-page="7" data-tooltip="Asset Register" onclick="sidebarNavigate(7)">
                 <span class="sidebar-nav-icon">&#x1F4CB;</span>
                 <span class="sidebar-nav-text">Asset Register</span>
@@ -9861,22 +9865,28 @@
         .f7c-sig .f7c-sig-label { font-style: italic; font-weight: 700; font-size: 11px; }
         .f7c-empty-note { text-align:center; color:#999; font-style:italic; }
 
-        /* ---- Saved forms strip (multiple Form 7C documents) ---- */
-        .f7c-forms-panel { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e1e6ef); border-radius: 12px; padding: 14px 18px; margin: 18px 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .f7c-forms-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-        .f7c-forms-panel-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary, #2c3e50); }
-        .f7c-forms-hint { font-weight: 400; font-size: 0.78rem; color: var(--text-secondary, #7f8c8d); margin-left: 8px; }
-        .f7c-newform-btn { background: linear-gradient(135deg, #16a085, #1abc9c); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-        .f7c-newform-btn:hover { filter: brightness(1.06); }
-        .f7c-forms-list { display: flex; gap: 12px; overflow-x: auto; padding: 12px 2px 4px; }
-        .f7c-form-card { position: relative; flex: 0 0 auto; min-width: 190px; max-width: 240px; background: var(--bg-secondary, #f6f8fb); border: 2px solid var(--border-color, #e1e6ef); border-radius: 10px; padding: 12px 30px 12px 14px; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s; }
-        .f7c-form-card:hover { border-color: #1abc9c; box-shadow: 0 3px 10px rgba(26,188,156,0.18); }
-        .f7c-form-card.active { border-color: #16a085; background: rgba(26,188,156,0.10); box-shadow: 0 3px 12px rgba(22,160,133,0.22); }
-        .f7c-form-card-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary, #2c3e50); word-break: break-word; }
-        .f7c-form-card-live { color: #16a085; font-size: 0.68rem; font-weight: 700; letter-spacing: .4px; }
-        .f7c-form-card-meta { margin-top: 5px; font-size: 0.74rem; color: var(--text-secondary, #7f8c8d); }
-        .f7c-form-card-del { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none; border-radius: 50%; background: rgba(231,76,60,0.12); color: #e74c3c; font-size: 15px; cursor: pointer; padding: 0; }
-        .f7c-form-card-del:hover { background: #e74c3c; color: #fff; }
+        /* ---- Saved Forms gallery (dedicated page 17) ---- */
+        .f7c-gallery-wrap { padding: 22px 24px 32px; }
+        .f7c-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+        .f7c-gallery-empty { grid-column: 1 / -1; text-align: center; color: var(--text-secondary, #7f8c8d); font-style: italic; padding: 60px 20px; }
+        .f7c-gallery-card { background: var(--card-bg, #fff); border: 2px solid var(--border-color, #e1e6ef); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s, transform .1s; }
+        .f7c-gallery-card:hover { border-color: #1abc9c; box-shadow: 0 6px 18px rgba(26,188,156,0.18); transform: translateY(-2px); }
+        .f7c-gallery-card.active { border-color: #16a085; box-shadow: 0 6px 20px rgba(22,160,133,0.28); }
+        .f7c-gallery-card-head { padding: 12px 14px; border-bottom: 1px solid var(--border-color, #eef1f6); }
+        .f7c-gallery-card-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #2c3e50); word-break: break-word; }
+        .f7c-form-card-live { color: #16a085; font-size: 0.66rem; font-weight: 700; letter-spacing: .4px; white-space: nowrap; }
+        .f7c-gallery-card-meta { margin-top: 4px; font-size: 0.76rem; color: var(--text-secondary, #7f8c8d); }
+        /* Live document thumbnail: render the real form scaled down to fit the card */
+        .f7c-gallery-thumb { position: relative; height: 300px; overflow: hidden; background: #e9edf2; cursor: pointer; border-bottom: 1px solid var(--border-color, #eef1f6); }
+        .f7c-gallery-thumb .f7c-thumb-doc { position: absolute; top: 12px; left: 50%; width: 760px; transform: translateX(-50%) scale(0.36); transform-origin: top center; pointer-events: none; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+        .f7c-gallery-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0) 78%, rgba(233,237,242,0.9) 100%); }
+        .f7c-gallery-card-actions { display: flex; gap: 8px; padding: 12px 14px; margin-top: auto; }
+        .f7c-gallery-btn { flex: 1; border: none; border-radius: 8px; padding: 9px 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .f7c-gallery-btn.open { background: linear-gradient(135deg, #16a085, #1abc9c); color: #fff; }
+        .f7c-gallery-btn.del { flex: 0 0 auto; background: rgba(231,76,60,0.12); color: #e74c3c; }
+        .f7c-gallery-btn.del:hover { background: #e74c3c; color: #fff; }
+        .f7c-gallery-btn.open:hover { filter: brightness(1.06); }
+        @media (max-width: 640px) { .f7c-gallery { grid-template-columns: 1fr; } }
 
         /* ---- New Form warning modal ---- */
         .f7c-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
@@ -9908,6 +9918,7 @@
 
                 <div class="page-action-bar">
                     <button class="btn monthly-view-btn" onclick="sidebarNavigate(6)" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6);">&#8592; Back to Board of Survey</button>
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(17)" style="background: linear-gradient(135deg, #34495e, #2c3e50);">&#128193; Saved Forms (<span class="f7c-saved-count">0</span>)</button>
                     <button class="btn monthly-view-btn" onclick="form7cNewFormRequest()" style="background: linear-gradient(135deg, #16a085, #1abc9c);">&#128196; New Form</button>
                     <button class="btn monthly-view-btn" onclick="form7cPopulateFromBOS()" style="background: linear-gradient(135deg, #2980b9, #3498db);">&#128229; Populate from Board of Survey</button>
                     <button class="btn monthly-view-btn" onclick="form7cExportExcel()" style="background: linear-gradient(135deg, #27ae60, #219a52);">&#128229; Export Excel</button>
@@ -9915,15 +9926,6 @@
                     <button class="btn monthly-view-btn" onclick="form7cClear()" style="background: linear-gradient(135deg, #e67e22, #d35400);">&#128260; Clear</button>
                 </div>
             </div>
-        </div>
-
-        <!-- Saved forms strip: every generated form stays live and selectable -->
-        <div class="f7c-forms-panel no-print">
-            <div class="f7c-forms-panel-head">
-                <h3>&#128193; Saved Forms <span class="f7c-forms-hint">Click a form to open it. Use “New Form” to start a clean one.</span></h3>
-                <button class="f7c-newform-btn" onclick="form7cNewFormRequest()">&#128196; New Form</button>
-            </div>
-            <div class="f7c-forms-list" id="f7cFormsList"><!-- rendered by form7cRenderFormsList() --></div>
         </div>
 
         <div class="f7c-layout">
@@ -9972,6 +9974,37 @@
 
         <div class="footer no-print">
             <p>Fixed Asset Management System &copy; <span id="copyrightYear16"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
+    <!-- Boarded Items – Saved Forms gallery (Form 7C). Every form appears live and individually. -->
+    <div class="page" id="page17">
+        <div class="header" style="background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Boarded Items &mdash; Saved Forms</h1>
+                        <div class="dashboard-subtitle">Every Form 7C document &bull; Live previews &bull; Open, create or delete</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="user-info" id="userInfo17"></div>
+                    </div>
+                </div>
+
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(6)" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6);">&#8592; Back to Board of Survey</button>
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(16)" style="background: linear-gradient(135deg, #2980b9, #3498db);">&#9998; Open Editor</button>
+                    <button class="btn monthly-view-btn" onclick="form7cNewFormRequest()" style="background: linear-gradient(135deg, #16a085, #1abc9c);">&#128196; New Form</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="f7c-gallery-wrap">
+            <div class="f7c-gallery" id="f7cGallery"><!-- rendered by form7cRenderFormsList() --></div>
+        </div>
+
+        <div class="footer no-print">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear17"></span> &bull; May Pen Hospital</p>
         </div>
     </div>
 
@@ -10261,7 +10294,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14', 'copyrightYear15', 'copyrightYear16'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14', 'copyrightYear15', 'copyrightYear16', 'copyrightYear17'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -17684,6 +17717,18 @@
                 }
                 initForm7CPage();
             }
+
+            // Handle Boarded Items – Saved Forms gallery page
+            if (pageNum === 17) {
+                const userInfo17 = document.getElementById('userInfo17');
+                if (userInfo17 && currentUser) {
+                    userInfo17.innerHTML = `
+                        <span>&#x1F464; ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                initForm7CGalleryPage();
+            }
         }
 
         // ============================================
@@ -17724,8 +17769,8 @@
         // List (preview, print and Excel export), regardless of entry order.
         // Blank rows sort to the end; entry order is the tiebreak. The editor
         // itself keeps entry order so typing isn't disrupted.
-        function form7cSortedItems() {
-            return (form7cData.items || [])
+        function form7cSortedItemsFor(form) {
+            return ((form && form.items) || [])
                 .map(function(it, i) { return { it: it, i: i }; })
                 .sort(function(a, b) {
                     const da = (a.it.description || '').trim().toLowerCase();
@@ -17736,6 +17781,10 @@
                     return da.localeCompare(db) || (a.i - b.i);
                 })
                 .map(function(x) { return x.it; });
+        }
+
+        function form7cSortedItems() {
+            return form7cSortedItemsFor(form7cData);
         }
 
         function form7cDefaultData() {
@@ -17951,38 +18000,68 @@
 
         // ---- Multiple forms: list, switching, creating, deleting ----
 
-        // Render the strip of saved forms; the active one is highlighted and each
-        // is individually selectable so every form stays live and reachable.
+        // Count forms that actually contain entered items.
+        function form7cItemCount(form) {
+            return (form && form.items || []).filter(function(it) {
+                return it && (it.description || it.inventory || it.observations || it.recommendation);
+            }).length;
+        }
+
+        // Refresh the "Saved Forms (N)" badge/button shown on the editor page.
+        function form7cUpdateCountBadges() {
+            const n = form7cForms.length;
+            document.querySelectorAll('.f7c-saved-count').forEach(function(el) { el.textContent = n; });
+        }
+
+        // Render the dedicated Saved Forms gallery (page 17). Every form appears
+        // as its own live document thumbnail and can be opened or deleted.
+        // Kept named form7cRenderFormsList for its existing callers; it now also
+        // keeps the editor-page count badge in sync.
         function form7cRenderFormsList() {
-            const wrap = document.getElementById('f7cFormsList');
+            form7cUpdateCountBadges();
+            const wrap = document.getElementById('f7cGallery');
             if (!wrap) return;
-            if (!form7cForms.length) { wrap.innerHTML = ''; return; }
+            if (!form7cForms.length) {
+                wrap.innerHTML = '<div class="f7c-gallery-empty">No forms yet. Click “New Form” to create one.</div>';
+                return;
+            }
             // Newest first so the most recent work is on top.
             const ordered = form7cForms.slice().sort(function(a, b) {
                 return (b.createdAt || '').localeCompare(a.createdAt || '');
             });
+            const canDelete = form7cForms.length > 1;
             wrap.innerHTML = ordered.map(function(form) {
                 const isActive = form.id === form7cActiveId;
-                const itemCount = (form.items || []).filter(function(it) {
-                    return it && (it.description || it.inventory || it.observations || it.recommendation);
-                }).length;
-                const canDelete = form7cForms.length > 1;
+                const itemCount = form7cItemCount(form);
                 return '' +
-                '<div class="f7c-form-card' + (isActive ? ' active' : '') + '" onclick="form7cSwitchForm(\'' + form.id + '\')" title="Open this form">' +
-                    '<div class="f7c-form-card-main">' +
-                        '<div class="f7c-form-card-title">' + escapeHtml(form7cFormTitle(form)) + (isActive ? ' <span class="f7c-form-card-live">● LIVE</span>' : '') + '</div>' +
-                        '<div class="f7c-form-card-meta">Created ' + escapeHtml(form7cFmtDateTime(form.createdAt)) +
+                '<div class="f7c-gallery-card' + (isActive ? ' active' : '') + '">' +
+                    '<div class="f7c-gallery-card-head">' +
+                        '<div class="f7c-gallery-card-title">' + escapeHtml(form7cFormTitle(form)) +
+                            (isActive ? ' <span class="f7c-form-card-live">● CURRENT</span>' : '') + '</div>' +
+                        '<div class="f7c-gallery-card-meta">Created ' + escapeHtml(form7cFmtDateTime(form.createdAt)) +
                             ' &bull; ' + itemCount + ' item' + (itemCount === 1 ? '' : 's') + '</div>' +
                     '</div>' +
-                    (canDelete ? '<button class="f7c-form-card-del" title="Delete this form" onclick="event.stopPropagation(); form7cDeleteForm(\'' + form.id + '\')">&times;</button>' : '') +
+                    '<div class="f7c-gallery-thumb" onclick="form7cOpenForm(\'' + form.id + '\')" title="Open this form">' +
+                        '<div class="f7c-doc f7c-thumb-doc">' + form7cBuildDocHtml(form) + '</div>' +
+                    '</div>' +
+                    '<div class="f7c-gallery-card-actions">' +
+                        '<button class="f7c-gallery-btn open" onclick="form7cOpenForm(\'' + form.id + '\')">&#9998; Open / Edit</button>' +
+                        (canDelete ? '<button class="f7c-gallery-btn del" onclick="form7cDeleteForm(\'' + form.id + '\')">&#128465; Delete</button>' : '') +
+                    '</div>' +
                 '</div>';
             }).join('');
+        }
+
+        // Open a form from the gallery: make it active and jump to the editor.
+        function form7cOpenForm(id) {
+            form7cSwitchForm(id);
+            if (typeof showPage === 'function') showPage(16);
         }
 
         // Switch the editor/preview to a different saved form.
         function form7cSwitchForm(id) {
             const target = form7cForms.find(function(f) { return f.id === id; });
-            if (!target || id === form7cActiveId) return;
+            if (!target) return;
             form7cData = target;
             form7cActiveId = id;
             try { localStorage.setItem(FORM7C_ACTIVE_KEY, id); } catch (e) { /* ignore */ }
@@ -18078,6 +18157,14 @@
 
             setBusy(false);
             form7cCloseNewFormModal();
+            // Land the user in the editor on the fresh blank form.
+            if (typeof showPage === 'function') showPage(16);
+        }
+
+        // Initialise the dedicated Saved Forms gallery page (page 17).
+        function initForm7CGalleryPage() {
+            form7cLoad();
+            form7cRenderFormsList();
         }
 
         function form7cRenderEditor() {
@@ -18136,8 +18223,14 @@
         function form7cRenderPreview() {
             const doc = document.getElementById('f7cDoc');
             if (!doc) return;
-            const d = form7cData;
-            const items = form7cSortedItems();
+            doc.innerHTML = form7cBuildDocHtml(form7cData);
+        }
+
+        // Build the full Form 7C document HTML for any form object. Used for the
+        // live preview (page 16), the gallery thumbnails (page 17) and printing.
+        function form7cBuildDocHtml(d) {
+            d = d || form7cDefaultData();
+            const items = form7cSortedItemsFor(d);
             // Show entered items plus a couple of trailing blank rows for the classic form look
             const hasContent = items.some(function(it) {
                 return (it.description || it.inventory || it.quantity || it.observations || it.recommendation);
@@ -18159,7 +18252,7 @@
                     '</tr>';
             }
 
-            doc.innerHTML = '' +
+            return '' +
                 '<div class="f7c-form-code">Form 7C</div>' +
                 '<div class="f7c-title">Government of Jamaica</div>' +
                 '<div class="f7c-subtitle">Boarded Items</div>' +
