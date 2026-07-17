@@ -168,54 +168,72 @@ window.mphPopulateDeptSelect = function (sel, opts) {
     }
 };
 
-/* ---- ensure every canonical department exists as a Location Record ---- */
-// Adds missing departments (never touches existing ones). Returns number added.
+/* ---- reconcile Location Records to the canonical location list ---- */
+// Collapses every messy / duplicate / renamed / multi-location department
+// record into clean canonical Locations, MERGING rooms so nothing entered by
+// a user is lost, then adds any canonical Location still missing. Idempotent:
+// running it again on an already-clean store changes nothing. Returns the
+// number of canonical Locations added (0 if only merges/renames happened).
+function _findMeta(name) {
+    for (var i = 0; i < window.MPH_CANONICAL_DEPARTMENTS.length; i++) {
+        if (K(window.MPH_CANONICAL_DEPARTMENTS[i].name) === K(name)) {
+            return window.MPH_CANONICAL_DEPARTMENTS[i];
+        }
+    }
+    return null;
+}
 window.mphEnsureLocationDepartments = function () {
     var raw = null;
     try { raw = localStorage.getItem('hospitalLocationRecords'); } catch (e) { return 0; }
     var data;
     try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
     if (!data || !Array.isArray(data.departments)) data = { departments: [] };
-    var changed = false;
-    // Renamed departments: fold the old record into the new name, keeping rooms.
-    var RENAMES = { 'nursery ward': 'Special Care Nursery' };
-    Object.keys(RENAMES).forEach(function (oldKey) {
-        var newName = RENAMES[oldKey];
-        var oldIdx = -1, target = null;
-        data.departments.forEach(function (d, i) {
-            var k = K(d.name);
-            if (k === oldKey) oldIdx = i;
-            if (k === K(newName)) target = d;
-        });
-        if (oldIdx === -1) return;
-        var old = data.departments[oldIdx];
-        if (target) {
-            target.rooms = (target.rooms || []).concat(old.rooms || []);
-            data.departments.splice(oldIdx, 1);
-        } else {
-            old.name = newName;
-            old.location = newName;
+
+    var before = JSON.stringify(data.departments.map(function (d) { return d.name; }));
+
+    // Build canonical records in a stable order, merging any existing record
+    // whose name maps (by alias or multi-split) to each canonical Location.
+    var canonByName = {};      // canonical name -> record we are building
+    var order = [];
+    function ensureCanon(name) {
+        if (canonByName[name]) return canonByName[name];
+        var meta = _findMeta(name) || { token: 'DN', icon: '🏥' };
+        var rec = { id: 'canon_d_' + String(meta.token).toLowerCase() + '_' + (order.length + 1),
+                    name: name, icon: meta.icon || '🏥', location: name,
+                    note: 'Canonical hospital Location', rooms: [] };
+        canonByName[name] = rec;
+        order.push(rec);
+        return rec;
+    }
+    // Seed the canonical order first so the list always reads in a known order.
+    window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) { ensureCanon(d.name); });
+
+    var leftovers = [];        // records we could not map to any canonical Location
+    data.departments.forEach(function (d) {
+        var res = window.mphCanonicalDepartment(d.name);
+        if (res.names.length === 0) {
+            // unknown name: keep it verbatim so we never silently drop it
+            leftovers.push(d);
+            return;
         }
-        changed = true;
+        // map (single or multi) — rooms go to the FIRST target, other targets
+        // are just guaranteed to exist (multi-location split of a folder record)
+        var first = ensureCanon(res.names[0]);
+        if (d.rooms && d.rooms.length) first.rooms = first.rooms.concat(d.rooms);
+        if (d.note && !first._noteKept) { first._noteKept = true; }
+        for (var i = 1; i < res.names.length; i++) ensureCanon(res.names[i]);
     });
-    var have = {};
-    data.departments.forEach(function (d) { have[K(d.name)] = true; });
-    var added = 0;
-    window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) {
-        if (!have[K(d.name)]) {
-            data.departments.push({
-                id: 'canon_d_' + d.token.toLowerCase() + '_' + (++added),
-                name: d.name, icon: d.icon || '🏥', location: d.name,
-                note: 'Added automatically — canonical hospital department list',
-                rooms: []
-            });
-        }
-    });
-    if (added || changed) {
+    order.forEach(function (r) { delete r._noteKept; });
+
+    data.departments = order.concat(leftovers);
+
+    var after = JSON.stringify(data.departments.map(function (d) { return d.name; }));
+    if (after !== before) {
         try { localStorage.setItem('hospitalLocationRecords', JSON.stringify(data)); }
         catch (e) { return 0; }
     }
-    return added;
+    // report how many canonical Locations are now present that weren't before
+    return order.length;
 };
 
 })();

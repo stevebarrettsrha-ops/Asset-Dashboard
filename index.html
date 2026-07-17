@@ -16692,7 +16692,14 @@
             } catch (e) {
                 console.error('Structured register migration failed:', e);
             }
+            // Always reconcile the Location Records to clean canonical Locations
+            // (independent of the one-time register migration), so the department
+            // dropdowns and filters never show a stale/duplicate/messy location.
+            if (window.mphEnsureLocationDepartments) {
+                try { window.mphEnsureLocationDepartments(); } catch (e) {}
+            }
             try { updateStructureReviewBadge(); } catch (e) {}
+            try { updateAllDepartmentDropdowns(); } catch (e) {}
         });
 
         document.addEventListener('DOMContentLoaded', function() {
