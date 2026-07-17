@@ -21,6 +21,10 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- Shared asset code reference (also used by the Location Records page) -->
     <script src="asset-codes.js"></script>
+    <!-- Shared code/department normaliser + canonical location list -->
+    <script src="asset-normalizer.js"></script>
+    <!-- Structured register seed (merged Master export + Fixed Asset Register) -->
+    <script src="register-seed.js"></script>
     <style>
         * {
             margin: 0;
@@ -8423,6 +8427,7 @@
                         <button class="btn monthly-view-btn" onclick="exportAssetRegister()" style="background: linear-gradient(135deg, #27ae60, #219a52);">📥 Export Register</button>
                         <button class="btn monthly-view-btn" onclick="printAssetRegister()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">🖨️ Print Register</button>
                         <button class="btn monthly-view-btn" onclick="reconcileLocations()" style="background: linear-gradient(135deg, #2980b9, #3498db);" title="Cross-reference asset codes in the Location Records against this register">🔗 Reconcile Locations</button>
+                        <button class="btn monthly-view-btn" id="structureReviewBtn" onclick="showStructureReviewQueue()" style="background: linear-gradient(135deg, #d35400, #e67e22);" title="Items the register restructure flagged for human review (re-sequenced duplicates, multi-location splits, missing item codes)">🧾 Review Queue</button>
                         <button class="btn monthly-view-btn" onclick="removeEmptyAssetsFromRegister()" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">🗑️ Remove Empty Assets</button>
                     </div>
                 </div>
@@ -12441,6 +12446,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
+                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
                         form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
@@ -12720,6 +12726,41 @@
             // Merge Form 7C (Boarded Items) saved forms from cloud
             if (cloudDataObj.form7cForms && cloudDataObj.form7cForms.length > 0) {
                 form7cMergeFromCloud(cloudDataObj.form7cForms);
+            }
+
+            // Merge Location Records from cloud (union by department name;
+            // a department that only exists in the cloud is added, and a local
+            // department with no rooms adopts the cloud's rooms). Local edits
+            // are never overwritten.
+            if (cloudDataObj.locationRecords && Array.isArray(cloudDataObj.locationRecords.departments)) {
+                try {
+                    let localRec = null;
+                    try { localRec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                    if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
+                    const byName = {};
+                    localRec.departments.forEach(d => { byName[String(d.name || '').trim().toLowerCase()] = d; });
+                    let locChanged = false;
+                    cloudDataObj.locationRecords.departments.forEach(cd => {
+                        const key = String(cd.name || '').trim().toLowerCase();
+                        if (!key) return;
+                        const local = byName[key];
+                        if (!local) {
+                            localRec.departments.push(cd);
+                            byName[key] = cd;
+                            locChanged = true;
+                        } else if ((!local.rooms || local.rooms.length === 0) &&
+                                   cd.rooms && cd.rooms.length > 0) {
+                            local.rooms = cd.rooms;
+                            locChanged = true;
+                        }
+                    });
+                    if (locChanged) {
+                        localStorage.setItem('hospitalLocationRecords', JSON.stringify(localRec));
+                        dataChanged = true;
+                    }
+                } catch (e) {
+                    console.warn('Location records merge failed:', e);
+                }
             }
 
             // Refresh all views if any data changed
@@ -13166,6 +13207,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
+                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers,
                         form7cForms: form7cCloudPayload()
@@ -13249,6 +13291,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
+                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
                         form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
@@ -13370,6 +13413,11 @@
             // Restore departments
             if (backupData.data.departments && backupData.data.departments.length > 0) {
                 localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+            }
+
+            // Restore location records (Location Records page)
+            if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
+                localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
             }
 
             // Restore categories
@@ -13607,6 +13655,11 @@
                 // Restore departments
                 if (backupData.data.departments && backupData.data.departments.length > 0) {
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+                }
+
+                // Restore location records (Location Records page)
+                if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
+                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
                 }
 
                 // Restore categories
@@ -13867,6 +13920,11 @@
                 // Restore departments
                 if (backupData.data.departments && backupData.data.departments.length > 0) {
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
+                }
+
+                // Restore location records (Location Records page)
+                if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
+                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
                 }
 
                 // Restore categories
@@ -15117,19 +15175,30 @@
             'Other'
         ];
 
-        // Load departments from localStorage or use defaults
+        // Load departments — LINKED to the Location Records page.
+        // Every location record (plus the canonical hospital department list)
+        // is offered, unioned with any custom departments added on this device,
+        // so no asset can be assigned a department without a location record.
         function loadDepartments() {
+            let custom = [];
             try {
                 const stored = localStorage.getItem(DEPARTMENTS_STORAGE_KEY);
                 if (stored) {
-                    const departments = JSON.parse(stored);
-                    return Array.isArray(departments) && departments.length > 0 ? departments : DEFAULT_DEPARTMENTS;
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) custom = parsed;
                 }
-                return DEFAULT_DEPARTMENTS;
             } catch (error) {
-                console.error('Error loading departments:', error);
-                return DEFAULT_DEPARTMENTS;
+                console.error('Error loading custom departments:', error);
             }
+            if (window.mphGetHospitalDepartments) {
+                const linked = window.mphGetHospitalDepartments();
+                const seen = new Set(linked.map(d => d.toLowerCase()));
+                custom.forEach(d => {
+                    if (d && !seen.has(d.toLowerCase())) { linked.push(d); seen.add(d.toLowerCase()); }
+                });
+                return linked;
+            }
+            return custom.length > 0 ? custom : DEFAULT_DEPARTMENTS;
         }
 
         // Save departments to localStorage
@@ -15159,8 +15228,30 @@
             departments.push(trimmedName);
             departments.sort(); // Keep alphabetically sorted
             saveDepartments(departments);
+
+            // Keep the Location Records page in sync: every department must
+            // have a location record, so create one if it doesn't exist yet.
+            try {
+                let rec = null;
+                try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
+                const exists = rec.departments.some(d =>
+                    String(d.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
+                if (!exists) {
+                    rec.departments.push({
+                        id: 'custom_d_' + Date.now().toString(36),
+                        name: trimmedName, icon: '🏥', location: trimmedName,
+                        note: 'Added from the Asset Manager department list',
+                        rooms: []
+                    });
+                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                }
+            } catch (e) {
+                console.warn('Could not mirror department to Location Records:', e);
+            }
+
             updateAllDepartmentDropdowns();
-            return { success: true, message: 'Department added successfully' };
+            return { success: true, message: 'Department added successfully (location record created)' };
         }
 
         // Remove a department
@@ -16394,6 +16485,214 @@
             } catch (e) {
                 console.error('Error migrating audit trail names:', e);
             }
+        });
+
+        // ============================================================
+        // STRUCTURED REGISTER MIGRATION
+        // One-time (per seed version) restructure of the asset register:
+        //  • every asset merged/deduped/normalised offline from the Master
+        //    system export + the Fixed Asset Register (see register-seed.js)
+        //  • codes normalised to MPH/DEPT/ITEM/SEQ[/YEAR], originals kept
+        //    as aliases
+        //  • every asset linked to a canonical Location Records department
+        // A full backup of the pre-migration register is stored first.
+        // ============================================================
+        const STRUCTURE_VERSION_KEY = 'assetStructureVersion';
+        const STRUCTURE_REPORT_KEY = 'assetStructureReport';
+        const STRUCTURE_RESOLVED_KEY = 'assetStructureReviewResolved';
+
+        function _seedToAsset(sa) {
+            const a = Object.assign({}, sa);
+            a.itemType = a.itemType || '';
+            a.comment = a.comment || '';
+            a.serialModel = a.serialModel || '';
+            a.supplier = a.supplier || '';
+            a.aliases = a.aliases || [];
+            return a;
+        }
+
+        function applyStructureMigration() {
+            const seed = window.MPH_REGISTER_SEED;
+            if (!seed || !Array.isArray(seed.assets) || !seed.assets.length) return false;
+            let applied = 0;
+            try { applied = parseInt(localStorage.getItem(STRUCTURE_VERSION_KEY) || '0', 10) || 0; } catch (e) {}
+            if (applied >= seed.version) return false;
+
+            const live = loadAssetsFromStorage();
+            // Safety backup of the register exactly as it was before restructuring
+            try {
+                _dbSet(STORAGE_KEY + '_backup_structure_v' + seed.version, JSON.parse(JSON.stringify(live)));
+            } catch (e) { console.warn('Structure backup failed (continuing):', e); }
+
+            // Index seed assets by canonical code and by every historical alias
+            const seedByCode = new Map();
+            seed.assets.forEach(sa => {
+                seedByCode.set(sa.assetCode.toUpperCase(), sa);
+                (sa.aliases || []).forEach(al => {
+                    const k = String(al).trim().toUpperCase();
+                    if (k && !seedByCode.has(k)) seedByCode.set(k, sa);
+                });
+            });
+
+            const usedSeed = new Set();
+            const out = [];
+            const takenCodes = new Set(seed.assets.map(sa => sa.assetCode.toUpperCase()));
+            let matched = 0, keptLocal = 0;
+
+            live.forEach(a => {
+                const code = String(a.assetCode || '').trim().toUpperCase();
+                const sa = code ? seedByCode.get(code) : null;
+                if (sa && !usedSeed.has(sa.id)) {
+                    usedSeed.add(sa.id);
+                    // Structured seed fields win; the live asset's id and
+                    // runtime-only flags (disposed, bosAsset, …) survive.
+                    out.push(Object.assign({}, a, _seedToAsset(sa), { id: a.id || sa.id }));
+                    matched++;
+                } else {
+                    // Added on this device after the export — keep it, but
+                    // normalise its department and code to the canonical scheme.
+                    keptLocal++;
+                    const b = Object.assign({}, a);
+                    if (window.mphCanonicalDepartment) {
+                        const res = window.mphCanonicalDepartment(b.department);
+                        if (res.names.length === 1 && res.names[0] !== b.department) {
+                            b.departmentOriginal = b.department;
+                            b.department = res.names[0];
+                        } else if (!b.department) {
+                            b.department = window.mphUnassignedDept;
+                        }
+                    }
+                    if (window.mphNormalizeCode && b.assetCode) {
+                        const norm = window.mphNormalizeCode(b.assetCode, b.department);
+                        if (norm && norm !== b.assetCode && !takenCodes.has(norm.toUpperCase())) {
+                            b.aliases = (b.aliases || []).concat([b.assetCode]);
+                            b.assetCode = norm;
+                            takenCodes.add(norm.toUpperCase());
+                        }
+                    }
+                    out.push(b);
+                }
+            });
+
+            // Seed assets this device didn't have yet
+            let added = 0;
+            seed.assets.forEach(sa => {
+                if (!usedSeed.has(sa.id)) { out.push(_seedToAsset(sa)); added++; }
+            });
+
+            saveAssetsToStorage(out);
+            try { localStorage.setItem(STRUCTURE_VERSION_KEY, String(seed.version)); } catch (e) {}
+            try {
+                localStorage.setItem(STRUCTURE_REPORT_KEY, JSON.stringify({
+                    version: seed.version, when: new Date().toISOString(),
+                    stats: seed.stats, liveMatched: matched, liveKept: keptLocal, seedAdded: added
+                }));
+            } catch (e) {}
+
+            // Guarantee every department exists as a Location Record to link to
+            if (window.mphEnsureLocationDepartments) {
+                try { window.mphEnsureLocationDepartments(); } catch (e) {}
+            }
+            console.log('Structured register v' + seed.version + ' applied: ' +
+                matched + ' matched, ' + added + ' added, ' + keptLocal + ' local assets kept');
+            return true;
+        }
+
+        // ---- Review queue (items flagged by the restructure) ----
+        function _structureResolvedSet() {
+            try { return new Set(JSON.parse(localStorage.getItem(STRUCTURE_RESOLVED_KEY) || '[]')); }
+            catch (e) { return new Set(); }
+        }
+        function updateStructureReviewBadge() {
+            const btn = document.getElementById('structureReviewBtn');
+            if (!btn || !window.MPH_REGISTER_SEED) return;
+            const resolved = _structureResolvedSet();
+            const open = (window.MPH_REGISTER_SEED.review || []).filter(r => !resolved.has(r.assetId)).length;
+            btn.textContent = '🧾 Review Queue (' + open + ')';
+        }
+        function markStructureReviewResolved(assetId) {
+            const s = _structureResolvedSet();
+            s.add(assetId);
+            try { localStorage.setItem(STRUCTURE_RESOLVED_KEY, JSON.stringify([...s])); } catch (e) {}
+            showStructureReviewQueue();
+            updateStructureReviewBadge();
+        }
+        function closeStructureReviewQueue() {
+            const m = document.getElementById('structureReviewModal');
+            if (m) m.remove();
+        }
+        function showStructureReviewQueue() {
+            const seed = window.MPH_REGISTER_SEED;
+            if (!seed || !Array.isArray(seed.review)) { alert('No review data available.'); return; }
+            closeStructureReviewQueue();
+            const resolved = _structureResolvedSet();
+            const typeSel = window._structureReviewType || '';
+            const query = (window._structureReviewQuery || '').toLowerCase();
+            let items = seed.review.filter(r => !resolved.has(r.assetId));
+            const openCount = items.length;
+            if (typeSel) items = items.filter(r => r.type === typeSel);
+            if (query) items = items.filter(r =>
+                (r.assetCode + ' ' + r.description + ' ' + r.department).toLowerCase().includes(query));
+            const shown = items.slice(0, 200);
+            const types = [...new Set(seed.review.map(r => r.type))];
+            const typeLabels = {
+                'resequenced-duplicate': 'Re-sequenced duplicate',
+                'multi-location-split': 'Multi-location split',
+                'no-item-code': 'No standard item code',
+                'multi-code-cell': 'Multiple codes in one cell',
+                'multi-code-unsplit': 'Unsplit code list'
+            };
+            const overlay = document.createElement('div');
+            overlay.id = 'structureReviewModal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
+            overlay.innerHTML = `
+              <div style="background:var(--card-bg,#fff);color:var(--text-primary,#222);border-radius:12px;max-width:900px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-color,#ddd);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <h3 style="margin:0;flex:1;">🧾 Restructure Review Queue — ${openCount} open</h3>
+                  <select id="structureReviewTypeSel" style="padding:6px;border-radius:6px;">
+                    <option value="">All types</option>
+                    ${types.map(t => `<option value="${escapeHtml(t)}" ${t === typeSel ? 'selected' : ''}>${escapeHtml(typeLabels[t] || t)}</option>`).join('')}
+                  </select>
+                  <input id="structureReviewSearch" placeholder="Search code/description…" value="${escapeHtml(window._structureReviewQuery || '')}" style="padding:6px;border-radius:6px;border:1px solid var(--border-color,#ccc);">
+                  <button class="btn" onclick="closeStructureReviewQueue()" style="background:#7f8c8d;">Close</button>
+                </div>
+                <div style="overflow:auto;padding:10px 20px;">
+                  ${shown.length === 0 ? '<p style="padding:20px;text-align:center;">Nothing matching — all clear 🎉</p>' : ''}
+                  ${shown.map(r => `
+                    <div style="border:1px solid var(--border-color,#e0e0e0);border-radius:8px;padding:10px 12px;margin:8px 0;">
+                      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <strong>${escapeHtml(r.assetCode)}</strong>
+                        <span style="background:#e67e22;color:#fff;border-radius:10px;padding:1px 8px;font-size:0.78em;">${escapeHtml(typeLabels[r.type] || r.type)}</span>
+                        <span style="opacity:0.75;font-size:0.85em;">${escapeHtml(r.department || '')}</span>
+                        <span style="flex:1;"></span>
+                        <button class="btn" style="background:#27ae60;padding:4px 10px;font-size:0.8em;" onclick="markStructureReviewResolved('${escapeHtml(r.assetId)}')">✓ Mark resolved</button>
+                      </div>
+                      <div style="margin-top:4px;font-size:0.92em;">${escapeHtml(r.description || '')}</div>
+                      <div style="margin-top:4px;font-size:0.85em;opacity:0.8;">${escapeHtml(r.note || '')}</div>
+                    </div>`).join('')}
+                  ${items.length > shown.length ? `<p style="text-align:center;opacity:0.7;">Showing first ${shown.length} of ${items.length} — use search to narrow down.</p>` : ''}
+                </div>
+              </div>`;
+            overlay.addEventListener('click', e => { if (e.target === overlay) closeStructureReviewQueue(); });
+            document.body.appendChild(overlay);
+            document.getElementById('structureReviewTypeSel').addEventListener('change', e => {
+                window._structureReviewType = e.target.value; showStructureReviewQueue();
+            });
+            const searchEl = document.getElementById('structureReviewSearch');
+            searchEl.addEventListener('input', e => {
+                window._structureReviewQuery = e.target.value;
+                clearTimeout(window._structureReviewSearchT);
+                window._structureReviewSearchT = setTimeout(showStructureReviewQueue, 300);
+            });
+        }
+
+        _idbInitPromise.then(() => {
+            try {
+                applyStructureMigration();
+            } catch (e) {
+                console.error('Structured register migration failed:', e);
+            }
+            try { updateStructureReviewBadge(); } catch (e) {}
         });
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -27803,7 +28102,12 @@
 
         // Populate department filter dropdown (custom dropdown)
         function populateRegisterDepartmentFilter() {
-            const departments = [...new Set(assetRegisterData.map(a => a.department).filter(Boolean))];
+            // Linked to the Location Records page: offer every location record,
+            // plus any department value still present in the data.
+            const departments = [...new Set([
+                ...loadDepartments(),
+                ...assetRegisterData.map(a => a.department).filter(Boolean)
+            ])];
             const menu = document.getElementById('registerDeptDropdownMenu');
 
             if (!menu) return;
@@ -29531,8 +29835,13 @@
 
         function populateBulkFilters() {
             const categories = loadCategories();
-            const departments = [...new Set(bulkAllAssets.map(a => a.department).filter(Boolean))].sort();
+            // Linked to the Location Records page: full location list plus any
+            // department value still present in the data.
             const allDepartments = loadDepartments();
+            const departments = [...new Set([
+                ...allDepartments,
+                ...bulkAllAssets.map(a => a.department).filter(Boolean)
+            ])].sort();
 
             const catSelect = document.getElementById('bulkFilterCategory');
             const deptSelect = document.getElementById('bulkFilterDepartment');
