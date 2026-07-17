@@ -5939,9 +5939,9 @@ function SEED_DEPARTMENTS() {
         },
         {
             id: 'seed_d_nursery_ward',
-            name: 'Nursery Ward',
+            name: 'Special Care Nursery',
             icon: '👶',
-            location: 'Nursery Ward',
+            location: 'Special Care Nursery',
             note: 'Seeded from AllTablesExport (source #41)',
             rooms: [
                 room('Nurses Station', [
