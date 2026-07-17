@@ -15175,10 +15175,56 @@
             'Other'
         ];
 
+        // One-time cleanup of the legacy 'customDepartments' list: many entries
+        // are messy multi-location strings (e.g. "Accident & Emergency Female
+        // Medical Isolation Ward ..."). Split each into the canonical Locations
+        // named within it (those already exist as Location Records), and keep
+        // only genuinely-unknown single names. Rewrites the stored list so the
+        // Manage Departments box and every dropdown show clean Locations.
+        function cleanCustomDepartments() {
+            if (!window.mphSplitDepartmentString) return;
+            let custom = [];
+            try {
+                const stored = localStorage.getItem(DEPARTMENTS_STORAGE_KEY);
+                if (stored) { const p = JSON.parse(stored); if (Array.isArray(p)) custom = p; }
+            } catch (e) { return; }
+            if (!custom.length) return;
+            const genuine = [];
+            const seen = new Set();
+            custom.forEach(d => {
+                if (!d || typeof d !== 'string') return;
+                const canon = window.mphSplitDepartmentString(d);
+                if (canon.length > 0) return; // represented by canonical Locations — drop raw
+                const key = d.trim().toLowerCase();
+                // drop if it's already a canonical Location name/alias
+                if (window.mphCanonicalDepartment(d).names.length) return;
+                if (!seen.has(key)) { seen.add(key); genuine.push(d.trim()); }
+            });
+            try {
+                localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(genuine));
+                // genuine unknowns become real Location Records so they stay linked
+                if (genuine.length) {
+                    let rec = null;
+                    try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                    if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
+                    const have = new Set(rec.departments.map(x => String(x.name || '').trim().toLowerCase()));
+                    let added = false;
+                    genuine.forEach(n => {
+                        if (!have.has(n.toLowerCase())) {
+                            rec.departments.push({ id: 'custom_d_' + n.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+                                name: n, icon: '🏥', location: n, note: 'Custom department', rooms: [] });
+                            have.add(n.toLowerCase()); added = true;
+                        }
+                    });
+                    if (added) localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                }
+            } catch (e) {}
+        }
+
         // Load departments — LINKED to the Location Records page.
-        // Every location record (plus the canonical hospital department list)
-        // is offered, unioned with any custom departments added on this device,
-        // so no asset can be assigned a department without a location record.
+        // Returns the clean canonical Location list plus any genuinely-custom
+        // department, so no asset can be assigned a department without a
+        // matching Location Record. Messy legacy strings are never surfaced.
         function loadDepartments() {
             let custom = [];
             try {
@@ -15194,7 +15240,12 @@
                 const linked = window.mphGetHospitalDepartments();
                 const seen = new Set(linked.map(d => d.toLowerCase()));
                 custom.forEach(d => {
-                    if (d && !seen.has(d.toLowerCase())) { linked.push(d); seen.add(d.toLowerCase()); }
+                    if (!d || typeof d !== 'string') return;
+                    // never surface a raw messy string: skip anything that maps
+                    // to (or embeds) canonical Locations
+                    if (window.mphSplitDepartmentString &&
+                        window.mphSplitDepartmentString(d).length > 0) return;
+                    if (!seen.has(d.toLowerCase())) { linked.push(d); seen.add(d.toLowerCase()); }
                 });
                 return linked;
             }
@@ -16692,9 +16743,12 @@
             } catch (e) {
                 console.error('Structured register migration failed:', e);
             }
-            // Always reconcile the Location Records to clean canonical Locations
-            // (independent of the one-time register migration), so the department
-            // dropdowns and filters never show a stale/duplicate/messy location.
+            // Clean the legacy customDepartments list (split messy multi-location
+            // strings into canonical Locations, drop the junk), then reconcile the
+            // Location Records to clean canonical Locations — independent of the
+            // one-time register migration — so the department dropdowns, filters
+            // and Manage Departments box never show a stale/duplicate/messy name.
+            try { cleanCustomDepartments(); } catch (e) {}
             if (window.mphEnsureLocationDepartments) {
                 try { window.mphEnsureLocationDepartments(); } catch (e) {}
             }

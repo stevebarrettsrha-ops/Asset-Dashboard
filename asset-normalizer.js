@@ -45,6 +45,40 @@ window.mphCanonicalDepartment = function (raw) {
 window.mphUnassignedDept = UNASSIGNED_DEPT;
 window.mphDeptToken = function (name) { return TOKEN_BY_DEPT[name] || null; };
 
+// Distinctive aliases (name + every alias), longest first, for scanning a
+// messy concatenated string like "Accident & Emergency Female Medical
+// Isolation Ward Male Medical ...". Generic/empty aliases are excluded so
+// they can't over-match.
+var _SCAN_STOP = { 'other': 1, 'n/a': 1, '-data needed-': 1, '': 1,
+                   'pantry': 1, 'annex': 1, 'isolation': 1 };
+var _SCAN_ALIASES = [];
+window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) {
+    [d.name].concat(d.aliases || []).forEach(function (a) {
+        var k = K(a);
+        if (k.length >= 4 && !_SCAN_STOP[k]) _SCAN_ALIASES.push({ key: k, name: d.name });
+    });
+});
+_SCAN_ALIASES.sort(function (a, b) { return b.key.length - a.key.length; });
+
+// Split a messy department string into the canonical Locations named within
+// it. Returns [] when nothing recognisable is found (a genuinely custom name).
+window.mphSplitDepartmentString = function (raw) {
+    // exact match first (single alias or known multi-string)
+    var direct = window.mphCanonicalDepartment(raw);
+    if (direct.names.length) return direct.names.slice();
+    // otherwise scan for embedded location names
+    var s = ' ' + K(raw).replace(/[,.\/;]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+    var found = [];
+    _SCAN_ALIASES.forEach(function (entry) {
+        var needle = ' ' + entry.key + ' ';
+        while (s.indexOf(needle) !== -1) {
+            if (found.indexOf(entry.name) === -1) found.push(entry.name);
+            s = s.replace(needle, '  ');
+        }
+    });
+    return found;
+};
+
 /* ---- asset-code parsing ---- */
 function normToken(t) {
     if (!t) return null;
