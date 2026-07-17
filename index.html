@@ -12029,17 +12029,15 @@
             // account's backup, so "Sync from Cloud" fails with
             // "Failed to download backup".
             //
-            // To let ANY authenticated user sync FROM the main account's Drive,
-            // the backup is read as a link-shared (public) file using a Google
-            // Drive API key instead of the user's OAuth token. Two one-time
-            // steps are required:
-            //   1. In Google Drive, share the backup file (or its folder)
-            //      "Anyone with the link -> Viewer".
-            //   2. Create a Google Drive API key in the SAME Cloud project as
-            //      CLIENT_ID, restrict it to the "Google Drive API" and to your
-            //      app's HTTP referrer, and paste it below.
-            // The owner keeps writing via OAuth; everyone else reads publicly.
-            API_KEY: 'AIzaSyAjOOmMr92w3p2UTYP_YRH9falBoNrNu_s',
+            // Cross-account public read (any user syncing FROM the main
+            // account's link-shared Drive backup) is DISABLED for security.
+            // A hardcoded Google API key here is served to every visitor, so it
+            // was flagged as a publicly leaked secret and revoked. Each user
+            // now syncs with their own Google login (OAuth) instead — the owner
+            // path below is unchanged. Leaving this empty auto-disables the
+            // public-read fallback (see hasPublicDriveKey()). Do NOT paste a
+            // real API key here: on GitHub Pages it becomes public immediately.
+            API_KEY: '',
 
             // Fixed file ID of ASSET_DASHBOARD_BACKUP.json. Required for
             // non-owner accounts: link-shared files are NOT returned by folder
