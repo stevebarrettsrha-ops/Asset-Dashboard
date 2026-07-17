@@ -15545,6 +15545,8 @@
             menu.style.top = '';
             menu.style.left = '';
             menu.style.width = '';
+            menu.style.minWidth = '';
+            menu.style.maxWidth = '';
             menu.style.bottom = '';
         }
 
@@ -15556,11 +15558,17 @@
             const spaceAbove = triggerRect.top;
             const menuHeight = 250;
 
-            // Use wider of trigger width or 350px for department dropdowns
-            const menuWidth = Math.max(triggerRect.width, 350);
+            // Use wider of trigger width or 350px for department dropdowns,
+            // but never wider than the viewport (minus a small margin).
+            const menuWidth = Math.min(Math.max(triggerRect.width, 350), viewportWidth - 20);
 
             menu.style.position = 'fixed';
             menu.style.width = menuWidth + 'px';
+            // The base rule has min-width:100%, which under position:fixed would
+            // resolve to 100% of the VIEWPORT and blow the menu full-width.
+            // Pin min/max-width to the computed width so it can't expand.
+            menu.style.minWidth = menuWidth + 'px';
+            menu.style.maxWidth = menuWidth + 'px';
 
             // Position left, but prevent overflowing the right edge of viewport
             const leftPos = triggerRect.left;
