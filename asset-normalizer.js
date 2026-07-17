@@ -32,7 +32,11 @@ Object.keys(window.MPH_MULTI_DEPARTMENTS).forEach(function (k) {
     MULTI_K[K(k)] = window.MPH_MULTI_DEPARTMENTS[k];
 });
 var TOKEN_BY_DEPT = {};
-window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) { TOKEN_BY_DEPT[d.name] = d.token; });
+var NAME_BY_TOKEN = {};
+window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) {
+    TOKEN_BY_DEPT[d.name] = d.token;
+    if (!NAME_BY_TOKEN[d.token]) NAME_BY_TOKEN[d.token] = d.name;
+});
 
 /* ---- department name canonicalisation ---- */
 // returns { names: [canonical...], multi: bool } — names empty if unknown
@@ -141,6 +145,24 @@ window.mphNormalizeCode = function (code, deptName) {
     return parts.join('/');
 };
 
+// Does this string look like an asset code rather than a department name?
+window.mphLooksLikeCode = function (s) {
+    s = String(s || '');
+    if (/\bMPH\b/i.test(s)) return true;
+    if (/\bLTH\b/i.test(s)) return true;
+    // has a slash/dash-separated numeric segment, e.g. "119/01-03"
+    if (/\d+\s*[\/\-]\s*\d+/.test(s) && /[\/\-]/.test(s)) return true;
+    return false;
+};
+
+// Canonical department NAME an asset code belongs to (via its dept token),
+// or null if it can't be resolved.
+window.mphDepartmentForCode = function (code) {
+    var p = window.mphParseCode(code);
+    if (!p || !p.dept) return null;
+    return NAME_BY_TOKEN[p.dept] || null;
+};
+
 // Identity key used for duplicate detection (case/format-insensitive)
 window.mphCodeKey = function (code) {
     var p = window.mphParseCode(code);
@@ -244,20 +266,23 @@ window.mphEnsureLocationDepartments = function () {
 
     var leftovers = [];        // records we could not map to any canonical Location
     data.departments.forEach(function (d) {
-        var res = window.mphCanonicalDepartment(d.name);
-        if (res.names.length === 0) {
-            // unknown name: keep it verbatim so we never silently drop it
+        var names = window.mphSplitDepartmentString(d.name);
+        // an asset code masquerading as a department -> resolve to its Location
+        if (names.length === 0 && window.mphLooksLikeCode(d.name)) {
+            var dep = window.mphDepartmentForCode(d.name);
+            names = dep ? [dep] : [UNASSIGNED_DEPT];
+        }
+        if (names.length === 0) {
+            // genuine unknown name: keep it verbatim so we never silently drop it
             leftovers.push(d);
             return;
         }
         // map (single or multi) — rooms go to the FIRST target, other targets
         // are just guaranteed to exist (multi-location split of a folder record)
-        var first = ensureCanon(res.names[0]);
+        var first = ensureCanon(names[0]);
         if (d.rooms && d.rooms.length) first.rooms = first.rooms.concat(d.rooms);
-        if (d.note && !first._noteKept) { first._noteKept = true; }
-        for (var i = 1; i < res.names.length; i++) ensureCanon(res.names[i]);
+        for (var i = 1; i < names.length; i++) ensureCanon(names[i]);
     });
-    order.forEach(function (r) { delete r._noteKept; });
 
     data.departments = order.concat(leftovers);
 

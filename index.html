@@ -15193,6 +15193,8 @@
             const seen = new Set();
             custom.forEach(d => {
                 if (!d || typeof d !== 'string') return;
+                // an asset code is not a department — never keep it as one
+                if (window.mphLooksLikeCode && window.mphLooksLikeCode(d)) return;
                 const canon = window.mphSplitDepartmentString(d);
                 if (canon.length > 0) return; // represented by canonical Locations — drop raw
                 const key = d.trim().toLowerCase();
@@ -15241,6 +15243,8 @@
                 const seen = new Set(linked.map(d => d.toLowerCase()));
                 custom.forEach(d => {
                     if (!d || typeof d !== 'string') return;
+                    // an asset code is never a department
+                    if (window.mphLooksLikeCode && window.mphLooksLikeCode(d)) return;
                     // never surface a raw messy string: skip anything that maps
                     // to (or embeds) canonical Locations
                     if (window.mphSplitDepartmentString &&
