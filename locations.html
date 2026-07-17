@@ -480,6 +480,7 @@
     <script src="locations-seed.js"></script>
     <!-- Shared asset code reference (same list as the Asset Manager dashboard) -->
     <script src="asset-codes.js"></script>
+    <script src="asset-normalizer.js"></script>
 
     <script>
     /* ============================================================
@@ -552,6 +553,16 @@
             db = { departments: SEED_DEPARTMENTS() };
             localStorage.setItem(SEED_VERSION_KEY, currentSeedVersion());
             save();
+        }
+        // Make sure every canonical hospital department (the list every asset
+        // in the register is linked to) exists as a location record. Adds
+        // missing departments only — never touches user-edited records.
+        if (typeof mphEnsureLocationDepartments === 'function') {
+            save();  // persist current state first so ensure() reads it
+            const added = mphEnsureLocationDepartments();
+            if (added > 0) {
+                try { db = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) {}
+            }
         }
     }
 

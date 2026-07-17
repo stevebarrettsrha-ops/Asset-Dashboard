@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procurement Officer - May Pen Hospital</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Shared department list linked to the Location Records page -->
+    <script src="asset-normalizer.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -882,19 +884,9 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Department</label>
+                                    <!-- Options populated from the Location Records page (asset-normalizer.js) -->
                                     <select class="form-control" id="reqDept" required>
                                         <option value="">Select Department</option>
-                                        <option>Administration</option>
-                                        <option>Medical Ward</option>
-                                        <option>Surgical Ward</option>
-                                        <option>Accident & Emergency</option>
-                                        <option>Laboratory</option>
-                                        <option>Pharmacy</option>
-                                        <option>Radiology</option>
-                                        <option>General Stores</option>
-                                        <option>Maintenance</option>
-                                        <option>Kitchen/Dietary</option>
-                                        <option>Housekeeping</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -3249,6 +3241,18 @@
                 console.error('Error applying portal headings:', e);
             }
         })();
+    </script>
+    <script>
+        // Department dropdown is linked to the Location Records page:
+        // every location record (plus the canonical hospital department
+        // list) is offered, so no requisition can reference a department
+        // without a location record.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof mphPopulateDeptSelect === 'function') {
+                mphPopulateDeptSelect(document.getElementById('reqDept'),
+                    { firstOption: { value: '', label: 'Select Department' } });
+            }
+        });
     </script>
 </body>
 </html>
