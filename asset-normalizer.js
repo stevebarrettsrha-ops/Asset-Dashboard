@@ -295,4 +295,66 @@ window.mphEnsureLocationDepartments = function () {
     return order.length;
 };
 
+/* ---- shared theme (dark mode) persistence across all pages ---- */
+var THEME_KEY = 'assetDashboardTheme';
+// Apply the saved theme as early as possible (call before/at DOMContentLoaded).
+window.mphApplySavedTheme = function () {
+    try {
+        var t = localStorage.getItem(THEME_KEY);
+        if (t === 'dark') document.body.classList.add('dark-mode');
+        else if (t === 'light') document.body.classList.remove('dark-mode');
+    } catch (e) { /* ignore */ }
+};
+// Persist the current theme; pass a boolean or read the body class.
+window.mphSaveTheme = function (isDark) {
+    if (typeof isDark === 'undefined') isDark = document.body.classList.contains('dark-mode');
+    try { localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
+    return isDark;
+};
+
+/* ---- accessibility: give every form field an accessible name ---- */
+// Associates an aria-label with any input/select/textarea that has no linked
+// <label for>, wrapping <label>, or aria-label — sourced from the nearest
+// label text or its placeholder. Safe to run repeatedly.
+window.mphPatchFormLabels = function () {
+    function esc(id) {
+        try { return (window.CSS && CSS.escape) ? CSS.escape(id) : id.replace(/([^a-zA-Z0-9_-])/g, '\\$1'); }
+        catch (e) { return id; }
+    }
+    var fields = document.querySelectorAll('input, select, textarea');
+    fields.forEach(function (f) {
+        var type = (f.getAttribute('type') || '').toLowerCase();
+        if (type === 'hidden') return;
+        if (f.getAttribute('aria-label') || f.getAttribute('aria-labelledby')) return;
+        if (f.id) { try { if (document.querySelector('label[for="' + esc(f.id) + '"]')) return; } catch (e) {} }
+        if (f.closest && f.closest('label')) return;
+        var text = '';
+        // nearest previous sibling that is/holds a label
+        var prev = f.previousElementSibling;
+        while (prev && !text) {
+            if (prev.tagName === 'LABEL' || /(^|\s)(label|form-label)(\s|$)/i.test(prev.className || '')) {
+                text = prev.textContent || '';
+            }
+            prev = prev.previousElementSibling;
+        }
+        // a label inside the same form group / field wrapper
+        if (!text && f.closest) {
+            var grp = f.closest('.form-group, .input-group, .form-field, .field, .form-row');
+            if (grp) { var lb = grp.querySelector('label'); if (lb) text = lb.textContent || ''; }
+        }
+        if (!text) text = f.getAttribute('placeholder') || '';
+        text = text.replace(/\s+/g, ' ').trim().replace(/[*:]\s*$/, '').trim();
+        if (text) f.setAttribute('aria-label', text);
+    });
+};
+
+// Run the a11y patch automatically once the DOM is ready (and shortly after,
+// to cover content rendered by scripts).
+(function () {
+    function run() { try { window.mphPatchFormLabels(); } catch (e) {} }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { run(); setTimeout(run, 1500); });
+    } else { run(); setTimeout(run, 1500); }
+})();
+
 })();

@@ -25,6 +25,29 @@
             --shadow: rgba(0, 0, 0, 0.1);
         }
 
+        /* Dark mode — matches the main dashboard (body.dark-mode swaps variables) */
+        body.dark-mode {
+            --bg-primary: #1a1a2e;
+            --bg-card: #0f3460;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #2d4059;
+            --table-hover: #16213e;
+            --light-gray: #16213e;
+            --dark-gray: #16213e;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+        /* Dark-mode overrides for the few remaining tinted surfaces */
+        body.dark-mode .add-tile:hover,
+        body.dark-mode table.items-table td .cell-input:focus,
+        body.dark-mode .icon-opt.sel { background: rgba(255,107,53,0.12); }
+        body.dark-mode .assetcode-lookup:hover { background: var(--table-hover); }
+        body.dark-mode .btn-danger:hover { background: rgba(231,76,60,0.15); }
+        body.dark-mode .rec-footer-note { background: rgba(243,201,105,0.10); border-color: #6b5a2b; color: #d8c48a; }
+        body.dark-mode .acp-badge { background: var(--table-hover); color: var(--text-primary); }
+        body.dark-mode .ed-lh-title, body.dark-mode .ed-lh-tagline { color: #6cb6e6; }
+        body.dark-mode .room-chip { background: var(--table-hover); color: var(--text-primary); }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -73,7 +96,7 @@
             text-decoration: none;
         }
         .hbtn:hover { background: rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
-        .hbtn.solid { background: #fff; color: var(--dark-orange); }
+        .hbtn.solid { background: var(--bg-card); color: var(--dark-orange); }
         .hbtn.solid:hover { background: #fff7f4; }
 
         /* ===== Layout ===== */
@@ -157,9 +180,9 @@
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,107,53,0.3); }
         .btn-green { background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%); color: #fff; }
         .btn-green:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(46,204,113,0.3); }
-        .btn-ghost { background: #fff; color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-ghost { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); }
         .btn-ghost:hover { background: var(--table-hover); border-color: #cbd3da; }
-        .btn-danger { background: #fff; color: var(--danger); border: 1px solid #f3c7c2; }
+        .btn-danger { background: var(--bg-card); color: var(--danger); border: 1px solid #f3c7c2; }
         .btn-danger:hover { background: #fdeeec; }
         .btn-sm { padding: 6px 11px; font-size: 0.78rem; }
 
@@ -184,7 +207,7 @@
         .room-chip.has-items { background: rgba(46,204,113,0.15); color: var(--dark-green); }
 
         .add-tile {
-            background: #fff; border: 2px dashed var(--border-color); border-radius: 14px;
+            background: var(--bg-card); border: 2px dashed var(--border-color); border-radius: 14px;
             padding: 18px; cursor: pointer; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: 8px; min-height: 118px;
             color: var(--text-secondary); font-weight: 600; transition: all 0.2s;
@@ -218,7 +241,7 @@
         /* ===== Record editor (matches PDF form) ===== */
         .record-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
         .record-sheet {
-            background: #fff; border: 1px solid var(--border-color); border-radius: 14px;
+            background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.06); max-width: 900px; margin: 0 auto;
             padding: 40px 46px;
         }
@@ -233,24 +256,26 @@
         .rec-field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .rec-field-row label { font-weight: 700; min-width: 170px; font-size: 0.92rem; }
         .rec-field-row input {
-            flex: 1; border: none; border-bottom: 1px solid #cbd3da; padding: 5px 4px;
+            flex: 1; border: none; border-bottom: 1px solid var(--border-color); padding: 5px 4px;
             font-size: 0.92rem; font-family: inherit; color: var(--text-primary); background: transparent;
         }
         .rec-field-row input:focus { outline: none; border-bottom-color: var(--primary-orange); }
 
-        table.items-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        /* Horizontal scroll wrapper so the 5-column table is reachable on mobile */
+        .items-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 6px; }
+        table.items-table { width: 100%; min-width: 620px; border-collapse: collapse; }
         table.items-table th {
             background: var(--dark-gray); color: #fff; text-align: left;
             padding: 9px 10px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--dark-gray);
         }
-        table.items-table td { border: 1px solid #d7dde3; padding: 0; vertical-align: top; }
+        table.items-table td { border: 1px solid var(--border-color); padding: 0; vertical-align: top; }
         table.items-table td .cell-input {
             width: 100%; border: none; padding: 8px 10px; font-size: 0.86rem;
             font-family: inherit; background: transparent; color: var(--text-primary); resize: none;
             min-height: 38px; line-height: 1.35;
         }
         table.items-table td .cell-input:focus { outline: 2px solid rgba(255,107,53,0.35); outline-offset: -2px; background: #fff8f5; }
-        table.items-table tr:nth-child(even) td { background: #fafbfc; }
+        table.items-table tr:nth-child(even) td { background: var(--table-hover); }
         .col-num { width: 34px; text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 8px 4px !important; }
         .col-act { width: 40px; text-align: center; }
         .row-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 8px; }
@@ -258,18 +283,18 @@
         /* Asset Code cell: textarea + lookup button */
         .assetcode-cell { display: flex; align-items: stretch; }
         .assetcode-cell .cell-input { flex: 1; }
-        .assetcode-lookup { background: none; border: none; border-left: 1px solid #e2e6ea; cursor: pointer; font-size: 0.9rem; padding: 0 8px; opacity: 0.65; }
+        .assetcode-lookup { background: none; border: none; border-left: 1px solid var(--border-color); cursor: pointer; font-size: 0.9rem; padding: 0 8px; opacity: 0.65; }
         .assetcode-lookup:hover { opacity: 1; background: #f0f4f8; }
         /* Asset code lookup pop-up */
         .acp-overlay { position: fixed; inset: 0; background: rgba(20,25,45,0.55); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
         .acp-overlay.open { display: flex; }
-        .acp-box { background: #fff; border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
+        .acp-box { background: var(--bg-card); border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
         .acp-head { background: linear-gradient(135deg, #16a085, #1abc9c); color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
         .acp-head h3 { margin: 0; font-size: 1.1rem; }
         .acp-close { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; opacity: 0.85; }
         .acp-close:hover { opacity: 1; }
         .acp-body { padding: 18px 20px; overflow: hidden; display: flex; flex-direction: column; }
-        .acp-search { width: 100%; padding: 10px 12px; border: 1px solid #d7dde3; border-radius: 10px; font-size: 0.9rem; margin-bottom: 8px; }
+        .acp-search { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; margin-bottom: 8px; }
         .acp-hint { font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 10px; }
         .acp-list { overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; }
         .acp-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 9px 14px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); }
@@ -291,7 +316,7 @@
         }
         .modal-overlay.open { display: flex; }
         .modal {
-            background: #fff; border-radius: 16px; width: 100%; max-width: 460px;
+            background: var(--bg-card); border-radius: 16px; width: 100%; max-width: 460px;
             padding: 26px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);
         }
         .modal h3 { font-size: 1.2rem; margin-bottom: 6px; }
@@ -303,7 +328,7 @@
         }
         .modal input:focus, .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--primary-orange); }
         .icon-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-        .icon-opt { width: 42px; height: 42px; border-radius: 10px; border: 2px solid var(--border-color); background: #fff; font-size: 1.3rem; cursor: pointer; }
+        .icon-opt { width: 42px; height: 42px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-card); font-size: 1.3rem; cursor: pointer; }
         .icon-opt.sel { border-color: var(--primary-orange); background: #fff3ee; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
 
@@ -326,10 +351,10 @@
         #printArea { display: none; }
         .print-record {
             font-family: Cambria, 'Times New Roman', Georgia, serif;
-            color: #000; background: #fff;
+            color: #000; background: var(--bg-card);
         }
         /* --- Running header: letterhead + title + info box --- */
-        .print-record .pr-runhead { background: #fff; }
+        .print-record .pr-runhead { background: var(--bg-card); }
         .print-record .pr-letterhead {
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
         }
@@ -368,7 +393,7 @@
         .preview-scroll { flex: 1; overflow-y: auto; padding: 26px; }
         /* US Letter page proportions for on-screen preview */
         .preview-page {
-            background: #fff; width: 8.5in; max-width: 100%; margin: 0 auto 24px;
+            background: var(--bg-card); width: 8.5in; max-width: 100%; margin: 0 auto 24px;
             padding: 0.85in 0.9in; box-shadow: 0 6px 24px rgba(0,0,0,0.3); box-sizing: border-box;
         }
         .preview-page .pr-pagefoot { text-align: center; font-size: 9pt; margin-top: 22px; font-family: Cambria, serif; }
@@ -410,6 +435,7 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button class="hbtn" id="locThemeToggle" onclick="toggleLocTheme()" title="Toggle dark mode">🌙</button>
                 <button class="hbtn" onclick="openPreview('all')" title="Live preview of every department record">👁️ Live Preview</button>
                 <button class="hbtn" onclick="printRecords('all')" title="Print / Save all records as PDF">🖨️ Print All (PDF)</button>
                 <button class="hbtn" onclick="exportData()" title="Download a backup of all records">⬇️ Backup</button>
@@ -483,6 +509,22 @@
     <script src="asset-normalizer.js"></script>
 
     <script>
+    /* ---- shared dark-mode theme (persists across the app) ---- */
+    function _syncLocThemeIcon() {
+        var b = document.getElementById('locThemeToggle');
+        if (b) b.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+    }
+    function toggleLocTheme() {
+        document.body.classList.toggle('dark-mode');
+        if (window.mphSaveTheme) window.mphSaveTheme();
+        _syncLocThemeIcon();
+    }
+    if (window.mphApplySavedTheme) window.mphApplySavedTheme();
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.mphApplySavedTheme) window.mphApplySavedTheme();
+        _syncLocThemeIcon();
+    });
+
     /* ============================================================
        LOCATION RECORDS  —  May Pen Hospital
        Data model (localStorage key: hospitalLocationRecords)
@@ -725,6 +767,7 @@
                     <div class="rec-field-row"><label>Verified by and date:</label><input type="text" value="${escAttr(r.verifiedBy||'')}" placeholder="Name & date" onchange="updateRoomField('${r.id}','verifiedBy',this.value)"></div>
                     <div class="rec-field-row"><label>Date updated:</label><input type="text" value="${escAttr(r.dateUpdated||'')}" placeholder="e.g. Thursday, 24 October 2024" onchange="updateRoomField('${r.id}','dateUpdated',this.value)"></div>
                 </div>
+                <div class="items-table-scroll">
                 <table class="items-table">
                     <thead>
                         <tr>
@@ -738,6 +781,7 @@
                     </thead>
                     <tbody id="itemsBody">${rows}</tbody>
                 </table>
+                </div>
                 <button class="btn btn-primary btn-sm add-row-btn" onclick="addItem()">＋ Add Item Row</button>
                 <div class="rec-footer-note">⚠️ ${APPROVAL_NOTE}</div>
             </div>`;

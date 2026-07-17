@@ -627,7 +627,7 @@
 
         .scanner-placeholder {
             text-align: center;
-            color: #888;
+            color: var(--text-muted);
             padding: 40px;
         }
 
@@ -6201,7 +6201,7 @@
                                 style="background: none; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #667eea; font-size: 14px; width: 100%;">
                             ☁️ Sync from Cloud
                         </button>
-                        <p style="color: #888; font-size: 12px; margin-top: 8px;">
+                        <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">
                             A cloud sync is also required after you sign in.
                         </p>
                     </div>
@@ -8434,13 +8434,13 @@
             </div>
 
             <!-- Category Report Section -->
-            <div style="margin: 0 20px 20px; padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); border-left: 4px solid #8e44ad;">
+            <div style="margin: 0 20px 20px; padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); border-left: 4px solid #8e44ad;">
                 <h3 style="margin-bottom: 12px; color: var(--text-primary);">📊 Category Report Generator</h3>
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Generate a printable report grouped by category. Each category starts on its own page.</p>
                 <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                     <div style="flex: 1; min-width: 200px;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Category:</label>
-                        <select id="categoryReportFilter" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 0.95rem;">
+                        <select id="categoryReportFilter" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 0.95rem;">
                             <option value="">All Categories</option>
                         </select>
                     </div>
@@ -8893,9 +8893,9 @@
 
                 <div id="bosPagePreviewStats" style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;"></div>
 
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; padding: 12px 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
                     <label for="bosApplyAllDate" style="font-weight: 600; color: var(--text-primary); white-space: nowrap;">Set Disposal Date for all rows:</label>
-                    <input type="date" id="bosApplyAllDate" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.9rem; background: var(--card-bg); color: var(--text-primary);">
+                    <input type="date" id="bosApplyAllDate" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.9rem; background: var(--bg-card); color: var(--text-primary);">
                     <button class="btn monthly-view-btn" onclick="bosApplyDateToAll()" style="background: linear-gradient(135deg, #2980b9, #3498db); padding: 6px 16px; font-size: 0.85rem;">Apply to All</button>
                 </div>
 
@@ -8992,45 +8992,45 @@
                 <button class="bulk-tab-btn active" onclick="switchBulkTab('pricing')" id="bulkTabPricing" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: #8e44ad; color: white;">
                     💰 Bulk Pricing
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('category')" id="bulkTabCategory" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('category')" id="bulkTabCategory" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🏷️ Bulk Category
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('depreciation')" id="bulkTabDepreciation" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('depreciation')" id="bulkTabDepreciation" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     📉 Bulk Depreciation
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('date')" id="bulkTabDate" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('date')" id="bulkTabDate" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     📅 Bulk Date
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('department')" id="bulkTabDepartment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('department')" id="bulkTabDepartment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🏢 Bulk Department
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('assetcode')" id="bulkTabAssetcode" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('assetcode')" id="bulkTabAssetcode" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     🔄 Bulk Asset Code
                 </button>
-                <button class="bulk-tab-btn" onclick="switchBulkTab('comment')" id="bulkTabComment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--card-bg); color: var(--text-primary); border-left: 1px solid #8e44ad;">
+                <button class="bulk-tab-btn" onclick="switchBulkTab('comment')" id="bulkTabComment" style="flex:1; padding: 14px 20px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.3s; background: var(--bg-card); color: var(--text-primary); border-left: 1px solid #8e44ad;">
                     💬 Bulk Comment
                 </button>
             </div>
 
             <!-- Bulk Asset Selection (shared) -->
-            <div style="margin-bottom: 20px; padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color);">
+            <div style="margin-bottom: 20px; padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color);">
                 <h3 style="margin-bottom: 12px; color: var(--text-primary);">Select Assets</h3>
                 <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
                     <div style="flex: 1; min-width: 180px;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Filter by Category:</label>
-                        <select id="bulkFilterCategory" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <select id="bulkFilterCategory" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                             <option value="">All Categories</option>
                         </select>
                     </div>
                     <div style="flex: 1; min-width: 180px;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Filter by Department:</label>
-                        <select id="bulkFilterDepartment" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <select id="bulkFilterDepartment" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                             <option value="">All Departments</option>
                         </select>
                     </div>
                     <div style="flex: 1; min-width: 180px;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Filter by Source:</label>
-                        <select id="bulkFilterSource" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <select id="bulkFilterSource" onchange="filterBulkAssets()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                             <option value="">All Sources</option>
                             <option value="Purchased">Purchased</option>
                             <option value="Donated">Donated</option>
@@ -9038,7 +9038,7 @@
                     </div>
                     <div style="flex: 2; min-width: 220px;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Search:</label>
-                        <input type="text" id="bulkSearchInput" oninput="filterBulkAssets()" placeholder="Search by asset code, description..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                        <input type="text" id="bulkSearchInput" oninput="filterBulkAssets()" placeholder="Search by asset code, description..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
@@ -9056,12 +9056,12 @@
 
             <!-- Bulk Pricing Panel -->
             <div id="bulkPricingPanel">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">💰 Set Price for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Unit Price (JMD):</label>
-                            <input type="number" id="bulkUnitPrice" min="0" step="0.01" placeholder="Enter unit price" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="number" id="bulkUnitPrice" min="0" step="0.01" placeholder="Enter unit price" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                         </div>
                         <button onclick="applyBulkPricing()" style="padding: 10px 25px; border-radius: 6px; border: none; background: linear-gradient(135deg, #27ae60, #219a52); color: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
                             Apply Price to Selected
@@ -9072,12 +9072,12 @@
 
             <!-- Bulk Category Panel -->
             <div id="bulkCategoryPanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">🏷️ Set Category for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Category:</label>
-                            <select id="bulkCategorySelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <select id="bulkCategorySelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                                 <option value="">Select Category</option>
                             </select>
                         </div>
@@ -9090,23 +9090,23 @@
 
             <!-- Bulk Depreciation Panel -->
             <div id="bulkDepreciationPanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">📉 Set Depreciation for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="min-width: 160px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Method:</label>
-                            <select id="bulkDeprMethod" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <select id="bulkDeprMethod" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                                 <option value="straight">Straight Line</option>
                                 <option value="declining">Declining Balance</option>
                             </select>
                         </div>
                         <div style="min-width: 140px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Useful Life (Years):</label>
-                            <input type="number" id="bulkUsefulLife" min="1" step="1" placeholder="e.g., 5" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="number" id="bulkUsefulLife" min="1" step="1" placeholder="e.g., 5" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                         </div>
                         <div style="min-width: 160px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Salvage Value (JMD):</label>
-                            <input type="number" id="bulkSalvageValue" min="0" step="0.01" placeholder="Auto by category" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="number" id="bulkSalvageValue" min="0" step="0.01" placeholder="Auto by category" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                             <label style="font-size: 0.8rem; color: var(--primary-green); margin-top: 4px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
                                 <input type="checkbox" id="bulkAutoSalvage" checked style="width: 14px; height: 14px;"> Auto-calc by category %
                             </label>
@@ -9120,16 +9120,16 @@
 
             <!-- Bulk Date Panel -->
             <div id="bulkDatePanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">📅 Set Date for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Date In:</label>
-                            <input type="date" id="bulkDateIn" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="date" id="bulkDateIn" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                         </div>
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Month:</label>
-                            <select id="bulkMonth" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <select id="bulkMonth" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                                 <option value="">Do not change month</option>
                                 <option value="January">January</option>
                                 <option value="February">February</option>
@@ -9154,12 +9154,12 @@
 
             <!-- Bulk Department Panel -->
             <div id="bulkDepartmentPanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">🏢 Set Department for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Department:</label>
-                            <select id="bulkDepartmentSelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <select id="bulkDepartmentSelect" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                                 <option value="">Select Department</option>
                             </select>
                         </div>
@@ -9172,16 +9172,16 @@
 
             <!-- Bulk Asset Code Replacement Panel -->
             <div id="bulkAssetcodePanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">🔄 Replace Asset Code for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Find Text in Asset Code:</label>
-                            <input type="text" id="bulkAssetCodeFind" placeholder="e.g. OLD-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="text" id="bulkAssetCodeFind" placeholder="e.g. OLD-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                         </div>
                         <div style="flex: 1; min-width: 200px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Replace With:</label>
-                            <input type="text" id="bulkAssetCodeReplace" placeholder="e.g. NEW-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem;">
+                            <input type="text" id="bulkAssetCodeReplace" placeholder="e.g. NEW-" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem;">
                         </div>
                         <button onclick="previewBulkAssetCode()" style="padding: 10px 25px; border-radius: 6px; border: 1px solid #2980b9; background: transparent; color: #2980b9; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
                             Preview Changes
@@ -9201,12 +9201,12 @@
 
             <!-- Bulk Comment Panel -->
             <div id="bulkCommentPanel" style="display: none;">
-                <div style="padding: 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="padding: 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="margin-bottom: 12px; color: var(--text-primary);">💬 Set Comment for Selected Assets</h3>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 1; min-width: 300px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Comment:</label>
-                            <textarea id="bulkCommentText" rows="3" placeholder="Enter comment to apply to selected assets..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+                            <textarea id="bulkCommentText" rows="3" placeholder="Enter comment to apply to selected assets..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             <label style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -9222,7 +9222,7 @@
             </div>
 
             <!-- Bulk Asset Table -->
-            <div style="background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); overflow: hidden;">
+            <div style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); overflow: hidden;">
                 <div style="max-height: 500px; overflow-y: auto;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                         <thead>
@@ -9302,28 +9302,28 @@
         <div style="padding: 20px;">
             <!-- Stats -->
             <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Duplicate Groups</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #e74c3c;" id="dupGroupCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Duplicate Assets</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="dupAssetCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Ignored Groups</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #95a5a6;" id="dupIgnoredCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets Scanned</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="dupTotalScanned">0</div>
                 </div>
             </div>
 
             <!-- Controls -->
-            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
                 <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Match by:</label>
-                <select id="dupMatchType" onchange="scanForDuplicates()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                <select id="dupMatchType" onchange="scanForDuplicates()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <option value="code">Asset Code (Exact)</option>
                     <option value="description">Description (Exact)</option>
                     <option value="both">Asset Code + Description</option>
@@ -9405,28 +9405,28 @@
         <div style="padding: 20px;">
             <!-- Stats Cards -->
             <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="delTotalCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Empty Records</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #e74c3c;" id="delEmptyCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Sparse Records</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="delSparseCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Selected for Deletion</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #c0392b;" id="delSelectedCount">0</div>
                 </div>
             </div>
 
             <!-- Filters & Controls -->
-            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); flex-wrap: wrap;">
                 <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Filter:</label>
-                <select id="delFilterType" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                <select id="delFilterType" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <option value="all">All Assets</option>
                     <option value="empty" selected>Empty Records (no meaningful data)</option>
                     <option value="sparse">Sparse Records (mostly empty fields)</option>
@@ -9438,7 +9438,7 @@
                 </select>
 
                 <label style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-left: 10px;">Range:</label>
-                <select id="delRangeType" onchange="toggleDeletionRange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                <select id="delRangeType" onchange="toggleDeletionRange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <option value="all">All Records</option>
                     <option value="row">Row Range</option>
                     <option value="date">Date Range</option>
@@ -9448,38 +9448,38 @@
 
                 <div id="delRangeRowInputs" style="display: none; gap: 8px; align-items: center;">
                     <label style="font-size: 0.85rem; color: var(--text-secondary);">From:</label>
-                    <input type="number" id="delRowFrom" min="1" value="1" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <input type="number" id="delRowFrom" min="1" value="1" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <label style="font-size: 0.85rem; color: var(--text-secondary);">To:</label>
-                    <input type="number" id="delRowTo" min="1" value="100" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <input type="number" id="delRowTo" min="1" value="100" style="width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <button class="btn" onclick="applyDeletionFilter()" style="padding: 6px 14px; font-size: 0.85rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">Apply</button>
                 </div>
 
                 <div id="delRangeDateInputs" style="display: none; gap: 8px; align-items: center;">
                     <label style="font-size: 0.85rem; color: var(--text-secondary);">From:</label>
-                    <input type="date" id="delDateFrom" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <input type="date" id="delDateFrom" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <label style="font-size: 0.85rem; color: var(--text-secondary);">To:</label>
-                    <input type="date" id="delDateTo" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <input type="date" id="delDateTo" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                     <button class="btn" onclick="applyDeletionFilter()" style="padding: 6px 14px; font-size: 0.85rem; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer;">Apply</button>
                 </div>
 
                 <div id="delRangeCatInputs" style="display: none; gap: 8px; align-items: center;">
-                    <select id="delCategoryFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <select id="delCategoryFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                         <option value="">-- Select Category --</option>
                     </select>
                 </div>
 
                 <div id="delRangeDeptInputs" style="display: none; gap: 8px; align-items: center;">
-                    <select id="delDeptFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary);">
+                    <select id="delDeptFilter" onchange="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);">
                         <option value="">-- Select Department --</option>
                     </select>
                 </div>
 
                 <div style="flex: 1;"></div>
-                <input type="text" id="delSearchInput" placeholder="Search assets..." oninput="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); width: 180px;">
+                <input type="text" id="delSearchInput" placeholder="Search assets..." oninput="applyDeletionFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); width: 180px;">
             </div>
 
             <!-- Select/Deselect All Bar -->
-            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px; padding: 10px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color);">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px; padding: 10px 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color);">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-primary);">
                     <input type="checkbox" id="delSelectAll" onchange="toggleDeletionSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
                     Select All Visible
@@ -9487,12 +9487,12 @@
                 <span style="font-size: 0.85rem; color: var(--text-secondary);" id="delShowingCount">Showing 0 assets</span>
                 <div style="flex: 1;"></div>
                 <span style="font-size: 0.85rem; color: var(--text-secondary);" id="delPageInfo"></span>
-                <button class="btn" onclick="delPagePrev()" id="delPrevBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>&laquo; Prev</button>
-                <button class="btn" onclick="delPageNext()" id="delNextBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>Next &raquo;</button>
+                <button class="btn" onclick="delPagePrev()" id="delPrevBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>&laquo; Prev</button>
+                <button class="btn" onclick="delPageNext()" id="delNextBtn" style="padding: 4px 12px; font-size: 0.85rem; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;" disabled>Next &raquo;</button>
             </div>
 
             <!-- Results Table -->
-            <div id="delResultsContainer" style="background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); overflow-x: auto;">
+            <div id="delResultsContainer" style="background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); overflow-x: auto;">
                 <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
                     Loading assets for review...
                 </div>
@@ -9696,19 +9696,19 @@
         <div style="padding: 20px;">
             <!-- Stats -->
             <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Multi-Code Assets Found</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #8e44ad;" id="parserMultiCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Individual Rows After Split</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #2ecc71;" id="parserSplitCount">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Total Assets Scanned</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #3498db;" id="parserTotalScanned">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                <div style="flex: 1; min-width: 150px; padding: 16px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Selected for Split</div>
                     <div style="font-size: 1.8rem; font-weight: 700; color: #e67e22;" id="parserSelectedCount">0</div>
                 </div>
@@ -9726,7 +9726,7 @@
             </div>
 
             <!-- Select All -->
-            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px; padding: 12px 18px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color);">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 15px; padding: 12px 18px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color);">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
                     <input type="checkbox" id="parserSelectAll" onchange="toggleParserSelectAll(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
                     Select All
@@ -9864,10 +9864,10 @@
         .f7c-sig { flex: 1; text-align: center; }
         .f7c-sig .f7c-sig-line { border-top: 1px solid #000; margin-bottom: 3px; }
         .f7c-sig .f7c-sig-label { font-style: italic; font-weight: 700; font-size: 11px; }
-        .f7c-empty-note { text-align:center; color:#999; font-style:italic; }
+        .f7c-empty-note { text-align:center; color:var(--text-muted); font-style:italic; }
 
         /* ---- Saved forms strip (multiple Form 7C documents) ---- */
-        .f7c-forms-panel { background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e1e6ef); border-radius: 12px; padding: 14px 18px; margin: 18px 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .f7c-forms-panel { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e1e6ef); border-radius: 12px; padding: 14px 18px; margin: 18px 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .f7c-forms-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
         .f7c-forms-panel-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary, #2c3e50); }
         .f7c-forms-hint { font-weight: 400; font-size: 0.78rem; color: var(--text-secondary, #7f8c8d); margin-left: 8px; }
@@ -9885,7 +9885,7 @@
 
         /* ---- New Form warning modal ---- */
         .f7c-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
-        .f7c-modal { background: var(--card-bg, #fff); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .f7c-modal { background: var(--bg-card, #fff); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
         .f7c-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: linear-gradient(135deg, #16a085, #1abc9c); color: #fff; }
         .f7c-modal-head h2 { margin: 0; font-size: 1.1rem; }
         .f7c-modal-close { background: none; border: none; color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; }
@@ -14568,10 +14568,25 @@
         function toggleNightMode() {
             nightModeEnabled = !nightModeEnabled;
             document.body.classList.toggle('dark-mode');
-            
+
             const icon = document.getElementById('nightModeIcon');
-            icon.textContent = nightModeEnabled ? '☀️' : '🌙';
+            if (icon) icon.textContent = nightModeEnabled ? '☀️' : '🌙';
+
+            // Persist the choice so it carries across pages and reloads
+            if (window.mphSaveTheme) window.mphSaveTheme(nightModeEnabled);
         }
+
+        // Apply the saved theme immediately on load and sync the toggle icon
+        (function applySavedThemeOnLoad() {
+            try {
+                if (window.mphApplySavedTheme) window.mphApplySavedTheme();
+                nightModeEnabled = document.body.classList.contains('dark-mode');
+                document.addEventListener('DOMContentLoaded', function () {
+                    const icon = document.getElementById('nightModeIcon');
+                    if (icon) icon.textContent = nightModeEnabled ? '☀️' : '🌙';
+                });
+            } catch (e) { /* ignore */ }
+        })();
 
         // ============================================
         // CONFIGURATION
@@ -16709,7 +16724,7 @@
             overlay.id = 'structureReviewModal';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
             overlay.innerHTML = `
-              <div style="background:var(--card-bg,#fff);color:var(--text-primary,#222);border-radius:12px;max-width:900px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
+              <div style="background:var(--bg-card,#fff);color:var(--text-primary,#222);border-radius:12px;max-width:900px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
                 <div style="padding:16px 20px;border-bottom:1px solid var(--border-color,#ddd);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                   <h3 style="margin:0;flex:1;">🧾 Restructure Review Queue — ${openCount} open</h3>
                   <select id="structureReviewTypeSel" style="padding:6px;border-radius:6px;">
@@ -20580,7 +20595,7 @@
                         <div class="asset-code">${escapeHtml(assetCode)}</div>
                         ${asset ? `<div class="description">${escapeHtml(asset.description)}</div>` : ''}
                     </div>
-                    <p style="font-size: 0.8em; color: #999;">Scan with smartphone camera to view asset details</p>
+                    <p style="font-size: 0.8em; color: var(--text-muted);">Scan with smartphone camera to view asset details</p>
                     <script>
                         window.onload = function() { window.print(); };
                     <\/script>
@@ -21079,7 +21094,7 @@
                         <p style="font-size: 3em; margin-bottom: 20px;">🔍</p>
                         <h3 style="color: #e74c3c; margin-bottom: 10px;">Asset Not Found</h3>
                         <p style="color: #666;">The asset with code <strong>${escapeHtml(assetCode)}</strong> was not found in the database.</p>
-                        <p style="color: #999; font-size: 0.9em; margin-top: 20px;">This may be because:</p>
+                        <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 20px;">This may be because:</p>
                         <ul style="text-align: left; display: inline-block; color: #666; margin-top: 10px;">
                             <li>The asset hasn't been registered yet</li>
                             <li>The QR code contains an incorrect code</li>
@@ -27624,7 +27639,7 @@
                     <td><span class="bos-row-${row.status}">${row.status === 'valid' ? '✓ Valid' : '✗ ' + row.errors.join(', ')}</span></td>
                     <td>${escapeHtml(row.parsed.assetCode)}</td>
                     <td>${escapeHtml(row.parsed.description)}</td>
-                    <td><input type="date" value="${row.parsed.disposalDate || ''}" onchange="bosUpdateRowDate(${row.rowNum}, this.value)" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-primary);"></td>
+                    <td><input type="date" value="${row.parsed.disposalDate || ''}" onchange="bosUpdateRowDate(${row.rowNum}, this.value)" style="border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.85rem; background: var(--bg-card); color: var(--text-primary);"></td>
                     <td>${row.parsed.reason ? `<span class="disposal-reason-badge ${row.parsed.reason.toLowerCase()}">${escapeHtml(row.parsed.reason)}</span>` : ''}</td>
                     <td>${row.parsed.method ? `<span class="disposal-method-badge ${row.parsed.method.toLowerCase()}">${escapeHtml(row.parsed.method)}</span>` : ''}</td>
                     <td>JMD ${formatCurrency(row.parsed.originalValue)}</td>
@@ -29524,7 +29539,7 @@
                     '<td>' + esc(l.dept) + ' &rsaquo; ' + esc(l.room) + '</td>' +
                     '<td>' + esc(l.item || l.description) + '</td>' +
                     '<td><code>' + esc(l.code) + '</code></td>' +
-                    '<td>' + (s ? esc(s.asset.assetCode) + ' <span style="color:#888;">(' + Math.round(s.score * 100) + '% desc match)</span>' : '<span style="color:#aaa;">—</span>') + '</td>' +
+                    '<td>' + (s ? esc(s.asset.assetCode) + ' <span style="color:var(--text-muted);">(' + Math.round(s.score * 100) + '% desc match)</span>' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
                     '</tr>';
             }).join('');
 
@@ -29551,7 +29566,7 @@
                         '<th style="text-align:left; padding:8px;">Code (not in register)</th>' +
                         '<th style="text-align:left; padding:8px;">Suggested register match (by description)</th>' +
                     '</tr></thead><tbody>' + orphanRows + '</tbody></table></div>' +
-                    (orphans.length > 200 ? '<p style="color:#888; font-size:0.8rem; margin-top:6px;">Showing first 200 of ' + orphans.length + ' orphan codes.</p>' : '')
+                    (orphans.length > 200 ? '<p style="color:var(--text-muted); font-size:0.8rem; margin-top:6px;">Showing first 200 of ' + orphans.length + ' orphan codes.</p>' : '')
                     : '<p style="color:#27ae60; font-weight:600;">✓ Every location asset code was found in the register — no orphan codes.</p>');
 
             showReconcileModal(html);
@@ -30138,7 +30153,7 @@
             };
             tabs.forEach(t => {
                 document.getElementById(panelIds[t]).style.display = t === tab ? 'block' : 'none';
-                document.getElementById(tabIds[t]).style.background = t === tab ? '#8e44ad' : 'var(--card-bg)';
+                document.getElementById(tabIds[t]).style.background = t === tab ? '#8e44ad' : 'var(--bg-card)';
                 document.getElementById(tabIds[t]).style.color = t === tab ? 'white' : 'var(--text-primary)';
             });
         }
@@ -30586,7 +30601,7 @@
                 `).join('');
 
                 return `
-                    <div style="margin-bottom: 20px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); overflow: hidden;">
+                    <div style="margin-bottom: 20px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border-color); overflow: hidden;">
                         <div style="padding: 12px 18px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                             <div>
                                 <strong style="font-size: 1rem;">Duplicate Group #${gi + 1}</strong>
@@ -32849,7 +32864,7 @@
                 const asset = item.original;
                 const isSelected = parserSelectedIds.has(asset.id);
                 const borderColor = isSelected ? '#8e44ad' : 'var(--border-color)';
-                const bgHighlight = isSelected ? 'rgba(142,68,173,0.05)' : 'var(--card-bg)';
+                const bgHighlight = isSelected ? 'rgba(142,68,173,0.05)' : 'var(--bg-card)';
 
                 html += `
                 <div style="margin-bottom: 20px; border: 2px solid ${borderColor}; border-radius: 12px; overflow: hidden; background: ${bgHighlight}; transition: all 0.2s;">
@@ -32872,7 +32887,7 @@
                     </div>
 
                     <!-- Shared Fields -->
-                    <div style="padding: 10px 18px; background: var(--card-bg); border-bottom: 1px solid var(--border-color);">
+                    <div style="padding: 10px 18px; background: var(--bg-card); border-bottom: 1px solid var(--border-color);">
                         <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary);">
                             <span><strong>Description:</strong> ${escapeHtml(asset.description || 'N/A')}</span>
                             <span><strong>Date:</strong> ${escapeHtml(asset.dateIn || 'N/A')}</span>

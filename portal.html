@@ -2468,5 +2468,30 @@
         });
     </script>
 
+    <script>
+        // Accessibility: give every form field an accessible name derived from
+        // its nearest label or placeholder (this page has no asset-normalizer.js).
+        (function () {
+            function patch() {
+                document.querySelectorAll('input, select, textarea').forEach(function (f) {
+                    var type = (f.getAttribute('type') || '').toLowerCase();
+                    if (type === 'hidden') return;
+                    if (f.getAttribute('aria-label') || f.getAttribute('aria-labelledby')) return;
+                    if (f.id && document.querySelector('label[for="' + f.id.replace(/([^a-zA-Z0-9_-])/g,'\\$1') + '"]')) return;
+                    if (f.closest && f.closest('label')) return;
+                    var text = '';
+                    var prev = f.previousElementSibling;
+                    while (prev && !text) { if (prev.tagName === 'LABEL') text = prev.textContent || ''; prev = prev.previousElementSibling; }
+                    if (!text && f.closest) { var g = f.closest('.form-group, .input-group, .field'); if (g) { var l = g.querySelector('label'); if (l) text = l.textContent || ''; } }
+                    if (!text) text = f.getAttribute('placeholder') || '';
+                    text = text.replace(/\s+/g,' ').trim().replace(/[*:]\s*$/,'').trim();
+                    if (text) f.setAttribute('aria-label', text);
+                });
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ patch(); setTimeout(patch, 1200); });
+            else { patch(); setTimeout(patch, 1200); }
+        })();
+    </script>
+
 </body>
 </html>

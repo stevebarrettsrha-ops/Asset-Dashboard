@@ -11,8 +11,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #667eea;
-            --primary-dark: #764ba2;
+            --primary: #FF6B35;
+            --primary-dark: #E55934;
             --bg-primary: #f5f7fa;
             --bg-secondary: #e9ecef;
             --bg-card: #ffffff;
@@ -50,7 +50,7 @@
             align-items: center;
             min-height: 100vh;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
         }
 
         .login-box {
@@ -86,14 +86,14 @@
 
         .login-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #FF6B35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         .login-btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -103,7 +103,7 @@
             transition: transform 0.2s ease;
         }
 
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4); }
 
         .login-footer {
             text-align: center;
@@ -117,7 +117,7 @@
         .back-link {
             display: inline-block;
             margin-top: 15px;
-            color: #667eea;
+            color: #FF6B35;
             text-decoration: none;
             font-size: 14px;
         }
@@ -131,7 +131,7 @@
 
         /* Top Navigation */
         .top-nav {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #E55934 100%);
             color: white;
             padding: 0 25px;
             display: flex;
@@ -241,8 +241,8 @@
         .sidebar-item:hover { background: var(--bg-secondary); }
 
         .sidebar-item.active {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
-            color: #667eea;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(229, 89, 52, 0.15));
+            color: #FF6B35;
             font-weight: 600;
         }
 
@@ -320,7 +320,7 @@
         }
 
         .stat-card:hover { transform: translateY(-3px); }
-        .stat-card.purple { border-color: #667eea; }
+        .stat-card.purple { border-color: #FF6B35; }
         .stat-card.green { border-color: #27ae60; }
         .stat-card.orange { border-color: #f39c12; }
         .stat-card.red { border-color: #e74c3c; }
@@ -373,7 +373,7 @@
         }
 
         .process-step.active:not(:last-child)::after {
-            background: linear-gradient(90deg, #667eea, var(--border-color));
+            background: linear-gradient(90deg, #FF6B35, var(--border-color));
         }
 
         .step-circle {
@@ -398,10 +398,10 @@
         }
 
         .process-step.active .step-circle {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-color: #667eea;
+            background: linear-gradient(135deg, #FF6B35, #E55934);
+            border-color: #FF6B35;
             color: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.2);
         }
 
         .step-label {
@@ -413,7 +413,7 @@
             max-width: 100px;
         }
 
-        .process-step.active .step-label { color: #667eea; }
+        .process-step.active .step-label { color: #FF6B35; }
         .process-step.completed .step-label { color: #27ae60; }
 
         /* Forms */
@@ -448,8 +448,8 @@
 
         .form-control:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #FF6B35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
         }
 
         select.form-control { cursor: pointer; }
@@ -472,7 +472,7 @@
 
         .btn:hover { transform: translateY(-2px); }
 
-        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-primary { background: linear-gradient(135deg, #FF6B35, #E55934); color: white; }
         .btn-success { background: linear-gradient(135deg, #2ECC71, #27AE60); color: white; }
         .btn-warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
         .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
@@ -493,7 +493,7 @@
         }
 
         thead {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #FF6B35, #E55934);
         }
 
         th {
@@ -548,10 +548,10 @@
             align-items: flex-start;
             margin-bottom: 25px;
             padding-bottom: 15px;
-            border-bottom: 3px solid #667eea;
+            border-bottom: 3px solid #FF6B35;
         }
 
-        .po-preview .po-title { font-size: 24px; font-weight: 700; color: #667eea; }
+        .po-preview .po-title { font-size: 24px; font-weight: 700; color: #FF6B35; }
         .po-preview .po-number { font-size: 14px; color: #666; margin-top: 5px; }
 
         .po-info-grid {
@@ -575,9 +575,9 @@
         }
 
         .po-items-table { width: 100%; margin: 20px 0; }
-        .po-items-table th { background: #667eea; color: white; padding: 10px; font-size: 12px; text-transform: uppercase; }
+        .po-items-table th { background: #FF6B35; color: white; padding: 10px; font-size: 12px; text-transform: uppercase; }
         .po-items-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; color: #333; }
-        .po-items-table tfoot td { font-weight: 700; border-top: 2px solid #667eea; }
+        .po-items-table tfoot td { font-weight: 700; border-top: 2px solid #FF6B35; }
 
         /* Night Mode Toggle */
         .night-toggle {
@@ -1845,7 +1845,13 @@
         // ============================================
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
+            if (window.mphSaveTheme) window.mphSaveTheme();
         }
+        // Apply the theme saved on any page across the app
+        if (window.mphApplySavedTheme) window.mphApplySavedTheme();
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.mphApplySavedTheme) window.mphApplySavedTheme();
+        });
 
         // ============================================
         // REQUISITION FORM
@@ -2250,17 +2256,17 @@
         function getPrintStyles() {
             return '* { margin: 0; padding: 0; box-sizing: border-box; }' +
                 'body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.4; color: #333; padding: 15px; }' +
-                '.header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #667eea; }' +
-                '.header h1 { font-size: 20px; color: #667eea; margin-bottom: 5px; }' +
+                '.header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #FF6B35; }' +
+                '.header h1 { font-size: 20px; color: #FF6B35; margin-bottom: 5px; }' +
                 '.header h2 { font-size: 14px; color: #7f8c8d; font-weight: normal; }' +
                 '.header p { font-size: 10px; color: #95a5a6; margin-top: 5px; }' +
                 '.summary { display: flex; justify-content: space-around; margin-bottom: 15px; padding: 12px; background: #f0f2ff; border-radius: 5px; border: 1px solid #c8d0f0; }' +
                 '.summary-item { text-align: center; }' +
                 '.summary-item .label { font-size: 9px; color: #7f8c8d; }' +
-                '.summary-item .value { font-size: 14px; font-weight: bold; color: #667eea; }' +
+                '.summary-item .value { font-size: 14px; font-weight: bold; color: #FF6B35; }' +
                 'table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 10px; }' +
                 'th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: left; }' +
-                'th { background: #667eea; color: white; font-weight: bold; font-size: 8px; }' +
+                'th { background: #FF6B35; color: white; font-weight: bold; font-size: 8px; }' +
                 'tr:nth-child(even) { background: #f9f9f9; }' +
                 '.totals-row { background: #f0f2ff !important; font-weight: bold; }' +
                 '.status-badge { padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: bold; }' +
@@ -2269,7 +2275,7 @@
                 '.status-rejected { background: #fadbd8; color: #922b21; }' +
                 '.status-issued { background: #d6eaf8; color: #1b4f72; }' +
                 '.status-paid { background: #d5f5e3; color: #196f3d; }' +
-                '.footer { margin-top: 25px; padding-top: 15px; border-top: 2px solid #667eea; }' +
+                '.footer { margin-top: 25px; padding-top: 15px; border-top: 2px solid #FF6B35; }' +
                 '.signature-section { display: flex; justify-content: space-between; margin-top: 40px; }' +
                 '.signature-box { width: 200px; text-align: center; }' +
                 '.signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 10px; }' +
@@ -2283,7 +2289,7 @@
             const includeTimestamp = document.getElementById('printIncludeTimestamp') ? document.getElementById('printIncludeTimestamp').checked : true;
             const hospitalName = (function() { try { const s = JSON.parse(localStorage.getItem('portalHeadingSettings') || '{}'); return s.hospitalName || 'May Pen Hospital'; } catch(e) { return 'May Pen Hospital'; } })();
             return '<div class="header">' +
-                (includeLogo ? '<div style="font-size:1.5em;color:#667eea;font-weight:bold;">&#x1F3E5; ' + hospitalName + '</div>' : '') +
+                (includeLogo ? '<div style="font-size:1.5em;color:#FF6B35;font-weight:bold;">&#x1F3E5; ' + hospitalName + '</div>' : '') +
                 '<h1>' + reportTitle + '</h1>' +
                 '<h2>Procurement Management System</h2>' +
                 (includeTimestamp ? '<p>Generated: ' + new Date().toLocaleString() + '</p>' : '') +
