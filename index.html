@@ -6492,7 +6492,7 @@
                     <div class="form-group">
                         <label for="assetCode">Asset Code *</label>
                         <div style="display: flex; gap: 5px; align-items: flex-start;">
-                            <input type="text" id="assetCode" required placeholder="MPH-MS-190-01-2025" style="flex: 1;">
+                            <input type="text" id="assetCode" required placeholder="MPH-MS-190-01-2025" style="flex: 1; min-width: 0;">
                             <button type="button" class="btn-secondary" onclick="openAssetCodePicker('assetCode')" title="Look up a standard asset code" style="padding: 8px 12px; flex-shrink: 0;">🔍</button>
                         </div>
                     </div>
@@ -6516,7 +6516,7 @@
                     <div class="form-group">
                         <label for="department">Department *</label>
                         <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: flex-start;">
-                            <div class="custom-dropdown-wrapper" id="assetDeptDropdownWrapper" style="flex: 1; min-width: 150px;">
+                            <div class="custom-dropdown-wrapper" id="assetDeptDropdownWrapper" style="flex: 1; min-width: 0;">
                                 <button type="button" class="custom-dropdown-trigger" id="assetDeptDropdownTrigger" onclick="toggleAssetDeptDropdown()" style="width: 100%;">
                                     Select Department
                                 </button>
@@ -6535,7 +6535,7 @@
                     <div class="form-group">
                         <label for="category">Category * <span id="autoCatBadge" style="display:none; font-size:0.7rem; background:#27ae60; color:#fff; padding:1px 6px; border-radius:8px; margin-left:4px; font-weight:normal;">Auto</span></label>
                         <div style="display: flex; gap: 5px; align-items: flex-start;">
-                            <select id="category" required style="flex: 1;">
+                            <select id="category" required style="flex: 1; min-width: 0;">
                                 <option value="">Select Category</option>
                             </select>
                             <button type="button" class="btn-secondary" onclick="openCategoryManager()" title="Manage Categories" style="padding: 8px 12px; flex-shrink: 0;">⚙️</button>
