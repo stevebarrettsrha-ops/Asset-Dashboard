@@ -16735,21 +16735,29 @@
             try { assets = loadAssetsFromStorage(); } catch (e) { return false; }
             if (!Array.isArray(assets) || !assets.length) return false;
             let changed = 0;
+            const UNASSIGNED = window.mphUnassignedDept;
             assets.forEach(a => {
                 const dept = (a.department || '').trim();
                 const names = window.mphSplitDepartmentString(dept);
-                if (names.length >= 1) {
-                    if (names[0] !== a.department) {
-                        if (dept && !a.departmentOriginal) a.departmentOriginal = dept;
-                        a.department = names[0];
-                        changed++;
-                    }
-                } else if (!dept) {
-                    a.department = window.mphUnassignedDept;
+                let target = null;
+                if (names.length >= 1 && names[0] !== UNASSIGNED) {
+                    // The department field already names a real Location — it wins.
+                    target = names[0];
+                } else {
+                    // Department is Unassigned, empty, or unrecognised. The asset
+                    // CODE usually says where it belongs (e.g. MPH/139/8/OPD ->
+                    // Out Patient Department), so derive the Location from the code.
+                    const fromCode = window.mphDepartmentForCode ? window.mphDepartmentForCode(a.assetCode) : null;
+                    if (fromCode) target = fromCode;
+                    else if (names.length >= 1) target = names[0]; // stays Unassigned
+                    else if (!dept) target = UNASSIGNED;
+                    // names empty + non-empty dept => a genuine custom name; leave it.
+                }
+                if (target && target !== a.department) {
+                    if (dept && dept !== UNASSIGNED && !a.departmentOriginal) a.departmentOriginal = dept;
+                    a.department = target;
                     changed++;
                 }
-                // names.length === 0 with a non-empty dept = a genuine custom
-                // department name; leave it untouched.
             });
             if (changed > 0) {
                 saveAssetsToStorage(assets);
@@ -16826,7 +16834,13 @@
                         if (norm && norm !== code && !/\/DN\//.test(norm) && !/\/000\//.test(norm)) code = norm;
                     }
                     if (existingCodes.has(code.toUpperCase())) { collision = true; }
-                    produced.push({ code, dept, orig: rc });
+                    // If the department is still Unassigned, derive it from this
+                // row's own code token (MPH/139/8/OPD -> Out Patient Department).
+                if ((!dept || dept === window.mphUnassignedDept) && window.mphDepartmentForCode) {
+                    const fc = window.mphDepartmentForCode(code) || window.mphDepartmentForCode(rc);
+                    if (fc) dept = fc;
+                }
+                produced.push({ code, dept, orig: rc });
                 });
                 // If any produced code already exists, skip this asset (avoid
                 // creating duplicates) and leave it for manual review.
@@ -33226,6 +33240,12 @@
                         const dn = window.mphSplitDepartmentString(dept || '');
                         if (dn.length >= 1) dept = dn[0];
                         else if (!dept && window.mphUnassignedDept) dept = window.mphUnassignedDept;
+                    }
+                    // If still Unassigned, derive the Location from the row's code
+                    // token (e.g. MPH/139/8/OPD -> Out Patient Department).
+                    if ((!dept || dept === window.mphUnassignedDept) && window.mphDepartmentForCode) {
+                        const fc = window.mphDepartmentForCode(row.assetCode);
+                        if (fc) dept = fc;
                     }
                     newAsset.department = dept;
                     let code = row.assetCode;
