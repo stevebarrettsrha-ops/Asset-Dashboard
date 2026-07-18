@@ -16842,10 +16842,13 @@
                     // Case 1: distinct codes packed with commas/newlines.
                     rowCodes = commaParts;
                 } else {
-                    // Case 2: a single range, only if quantity confirms the count.
+                    // Case 2: a single range code -> split into individual codes
+                    // (e.g. MPH/AE/996/19-26 -> .../19, .../20, ... .../26).
+                    // safeRange() only expands a clean range (start >= 1, end >
+                    // start, span < 100), so malformed "0-0N" codes are skipped;
+                    // the collision guard below prevents any duplicate codes.
                     const expanded = safeRange(raw);
-                    const qty = parseInt(asset.quantity, 10);
-                    if (expanded.length > 1 && qty === expanded.length) rowCodes = expanded;
+                    if (expanded.length > 1) rowCodes = expanded;
                 }
                 if (!rowCodes) return; // leave ambiguous/single-code assets untouched
 
