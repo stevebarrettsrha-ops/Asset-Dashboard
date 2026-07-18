@@ -12383,6 +12383,16 @@
             }
         }
 
+        // The register cleaned for cloud upload: every asset's department is
+        // canonicalised (messy multi-location strings collapse to their first
+        // canonical Location) so the backup written to Google Drive never
+        // carries the old messy values. Persists the cleaned data locally too,
+        // and is idempotent. Used by every cloud upload path below.
+        function assetsForCloudUpload() {
+            try { if (typeof canonicalizeAllAssetDepartments === 'function') canonicalizeAllAssetDepartments(); } catch (e) {}
+            return loadAssetsFromStorage();
+        }
+
         async function performAutoSync() {
             if (autoSyncInProgress) return;
             if (!isCloudConnected || !googleAccessToken) return;
@@ -12434,7 +12444,7 @@
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
-                        assets: loadAssetsFromStorage(),
+                        assets: assetsForCloudUpload(),
                         qrCodeRegistry: loadQRRegistry(),
                         auditTrail: loadAuditFromStorage(),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
@@ -13232,7 +13242,7 @@
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
-                        assets: loadAssetsFromStorage(),
+                        assets: assetsForCloudUpload(),
                         qrCodeRegistry: loadQRRegistry(),
                         auditTrail: loadAuditFromStorage(),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
@@ -13316,7 +13326,7 @@
                     timestamp: new Date().toISOString(),
                     savedBy: currentUser ? currentUser.username : 'Unknown',
                     data: {
-                        assets: loadAssetsFromStorage(),
+                        assets: assetsForCloudUpload(),
                         qrCodeRegistry: loadQRRegistry(),
                         auditTrail: loadAuditFromStorage(),
                         departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
