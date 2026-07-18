@@ -16674,6 +16674,42 @@
             return true;
         }
 
+        // Canonicalise the department stored on EVERY asset so the register,
+        // bulk-categories and asset-deletion filters (which derive their option
+        // lists from asset.department) never show messy multi-location strings.
+        // Runs on every load, independent of the version-gated migration above,
+        // and is idempotent (a canonical department maps to itself). Messy
+        // multi-location strings collapse to their first canonical Location with
+        // the original preserved in departmentOriginal.
+        function canonicalizeAllAssetDepartments() {
+            if (!window.mphSplitDepartmentString) return false;
+            let assets;
+            try { assets = loadAssetsFromStorage(); } catch (e) { return false; }
+            if (!Array.isArray(assets) || !assets.length) return false;
+            let changed = 0;
+            assets.forEach(a => {
+                const dept = (a.department || '').trim();
+                const names = window.mphSplitDepartmentString(dept);
+                if (names.length >= 1) {
+                    if (names[0] !== a.department) {
+                        if (dept && !a.departmentOriginal) a.departmentOriginal = dept;
+                        a.department = names[0];
+                        changed++;
+                    }
+                } else if (!dept) {
+                    a.department = window.mphUnassignedDept;
+                    changed++;
+                }
+                // names.length === 0 with a non-empty dept = a genuine custom
+                // department name; leave it untouched.
+            });
+            if (changed > 0) {
+                saveAssetsToStorage(assets);
+                console.log('Canonicalised departments on ' + changed + ' assets');
+            }
+            return changed > 0;
+        }
+
         // ---- Review queue (items flagged by the restructure) ----
         function _structureResolvedSet() {
             try { return new Set(JSON.parse(localStorage.getItem(STRUCTURE_RESOLVED_KEY) || '[]')); }
@@ -16768,6 +16804,10 @@
             } catch (e) {
                 console.error('Structured register migration failed:', e);
             }
+            // Canonicalise the department on every asset so the register /
+            // bulk-categories / asset-deletion filters (built from asset
+            // departments) never list a messy multi-location string.
+            try { canonicalizeAllAssetDepartments(); } catch (e) {}
             // Clean the legacy customDepartments list (split messy multi-location
             // strings into canonical Locations, drop the junk), then reconcile the
             // Location Records to clean canonical Locations — independent of the
@@ -28186,14 +28226,32 @@
             animateCountUp(document.getElementById('registerDonatedCount'), donatedCount);
         }
 
+        // Build a CLEAN department option list: the canonical Location list
+        // plus any raw asset-department value mapped to its canonical Location(s)
+        // — messy multi-location strings are split, codes dropped, so a filter
+        // dropdown never shows a raw multi-department string.
+        function cleanDepartmentOptions(rawDepts) {
+            const out = [];
+            const seen = new Set();
+            function add(n) {
+                if (n && !seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); out.push(n); }
+            }
+            try { (typeof loadDepartments === 'function' ? loadDepartments() : []).forEach(add); } catch (e) {}
+            (rawDepts || []).forEach(d => {
+                if (!d) return;
+                const names = window.mphSplitDepartmentString ? window.mphSplitDepartmentString(d) : [];
+                if (names.length) { names.forEach(add); return; }
+                if (window.mphLooksLikeCode && window.mphLooksLikeCode(d)) return; // a code, not a dept
+                add(d); // a genuine custom single department
+            });
+            return out.sort();
+        }
+
         // Populate department filter dropdown (custom dropdown)
         function populateRegisterDepartmentFilter() {
-            // Linked to the Location Records page: offer every location record,
-            // plus any department value still present in the data.
-            const departments = [...new Set([
-                ...loadDepartments(),
-                ...assetRegisterData.map(a => a.department).filter(Boolean)
-            ])];
+            // Linked to the Location Records page and cleaned: never shows a raw
+            // multi-department string even if some asset still carries one.
+            const departments = cleanDepartmentOptions(assetRegisterData.map(a => a.department));
             const menu = document.getElementById('registerDeptDropdownMenu');
 
             if (!menu) return;
@@ -29031,11 +29089,9 @@
 
         function populateDeletionDropdowns() {
             const cats = new Set();
-            const depts = new Set();
-            _delPageAssets.forEach(a => {
-                if (a.category) cats.add(a.category);
-                if (a.department) depts.add(a.department);
-            });
+            _delPageAssets.forEach(a => { if (a.category) cats.add(a.category); });
+            // Departments cleaned to canonical Locations (no raw multi-dept strings)
+            const depts = cleanDepartmentOptions(_delPageAssets.map(a => a.department));
 
             const catSel = document.getElementById('delCategoryFilter');
             if (catSel) {
@@ -29046,7 +29102,7 @@
             const deptSel = document.getElementById('delDeptFilter');
             if (deptSel) {
                 deptSel.innerHTML = '<option value="">-- All Departments --</option>' +
-                    [...depts].sort().map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+                    depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
             }
         }
 
@@ -29921,13 +29977,10 @@
 
         function populateBulkFilters() {
             const categories = loadCategories();
-            // Linked to the Location Records page: full location list plus any
-            // department value still present in the data.
+            // Linked to the Location Records page and cleaned: never lists a raw
+            // multi-department string even if an asset still carries one.
             const allDepartments = loadDepartments();
-            const departments = [...new Set([
-                ...allDepartments,
-                ...bulkAllAssets.map(a => a.department).filter(Boolean)
-            ])].sort();
+            const departments = cleanDepartmentOptions(bulkAllAssets.map(a => a.department));
 
             const catSelect = document.getElementById('bulkFilterCategory');
             const deptSelect = document.getElementById('bulkFilterDepartment');
