@@ -102,6 +102,10 @@ window.mphParseCode = function (code) {
         if (inner && (inner.dept || inner.item)) return inner;
     }
     c = c.replace(/\(.*?\)/g, ' ');
+    // drop a spurious trailing " -NN" suffix (space before the dash), e.g.
+    // "MPH/139/19/A.E -01" -> "MPH/139/19/A.E". A real range like "19-26"
+    // has no space and is left intact.
+    c = c.replace(/\s+-\s*\d+\s*$/, '');
     c = c.replace(/\\/g, '/').replace(/-/g, '/').replace(/_/g, '/').replace(/\s+/g, '/');
     var parts = c.split('/').filter(function (p) { return p && p !== 'MPH' && p !== 'M.P.H'; });
     // split glued tokens: 20XRAY -> 20|XRAY, ISO193 -> ISO|193, MPH180 -> MPH|180
@@ -143,6 +147,13 @@ window.mphNormalizeCode = function (code, deptName) {
     if (p.seq) parts.push(p.seq);
     if (p.year) parts.push(p.year);
     return parts.join('/');
+};
+
+// Strip a spurious trailing " -NN" suffix (space before the dash) from a code,
+// e.g. "MPH/139/19/A.E -01" -> "MPH/139/19/A.E". A real range ("19-26", no
+// space) is left untouched. Returns the trimmed string.
+window.mphStripCodeSuffix = function (code) {
+    return String(code == null ? '' : code).replace(/\s+-\s*\d+\s*$/, '').trim();
 };
 
 // Does this string look like an asset code rather than a department name?

@@ -16766,6 +16766,36 @@
             return changed > 0;
         }
 
+        // Strip a spurious trailing " -NN" suffix from every asset code
+        // (e.g. "MPH/139/19/A.E -01" -> "MPH/139/19/A.E"). Keeps the code's own
+        // format, records the original as an alias, and only applies when the
+        // cleaned code doesn't collide with another asset (so no duplicates).
+        // Idempotent; runs on load.
+        function cleanAssetCodeSuffixes() {
+            if (!window.mphStripCodeSuffix) return false;
+            let assets;
+            try { assets = loadAssetsFromStorage(); } catch (e) { return false; }
+            if (!Array.isArray(assets) || !assets.length) return false;
+            const codes = new Set(assets.map(a => (a.assetCode || '').toUpperCase()).filter(Boolean));
+            let changed = 0;
+            assets.forEach(a => {
+                const code = a.assetCode || '';
+                const cleaned = window.mphStripCodeSuffix(code);
+                if (cleaned && cleaned !== code && !codes.has(cleaned.toUpperCase())) {
+                    a.aliases = (a.aliases || []).concat([code]);
+                    a.assetCode = cleaned;
+                    codes.delete(code.toUpperCase());
+                    codes.add(cleaned.toUpperCase());
+                    changed++;
+                }
+            });
+            if (changed > 0) {
+                saveAssetsToStorage(assets);
+                console.log('Cleaned trailing " -NN" suffix on ' + changed + ' asset codes');
+            }
+            return changed > 0;
+        }
+
         // Automatically split ONLY the UNAMBIGUOUS multi-code assets:
         //   1. comma / newline lists of distinct codes (e.g. "MPH/146/07/MS, ORTHO-2")
         //      — genuinely two different assets, always safe to separate.
@@ -16963,6 +16993,8 @@
             } catch (e) {
                 console.error('Structured register migration failed:', e);
             }
+            // Strip spurious trailing " -NN" suffixes from asset codes.
+            try { cleanAssetCodeSuffixes(); } catch (e) {}
             // Canonicalise the department on every asset so the register /
             // bulk-categories / asset-deletion filters (built from asset
             // departments) never list a messy multi-location string.
