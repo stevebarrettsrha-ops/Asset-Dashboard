@@ -9687,6 +9687,7 @@
                 </div>
                 <div class="page-action-bar">
                     <button class="btn monthly-view-btn" onclick="scanMultiCodeAssets()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">&#128260; Scan for Multi-Code Assets</button>
+                    <button class="btn monthly-view-btn" onclick="splitAllMultiCodeAssets()" style="background: linear-gradient(135deg, #d35400, #e67e22);" title="Select every multi-code asset and split them all in one action">&#9889; Split All</button>
                     <button class="btn monthly-view-btn" onclick="applyMultiCodeSplit()" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">&#9989; Apply Selected Splits</button>
                     <button class="btn monthly-view-btn" onclick="deleteSelectedMultiCodeAssets()" style="background: linear-gradient(135deg, #c0392b, #e74c3c);">&#128465; Delete Selected Originals</button>
                 </div>
@@ -12534,12 +12535,36 @@
                     // Skip assets that have been deleted locally or from cloud
                     if (ca.id && deletedAssetIds.has(ca.id)) return;
 
+                    // The cloud backup may hold OLD messy pre-restructure values
+                    // (multi-location departments, un-normalised codes). Also skip
+                    // if a canonical/alias form of this code already exists locally,
+                    // so re-syncing an old backup can't re-introduce a duplicate
+                    // under its original code.
+                    const canonCode = (window.mphNormalizeCode && ca.assetCode)
+                        ? (window.mphNormalizeCode(ca.assetCode, ca.department) || ca.assetCode) : ca.assetCode;
                     const hasId = ca.id && localIdSet.has(ca.id);
                     const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
-                    if (!hasId && !hasCode) {
-                        localAssets.push(ca);
-                        if (ca.id) localIdSet.add(ca.id);
-                        if (ca.assetCode) localCodeSet.add(ca.assetCode.toLowerCase());
+                    const hasCanon = canonCode && localCodeSet.has(canonCode.toLowerCase());
+                    if (!hasId && !hasCode && !hasCanon) {
+                        // Clean an incoming cloud asset so old data can never
+                        // reappear messy: canonicalise its department and code.
+                        const clean = Object.assign({}, ca);
+                        if (window.mphSplitDepartmentString) {
+                            const names = window.mphSplitDepartmentString(clean.department || '');
+                            if (names.length >= 1 && names[0] !== clean.department) {
+                                if (clean.department) clean.departmentOriginal = clean.department;
+                                clean.department = names[0];
+                            } else if (!clean.department && window.mphUnassignedDept) {
+                                clean.department = window.mphUnassignedDept;
+                            }
+                        }
+                        if (canonCode && canonCode !== clean.assetCode) {
+                            clean.aliases = (clean.aliases || []).concat([clean.assetCode]);
+                            clean.assetCode = canonCode;
+                        }
+                        localAssets.push(clean);
+                        if (clean.id) localIdSet.add(clean.id);
+                        if (clean.assetCode) localCodeSet.add(clean.assetCode.toLowerCase());
                         added++;
                     }
                 });
@@ -12759,6 +12784,19 @@
                 } catch (e) {
                     console.warn('Location records merge failed:', e);
                 }
+            }
+
+            // After merging cloud data, re-canonicalise every asset's department
+            // so an old Drive backup can never leave messy multi-location strings
+            // behind, and mark the register dirty so the cleaned data is what gets
+            // uploaded back to the cloud (making the clean version win over time).
+            if (dataChanged) {
+                try {
+                    if (typeof canonicalizeAllAssetDepartments === 'function') {
+                        canonicalizeAllAssetDepartments();
+                    }
+                } catch (e) { /* ignore */ }
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
             }
 
             // Refresh all views if any data changed
@@ -33024,6 +33062,20 @@
             }
         }
 
+        // One-click: scan, select every multi-code asset, and split them all.
+        function splitAllMultiCodeAssets() {
+            scanMultiCodeAssets();
+            if (!parserMultiCodeAssets.length) {
+                alert('✅ No multi-code assets found — nothing to split.');
+                return;
+            }
+            parserSelectedIds = new Set(parserMultiCodeAssets.map(item => item.original.id));
+            const sel = document.getElementById('parserSelectAll');
+            if (sel) sel.checked = true;
+            updateParserSelectionInfo();
+            applyMultiCodeSplit();
+        }
+
         function applyMultiCodeSplit() {
             if (parserSelectedIds.size === 0) {
                 alert('No assets selected. Please select at least one multi-code asset to split.');
@@ -33048,8 +33100,27 @@
                 item.splitRows.forEach(row => {
                     const newAsset = Object.assign({}, orig);
                     newAsset.id = generateAssetId();
-                    newAsset.assetCode = row.assetCode;
-                    newAsset.department = row.department;
+                    // Canonicalise the split row's department, then normalise its
+                    // code to MPH/DEPT/ITEM/SEQ (keeping the raw code as an alias).
+                    let dept = row.department;
+                    if (window.mphSplitDepartmentString) {
+                        const dn = window.mphSplitDepartmentString(dept || '');
+                        if (dn.length >= 1) dept = dn[0];
+                        else if (!dept && window.mphUnassignedDept) dept = window.mphUnassignedDept;
+                    }
+                    newAsset.department = dept;
+                    let code = row.assetCode;
+                    if (window.mphNormalizeCode && code) {
+                        const norm = window.mphNormalizeCode(code, dept);
+                        // Only adopt the normalised form when it is a genuinely
+                        // canonical code (real dept token + item number) — never
+                        // downgrade a code to a MPH/DN/000/… placeholder.
+                        if (norm && norm !== code && !/\/DN\//.test(norm) && !/\/000\//.test(norm)) {
+                            newAsset.aliases = (orig.aliases || []).concat([code]);
+                            code = norm;
+                        }
+                    }
+                    newAsset.assetCode = code;
                     // Each split row is a single item
                     newAsset.quantity = 1;
                     // Total price = unit price for a single item
