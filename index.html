@@ -16758,6 +16758,103 @@
             return changed > 0;
         }
 
+        // Automatically split ONLY the UNAMBIGUOUS multi-code assets:
+        //   1. comma / newline lists of distinct codes (e.g. "MPH/146/07/MS, ORTHO-2")
+        //      — genuinely two different assets, always safe to separate.
+        //   2. a single range code whose quantity confirms the count
+        //      (e.g. "MPH/OPD/139/35-38/2024" with quantity 4) — the quantity
+        //      proves it really is 4 assets.
+        // Ambiguous range codes (quantity 1 with a range, or "0-0N" style) are
+        // LEFT ALONE for the reviewed manual "Split All" button, so we never
+        // silently inflate a single asset or create duplicate codes. Runs on
+        // load; idempotent (produces no work once everything is split). Split
+        // codes are deduped against the register and each other.
+        function autoSplitMultiCodeAssets() {
+            let assets;
+            try { assets = loadAssetsFromStorage(); } catch (e) { return false; }
+            if (!Array.isArray(assets) || !assets.length) return false;
+            const existingCodes = new Set(assets.map(a => (a.assetCode || '').toUpperCase()).filter(Boolean));
+            const removeIds = new Set();
+            const newAssets = [];
+
+            function safeRange(code) {
+                // Expand a single range code only when unambiguous (start >= 1,
+                // end > start, small span). Returns [] if not a clean range.
+                const parts = String(code).split('/');
+                for (let i = 0; i < parts.length; i++) {
+                    const m = parts[i].match(/^(\d+)\s*-\s*(\d+)$/);
+                    if (m) {
+                        const a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+                        if (a >= 1 && b > a && (b - a) < 100) {
+                            const out = [], pad = m[1].length;
+                            for (let n = a; n <= b; n++) { const np = [...parts]; np[i] = String(n).padStart(pad, '0'); out.push(np.join('/')); }
+                            return out;
+                        }
+                    }
+                }
+                return [];
+            }
+
+            assets.forEach(asset => {
+                const raw = (asset.assetCode || '').trim();
+                if (!raw) return;
+                const commaParts = raw.split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean);
+                let rowCodes = null;
+                if (commaParts.length > 1) {
+                    // Case 1: distinct codes packed with commas/newlines.
+                    rowCodes = commaParts;
+                } else {
+                    // Case 2: a single range, only if quantity confirms the count.
+                    const expanded = safeRange(raw);
+                    const qty = parseInt(asset.quantity, 10);
+                    if (expanded.length > 1 && qty === expanded.length) rowCodes = expanded;
+                }
+                if (!rowCodes) return; // leave ambiguous/single-code assets untouched
+
+                const produced = [];
+                let collision = false;
+                rowCodes.forEach(rc => {
+                    let dept = asset.department;
+                    if (window.mphSplitDepartmentString) {
+                        const dn = window.mphSplitDepartmentString(dept || '');
+                        if (dn.length >= 1) dept = dn[0];
+                        else if (!dept && window.mphUnassignedDept) dept = window.mphUnassignedDept;
+                    }
+                    let code = rc;
+                    if (window.mphNormalizeCode && code) {
+                        const norm = window.mphNormalizeCode(code, dept);
+                        if (norm && norm !== code && !/\/DN\//.test(norm) && !/\/000\//.test(norm)) code = norm;
+                    }
+                    if (existingCodes.has(code.toUpperCase())) { collision = true; }
+                    produced.push({ code, dept, orig: rc });
+                });
+                // If any produced code already exists, skip this asset (avoid
+                // creating duplicates) and leave it for manual review.
+                if (collision) return;
+
+                produced.forEach(p => {
+                    const na = Object.assign({}, asset);
+                    na.id = generateAssetId();
+                    na.department = p.dept;
+                    if (p.code !== p.orig) na.aliases = (asset.aliases || []).concat([p.orig]);
+                    na.assetCode = p.code;
+                    na.quantity = 1;
+                    if (na.unitPrice != null) na.totalPrice = na.unitPrice;
+                    newAssets.push(na);
+                    existingCodes.add(p.code.toUpperCase());
+                });
+                if (asset.id) removeIds.add(asset.id);
+            });
+
+            if (!newAssets.length) return false;
+            let kept = assets.filter(a => !removeIds.has(a.id));
+            kept = kept.concat(newAssets);
+            saveAssetsToStorage(kept);
+            if (typeof trackDeletedAssetIds === 'function') trackDeletedAssetIds([...removeIds]);
+            console.log('Auto-split ' + removeIds.size + ' unambiguous multi-code assets into ' + newAssets.length + ' rows');
+            return true;
+        }
+
         // ---- Review queue (items flagged by the restructure) ----
         function _structureResolvedSet() {
             try { return new Set(JSON.parse(localStorage.getItem(STRUCTURE_RESOLVED_KEY) || '[]')); }
@@ -16856,6 +16953,18 @@
             // bulk-categories / asset-deletion filters (built from asset
             // departments) never list a messy multi-location string.
             try { canonicalizeAllAssetDepartments(); } catch (e) {}
+            // Automatically split multi-code / multi-department rows into
+            // individual assets (once — later loads find none to split), so the
+            // Code Parser never shows a backlog. A one-time backup is taken first.
+            try {
+                if (!localStorage.getItem('assetAutoSplitBackupDone')) {
+                    try {
+                        _dbSet(STORAGE_KEY + '_backup_before_autosplit', JSON.parse(JSON.stringify(loadAssetsFromStorage())));
+                        localStorage.setItem('assetAutoSplitBackupDone', '1');
+                    } catch (e) {}
+                }
+                autoSplitMultiCodeAssets();
+            } catch (e) { console.error('Auto-split failed:', e); }
             // Clean the legacy customDepartments list (split messy multi-location
             // strings into canonical Locations, drop the junk), then reconcile the
             // Location Records to clean canonical Locations — independent of the
