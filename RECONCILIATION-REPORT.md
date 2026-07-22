@@ -33,7 +33,12 @@ Every row of both workbooks was extracted and cross-referenced using the system'
 - **263 legacy codes had no register match** (e.g. `MPH/LD/332/03`, `MPH/113/01/LD`) — **kept verbatim**, nothing dropped. They surface in the dashboard's "Reconcile Locations" report for physical verification.
 - **1,917 items were recorded without any code** — all kept in full (635 of them have a same-description register asset in the same department, listed as likely matches).
 - Serial numbers and 1997/98 catalogue references from the workbook are preserved in each item's remarks; every location string (including misspellings like "Maintainance Department", "Administartive Department") was mapped to its canonical department; floor-level admin areas group under 1st/2nd Floor General Admin as before.
-- **Result:** `locations-seed.js` v3 — **32 departments, 443 rooms, 5,635 items**, zero rows discarded.
+- **Result:** every workbook row seeded into its department and room — zero rows discarded.
+
+### Register fill — no department left empty (seed v4)
+The workbook only covers departments that were physically surveyed, which left office-type departments (Administrator Office, CEO Office, HR, ICT, Procurement, Staff Clinic, Transport, …) with 0 items even though the register owns assets for them. Seed v4 therefore also places **every system register asset not matched to a recorded room** into its department under a **"Register Items — Room Not Yet Assigned"** record (6,613 assets), so all **9,291 system assets** now appear in Location Records.
+- **Final seed: 58 departments, 498 rooms, 12,248 items** (5,635 from the room-by-room workbook + 6,613 register-fill).
+- As staff verify where those assets physically sit, the items can be moved into real room records; the "Room Not Yet Assigned" bucket marks exactly what still needs a walk-through.
 
 ### AssetRegister_AllYears_20260722.xlsx (source of truth) — 9,044 assets
 - **8,939 assets already exist** in the system's structured register (seed v2).
@@ -42,7 +47,7 @@ Every row of both workbooks was extracted and cross-referenced using the system'
 
 ## 4. Seeding for the next login
 
-- `LOCATIONS_SEED_VERSION` bumped to **3**: every user's browser will merge the full reconciled dataset in on next load. Users currently stuck with the empty skeleton get every department, room and item back automatically; users with their own entries keep them (union merge).
+- `LOCATIONS_SEED_VERSION` is now **4**: every user's browser will merge the full reconciled dataset in on next load. Users currently stuck with the empty skeleton get every department, room and item back automatically; users with their own entries keep them (union merge).
 - A one-time backup of each browser's previous records is stored under `hospitalLocationRecords_backup_v<old>` before the merge.
 
 ## 5. New: room picker when adding assets
@@ -51,8 +56,8 @@ In the Add/Edit Asset form, departments that have rooms recorded in Location Rec
 
 ## 6. Verification (headless Chromium against the real pages)
 
-- Fresh browser seeds v3 fully (58 departments incl. canonical empties, 443 rooms, 5,635 items).
-- The observed wiped state (empty-room skeleton) recovers completely on next load; user-created departments/rooms/items survive the merge.
+- Fresh browser seeds v4 fully (58 departments — every one populated — 498 rooms, 12,248 items).
+- The observed wiped state (empty-room skeleton) recovers completely on next load; user-created departments/rooms/items survive the merge, including the v3 → v4 seed upgrade (no duplicates, user entries kept).
 - Deleted items stay deleted after a full re-merge (tombstones hold).
 - An empty cloud copy merged over full local data changes nothing; cloud-only rooms are adopted.
 - Saving in the embedded page marks the dashboard dirty for auto-sync; the dirty flag also bridges edits made on the standalone page.
