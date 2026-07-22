@@ -25,6 +25,8 @@
     <script src="asset-normalizer.js"></script>
     <!-- Structured register seed (merged Master export + Fixed Asset Register) -->
     <script src="register-seed.js"></script>
+    <!-- Assets from the 2026-07-22 register export missing from the seed (applied additively) -->
+    <script src="register-additions.js"></script>
     <style>
         * {
             margin: 0;
@@ -1327,6 +1329,85 @@
             background: rgba(255, 107, 53, 0.1);
             color: var(--primary-orange);
             font-weight: 600;
+        }
+
+        /* Department option row with an expand button that reveals the
+           department's rooms (from the Location Records) */
+        .dept-option-row {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .dept-option-row .custom-dropdown-option {
+            flex: 1;
+            min-width: 0;
+            border-bottom: none;
+        }
+        .dept-rooms-toggle {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            border-left: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .dept-rooms-toggle:hover {
+            background: var(--table-hover);
+            color: var(--primary-orange);
+        }
+        .dept-rooms-toggle .chev { transition: transform 0.15s; display: inline-block; }
+        .dept-rooms-toggle.open .chev { transform: rotate(90deg); }
+        .dept-rooms-list {
+            display: none;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .dept-rooms-list.open { display: block; }
+        .dept-room-option {
+            padding: 8px 15px 8px 34px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-bottom: 1px dashed var(--border-color);
+        }
+        .dept-room-option:last-child { border-bottom: none; }
+        .dept-room-option:hover {
+            background: var(--table-hover);
+            color: var(--primary-orange);
+        }
+        .dept-room-option.selected {
+            color: var(--primary-orange);
+            font-weight: 600;
+        }
+        .asset-room-chip {
+            display: none;
+            margin-top: 6px;
+            font-size: 0.78rem;
+            background: rgba(255, 107, 53, 0.08);
+            border: 1px solid rgba(255, 107, 53, 0.35);
+            color: var(--primary-orange);
+            border-radius: 8px;
+            padding: 4px 10px;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            max-width: 100%;
+        }
+        .asset-room-chip.show { display: inline-flex; }
+        .asset-room-chip button {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0;
+            line-height: 1;
         }
 
         /* Fix for native department dropdown overflow - ensure dropdown stays within viewport */
@@ -6525,7 +6606,12 @@
                                 </div>
                             </div>
                             <input type="hidden" id="department" required value="">
+                            <input type="hidden" id="assetRoom" value="">
                             <button type="button" class="btn-secondary" onclick="openDepartmentManager()" title="Manage Departments" style="padding: 8px 12px; flex-shrink: 0;">⚙️</button>
+                        </div>
+                        <div class="asset-room-chip" id="assetRoomChip">
+                            <span id="assetRoomChipText"></span>
+                            <button type="button" onclick="clearAssetRoom()" title="Remove room">&times;</button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -6858,7 +6944,7 @@
             </button>
 
             <div class="sidebar-section-label">Records</div>
-            <button class="sidebar-nav-item" data-tooltip="Location Records" onclick="window.location.href='locations.html'">
+            <button class="sidebar-nav-item" data-page="17" data-tooltip="Location Records" onclick="sidebarNavigate(17)">
                 <span class="sidebar-nav-icon">&#x1F4CD;</span>
                 <span class="sidebar-nav-text">Location Records</span>
             </button>
@@ -9981,6 +10067,14 @@
         </div>
     </div>
 
+    <!-- Page 17: Location Records (embedded locations.html, same storage +
+         cloud sync pipeline as the rest of the dashboard) -->
+    <div class="page" id="page17">
+        <iframe id="locationRecordsFrame"
+                title="Location Records"
+                style="width: 100%; height: calc(100vh - 60px); border: none; display: block; background: var(--bg-primary);"></iframe>
+    </div>
+
     </div>
 
     <!-- New Form (Form 7C) warning modal: save before starting a clean form -->
@@ -12396,6 +12490,12 @@
         async function performAutoSync() {
             if (autoSyncInProgress) return;
             if (!isCloudConnected || !googleAccessToken) return;
+            // Location Records edits (made on this page's embedded frame OR on
+            // the standalone locations.html page) flag themselves here so they
+            // ride the same auto-sync upload as every other change.
+            try {
+                if (localStorage.getItem('hospitalLocationRecordsDirty') === '1') dataIsDirty = true;
+            } catch (e) { /* ignore */ }
             if (!dataIsDirty) return; // Skip sync if no local changes
             dataIsDirty = false;
 
@@ -12456,6 +12556,7 @@
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
                         locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
                         form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
@@ -12504,6 +12605,7 @@
                 if (uploadResp && uploadResp.ok) {
                     lastSyncTime = new Date();
                     localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+                    try { localStorage.removeItem('hospitalLocationRecordsDirty'); } catch (e) {}
                     if (typeof updateLastSyncDisplay === 'function') updateLastSyncDisplay();
                 } else if (uploadResp && uploadResp.status === 401) {
                     console.log('[AutoSync] Token expired on upload');
@@ -12516,6 +12618,52 @@
                 autoSyncInProgress = false;
             }
         }
+
+        // Shared safe path for adopting cloud Location Records: tombstones
+        // first (so deletions hold), then a full item-level UNION merge.
+        // A cloud copy that is empty or older can never wipe local records.
+        // Returns true when the local records changed.
+        function mergeLocationRecordsFromCloud(cloudDataObj) {
+            if (!cloudDataObj) return false;
+            try {
+                if (cloudDataObj.locationTombstones && window.mphMergeLocationTombstones) {
+                    window.mphMergeLocationTombstones(cloudDataObj.locationTombstones);
+                }
+                if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) return false;
+                if (!window.mphMergeLocationRecords) return false;
+                let localRec = null;
+                try { localRec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
+                const res = window.mphMergeLocationRecords(localRec, cloudDataObj.locationRecords);
+                if (res.changed) {
+                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(res.merged));
+                    notifyLocationRecordsFrame();
+                }
+                return res.changed;
+            } catch (e) {
+                console.warn('Location records merge failed:', e);
+                return false;
+            }
+        }
+
+        // Ask the embedded Location Records page (if open) to re-read storage.
+        function notifyLocationRecordsFrame() {
+            try {
+                const frame = document.getElementById('locationRecordsFrame');
+                if (frame && frame.src && frame.contentWindow) {
+                    frame.contentWindow.postMessage({ type: 'mph-location-records-reload' }, window.location.origin);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // The embedded Location Records page tells us when it saved a change
+        // so the auto-sync uploads it with the next cycle.
+        window.addEventListener('message', function (e) {
+            if (e.origin !== window.location.origin) return;
+            if (e.data && e.data.type === 'mph-location-records-updated') {
+                dataIsDirty = true;
+            }
+        });
 
         function mergeCloudIntoLocal(cloudDataObj) {
             let dataChanged = false;
@@ -12761,40 +12909,12 @@
                 form7cMergeFromCloud(cloudDataObj.form7cForms);
             }
 
-            // Merge Location Records from cloud (union by department name;
-            // a department that only exists in the cloud is added, and a local
-            // department with no rooms adopts the cloud's rooms). Local edits
-            // are never overwritten.
-            if (cloudDataObj.locationRecords && Array.isArray(cloudDataObj.locationRecords.departments)) {
-                try {
-                    let localRec = null;
-                    try { localRec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
-                    if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
-                    const byName = {};
-                    localRec.departments.forEach(d => { byName[String(d.name || '').trim().toLowerCase()] = d; });
-                    let locChanged = false;
-                    cloudDataObj.locationRecords.departments.forEach(cd => {
-                        const key = String(cd.name || '').trim().toLowerCase();
-                        if (!key) return;
-                        const local = byName[key];
-                        if (!local) {
-                            localRec.departments.push(cd);
-                            byName[key] = cd;
-                            locChanged = true;
-                        } else if ((!local.rooms || local.rooms.length === 0) &&
-                                   cd.rooms && cd.rooms.length > 0) {
-                            local.rooms = cd.rooms;
-                            locChanged = true;
-                        }
-                    });
-                    if (locChanged) {
-                        localStorage.setItem('hospitalLocationRecords', JSON.stringify(localRec));
-                        dataChanged = true;
-                    }
-                } catch (e) {
-                    console.warn('Location records merge failed:', e);
-                }
-            }
+            // Merge Location Records from cloud — full union down to the item
+            // level (shared merge in asset-normalizer.js). Local edits are
+            // never overwritten, cloud-only departments/rooms/items are
+            // adopted, and anything a user deliberately deleted (tombstoned)
+            // stays deleted.
+            if (mergeLocationRecordsFromCloud(cloudDataObj)) dataChanged = true;
 
             // After merging cloud data, re-canonicalise every asset's department
             // so an old Drive backup can never leave messy multi-location strings
@@ -13254,6 +13374,7 @@
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
                         locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers,
                         form7cForms: form7cCloudPayload()
@@ -13293,6 +13414,7 @@
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+                try { localStorage.removeItem('hospitalLocationRecordsDirty'); } catch (e) {}
                 if (typeof updateLastSyncDisplay === 'function') updateLastSyncDisplay();
                 lastSavedBy = currentUser ? currentUser.username : 'Unknown';
                 cloudFileTimestamp = new Date().toISOString();
@@ -13338,6 +13460,7 @@
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
                         locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
                         form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
@@ -13395,6 +13518,7 @@
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
+                try { localStorage.removeItem('hospitalLocationRecordsDirty'); } catch (e) {}
                 updateLastSyncDisplay();
 
                 lastSavedBy = currentUser ? currentUser.username : 'Unknown';
@@ -13461,10 +13585,10 @@
                 localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
             }
 
-            // Restore location records (Location Records page)
-            if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
-                localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
-            }
+            // Restore location records (Location Records page) — merged, not
+            // replaced, so a backup can never wipe records added since it was
+            // taken (deliberate deletions are honored via tombstones)
+            mergeLocationRecordsFromCloud(backupData.data);
 
             // Restore categories
             if (backupData.data.categories && backupData.data.categories.length > 0) {
@@ -13703,10 +13827,12 @@
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
                 }
 
-                // Restore location records (Location Records page)
-                if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
-                }
+                // Restore location records (Location Records page) — merged,
+                // not replaced: an empty or older cloud copy can never wipe
+                // the records on this device (the root cause of location
+                // records "disappearing at login"). Deliberate deletions are
+                // honored via tombstones.
+                mergeLocationRecordsFromCloud(backupData.data);
 
                 // Restore categories
                 if (backupData.data.categories && backupData.data.categories.length > 0) {
@@ -13968,10 +14094,12 @@
                     localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
                 }
 
-                // Restore location records (Location Records page)
-                if (backupData.data.locationRecords && Array.isArray(backupData.data.locationRecords.departments)) {
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(backupData.data.locationRecords));
-                }
+                // Restore location records (Location Records page) — merged,
+                // not replaced: an empty or older cloud copy can never wipe
+                // the records on this device (the root cause of location
+                // records "disappearing at login"). Deliberate deletions are
+                // honored via tombstones.
+                mergeLocationRecordsFromCloud(backupData.data);
 
                 // Restore categories
                 if (backupData.data.categories && backupData.data.categories.length > 0) {
@@ -15557,7 +15685,8 @@
             // Update asset form custom dropdown
             const assetDeptHidden = document.getElementById('department');
             const currentAssetValue = assetDeptHidden ? assetDeptHidden.value : '';
-            populateAssetDeptDropdown(currentAssetValue);
+            const assetRoomHidden = document.getElementById('assetRoom');
+            populateAssetDeptDropdown(currentAssetValue, assetRoomHidden ? assetRoomHidden.value : '');
 
             // Update audit trail filter custom dropdown
             const auditDeptFilter = document.getElementById('auditDepartmentFilter');
@@ -15743,6 +15872,8 @@
             const menu = document.getElementById('assetDeptDropdownMenu');
 
             if (hiddenInput) hiddenInput.value = value;
+            // picking a plain department clears any previously chosen room
+            setAssetRoom('');
             if (trigger) {
                 trigger.textContent = text;
                 trigger.title = text;
@@ -15760,9 +15891,65 @@
             }
         }
 
+        // Rooms recorded for each department on the Location Records page,
+        // keyed by normalised department name.
+        function getLocationRoomsByDept() {
+            const map = {};
+            try {
+                const rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null');
+                if (rec && Array.isArray(rec.departments)) {
+                    rec.departments.forEach(d => {
+                        const key = String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        if (!key) return;
+                        const titles = (d.rooms || []).map(r => String(r.title || '').trim()).filter(Boolean);
+                        if (titles.length) map[key] = titles;
+                    });
+                }
+            } catch (e) { /* no rooms available */ }
+            return map;
+        }
+
+        function setAssetRoom(room, dept) {
+            const hidden = document.getElementById('assetRoom');
+            const chip = document.getElementById('assetRoomChip');
+            const chipText = document.getElementById('assetRoomChipText');
+            if (hidden) hidden.value = room || '';
+            if (chip && chipText) {
+                if (room) {
+                    chipText.textContent = '📍 ' + (dept ? dept + ' › ' : '') + room;
+                    chip.classList.add('show');
+                } else {
+                    chipText.textContent = '';
+                    chip.classList.remove('show');
+                }
+            }
+        }
+
+        function clearAssetRoom() { setAssetRoom(''); }
+
+        // Pick a specific room: selects its department AND records the room
+        function selectAssetDeptRoom(dept, room) {
+            const hiddenInput = document.getElementById('department');
+            const trigger = document.getElementById('assetDeptDropdownTrigger');
+            const menu = document.getElementById('assetDeptDropdownMenu');
+            if (hiddenInput) hiddenInput.value = dept;
+            setAssetRoom(room, dept);
+            if (trigger) {
+                trigger.textContent = dept + ' › ' + room;
+                trigger.title = dept + ' › ' + room;
+            }
+            if (menu) {
+                closeDropdownMenu(menu);
+                menu.querySelectorAll('.custom-dropdown-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.value === dept);
+                });
+            }
+        }
+
         // Populate asset modal department dropdown
-        function populateAssetDeptDropdown(selectedValue = '') {
+        function populateAssetDeptDropdown(selectedValue = '', selectedRoom = '') {
             const departments = loadDepartments();
+            const roomsByDept = getLocationRoomsByDept();
             const menu = document.getElementById('assetDeptDropdownMenu');
             const trigger = document.getElementById('assetDeptDropdownTrigger');
 
@@ -15778,21 +15965,66 @@
             placeholderOption.onclick = function() { selectAssetDeptOption('', 'Select Department'); };
             menu.appendChild(placeholderOption);
 
-            // Add department options
+            // Add department options; departments with recorded rooms get an
+            // expand button that reveals the rooms beneath them
             departments.forEach(dept => {
+                const rooms = roomsByDept[dept.replace(/\s+/g, ' ').trim().toLowerCase()] || [];
+
                 const option = document.createElement('div');
                 option.className = 'custom-dropdown-option' + (selectedValue === dept ? ' selected' : '');
                 option.textContent = dept;
                 option.title = dept;
                 option.dataset.value = dept;
                 option.onclick = function() { selectAssetDeptOption(dept, dept); };
-                menu.appendChild(option);
+
+                if (!rooms.length) {
+                    menu.appendChild(option);
+                    return;
+                }
+
+                const row = document.createElement('div');
+                row.className = 'dept-option-row';
+                row.appendChild(option);
+
+                const roomsList = document.createElement('div');
+                roomsList.className = 'dept-rooms-list';
+                rooms.forEach(room => {
+                    const ro = document.createElement('div');
+                    ro.className = 'dept-room-option' +
+                        (selectedValue === dept && selectedRoom === room ? ' selected' : '');
+                    ro.textContent = '🚪 ' + room;
+                    ro.title = dept + ' › ' + room;
+                    ro.onclick = function(e) { e.stopPropagation(); selectAssetDeptRoom(dept, room); };
+                    roomsList.appendChild(ro);
+                });
+
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.className = 'dept-rooms-toggle';
+                toggle.title = 'Show the ' + rooms.length + ' room(s) recorded for ' + dept;
+                toggle.innerHTML = '<span class="chev">▸</span>' + rooms.length + ' room' + (rooms.length !== 1 ? 's' : '');
+                toggle.onclick = function(e) {
+                    e.stopPropagation();
+                    const open = roomsList.classList.toggle('open');
+                    toggle.classList.toggle('open', open);
+                };
+                row.appendChild(toggle);
+
+                menu.appendChild(row);
+                menu.appendChild(roomsList);
+
+                // keep the room list open when it holds the current selection
+                if (selectedValue === dept && selectedRoom && rooms.indexOf(selectedRoom) !== -1) {
+                    roomsList.classList.add('open');
+                    toggle.classList.add('open');
+                }
             });
 
             // Update trigger text
             if (selectedValue && trigger) {
-                trigger.textContent = selectedValue;
-                trigger.title = selectedValue;
+                const label = selectedRoom ? selectedValue + ' › ' + selectedRoom : selectedValue;
+                trigger.textContent = label;
+                trigger.title = label;
             } else if (trigger) {
                 trigger.textContent = 'Select Department';
             }
@@ -16346,13 +16578,15 @@
                 document.getElementById('assetComment').value = asset.comment || '';
 
                 // Populate custom department dropdown with current value
-                populateAssetDeptDropdown(asset.department || '');
+                setAssetRoom(asset.room || '', asset.room ? (asset.department || '') : '');
+                populateAssetDeptDropdown(asset.department || '', asset.room || '');
             } else {
                 // Add mode
                 modalTitle.textContent = 'Add New Asset';
                 deleteBtn.style.display = 'none';
 
                 // Populate custom department dropdown with empty value
+                setAssetRoom('');
                 populateAssetDeptDropdown('');
             }
 
@@ -16485,6 +16719,7 @@
                 description: document.getElementById('description').value.trim(),
                 supplier: document.getElementById('supplier').value.trim(),
                 department: document.getElementById('department').value,
+                room: (document.getElementById('assetRoom') ? document.getElementById('assetRoom').value.trim() : ''),
                 itemType: document.getElementById('itemType').value.trim(),
                 category: document.getElementById('category').value,
                 serialModel: document.getElementById('serialModel').value.trim(),
@@ -16519,7 +16754,9 @@
                         assetData.priceConfirmed = currentEditingAsset.priceConfirmed || false;
                     }
 
-                    assets[index] = assetData;
+                    // Merge onto the stored record so fields the form doesn't
+                    // edit (aliases, registerOrigin, disposed flags, …) survive
+                    assets[index] = Object.assign({}, assets[index], assetData);
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
 
                     // Sync changes to Board of Survey disposal records
@@ -16990,11 +17227,66 @@
             });
         }
 
+        // Additive register update: assets present in a newer system export
+        // (register-additions.js) that this device's register doesn't have yet.
+        // Never overwrites or removes anything — an asset is only added when no
+        // live asset already carries its code identity (or, for code-less rows,
+        // its description/date/price fingerprint).
+        const REGISTER_ADDITIONS_VERSION_KEY = 'assetRegisterAdditionsVersion';
+        function applyRegisterAdditions() {
+            const seed = window.MPH_REGISTER_ADDITIONS;
+            if (!seed || !Array.isArray(seed.assets) || !seed.assets.length) return false;
+            let applied = 0;
+            try { applied = parseInt(localStorage.getItem(REGISTER_ADDITIONS_VERSION_KEY) || '0', 10) || 0; } catch (e) {}
+            if (applied >= seed.version) return false;
+
+            const live = loadAssetsFromStorage();
+            const fp = a => [String(a.description || '').trim().toLowerCase(),
+                             String(a.dateIn || '').trim(),
+                             String(a.unitPrice || 0)].join('|');
+            const preKeys = new Set();
+            const preFps = new Set();
+            live.forEach(a => {
+                [a.assetCode, ...(a.aliases || [])].forEach(c => {
+                    const k = window.mphCodeKey ? window.mphCodeKey(c) : null;
+                    if (k) preKeys.add(k);
+                });
+                preFps.add(fp(a));
+            });
+
+            let added = 0;
+            seed.assets.forEach(sa => {
+                const keys = [sa.assetCode, ...(sa.aliases || [])]
+                    .map(c => (window.mphCodeKey ? window.mphCodeKey(c) : null))
+                    .filter(Boolean);
+                if (keys.some(k => preKeys.has(k))) return;          // already registered here
+                if (!(sa.aliases || []).length && preFps.has(fp(sa))) return; // code-less duplicate guard
+                live.push(_seedToAsset(sa));
+                added++;
+            });
+
+            if (added > 0) {
+                saveAssetsToStorage(live);
+                allAssetsData = live;
+                sortByDateDescending(allAssetsData);
+                filteredData = allAssetsData;
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                console.log('Register additions v' + seed.version + ': ' + added + ' asset(s) added from ' + seed.source);
+            }
+            try { localStorage.setItem(REGISTER_ADDITIONS_VERSION_KEY, String(seed.version)); } catch (e) {}
+            return added > 0;
+        }
+
         _idbInitPromise.then(() => {
             try {
                 applyStructureMigration();
             } catch (e) {
                 console.error('Structured register migration failed:', e);
+            }
+            try {
+                applyRegisterAdditions();
+            } catch (e) {
+                console.error('Register additions failed:', e);
             }
             // Strip spurious trailing " -NN" suffixes from asset codes.
             try { cleanAssetCodeSuffixes(); } catch (e) {}
@@ -18166,6 +18458,19 @@
             if (pageNum === 2) {
                 updateFiscalYearDisplay();
                 displayMonthlyBreakdown();
+            }
+
+            // Handle Location Records page (embedded locations.html — shares
+            // this origin's localStorage, so it reads/writes the same records
+            // the cloud sync uploads and merges)
+            if (pageNum === 17) {
+                const frame = document.getElementById('locationRecordsFrame');
+                if (frame && !frame.src) {
+                    frame.src = 'locations.html?embedded=1';
+                } else if (frame && frame.contentWindow) {
+                    // refresh in case a cloud merge landed while it was hidden
+                    try { frame.contentWindow.postMessage({ type: 'mph-location-records-reload' }, window.location.origin); } catch (e) {}
+                }
             }
 
             // Handle Google Drive Import page
