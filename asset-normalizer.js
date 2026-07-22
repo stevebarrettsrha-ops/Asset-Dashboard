@@ -323,6 +323,152 @@ window.mphSaveTheme = function (isDark) {
     return isDark;
 };
 
+/* ============================================================
+   Location Records — shared merge + deletion tombstones
+   Used by locations.html (seed refresh, cross-tab reload) AND
+   index.html (cloud download/restore paths) so location data is
+   always UNIONED, never wholesale-replaced. An empty or older
+   copy (cloud or seed) can therefore never wipe local records.
+   ============================================================ */
+var LOC_RECORDS_KEY = 'hospitalLocationRecords';
+var LOC_TOMBSTONES_KEY = 'hospitalLocationRecordsTombstones';
+
+// Tombstones remember what a user deliberately deleted so a merge from the
+// cloud (or a re-applied seed) doesn't resurrect it.
+// Shape: { items: {id: iso}, rooms: {id: iso}, departments: {nameKey: iso} }
+window.mphGetLocationTombstones = function () {
+    try {
+        var t = JSON.parse(localStorage.getItem(LOC_TOMBSTONES_KEY) || 'null');
+        if (t && typeof t === 'object') {
+            return { items: t.items || {}, rooms: t.rooms || {}, departments: t.departments || {} };
+        }
+    } catch (e) { /* ignore */ }
+    return { items: {}, rooms: {}, departments: {} };
+};
+window.mphSaveLocationTombstones = function (t) {
+    try { localStorage.setItem(LOC_TOMBSTONES_KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
+};
+// kind: 'items' | 'rooms' | 'departments'; key: id (or K(name) for departments)
+window.mphAddLocationTombstone = function (kind, key) {
+    if (!key) return;
+    var t = window.mphGetLocationTombstones();
+    if (!t[kind]) t[kind] = {};
+    t[kind][key] = new Date().toISOString();
+    window.mphSaveLocationTombstones(t);
+};
+window.mphClearLocationTombstone = function (kind, key) {
+    var t = window.mphGetLocationTombstones();
+    if (t[kind] && t[kind][key]) { delete t[kind][key]; window.mphSaveLocationTombstones(t); }
+};
+// Union tombstones arriving from the cloud into the local set.
+window.mphMergeLocationTombstones = function (incoming) {
+    if (!incoming || typeof incoming !== 'object') return false;
+    var t = window.mphGetLocationTombstones();
+    var changed = false;
+    ['items', 'rooms', 'departments'].forEach(function (kind) {
+        var src = incoming[kind] || {};
+        Object.keys(src).forEach(function (k) {
+            if (!t[kind][k]) { t[kind][k] = src[k]; changed = true; }
+        });
+    });
+    if (changed) window.mphSaveLocationTombstones(t);
+    return changed;
+};
+
+// Identity of an item independent of its generated id: the asset-code key
+// when it has a code, otherwise its text content.
+function locItemKey(it) {
+    var ck = window.mphCodeKey(it && it.assetCode);
+    if (ck) return 'c|' + ck;
+    return 't|' + K(it && it.item) + '|' + K(it && it.description) + '|' + K(it && it.remarks);
+}
+
+// Merge `incoming` location records INTO `local` (both {departments:[...]}).
+// Union semantics: local data always survives; incoming-only departments,
+// rooms and items are adopted unless tombstoned. Returns {merged, changed}.
+window.mphMergeLocationRecords = function (local, incoming, tombs) {
+    tombs = tombs || window.mphGetLocationTombstones();
+    var merged = (local && Array.isArray(local.departments)) ? local : { departments: [] };
+    var changed = false;
+    if (!incoming || !Array.isArray(incoming.departments)) return { merged: merged, changed: false };
+
+    var deptByName = {};
+    merged.departments.forEach(function (d) { deptByName[K(d.name)] = d; });
+
+    incoming.departments.forEach(function (cd) {
+        if (!cd || typeof cd !== 'object') return;
+        var dKey = K(cd.name);
+        if (!dKey) return;
+        if (tombs.departments[dKey]) return;                       // deliberately deleted
+        var ld = deptByName[dKey];
+        if (!ld) {
+            // new department: adopt it minus anything tombstoned inside it
+            var copy = JSON.parse(JSON.stringify(cd));
+            copy.rooms = (copy.rooms || []).filter(function (r) { return r && !tombs.rooms[r.id]; });
+            copy.rooms.forEach(function (r) {
+                r.items = (r.items || []).filter(function (it) { return it && !tombs.items[it.id]; });
+            });
+            merged.departments.push(copy);
+            deptByName[dKey] = copy;
+            changed = true;
+            return;
+        }
+        // fill empty presentation fields, never overwrite
+        if (!ld.icon && cd.icon) { ld.icon = cd.icon; changed = true; }
+        if (!ld.note && cd.note) { ld.note = cd.note; changed = true; }
+        ld.rooms = ld.rooms || [];
+        var roomById = {}, roomByTitle = {};
+        ld.rooms.forEach(function (r) {
+            roomById[r.id] = r;
+            var tk = K(r.title);
+            if (tk && !roomByTitle[tk]) roomByTitle[tk] = r;
+        });
+        (cd.rooms || []).forEach(function (cr) {
+            if (!cr || typeof cr !== 'object') return;
+            if (tombs.rooms[cr.id]) return;
+            var lr = roomById[cr.id] || roomByTitle[K(cr.title)];
+            if (!lr) {
+                var rcopy = JSON.parse(JSON.stringify(cr));
+                rcopy.items = (rcopy.items || []).filter(function (it) { return it && !tombs.items[it.id]; });
+                ld.rooms.push(rcopy);
+                roomById[rcopy.id] = rcopy;
+                var ntk = K(rcopy.title);
+                if (ntk && !roomByTitle[ntk]) roomByTitle[ntk] = rcopy;
+                changed = true;
+                return;
+            }
+            // fill empty room fields
+            ['verifiedBy', 'dateUpdated', 'note'].forEach(function (f) {
+                if (!lr[f] && cr[f]) { lr[f] = cr[f]; changed = true; }
+            });
+            lr.items = lr.items || [];
+            // count-aware union so identical uncoded items (e.g. two matching
+            // chairs) are matched copy-for-copy instead of duplicated
+            var ids = {}, keyCount = {};
+            lr.items.forEach(function (it) {
+                ids[it.id] = true;
+                var k = locItemKey(it);
+                keyCount[k] = (keyCount[k] || 0) + 1;
+            });
+            (cr.items || []).forEach(function (cit) {
+                if (!cit || typeof cit !== 'object') return;
+                if (tombs.items[cit.id]) return;
+                if (ids[cit.id]) return;
+                var k = locItemKey(cit);
+                if (keyCount[k] > 0) { keyCount[k]--; return; }     // same item already here
+                lr.items.push(JSON.parse(JSON.stringify(cit)));
+                ids[cit.id] = true;
+                changed = true;
+            });
+        });
+    });
+    if (changed) {
+        merged.lastModified = new Date().toISOString();
+    }
+    return { merged: merged, changed: changed };
+};
+window.mphLocationRecordsKey = LOC_RECORDS_KEY;
+
 /* ---- accessibility: give every form field an accessible name ---- */
 // Associates an aria-label with any input/select/textarea that has no linked
 // <label for>, wrapping <label>, or aria-label — sourced from the nearest
