@@ -682,6 +682,93 @@ window.mphConsolidateOfficeRooms = function (db) {
     return changed;
 };
 
+/* ---- duplicate-room merge ("ghost rooms") ----
+   Many devices carry empty duplicate rooms created from the survey PDF
+   file names (e.g. "Room IA-068 (Patient Bay)" with 0 items) alongside
+   the seeded room that actually holds the data ("Patient Bay - IA 068").
+   Rooms in the SAME department are recognised as the same physical room
+   when their room-number codes (IA-068, 2B 1002, 3J 010, …) AND their
+   remaining significant words match — or, for code-less titles, when
+   their significant words match. Duplicates merge item-safe into the
+   most-populated copy: code-matched rooms union everything; word-only
+   matches merge only empty duplicates (never risking two genuinely
+   different rooms' data). Runs inside every merge, so ghosts are cleaned
+   on all devices and can't come back through the cloud. */
+var ROOM_TITLE_STOPWORDS = { 'room': 1, 'patient': 1, 'general': 1, 'the': 1, 'of': 1, 'and': 1, 'a': 1 };
+function mphRoomTitleKey(title) {
+    var up = String(title || '').toUpperCase();
+    var codes = {};
+    var re = /\b(\d?[A-Z]{1,2})[\s\-\.\/]?0*(\d{2,4})([A-Z]?)\b/g, m;
+    while ((m = re.exec(up))) {
+        var block = m[1] === 'AI' ? 'IA' : m[1];   // common IA/AI transposition
+        codes[block + String(parseInt(m[2], 10)) + (m[3] || '')] = true;
+    }
+    var codeSet = Object.keys(codes).sort().join('|');
+    var words = {};
+    up.toLowerCase().replace(new RegExp(re.source, 'gi'), ' ')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .split(/\s+/).forEach(function (w) {
+            if (w && !ROOM_TITLE_STOPWORDS[w]) words[w] = 1;
+        });
+    var wordKey = Object.keys(words).sort().join(' ');
+    return codeSet ? { key: codeSet + '::' + wordKey, coded: true }
+                   : { key: 'w::' + wordKey, coded: false };
+}
+window.mphDedupeLocationRooms = function (db) {
+    if (!db || !Array.isArray(db.departments)) return false;
+    var changed = false;
+    db.departments.forEach(function (d) {
+        if (!d || !Array.isArray(d.rooms) || d.rooms.length < 2) return;
+        var groups = {};
+        d.rooms.forEach(function (r) {
+            if (!r) return;
+            var k = mphRoomTitleKey(r.title);
+            (groups[k.key] = groups[k.key] || { coded: k.coded, rooms: [] }).rooms.push(r);
+        });
+        var drop = {};
+        Object.keys(groups).forEach(function (gk) {
+            var g = groups[gk];
+            if (g.rooms.length < 2) return;
+            // primary = the copy that actually holds the data
+            var primary = g.rooms.reduce(function (a, b) {
+                return ((b.items || []).length > (a.items || []).length) ? b : a;
+            });
+            g.rooms.forEach(function (r) {
+                if (r === primary) return;
+                var n = (r.items || []).length;
+                // word-only matches merge empty duplicates only; code matches
+                // always merge (same room number + same descriptive words)
+                if (!g.coded && n > 0) return;
+                if (n > 0) {
+                    primary.items = primary.items || [];
+                    var ids = {}, keyCount = {};
+                    primary.items.forEach(function (it) {
+                        ids[it.id] = true;
+                        var k = locItemKey(it);
+                        keyCount[k] = (keyCount[k] || 0) + 1;
+                    });
+                    (r.items || []).forEach(function (it) {
+                        if (!it || ids[it.id]) return;
+                        var k = locItemKey(it);
+                        if (keyCount[k] > 0) { keyCount[k]--; return; }
+                        primary.items.push(it);
+                        ids[it.id] = true;
+                    });
+                }
+                ['verifiedBy', 'dateUpdated', 'note'].forEach(function (f) {
+                    if (!primary[f] && r[f]) primary[f] = r[f];
+                });
+                drop[r.id] = true;
+                changed = true;
+            });
+        });
+        if (changed) {
+            d.rooms = d.rooms.filter(function (r) { return r && !drop[r.id]; });
+        }
+    });
+    return changed;
+};
+
 // Merge `incoming` location records INTO `local` (both {departments:[...]}).
 // Union semantics: local data always survives; incoming-only departments,
 // rooms and items are adopted unless tombstoned. Returns {merged, changed}.
@@ -761,8 +848,10 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
             });
         });
     });
-    // normalize: office rooms always live in their own department
+    // normalize: office rooms always live in their own department, and
+    // duplicate ghost rooms collapse into the copy that holds the data
     if (window.mphConsolidateOfficeRooms(merged)) changed = true;
+    if (window.mphDedupeLocationRooms(merged)) changed = true;
     if (changed) {
         merged.lastModified = new Date().toISOString();
     }

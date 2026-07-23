@@ -1,7 +1,7 @@
 /* Bump this whenever the seed data below changes so the Location
    Records page refreshes cached seed data in the browser (the page MERGES
    this seed into existing records — user data is never replaced). */
-var LOCATIONS_SEED_VERSION = '6';
+var LOCATIONS_SEED_VERSION = '7';
 
 /* ============================================================
    Location Records — seed data v4 (generated 2026-07-22)
@@ -14060,9 +14060,14 @@ function SEED_DEPARTMENTS() {
     });
 
     /* v6: move office rooms into their own departments (shared map in
-       asset-normalizer.js — same normalization every merge applies). */
+       asset-normalizer.js — same normalization every merge applies).
+       v7: collapse duplicate ghost rooms (same physical room recorded
+       under a PDF-file-name title and a seeded title). */
     if (typeof window !== 'undefined' && window.mphConsolidateOfficeRooms) {
         window.mphConsolidateOfficeRooms({ departments: deps });
+    }
+    if (typeof window !== 'undefined' && window.mphDedupeLocationRooms) {
+        window.mphDedupeLocationRooms({ departments: deps });
     }
     return deps;
 }
