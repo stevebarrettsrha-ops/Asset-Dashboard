@@ -426,6 +426,28 @@
                 @bottom-center { content: "Page " counter(page) " of " counter(pages); font-family: Cambria, serif; font-size: 9pt; }
             }
         }
+
+        /* ============================================
+           MOBILE UI IMPROVEMENTS
+           ============================================ */
+        @media (max-width: 768px) {
+            /* Keep form controls at 16px so iOS Safari doesn't zoom on focus */
+            input[type="text"], input[type="search"], input[type="number"],
+            input[type="date"], select, textarea {
+                font-size: 16px !important;
+            }
+
+            /* Comfortable touch targets */
+            .btn {
+                min-height: 44px;
+            }
+
+            /* Momentum scrolling for the department list */
+            .dept-list {
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+        }
     </style>
 </head>
 <body>

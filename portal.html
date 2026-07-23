@@ -1094,6 +1094,17 @@
                 flex-direction: column;
             }
         }
+
+        /* ============================================
+           MOBILE UI IMPROVEMENTS
+           ============================================ */
+        @media (max-width: 768px) {
+            /* Keep form controls at 16px so iOS Safari doesn't zoom on focus */
+            input[type="text"], input[type="search"], input[type="number"],
+            input[type="email"], input[type="password"], select, textarea {
+                font-size: 16px !important;
+            }
+        }
     </style>
 </head>
 <body>
