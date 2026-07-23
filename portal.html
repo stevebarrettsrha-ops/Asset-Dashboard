@@ -1426,16 +1426,78 @@
         // ============================================
         // USER ACCOUNTS MANAGEMENT
         // ============================================
+        // Password hashing — MUST match index.html hashPassword() exactly
+        // (same algorithm + salt) so a hash made here validates on the
+        // dashboard. Credentials are stored and synced as hashes only; the
+        // plaintext never persists and never reaches the Google Drive backup.
+        async function mphHashPassword(password) {
+            const data = new TextEncoder().encode(password + 'AssetDashboard_Salt_2024');
+            const buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        // One-time migration: any account still holding a plaintext `password`
+        // (older data, or the shipped defaults) is converted to `passwordHash`
+        // and the plaintext dropped. Runs before any cloud sync so plaintext
+        // can never be uploaded. Idempotent.
+        async function migratePortalPasswords() {
+            try {
+                const users = loadPortalUsers();
+                let changed = false;
+                for (const u of users) {
+                    if (u && u.password && !u.passwordHash) {
+                        u.passwordHash = await mphHashPassword(String(u.password));
+                        delete u.password;
+                        changed = true;
+                    }
+                }
+                if (changed) savePortalUsers(users);
+                // also scrub any plaintext sitting in the dashboard user list
+                try {
+                    const k = 'assetDashboardLocalUsers';
+                    const la = JSON.parse(localStorage.getItem(k) || '[]');
+                    let lc = false;
+                    for (const u of la) {
+                        if (u && u.password && !u.passwordHash) {
+                            u.passwordHash = await mphHashPassword(String(u.password));
+                            delete u.password; lc = true;
+                        } else if (u && u.password && u.passwordHash) { delete u.password; lc = true; }
+                    }
+                    if (lc) localStorage.setItem(k, JSON.stringify(la));
+                } catch (e) {}
+                return changed;
+            } catch (e) { console.error('Portal password migration failed:', e); return false; }
+        }
+
+        // Returns an account's password hash, converting any legacy plaintext
+        // to a hash (and stripping the plaintext) so callers only ever handle
+        // hashes. Used by cross-device merges that may receive old data.
+        async function portalUserHash(u) {
+            if (!u) return '';
+            if (u.passwordHash) { if (u.password) delete u.password; return u.passwordHash; }
+            if (u.password) { u.passwordHash = await mphHashPassword(String(u.password)); delete u.password; return u.passwordHash; }
+            return '';
+        }
+        // Defensive: strip any plaintext `password` from accounts before they
+        // are written to Google Drive, so the backup carries hashes only even
+        // if a stale plaintext field survived somewhere.
+        function accountsForCloud(users) {
+            return (users || []).map(function (u) {
+                var c = Object.assign({}, u);
+                if (c.password) delete c.password;
+                return c;
+            });
+        }
+
         function loadPortalUsers() {
             try {
                 const stored = localStorage.getItem(PORTAL_USERS_KEY);
                 if (stored) {
                     const users = JSON.parse(stored);
-                    return Array.isArray(users) ? users : DEFAULT_USERS;
+                    return Array.isArray(users) ? users : DEFAULT_USERS.slice();
                 }
-                return DEFAULT_USERS;
+                return DEFAULT_USERS.slice();
             } catch (e) {
-                return DEFAULT_USERS;
+                return DEFAULT_USERS.slice();
             }
         }
 
@@ -1443,7 +1505,7 @@
             localStorage.setItem(PORTAL_USERS_KEY, JSON.stringify(users));
         }
 
-        function addUserAccount() {
+        async function addUserAccount() {
             const username = document.getElementById('newUsername').value.trim().toLowerCase();
             const password = document.getElementById('newPassword').value;
             const dashboard = document.getElementById('newDashboard').value;
@@ -1477,12 +1539,13 @@
                 return;
             }
 
-            users.push({ username, password, dashboard, role });
+            const passwordHash = await mphHashPassword(password);
+            users.push({ username, passwordHash, dashboard, role });
             savePortalUsers(users);
 
             // Also sync to the respective dashboard's localStorage for Fixed Assets
             if (dashboard === 'assets') {
-                syncAssetDashboardUser(username, password, role);
+                syncAssetDashboardUser(username, passwordHash, role);
             }
 
             document.getElementById('newUsername').value = '';
@@ -1500,15 +1563,17 @@
             }
         }
 
-        function syncAssetDashboardUser(username, password, role) {
+        // `passwordHash` is a hash (from mphHashPassword), never plaintext — it
+        // is written straight into the dashboard's user list, which
+        // authenticates against passwordHash. No plaintext is stored.
+        function syncAssetDashboardUser(username, passwordHash, role) {
             try {
                 const key = 'assetDashboardLocalUsers';
                 const existing = JSON.parse(localStorage.getItem(key) || '[]');
                 const found = existing.find(u => u.username === username);
                 if (found) {
-                    // Update existing user's password and role
-                    found.password = password;
-                    delete found.passwordHash; // Force re-migration on next index.html load
+                    found.passwordHash = passwordHash;
+                    delete found.password;              // never leave plaintext behind
                     found.role = role === 'Admin' ? 'Administrator' : role;
                     found.permissions = {
                         canExport: role !== 'Viewer',
@@ -1517,7 +1582,7 @@
                 } else {
                     existing.push({
                         username: username,
-                        password: password,
+                        passwordHash: passwordHash,
                         displayName: username.charAt(0).toUpperCase() + username.slice(1),
                         role: role === 'Admin' ? 'Administrator' : role,
                         email: '',
@@ -1624,7 +1689,7 @@
             row.after(editRow);
         }
 
-        function saveUserEdit(idx) {
+        async function saveUserEdit(idx) {
             const users = loadPortalUsers();
             if (idx < 0 || idx >= users.length) return;
             const u = users[idx];
@@ -1642,7 +1707,8 @@
             let changed = false;
 
             if (newPassword) {
-                u.password = newPassword;
+                u.passwordHash = await mphHashPassword(newPassword);
+                delete u.password;              // never keep plaintext
                 changed = true;
             }
 
@@ -1660,7 +1726,7 @@
 
             // Sync to asset dashboard localStorage if this is an assets user
             if (u.dashboard === 'assets') {
-                syncAssetDashboardUser(u.username, u.password, u.role);
+                syncAssetDashboardUser(u.username, u.passwordHash, u.role);
             }
 
             loadUserAccountsList();
@@ -1887,7 +1953,7 @@
                     type: 'portal_settings',
                     timestamp: new Date().toISOString(),
                     data: {
-                        userAccounts: users,
+                        userAccounts: accountsForCloud(users),
                         headingSettings: headings
                     }
                 };
@@ -2020,10 +2086,11 @@
                     applyHeadings(backupData.data.headingSettings);
                 }
 
-                // Sync asset dashboard users
-                cloudUsers.filter(u => u.dashboard === 'assets').forEach(u => {
-                    syncAssetDashboardUser(u.username, u.password, u.role);
-                });
+                // Sync asset dashboard users (hash-only)
+                for (const u of cloudUsers.filter(u => u.dashboard === 'assets')) {
+                    syncAssetDashboardUser(u.username, await portalUserHash(u), u.role);
+                }
+                savePortalUsers(cloudUsers);   // persist any legacy→hash upgrades
 
                 showCloudStatus('success', 'Loaded ' + cloudUsers.length + ' accounts from Google Drive!');
             } catch (e) {
@@ -2117,22 +2184,22 @@
                                     }
                                 });
 
-                                // Update existing users' passwords/roles from cloud
+                                // Update existing users' credentials/roles from cloud (hash-only)
                                 cloudBackup.data.userAccounts.forEach(cloudUser => {
                                     const localUser = localUsers.find(u => u.username === cloudUser.username && u.dashboard === cloudUser.dashboard);
-                                    if (localUser && cloudUser.password) {
-                                        localUser.password = cloudUser.password;
+                                    const ch = cloudUser.passwordHash || cloudUser.password;
+                                    if (localUser && ch) {
+                                        if (cloudUser.passwordHash) { localUser.passwordHash = cloudUser.passwordHash; delete localUser.password; }
+                                        else { localUser.password = cloudUser.password; delete localUser.passwordHash; }
                                         localUser.role = cloudUser.role;
                                     }
                                 });
 
-                                if (added > 0) {
-                                    // Sync asset dashboard users for newly added accounts
-                                    localUsers.filter(u => u.dashboard === 'assets').forEach(u => {
-                                        syncAssetDashboardUser(u.username, u.password, u.role);
-                                    });
-                                    loadUserAccountsList();
+                                // Sync asset dashboard users (hash-only)
+                                for (const u of localUsers.filter(u => u.dashboard === 'assets')) {
+                                    syncAssetDashboardUser(u.username, await portalUserHash(u), u.role);
                                 }
+                                if (added > 0) loadUserAccountsList();
                                 savePortalUsers(localUsers);
 
                                 // Merge heading settings (cloud wins if present)
@@ -2155,7 +2222,7 @@
                     version: '1.0',
                     type: 'portal_settings',
                     timestamp: new Date().toISOString(),
-                    data: { userAccounts: users, headingSettings: headings }
+                    data: { userAccounts: accountsForCloud(users), headingSettings: headings }
                 };
 
                 const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
@@ -2374,23 +2441,24 @@
                         }
                     });
 
-                    // Also update existing users' passwords from cloud (in case password was changed)
+                    // Also update existing users' credentials from cloud (hash-only)
                     cloudBackup.data.userAccounts.forEach(function(cloudUser) {
                         const localUser = localUsers.find(function(u) {
                             return u.username === cloudUser.username && u.dashboard === cloudUser.dashboard;
                         });
-                        if (localUser && cloudUser.password) {
-                            localUser.password = cloudUser.password;
+                        const ch = cloudUser.passwordHash || cloudUser.password; // legacy fallback
+                        if (localUser && ch) {
+                            if (cloudUser.passwordHash) { localUser.passwordHash = cloudUser.passwordHash; delete localUser.password; }
+                            else { localUser.password = cloudUser.password; delete localUser.passwordHash; } // legacy, upgraded below
                             localUser.role = cloudUser.role;
                         }
                     });
 
-                    savePortalUsers(localUsers);
-
-                    // Sync asset dashboard users to assetDashboardLocalUsers
-                    localUsers.filter(function(u) { return u.dashboard === 'assets'; }).forEach(function(u) {
-                        syncAssetDashboardUser(u.username, u.password, u.role);
-                    });
+                    // Sync asset dashboard users to assetDashboardLocalUsers (hash-only)
+                    for (const u of localUsers.filter(function(u) { return u.dashboard === 'assets'; })) {
+                        syncAssetDashboardUser(u.username, await portalUserHash(u), u.role);
+                    }
+                    savePortalUsers(localUsers);   // persist any legacy→hash upgrades
 
                     // Apply heading settings if present
                     if (cloudBackup.data.headingSettings) {
@@ -2424,7 +2492,7 @@
                     version: '1.0',
                     type: 'portal_settings',
                     timestamp: new Date().toISOString(),
-                    data: { userAccounts: users, headingSettings: headings }
+                    data: { userAccounts: accountsForCloud(users), headingSettings: headings }
                 };
 
                 const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -2460,10 +2528,14 @@
         // ============================================
         // INITIALIZE ON PAGE LOAD
         // ============================================
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Apply saved headings
             const headings = loadHeadingSettingsData();
             applyHeadings(headings);
+
+            // Convert any stored plaintext passwords to hashes BEFORE any cloud
+            // sync can upload them — plaintext must never leave this device.
+            await migratePortalPasswords();
 
             // Cards start disabled — require sync first
             disableCards();

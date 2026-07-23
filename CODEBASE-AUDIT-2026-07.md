@@ -89,6 +89,29 @@ seed, merge, move, assign, next-code, search, backup payload). Zero page errors.
 These are real and documented, but each changes auth/sync semantics or needs tooling,
 so they should be chosen deliberately rather than bundled into a fix pass.
 
+### ✅ P1 (RESOLVED 2026-07-23) — Plaintext portal passwords removed from the Drive backup
+Portal credentials are now stored and synced as **hashes only** (SHA-256 with the
+app salt — the same scheme the dashboard authenticates against):
+- `portal.html`: `mphHashPassword` + a one-time `migratePortalPasswords()` (runs at
+  load, before any sync) converts existing plaintext accounts and the shipped
+  defaults to `passwordHash` and drops the plaintext; account creation, password
+  change, cross-device merges and `syncAssetDashboardUser` all handle hashes only,
+  with a `portalUserHash()` legacy-plaintext converter for old data.
+- `index.html`: the portal-account login fallback prefers `passwordHash` (legacy
+  plaintext still accepted and migrated); `buildBackupPayload()` runs
+  `stripPlaintextPasswords()` over `portalUserAccounts` **and** `localUsers` so the
+  Drive JSON is hashes-only even if a stale field lingers; all portal upload paths
+  run `accountsForCloud()` for the same guard.
+- Backward compatible: an old plaintext account (or an old plaintext Drive backup)
+  still logs in and migrates on next load — verified headless (default accounts
+  hashed, new account hash-only, dashboard login works, backup has zero plaintext,
+  legacy plaintext login still works).
+
+**Still open (separate follow-up):** `localUserSettings.twoFactorSecret` / backup
+codes are still shipped in the backup — TOTP secrets can't be hashed (they're needed
+in cleartext to validate), so they need the *redact* or *encrypt* decision, not
+hashing. The shipped default credentials (P4) and weak hashing (P5) also remain.
+
 ### Security / data-safety (needs a product decision)
 - **P1 — Plaintext portal passwords + 2FA secrets in the Drive backup.**
   `portalUserAccounts` stores cleartext passwords (`portal.html`) and the backup ships

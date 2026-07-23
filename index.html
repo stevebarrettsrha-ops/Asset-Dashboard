@@ -10920,8 +10920,10 @@
                     const portalUsers = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]');
                     const portalUser = portalUsers.find(u => u.username === username && u.dashboard === 'assets');
                     if (portalUser) {
-                        const portalHash = await hashPassword(portalUser.password);
-                        if (portalHash === hashedInput) {
+                        // Prefer the stored hash; fall back to hashing legacy
+                        // plaintext (older accounts) for backward compatibility.
+                        const portalHash = portalUser.passwordHash || (portalUser.password ? await hashPassword(portalUser.password) : null);
+                        if (portalHash && portalHash === hashedInput) {
                             // Create local user entry from portal account
                             localUser = {
                                 username: portalUser.username,
@@ -12680,6 +12682,23 @@
             return loadAssetsFromStorage();
         }
 
+        // Never let a plaintext password reach the Google Drive backup — only
+        // the hash (passwordHash) is portable and safe. Accounts normally hold
+        // only a hash, but a freshly portal-synced entry can briefly carry
+        // plaintext until it migrates; this strips it defensively at the
+        // upload boundary so the backup is always hashes-only.
+        function stripPlaintextPasswords(list) {
+            if (!Array.isArray(list)) return list;
+            return list.map(u => {
+                if (u && typeof u === 'object' && 'password' in u) {
+                    const c = Object.assign({}, u);
+                    delete c.password;
+                    return c;
+                }
+                return u;
+            });
+        }
+
         // Single source of truth for the Google Drive backup payload. Every
         // upload path (auto-sync, silent save, manual save) builds it here so a
         // new backed-up field or a version bump can never be added to some
@@ -12699,13 +12718,13 @@
                     disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
                     deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
                     disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
-                    portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                    portalUserAccounts: stripPlaintextPasswords(JSON.parse(localStorage.getItem('portalUserAccounts') || '[]')),
                     portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                     monthComments: loadMonthComments(),
                     locationRecords: getLocationRecords(),
                     locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                     localUserSettings: localUserSettings,
-                    localUsers: localUsers, // Backup local users (passwords are hashed)
+                    localUsers: stripPlaintextPasswords(localUsers), // hashes only — never plaintext
                     form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
                 }
             };
