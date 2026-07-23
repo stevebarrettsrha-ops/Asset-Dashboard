@@ -11064,6 +11064,10 @@
                 // Ensure IndexedDB is ready before loading data
                 await _idbInitPromise;
 
+                // Location Records store (shared, IndexedDB-backed) must be
+                // loaded before anything reads or merges location records.
+                if (window.mphLocationStoreReady) { try { await window.mphLocationStoreReady; } catch (e) {} }
+
                 // Load data
                 loadData();
 
@@ -12709,7 +12713,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
@@ -12786,7 +12790,7 @@
                 if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) return false;
                 if (!window.mphMergeLocationRecords) return false;
                 let localRec = null;
-                try { localRec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                try { localRec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                 if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
                 const res = window.mphMergeLocationRecords(localRec, cloudDataObj.locationRecords);
                 if (res.changed) {
@@ -13528,7 +13532,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers,
@@ -13614,7 +13618,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
@@ -15551,7 +15555,7 @@
                 // genuine unknowns become real Location Records so they stay linked
                 if (genuine.length) {
                     let rec = null;
-                    try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                    try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                     if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                     const have = new Set(rec.departments.map(x => String(x.name || '').trim().toLowerCase()));
                     let added = false;
@@ -15635,7 +15639,7 @@
             // have a location record, so create one if it doesn't exist yet.
             try {
                 let rec = null;
-                try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                 if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                 const exists = rec.departments.some(d =>
                     String(d.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
@@ -16055,7 +16059,7 @@
         function getLocationRoomsByDept() {
             const map = {};
             try {
-                const rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null');
+                const rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'));
                 if (rec && Array.isArray(rec.departments)) {
                     rec.departments.forEach(d => {
                         const key = String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -30234,7 +30238,7 @@
         // ============================================
         function reconcileLocations() {
             let db;
-            try { db = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); }
+            try { db = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); }
             catch (e) { db = null; }
             if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
                 alert('No saved Location Records found.\n\nOpen the Location Records page first (it seeds and saves the records to this browser), then run the reconciliation.');

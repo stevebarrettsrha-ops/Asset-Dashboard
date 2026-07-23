@@ -186,11 +186,8 @@ window.mphCodeKey = function (code) {
 /* ---- department list shared source (Location Records is authoritative) ---- */
 window.mphGetLocationRecords = function () {
     try {
-        var raw = localStorage.getItem('hospitalLocationRecords');
-        if (raw) {
-            var d = JSON.parse(raw);
-            if (d && Array.isArray(d.departments) && d.departments.length) return d;
-        }
+        var d = window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : null;
+        if (d && Array.isArray(d.departments) && d.departments.length) return d;
     } catch (e) { /* fall through to canonical list */ }
     return null;
 };
@@ -250,10 +247,8 @@ function _findMeta(name) {
     return null;
 }
 window.mphEnsureLocationDepartments = function () {
-    var raw = null;
-    try { raw = localStorage.getItem('hospitalLocationRecords'); } catch (e) { return 0; }
-    var data;
-    try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
+    var data = null;
+    try { data = window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : null; } catch (e) { return 0; }
     if (!data || !Array.isArray(data.departments)) data = { departments: [] };
 
     var before = JSON.stringify(data.departments.map(function (d) { return d.name; }));
@@ -387,19 +382,91 @@ function locItemKey(it) {
     return 't|' + K(it && it.item) + '|' + K(it && it.description) + '|' + K(it && it.remarks);
 }
 
-/* ---- quota-safe persistence for location records ----
-   The location records blob is large (several MB) and localStorage has a
-   ~5MB per-origin quota. Historic seed-upgrade backups
-   (hospitalLocationRecords_backup_v1, _v3, …) are the same size again, so
-   long-lived devices run out of quota — and then EVERY save of a new
-   record throws QuotaExceededError and the edit is silently lost on the
-   next reload. These helpers make that impossible:
-   - mphPruneLocationBackups(keep): delete old seed backups, keeping only
-     the `keep` most recent versions (default 1).
-   - mphSaveLocationRecords(db): stringify + setItem; on quota failure it
-     prunes ALL seed backups and retries. Returns false only when the
-     write genuinely cannot be persisted, so callers can warn the user
-     instead of losing data silently. */
+/* ---- Location Records store: IndexedDB-backed, in-memory cached ----
+   The records blob is several MB. It used to live in localStorage, whose
+   ~5MB per-origin quota it exhausted (helped by full-size seed-upgrade
+   backups) — after which every save threw QuotaExceededError and the new
+   record was silently lost on reload. The store now works like this:
+   - IndexedDB ('MPHLocationRecordsDB'/kv) holds the records — no
+     meaningful quota limit. A synchronous in-memory cache (_locCache)
+     serves every existing sync call site.
+   - mphLocationStoreReady resolves once the cache is loaded. On first
+     run it MIGRATES the legacy localStorage copy into IndexedDB and
+     removes it, freeing the old quota.
+   - Writes update the cache immediately and persist async; a crash-safe
+     localStorage flush covers a tab closed mid-write. When IndexedDB is
+     unavailable (old browser / private mode) everything falls back to
+     the legacy localStorage path with quota recovery.
+   - Cross-tab/iframe: saves broadcast on 'mph-location-records'; other
+     contexts refresh their cache from IndexedDB and notify listeners
+     (mphOnLocationRecordsUpdated). */
+var LOC_IDB_NAME = 'MPHLocationRecordsDB';
+var LOC_IDB_STORE = 'kv';
+var LOC_FLUSH_KEY = '__locflush_' + LOC_RECORDS_KEY;
+var _locCache = null;          // latest records object (authoritative once loaded)
+var _locLoaded = false;        // init finished
+var _locWroteEarly = false;    // a save happened before init finished
+var _locPending = 0;           // in-flight IndexedDB writes
+var _locHasIDB = (typeof indexedDB !== 'undefined');
+var _locListeners = [];
+var _locChannel = null;
+try { if (typeof BroadcastChannel !== 'undefined') _locChannel = new BroadcastChannel('mph-location-records'); } catch (e) {}
+
+function _locIdbOpen() {
+    return new Promise(function (resolve, reject) {
+        var req = indexedDB.open(LOC_IDB_NAME, 1);
+        req.onupgradeneeded = function () {
+            if (!req.result.objectStoreNames.contains(LOC_IDB_STORE)) {
+                req.result.createObjectStore(LOC_IDB_STORE);
+            }
+        };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+    });
+}
+function _locIdbGet(key) {
+    return _locIdbOpen().then(function (dbh) {
+        return new Promise(function (resolve, reject) {
+            var tx = dbh.transaction(LOC_IDB_STORE, 'readonly');
+            var rq = tx.objectStore(LOC_IDB_STORE).get(key);
+            rq.onsuccess = function () { resolve(rq.result); dbh.close(); };
+            rq.onerror = function () { reject(rq.error); dbh.close(); };
+        });
+    });
+}
+function _locIdbPut(key, value) {
+    return _locIdbOpen().then(function (dbh) {
+        return new Promise(function (resolve, reject) {
+            var tx = dbh.transaction(LOC_IDB_STORE, 'readwrite');
+            tx.objectStore(LOC_IDB_STORE).put(value, key);
+            tx.oncomplete = function () { resolve(); dbh.close(); };
+            tx.onerror = function () { reject(tx.error); dbh.close(); };
+            tx.onabort = function () { reject(tx.error); dbh.close(); };
+        });
+    });
+}
+function _locLegacyRead() {
+    try {
+        var raw = localStorage.getItem(LOC_RECORDS_KEY);
+        if (raw) {
+            var d = JSON.parse(raw);
+            if (d && Array.isArray(d.departments)) return d;
+        }
+    } catch (e) {}
+    return null;
+}
+// Legacy localStorage write with quota recovery (fallback when no IndexedDB).
+function _locLegacyWrite(db) {
+    var raw;
+    try { raw = JSON.stringify(db); } catch (e) { return false; }
+    try { localStorage.setItem(LOC_RECORDS_KEY, raw); return true; }
+    catch (e) { /* storage full — free space and retry below */ }
+    try {
+        window.mphPruneLocationBackups(0);   // records beat old backups
+        localStorage.setItem(LOC_RECORDS_KEY, raw);
+        return true;
+    } catch (e2) { return false; }
+}
 window.mphPruneLocationBackups = function (keep) {
     keep = (typeof keep === 'number') ? keep : 1;
     try {
@@ -419,17 +486,102 @@ window.mphPruneLocationBackups = function (keep) {
         return removed;
     } catch (e) { return 0; }
 };
-window.mphSaveLocationRecords = function (db) {
-    var raw;
-    try { raw = JSON.stringify(db); } catch (e) { return false; }
-    try { localStorage.setItem(LOC_RECORDS_KEY, raw); return true; }
-    catch (e) { /* storage full — free space and retry below */ }
-    try {
-        window.mphPruneLocationBackups(0);   // records beat old backups
-        localStorage.setItem(LOC_RECORDS_KEY, raw);
-        return true;
-    } catch (e2) { return false; }
+window.mphLocationStoreReady = (function () {
+    if (!_locHasIDB || typeof localStorage === 'undefined') {
+        _locCache = (typeof localStorage !== 'undefined') ? _locLegacyRead() : null;
+        _locLoaded = true;
+        return Promise.resolve();
+    }
+    return (function () {
+        // crash-safe flush (write in flight when the tab last closed) beats
+        // the committed IndexedDB value — it is strictly newer.
+        var flush = null;
+        try { flush = JSON.parse(localStorage.getItem(LOC_FLUSH_KEY) || 'null'); } catch (e) {}
+        return _locIdbGet(LOC_RECORDS_KEY).then(function (val) {
+            if (flush && Array.isArray(flush.departments)) {
+                val = flush;
+                try { localStorage.removeItem(LOC_FLUSH_KEY); } catch (e) {}
+                return _locIdbPut(LOC_RECORDS_KEY, val).catch(function () {}).then(function () { return val; });
+            }
+            if (!val) {
+                // first run on this device: migrate the legacy localStorage copy
+                var legacy = _locLegacyRead();
+                if (legacy) {
+                    return _locIdbPut(LOC_RECORDS_KEY, legacy).then(function () {
+                        try { localStorage.removeItem(LOC_RECORDS_KEY); } catch (e) {}
+                        window.mphPruneLocationBackups(1);   // free the old quota
+                        return legacy;
+                    });
+                }
+            }
+            return val;
+        }).then(function (val) {
+            // a save issued before init finished is newer than anything on disk
+            if (!_locWroteEarly) _locCache = (val && Array.isArray(val.departments)) ? val : null;
+            _locLoaded = true;
+        }).catch(function () {
+            // IndexedDB unusable — stay on the legacy localStorage path
+            _locHasIDB = false;
+            if (!_locWroteEarly) _locCache = _locLegacyRead();
+            _locLoaded = true;
+        });
+    })();
+})();
+// Records accessor used by every page. Returns the cached object (or the
+// legacy localStorage copy before init) — null when nothing is stored.
+window.mphGetLocationRecordsAny = function () {
+    if (_locLoaded || _locWroteEarly) return _locCache;
+    return _locLegacyRead();
 };
+window.mphSaveLocationRecords = function (db) {
+    if (!db || !Array.isArray(db.departments)) return false;
+    _locCache = db;
+    if (!_locLoaded) _locWroteEarly = true;
+    if (_locHasIDB) {
+        _locPending++;
+        var write = function () {
+            _locIdbPut(LOC_RECORDS_KEY, _locCache).then(function () {
+                _locPending--;
+                try { localStorage.removeItem(LOC_FLUSH_KEY); } catch (e) {}
+                try { if (_locChannel) _locChannel.postMessage('updated'); } catch (e) {}
+            }).catch(function () {
+                _locPending--;
+                _locHasIDB = false;
+                _locLegacyWrite(_locCache);   // degrade to localStorage rather than lose data
+            });
+        };
+        if (_locLoaded) write(); else window.mphLocationStoreReady.then(write);
+        return true;
+    }
+    return _locLegacyWrite(db);
+};
+// Re-read the store (used when another tab/frame announced a change).
+window.mphRefreshLocationRecords = function () {
+    if (!_locHasIDB) { _locCache = _locLegacyRead(); return Promise.resolve(_locCache); }
+    return _locIdbGet(LOC_RECORDS_KEY).then(function (val) {
+        if (val && Array.isArray(val.departments)) _locCache = val;
+        return _locCache;
+    }).catch(function () { return _locCache; });
+};
+window.mphOnLocationRecordsUpdated = function (fn) { if (typeof fn === 'function') _locListeners.push(fn); };
+if (_locChannel) {
+    _locChannel.addEventListener('message', function () {
+        window.mphRefreshLocationRecords().then(function () {
+            _locListeners.forEach(function (fn) { try { fn(); } catch (e) {} });
+        });
+    });
+}
+// A tab closed while an IndexedDB write is still in flight: park the latest
+// state in localStorage (there is room now); init prefers + clears it.
+try {
+    if (typeof window.addEventListener === 'function') {
+        window.addEventListener('pagehide', function () {
+            if (_locPending > 0 && _locCache) {
+                try { localStorage.setItem(LOC_FLUSH_KEY, JSON.stringify(_locCache)); } catch (e) {}
+            }
+        });
+    }
+} catch (e) {}
 // Startup hygiene: never let more than one historic seed backup accumulate.
 try { if (typeof localStorage !== 'undefined') window.mphPruneLocationBackups(1); } catch (e) {}
 

@@ -143,3 +143,17 @@ Rooms that genuinely belong to the umbrella locations stay put (reception/teleph
 3. **No more silent loss** — if storage is genuinely unusable even after recovery, the page now shows a red "⚠️ NOT SAVED — browser storage is full" toast **and** a one-time alert telling the user to click Backup (download their records) before reloading. A failed save can no longer masquerade as a successful one.
 
 **Verified:** save under a full quota now persists (backups auto-pruned, record survives reload); with storage forcibly dead the warning fires and nothing pretends to be saved; all normal save/reload/cloud-merge/consolidation flows unchanged.
+
+---
+
+# Location Records moved to IndexedDB (2026-07-23)
+
+localStorage's ~5MB quota was the root cause of lost saves, and pruning backups only bought headroom — the records blob itself keeps growing. Location Records now live in **IndexedDB** (`MPHLocationRecordsDB`), which has no meaningful size limit:
+
+- **Shared store in `asset-normalizer.js`** — an in-memory cache serves every existing synchronous call site (`mphGetLocationRecordsAny`); writes update the cache instantly and persist to IndexedDB asynchronously (`mphSaveLocationRecords`). Both `locations.html` (standalone + embedded) and `index.html` wait for `mphLocationStoreReady` before touching records.
+- **Automatic migration** — on first load the legacy `hospitalLocationRecords` localStorage copy is imported into IndexedDB and removed, freeing ~4MB of quota; historic seed backups are pruned to the newest one. User data, seed upgrades and the office-room consolidation all apply on top as before.
+- **Crash safety** — if the tab closes while a write is still in flight, the latest state is parked in localStorage (plenty of room now) and recovered on next load.
+- **Cross-tab/iframe sync** — saves broadcast on a `BroadcastChannel`; other tabs and the embedded dashboard frame refresh from IndexedDB and re-render live (the old localStorage `storage`-event path no longer fires for records).
+- **Graceful fallback** — browsers without usable IndexedDB (e.g. some private modes) fall back to the previous quota-safe localStorage path, including the loud NOT-SAVED warning.
+
+**Verified headless:** fresh device seeds 58 departments straight into IndexedDB with zero record bytes in localStorage; a legacy localStorage-only device migrates with user data intact (then merges seed v6, old backups pruned); saves survive reload; a save in one tab appears live in another tab; stale-cloud merge + office consolidation work unchanged over the new store.

@@ -632,11 +632,10 @@
         return (typeof LOCATIONS_SEED_VERSION !== 'undefined') ? String(LOCATIONS_SEED_VERSION) : '1';
     }
     function load() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-            try { db = JSON.parse(raw); }
-            catch (e) { db = { departments: [] }; }
-        }
+        // Records live in the shared IndexedDB-backed store (loaded before
+        // this runs); the accessor also covers the legacy localStorage copy.
+        db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || null;
+        const raw = db ? JSON.stringify(db) : null;   // pre-upgrade snapshot for the safety backup
         if (!db || !Array.isArray(db.departments)) db = { departments: [] };
         const storedVersion = localStorage.getItem(SEED_VERSION_KEY);
         const needSeed = db.departments.length === 0;
@@ -670,7 +669,8 @@
             save();  // persist current state first so ensure() reads it
             const added = mphEnsureLocationDepartments();
             if (added > 0) {
-                try { db = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) {}
+                const fresh = window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny();
+                if (fresh && Array.isArray(fresh.departments)) db = fresh;
             }
         }
     }
@@ -1390,16 +1390,23 @@
         try { embedded = new URLSearchParams(window.location.search).get('embedded') === '1'; } catch (e) {}
         if (embedded) document.body.classList.add('embedded');
 
+        function applyExternal(d) {
+            if (d && Array.isArray(d.departments)) { db = d; render(); }
+        }
         function reloadFromStorage() {
             try {
-                const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-                if (d && Array.isArray(d.departments)) {
-                    db = d;
-                    render();
+                if (window.mphRefreshLocationRecords) {
+                    window.mphRefreshLocationRecords().then(applyExternal);
+                } else {
+                    applyExternal(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
                 }
             } catch (e) { /* keep current view */ }
         }
-        // Another tab / the parent dashboard (cloud sync) updated the records.
+        // Another tab or frame saved through the shared store.
+        if (window.mphOnLocationRecordsUpdated) {
+            window.mphOnLocationRecordsUpdated(() => applyExternal(window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()));
+        }
+        // Legacy path: another tab still writing records to localStorage.
         window.addEventListener('storage', e => {
             if (e.key === STORAGE_KEY && e.newValue) reloadFromStorage();
         });
@@ -1411,10 +1418,15 @@
     })();
 
     /* ============================================================
-       Init
+       Init — wait for the IndexedDB-backed store (it also migrates any
+       legacy localStorage records on first run), then load + render.
     ============================================================ */
-    load();
-    render();
+    function startPage() { load(); render(); }
+    if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
+        window.mphLocationStoreReady.then(startPage);
+    } else {
+        startPage();
+    }
     </script>
 </body>
 </html>
