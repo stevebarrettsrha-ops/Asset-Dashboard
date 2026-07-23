@@ -130,3 +130,38 @@ Rooms that genuinely belong to the umbrella locations stay put (reception/teleph
 - Fresh seed: office departments populated (e.g. Biomedical Engineer Office = its 14-item room + register bucket); totals 58 departments / 504 rooms / 12,447 items (2 duplicate-titled rooms merged, zero items lost).
 - A device with the old layout (offices under 1st/2nd Floor General Admin, empty office departments — the reported state) migrates fully on next load: rooms move home, no duplicates, user-created departments/rooms untouched.
 - Merging an old-layout cloud backup into a migrated device re-consolidates automatically; extra items from the cloud copy are still unioned in.
+
+---
+
+# Fix: "when I save a new location record, the data gets lost" (2026-07-23)
+
+**Root cause: browser storage quota.** The Location Records database is ~4.2 MB in localStorage, and every past seed upgrade also stored a full-size safety backup beside it (`hospitalLocationRecords_backup_v1`, `_v3`, `_v4`, …). On long-lived devices those backups exhausted the browser's per-site storage quota. From then on, **every save of a new record threw `QuotaExceededError`**: the record appeared on screen (it was in memory) but was never written to storage — the only feedback was a small toast — so it vanished on the next reload or page switch. Reproduced headless: with old backups present, writing one more backup already fails with `QuotaExceededError`.
+
+**Fixes (all verified headless):**
+1. **Quota-safe save everywhere** — new shared `mphSaveLocationRecords()` (asset-normalizer.js): if a write fails, it deletes the old seed backups (live records always outrank historic backups) and retries. Used by the Location Records page `save()`, the dashboard's cloud-merge, ensure-departments and add-department paths.
+2. **Backups can no longer accumulate** — at startup at most one historic backup is kept (`mphPruneLocationBackups`), and a seed upgrade now prunes before writing its new backup.
+3. **No more silent loss** — if storage is genuinely unusable even after recovery, the page now shows a red "⚠️ NOT SAVED — browser storage is full" toast **and** a one-time alert telling the user to click Backup (download their records) before reloading. A failed save can no longer masquerade as a successful one.
+
+**Verified:** save under a full quota now persists (backups auto-pruned, record survives reload); with storage forcibly dead the warning fires and nothing pretends to be saved; all normal save/reload/cloud-merge/consolidation flows unchanged.
+
+---
+
+# Location Records moved to IndexedDB (2026-07-23)
+
+localStorage's ~5MB quota was the root cause of lost saves, and pruning backups only bought headroom — the records blob itself keeps growing. Location Records now live in **IndexedDB** (`MPHLocationRecordsDB`), which has no meaningful size limit:
+
+- **Shared store in `asset-normalizer.js`** — an in-memory cache serves every existing synchronous call site (`mphGetLocationRecordsAny`); writes update the cache instantly and persist to IndexedDB asynchronously (`mphSaveLocationRecords`). Both `locations.html` (standalone + embedded) and `index.html` wait for `mphLocationStoreReady` before touching records.
+- **Automatic migration** — on first load the legacy `hospitalLocationRecords` localStorage copy is imported into IndexedDB and removed, freeing ~4MB of quota; historic seed backups are pruned to the newest one. User data, seed upgrades and the office-room consolidation all apply on top as before.
+- **Crash safety** — if the tab closes while a write is still in flight, the latest state is parked in localStorage (plenty of room now) and recovered on next load.
+- **Cross-tab/iframe sync** — saves broadcast on a `BroadcastChannel`; other tabs and the embedded dashboard frame refresh from IndexedDB and re-render live (the old localStorage `storage`-event path no longer fires for records).
+- **Graceful fallback** — browsers without usable IndexedDB (e.g. some private modes) fall back to the previous quota-safe localStorage path, including the loud NOT-SAVED warning.
+
+**Verified headless:** fresh device seeds 58 departments straight into IndexedDB with zero record bytes in localStorage; a legacy localStorage-only device migrates with user data intact (then merges seed v6, old backups pruned); saves survive reload; a save in one tab appears live in another tab; stale-cloud merge + office consolidation work unchanged over the new store.
+
+---
+
+# Google Drive sync verified for the new store + next-code popup (2026-07-23)
+
+**Google sync:** audited end-to-end against the IndexedDB store. All three upload payload builders (auto-sync, silent save, manual save) read records through the shared store accessor; all four download/restore paths (login sync, manual "Sync from Cloud", cloud-backup restore, merge-on-upload) go through the tombstone-aware union merge and save back through the quota-safe store writer; the dirty-flag ride-along from the Location Records page still triggers uploads. Hardened: every upload now refreshes the records cache from IndexedDB first, so an edit saved seconds earlier in another tab or the embedded frame always rides along.
+
+**New: next asset code in series.** When adding a new asset and picking a department, a popup lists every code series (item group) already registered under that department's code token — e.g. *"133 — Chair, Executive · 75 registered · highest number: 65 → Next: MPH/AE/133/66"* — with a search filter; clicking a row fills the Asset Code field. Reopen any time with the 🔢 button beside the code field. Suggestions are computed live from the register (including aliases, ranges like `19-26`, and zero-padding), so they never collide with an existing code. Verified headless via a real login: series list, ground-truth max sequence, click-to-fill, and collision check all pass.

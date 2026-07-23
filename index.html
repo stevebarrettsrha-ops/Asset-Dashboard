@@ -6729,6 +6729,7 @@
                         <div style="display: flex; gap: 5px; align-items: flex-start;">
                             <input type="text" id="assetCode" required placeholder="MPH-MS-190-01-2025" style="flex: 1; min-width: 0;">
                             <button type="button" class="btn-secondary" onclick="openAssetCodePicker('assetCode')" title="Look up a standard asset code" style="padding: 8px 12px; flex-shrink: 0;">🔍</button>
+                            <button type="button" class="btn-secondary" onclick="openNextCodePopup()" title="Show the next code number in each of the selected department's series" style="padding: 8px 12px; flex-shrink: 0;">🔢</button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -10301,6 +10302,21 @@
         </div>
     </div>
 
+    <!-- Next Code in Series Modal -->
+    <div class="asset-code-modal" id="nextCodeModal">
+        <div class="asset-code-modal-content" style="max-width: 560px;">
+            <div class="asset-code-modal-header">
+                <h2 id="nextCodeTitle">🔢 Next Code in Series</h2>
+                <button class="asset-code-modal-close" onclick="closeNextCodePopup()">&times;</button>
+            </div>
+            <div class="asset-code-modal-body">
+                <input type="text" id="nextCodeSearch" class="asset-code-search-box" placeholder="Filter by group number or item name..." oninput="renderNextCodeList()" style="width: 100%; margin-bottom: 10px;">
+                <p style="font-size: 0.82rem; color: var(--text-secondary, #7078a0); margin: 0 0 10px;">Code series already registered for this department, each with its next free number. Click one to fill the Asset Code field.</p>
+                <div id="nextCodeList" style="max-height: 52vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Disposal Modal -->
     <div class="disposal-modal" id="disposalModal">
         <div class="disposal-modal-content">
@@ -11063,6 +11079,10 @@
 
                 // Ensure IndexedDB is ready before loading data
                 await _idbInitPromise;
+
+                // Location Records store (shared, IndexedDB-backed) must be
+                // loaded before anything reads or merges location records.
+                if (window.mphLocationStoreReady) { try { await window.mphLocationStoreReady; } catch (e) {} }
 
                 // Load data
                 loadData();
@@ -12693,6 +12713,9 @@
                 }
 
                 // Step 3: Upload merged local data to cloud
+                // Pick up location-record edits saved moments ago in another
+                // tab/frame so the upload always carries the latest state.
+                if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
                 const backupData = {
                     version: '1.4',
                     timestamp: new Date().toISOString(),
@@ -12709,7 +12732,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
@@ -12786,11 +12809,12 @@
                 if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) return false;
                 if (!window.mphMergeLocationRecords) return false;
                 let localRec = null;
-                try { localRec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                try { localRec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                 if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
                 const res = window.mphMergeLocationRecords(localRec, cloudDataObj.locationRecords);
                 if (res.changed) {
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(res.merged));
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(res.merged);
+                    else localStorage.setItem('hospitalLocationRecords', JSON.stringify(res.merged));
                     notifyLocationRecordsFrame();
                 }
                 return res.changed;
@@ -13511,6 +13535,9 @@
             if (typeof isCloudConnected === 'undefined' || !isCloudConnected || !googleAccessToken) return false;
             try {
                 if (typeof setCloudSyncing === 'function') setCloudSyncing(true);
+                // Pick up location-record edits saved moments ago in another
+                // tab/frame so the upload always carries the latest state.
+                if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
                 const backupData = {
                     version: '1.4',
                     timestamp: new Date().toISOString(),
@@ -13527,7 +13554,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers,
@@ -13597,6 +13624,9 @@
             setCloudSyncing(true);
 
             try {
+                // Pick up location-record edits saved moments ago in another
+                // tab/frame so the upload always carries the latest state.
+                if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
                 const backupData = {
                     version: '1.4',
                     timestamp: new Date().toISOString(),
@@ -13613,7 +13643,7 @@
                         portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
                         portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
                         monthComments: loadMonthComments(),
-                        locationRecords: JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'),
+                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
                         locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
                         localUserSettings: localUserSettings,
                         localUsers: localUsers, // Backup local users (passwords are hashed)
@@ -15550,7 +15580,7 @@
                 // genuine unknowns become real Location Records so they stay linked
                 if (genuine.length) {
                     let rec = null;
-                    try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                    try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                     if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                     const have = new Set(rec.departments.map(x => String(x.name || '').trim().toLowerCase()));
                     let added = false;
@@ -15561,7 +15591,10 @@
                             have.add(n.toLowerCase()); added = true;
                         }
                     });
-                    if (added) localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    if (added) {
+                        if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(rec);
+                        else localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    }
                 }
             } catch (e) {}
         }
@@ -15631,7 +15664,7 @@
             // have a location record, so create one if it doesn't exist yet.
             try {
                 let rec = null;
-                try { rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); } catch (e) {}
+                try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
                 if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                 const exists = rec.departments.some(d =>
                     String(d.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
@@ -15642,7 +15675,8 @@
                         note: 'Added from the Asset Manager department list',
                         rooms: []
                     });
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(rec);
+                    else localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
                 }
             } catch (e) {
                 console.warn('Could not mirror department to Location Records:', e);
@@ -16043,6 +16077,7 @@
                     }
                 });
             }
+            openNextCodePopup(value);
         }
 
         // Rooms recorded for each department on the Location Records page,
@@ -16050,7 +16085,7 @@
         function getLocationRoomsByDept() {
             const map = {};
             try {
-                const rec = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null');
+                const rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'));
                 if (rec && Array.isArray(rec.departments)) {
                     rec.departments.forEach(d => {
                         const key = String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -16098,6 +16133,122 @@
                     opt.classList.toggle('selected', opt.dataset.value === dept);
                 });
             }
+            openNextCodePopup(dept);
+        }
+
+        /* ============================================================
+           Next asset code in series — when a department is picked in the
+           Add/Edit Asset form, a popup lists every code series (item
+           group) already registered under that department's code token,
+           each with its next free sequence number. Clicking a row fills
+           the Asset Code field. Reopen any time with the 🔢 button.
+        ============================================================ */
+        function _nextCodeEsc(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function _nextCodeGroupDesc(group) {
+            const g = String(group).replace(/^0+(?=.)/, '');
+            const lists = [window.ASSET_CODES_1997 || [], window.ASSET_CODES_1998 || []];
+            for (const list of lists) {
+                const hit = list.find(c => String(c.code).replace(/^0+(?=.)/, '') === g);
+                if (hit) return hit.desc;
+            }
+            return '';
+        }
+        function computeNextCodeSeries(deptName) {
+            const token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
+            const tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+            const assets = (typeof allAssetsData !== 'undefined' && Array.isArray(allAssetsData) && allAssetsData.length)
+                ? allAssetsData : loadAssetsFromStorage();
+            const groups = {};
+            assets.forEach(a => {
+                const codes = [a.assetCode].concat(a.aliases || []);
+                for (const c of codes) {
+                    if (!c) continue;
+                    const p = window.mphParseCode ? window.mphParseCode(c) : null;
+                    if (!p || !p.item) continue;
+                    const pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+                    // the series is defined by the code's own department token;
+                    // unmapped/custom departments match by assignment instead
+                    const match = tokN ? (pTok === tokN)
+                                       : (!pTok && String(a.department || '') === deptName);
+                    if (!match) continue;
+                    const g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
+                    g.count++;
+                    String(p.seq || '').split('-').forEach(s => {
+                        const n = parseInt(s, 10);
+                        if (!isNaN(n)) {
+                            if (n > g.max) g.max = n;
+                            if (/^\d+$/.test(s)) g.pad = Math.max(g.pad, s.length);
+                        }
+                    });
+                    break;   // one series entry per asset
+                }
+            });
+            return Object.values(groups).map(g => {
+                const next = g.max + 1;
+                const seq = String(next).padStart(Math.min(g.pad, 3), '0');
+                return Object.assign({}, g, {
+                    next: next,
+                    nextCode: 'MPH/' + (token || 'DN') + '/' + g.group + '/' + seq,
+                    desc: _nextCodeGroupDesc(g.group)
+                });
+            }).sort((a, b) => b.count - a.count);
+        }
+        let _nextCodeSeriesCache = [];
+        function openNextCodePopup(deptName) {
+            deptName = deptName || (document.getElementById('department') || {}).value;
+            if (!deptName) { showNotification && showNotification('Select a department first', 'info'); return; }
+            _nextCodeSeriesCache = computeNextCodeSeries(deptName);
+            const modal = document.getElementById('nextCodeModal');
+            const title = document.getElementById('nextCodeTitle');
+            const search = document.getElementById('nextCodeSearch');
+            if (title) title.textContent = '🔢 Next Code in Series — ' + deptName;
+            if (search) search.value = '';
+            renderNextCodeList();
+            if (modal) modal.style.display = 'flex';
+            if (search) setTimeout(() => search.focus(), 50);
+        }
+        function closeNextCodePopup() {
+            const modal = document.getElementById('nextCodeModal');
+            if (modal) modal.style.display = 'none';
+        }
+        function renderNextCodeList() {
+            const listEl = document.getElementById('nextCodeList');
+            if (!listEl) return;
+            const searchEl = document.getElementById('nextCodeSearch');
+            const term = (searchEl ? searchEl.value : '').toLowerCase().trim();
+            const rows = _nextCodeSeriesCache.filter(r => !term ||
+                String(r.group).indexOf(term) !== -1 ||
+                (r.desc || '').toLowerCase().indexOf(term) !== -1 ||
+                r.nextCode.toLowerCase().indexOf(term) !== -1);
+            if (!rows.length) {
+                listEl.innerHTML = '<div style="padding:18px; text-align:center; color:var(--text-secondary,#7078a0); font-size:0.85rem;">' +
+                    (_nextCodeSeriesCache.length
+                        ? 'No series matches this search.'
+                        : 'No coded assets registered for this department yet — the new asset starts its series. Use the 🔍 button to pick an item-group code, then begin the sequence at 01.') +
+                    '</div>';
+                return;
+            }
+            listEl.innerHTML = rows.map(r => `
+                <div onclick="applyNextCode(this.dataset.code)" data-code="${_nextCodeEsc(r.nextCode)}"
+                     style="display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.06);"
+                     onmouseover="this.style.background='rgba(102,126,234,0.08)'" onmouseout="this.style.background=''">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:600; font-size:0.85rem;">${_nextCodeEsc(r.group)}${r.desc ? ' — ' + _nextCodeEsc(r.desc) : ''}</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary,#7078a0);">${r.count} registered · highest number: ${r.max}</div>
+                    </div>
+                    <span style="flex-shrink:0; font-family:monospace; font-size:0.82rem; font-weight:700; background:rgba(39,174,96,0.12); color:#27ae60; padding:4px 10px; border-radius:8px;">Next: ${_nextCodeEsc(r.nextCode)}</span>
+                </div>`).join('');
+        }
+        function applyNextCode(code) {
+            const input = document.getElementById('assetCode');
+            if (input) {
+                input.value = code;
+                input.focus();
+            }
+            closeNextCodePopup();
         }
 
         // Populate asset modal department dropdown
@@ -30229,7 +30380,7 @@
         // ============================================
         function reconcileLocations() {
             let db;
-            try { db = JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'); }
+            try { db = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); }
             catch (e) { db = null; }
             if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
                 alert('No saved Location Records found.\n\nOpen the Location Records page first (it seeds and saves the records to this browser), then run the reconciliation.');
