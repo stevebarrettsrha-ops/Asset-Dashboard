@@ -12790,7 +12790,8 @@
                 if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
                 const res = window.mphMergeLocationRecords(localRec, cloudDataObj.locationRecords);
                 if (res.changed) {
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(res.merged));
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(res.merged);
+                    else localStorage.setItem('hospitalLocationRecords', JSON.stringify(res.merged));
                     notifyLocationRecordsFrame();
                 }
                 return res.changed;
@@ -15561,7 +15562,10 @@
                             have.add(n.toLowerCase()); added = true;
                         }
                     });
-                    if (added) localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    if (added) {
+                        if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(rec);
+                        else localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    }
                 }
             } catch (e) {}
         }
@@ -15642,7 +15646,8 @@
                         note: 'Added from the Asset Manager department list',
                         rooms: []
                     });
-                    localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(rec);
+                    else localStorage.setItem('hospitalLocationRecords', JSON.stringify(rec));
                 }
             } catch (e) {
                 console.warn('Could not mirror department to Location Records:', e);

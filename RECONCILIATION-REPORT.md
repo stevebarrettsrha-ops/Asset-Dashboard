@@ -130,3 +130,16 @@ Rooms that genuinely belong to the umbrella locations stay put (reception/teleph
 - Fresh seed: office departments populated (e.g. Biomedical Engineer Office = its 14-item room + register bucket); totals 58 departments / 504 rooms / 12,447 items (2 duplicate-titled rooms merged, zero items lost).
 - A device with the old layout (offices under 1st/2nd Floor General Admin, empty office departments — the reported state) migrates fully on next load: rooms move home, no duplicates, user-created departments/rooms untouched.
 - Merging an old-layout cloud backup into a migrated device re-consolidates automatically; extra items from the cloud copy are still unioned in.
+
+---
+
+# Fix: "when I save a new location record, the data gets lost" (2026-07-23)
+
+**Root cause: browser storage quota.** The Location Records database is ~4.2 MB in localStorage, and every past seed upgrade also stored a full-size safety backup beside it (`hospitalLocationRecords_backup_v1`, `_v3`, `_v4`, …). On long-lived devices those backups exhausted the browser's per-site storage quota. From then on, **every save of a new record threw `QuotaExceededError`**: the record appeared on screen (it was in memory) but was never written to storage — the only feedback was a small toast — so it vanished on the next reload or page switch. Reproduced headless: with old backups present, writing one more backup already fails with `QuotaExceededError`.
+
+**Fixes (all verified headless):**
+1. **Quota-safe save everywhere** — new shared `mphSaveLocationRecords()` (asset-normalizer.js): if a write fails, it deletes the old seed backups (live records always outrank historic backups) and retries. Used by the Location Records page `save()`, the dashboard's cloud-merge, ensure-departments and add-department paths.
+2. **Backups can no longer accumulate** — at startup at most one historic backup is kept (`mphPruneLocationBackups`), and a seed upgrade now prunes before writing its new backup.
+3. **No more silent loss** — if storage is genuinely unusable even after recovery, the page now shows a red "⚠️ NOT SAVED — browser storage is full" toast **and** a one-time alert telling the user to click Backup (download their records) before reloading. A failed save can no longer masquerade as a successful one.
+
+**Verified:** save under a full quota now persists (backups auto-pruned, record survives reload); with storage forcibly dead the warning fires and nothing pretends to be saved; all normal save/reload/cloud-merge/consolidation flows unchanged.

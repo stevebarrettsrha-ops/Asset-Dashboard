@@ -299,8 +299,12 @@ window.mphEnsureLocationDepartments = function () {
 
     var after = JSON.stringify(data.departments.map(function (d) { return d.name; }));
     if (after !== before) {
-        try { localStorage.setItem('hospitalLocationRecords', JSON.stringify(data)); }
-        catch (e) { return 0; }
+        if (window.mphSaveLocationRecords) {
+            if (!window.mphSaveLocationRecords(data)) return 0;
+        } else {
+            try { localStorage.setItem('hospitalLocationRecords', JSON.stringify(data)); }
+            catch (e) { return 0; }
+        }
     }
     // report how many canonical Locations are now present that weren't before
     return order.length;
@@ -382,6 +386,52 @@ function locItemKey(it) {
     if (ck) return 'c|' + ck;
     return 't|' + K(it && it.item) + '|' + K(it && it.description) + '|' + K(it && it.remarks);
 }
+
+/* ---- quota-safe persistence for location records ----
+   The location records blob is large (several MB) and localStorage has a
+   ~5MB per-origin quota. Historic seed-upgrade backups
+   (hospitalLocationRecords_backup_v1, _v3, …) are the same size again, so
+   long-lived devices run out of quota — and then EVERY save of a new
+   record throws QuotaExceededError and the edit is silently lost on the
+   next reload. These helpers make that impossible:
+   - mphPruneLocationBackups(keep): delete old seed backups, keeping only
+     the `keep` most recent versions (default 1).
+   - mphSaveLocationRecords(db): stringify + setItem; on quota failure it
+     prunes ALL seed backups and retries. Returns false only when the
+     write genuinely cannot be persisted, so callers can warn the user
+     instead of losing data silently. */
+window.mphPruneLocationBackups = function (keep) {
+    keep = (typeof keep === 'number') ? keep : 1;
+    try {
+        var prefix = LOC_RECORDS_KEY + '_backup_v';
+        var found = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(prefix) === 0) {
+                found.push({ key: k, v: parseInt(k.slice(prefix.length), 10) || 0 });
+            }
+        }
+        found.sort(function (a, b) { return b.v - a.v; });   // newest first
+        var removed = 0;
+        found.slice(keep).forEach(function (b) {
+            try { localStorage.removeItem(b.key); removed++; } catch (e) {}
+        });
+        return removed;
+    } catch (e) { return 0; }
+};
+window.mphSaveLocationRecords = function (db) {
+    var raw;
+    try { raw = JSON.stringify(db); } catch (e) { return false; }
+    try { localStorage.setItem(LOC_RECORDS_KEY, raw); return true; }
+    catch (e) { /* storage full — free space and retry below */ }
+    try {
+        window.mphPruneLocationBackups(0);   // records beat old backups
+        localStorage.setItem(LOC_RECORDS_KEY, raw);
+        return true;
+    } catch (e2) { return false; }
+};
+// Startup hygiene: never let more than one historic seed backup accumulate.
+try { if (typeof localStorage !== 'undefined') window.mphPruneLocationBackups(1); } catch (e) {}
 
 /* ---- office-room consolidation ----
    Surveyed office rooms historically landed under umbrella departments

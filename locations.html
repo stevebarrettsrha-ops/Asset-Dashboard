@@ -596,8 +596,26 @@
     /* ---------- Persistence ---------- */
     function save() {
         db.lastModified = new Date().toISOString();
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
-        catch (e) { toast('Could not save (storage full?)', 'error'); }
+        let ok = false;
+        if (window.mphSaveLocationRecords) {
+            ok = window.mphSaveLocationRecords(db);
+        } else {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); ok = true; } catch (e) {}
+        }
+        if (!ok) {
+            // Never fail silently: the change is still on screen but did NOT
+            // persist — losing it on reload without warning is data loss.
+            toast('⚠️ NOT SAVED — browser storage is full', 'error');
+            if (!window._mphStorageFullWarned) {
+                window._mphStorageFullWarned = true;
+                try {
+                    alert('⚠️ Your browser storage is full — this change could NOT be saved.\n\n' +
+                          'Click "Backup" now to download a copy of your records so nothing is lost, ' +
+                          'then reload the page. If this keeps happening, clear old site data for this ' +
+                          'site (or use another browser profile) and restore from your backup.');
+                } catch (e) {}
+            }
+        }
         // Flag the change for the dashboard's cloud auto-sync (index.html
         // checks this key and uploads location records with the next sync,
         // even when the edit happened on this standalone page).
@@ -630,7 +648,11 @@
         const seedOutdated = storedVersion !== currentSeedVersion();
         if ((needSeed || seedOutdated) && typeof SEED_DEPARTMENTS === 'function') {
             // Preserve whatever was stored before, as a one-time safety backup.
+            // Old backups are pruned first — each one is as big as the live
+            // records, and stacking them exhausts the localStorage quota,
+            // which then makes every save of a new record fail.
             if (raw && seedOutdated) {
+                if (window.mphPruneLocationBackups) window.mphPruneLocationBackups(0);
                 try { localStorage.setItem(STORAGE_KEY + '_backup_v' + (storedVersion || '1'), raw); } catch (e) {}
             }
             if (needSeed) {
