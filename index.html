@@ -16077,7 +16077,7 @@
                     }
                 });
             }
-            if (!currentEditingAsset) openNextCodePopup(value);
+            openNextCodePopup(value);
         }
 
         // Rooms recorded for each department on the Location Records page,
@@ -16133,15 +16133,15 @@
                     opt.classList.toggle('selected', opt.dataset.value === dept);
                 });
             }
-            if (!currentEditingAsset) openNextCodePopup(dept);
+            openNextCodePopup(dept);
         }
 
         /* ============================================================
-           Next asset code in series — when a department is picked while
-           ADDING a new asset, a popup lists every code series (item
+           Next asset code in series — when a department is picked in the
+           Add/Edit Asset form, a popup lists every code series (item
            group) already registered under that department's code token,
            each with its next free sequence number. Clicking a row fills
-           the Asset Code field. Reopen any time with the № button.
+           the Asset Code field. Reopen any time with the 🔢 button.
         ============================================================ */
         function _nextCodeEsc(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
