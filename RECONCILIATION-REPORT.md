@@ -157,3 +157,11 @@ localStorage's ~5MB quota was the root cause of lost saves, and pruning backups 
 - **Graceful fallback** — browsers without usable IndexedDB (e.g. some private modes) fall back to the previous quota-safe localStorage path, including the loud NOT-SAVED warning.
 
 **Verified headless:** fresh device seeds 58 departments straight into IndexedDB with zero record bytes in localStorage; a legacy localStorage-only device migrates with user data intact (then merges seed v6, old backups pruned); saves survive reload; a save in one tab appears live in another tab; stale-cloud merge + office consolidation work unchanged over the new store.
+
+---
+
+# Google Drive sync verified for the new store + next-code popup (2026-07-23)
+
+**Google sync:** audited end-to-end against the IndexedDB store. All three upload payload builders (auto-sync, silent save, manual save) read records through the shared store accessor; all four download/restore paths (login sync, manual "Sync from Cloud", cloud-backup restore, merge-on-upload) go through the tombstone-aware union merge and save back through the quota-safe store writer; the dirty-flag ride-along from the Location Records page still triggers uploads. Hardened: every upload now refreshes the records cache from IndexedDB first, so an edit saved seconds earlier in another tab or the embedded frame always rides along.
+
+**New: next asset code in series.** When adding a new asset and picking a department, a popup lists every code series (item group) already registered under that department's code token — e.g. *"133 — Chair, Executive · 75 registered · highest number: 65 → Next: MPH/AE/133/66"* — with a search filter; clicking a row fills the Asset Code field. Reopen any time with the 🔢 button beside the code field. Suggestions are computed live from the register (including aliases, ranges like `19-26`, and zero-padding), so they never collide with an existing code. Verified headless via a real login: series list, ground-truth max sequence, click-to-fill, and collision check all pass.
