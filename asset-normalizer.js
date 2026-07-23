@@ -383,6 +383,103 @@ function locItemKey(it) {
     return 't|' + K(it && it.item) + '|' + K(it && it.description) + '|' + K(it && it.remarks);
 }
 
+/* ---- office-room consolidation ----
+   Surveyed office rooms historically landed under umbrella departments
+   ("Administrative Department", "1st/2nd Floor General Admin", "Front
+   Administrative Department") while the office's own department sat empty
+   (e.g. "Biomedical Engineer Office — 0 rooms"). This table maps each
+   office department to the room titles (all historical variants) that
+   belong to it. mphConsolidateOfficeRooms moves those rooms into their
+   own department, union-merging items when the same-titled room already
+   exists there. It runs inside every location-records merge (seed apply,
+   cloud sync, restore), so old layouts — including ones re-introduced by
+   an unmigrated device's cloud copy — are cleaned up on every pass. */
+var OFFICE_ROOM_SOURCES = [
+    'administrative department',
+    '1st floor general admin',
+    '2nd floor general admin',
+    'front administrative department'
+];
+var OFFICE_ROOM_HOMES = [
+    { to: 'Biomedical Engineer Office', titles: ['Biomedical Engineer Office', 'Biomedical Engineer', '114 - Biomedical Engineer'] },
+    { to: 'Matron Office (DNS)', titles: ['2nd FL Matron Office', 'Matrons Office', 'Matron - Director of Nursing Services (DNS) Office - 2fl', '2nd FL - Deputy Matron Office', 'Deputy Matrons Office'] },
+    { to: 'Accounts Department', titles: ['2nd FL Accounts Department', 'Accounts Department - 2fl', 'General Accounts Office', '2nd FL Accountant Office', 'Accountant Office', "Accountant's Office - 2fl"] },
+    { to: 'Human Resource Department', titles: ['2nd FL Human Resource Department', 'Human Resource Management - Main Office', '2nd FL - Senior Human Resource Officer', 'HR Senior - Office'] },
+    { to: 'Operations Manager Office', titles: ['2nd FL Operations Manager Office', 'Operations Manager Office - 2nd Fl'] },
+    { to: 'ICT Department', titles: ['MIS/ICT Office'] },
+    { to: 'EHR Department', titles: ['Electronical Health Records Office'] },
+    { to: 'Administrator Office', titles: ['Administrator Office'] },
+    { to: 'Chief Executive Officer Office', titles: ['Chief Executive Officer', '(CEO) Chief Executive Officer'] },
+    { to: 'CEO Secretary Office', titles: ['CEO Secretary Office', 'Stationery Room'] },
+    { to: 'SMO & DNS Secretary Office', titles: ['SMO & DNS - Secretary Office', 'SMO & DNS Secretary Office'] },
+    { to: 'Senior Medical Officer Office', titles: ['Senior Medical Officer - Office', 'Senior Medical Officer (SMO)'] },
+    { to: 'Social Worker Office', titles: ['Medical Social Worker Office'] },
+    { to: 'Consultants Office', titles: ['Dr. Campbell Office', 'Dr. Campbell Office (Consultant of Medicine)', 'Dr. Campbell Office (source #113)', 'Surgeon Office - Consultant'] },
+    { to: 'Customer Service Department', titles: ['Customer Service', 'Senior Customer Service Officer - Office'] },
+    { to: 'Cashier Office', titles: ['Main Cashier Office - 2B 1012'] },
+    { to: 'CCTV Office', titles: ['CCTV Office'] },
+    { to: 'Emergency Operational Centre', titles: ['Emergency Operating Centre'] },
+    { to: 'Transport Department', titles: ['Transportation', 'Transportation - Sleeping Quarters'] },
+    { to: 'In Service Department', titles: ['Room: 2B 1002'] }
+];
+window.mphConsolidateOfficeRooms = function (db) {
+    if (!db || !Array.isArray(db.departments)) return false;
+    var changed = false;
+    var byName = {};
+    db.departments.forEach(function (d) { if (d && d.name) byName[K(d.name)] = d; });
+    OFFICE_ROOM_HOMES.forEach(function (map) {
+        var titleSet = {};
+        map.titles.forEach(function (t) { titleSet[K(t)] = true; });
+        var target = byName[K(map.to)];
+        OFFICE_ROOM_SOURCES.forEach(function (srcName) {
+            var src = byName[srcName];
+            if (!src || src === target || !Array.isArray(src.rooms)) return;
+            for (var i = src.rooms.length - 1; i >= 0; i--) {
+                var r = src.rooms[i];
+                if (!r || !titleSet[K(r.title)]) continue;
+                if (!target) {
+                    target = {
+                        id: 'dept_' + K(map.to).replace(/[^a-z0-9]+/g, '_'),
+                        name: map.to, icon: '🏢', location: map.to, note: '', rooms: []
+                    };
+                    db.departments.push(target);
+                    byName[K(map.to)] = target;
+                }
+                target.rooms = target.rooms || [];
+                var existing = null;
+                for (var j = 0; j < target.rooms.length; j++) {
+                    if (K(target.rooms[j].title) === K(r.title)) { existing = target.rooms[j]; break; }
+                }
+                if (existing) {
+                    // same room already at home: union the moved copy's items in
+                    existing.items = existing.items || [];
+                    var ids = {}, keyCount = {};
+                    existing.items.forEach(function (it) {
+                        ids[it.id] = true;
+                        var k = locItemKey(it);
+                        keyCount[k] = (keyCount[k] || 0) + 1;
+                    });
+                    (r.items || []).forEach(function (it) {
+                        if (!it || ids[it.id]) return;
+                        var k = locItemKey(it);
+                        if (keyCount[k] > 0) { keyCount[k]--; return; }
+                        existing.items.push(it);
+                        ids[it.id] = true;
+                    });
+                    ['verifiedBy', 'dateUpdated', 'note'].forEach(function (f) {
+                        if (!existing[f] && r[f]) existing[f] = r[f];
+                    });
+                } else {
+                    target.rooms.push(r);   // moved intact — ids preserved
+                }
+                src.rooms.splice(i, 1);
+                changed = true;
+            }
+        });
+    });
+    return changed;
+};
+
 // Merge `incoming` location records INTO `local` (both {departments:[...]}).
 // Union semantics: local data always survives; incoming-only departments,
 // rooms and items are adopted unless tombstoned. Returns {merged, changed}.
@@ -462,6 +559,8 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
             });
         });
     });
+    // normalize: office rooms always live in their own department
+    if (window.mphConsolidateOfficeRooms(merged)) changed = true;
     if (changed) {
         merged.lastModified = new Date().toISOString();
     }

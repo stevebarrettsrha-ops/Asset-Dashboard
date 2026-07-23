@@ -109,3 +109,24 @@ Resurveys of *existing* rooms sometimes list codes the seed doesn't have — usu
 - *Accountant Office (24 Oct 2024 survey)*: `MPH/ADM/AC/173/01` (document holder) and `MPH/ADM/AC/112/01` (bin) are marked **"Relocated to Area MPH/112/02/ADM/OPRM"**; laptop `MPH/ADM/AC/405/01` (SRHA/MIS/2970) not in the Nov 2025 resurvey.
 - *A&E Doctors Office Two - 2A 008 (26 Jun 2025 resurvey)*: adds `MPH/138/01/CSSD`, `MPH/113/17/AE`, `MPH/174/01/AE`, `MPH/725/06/AE`, label `MPH-I-L-0046`.
 - Isolated one-off codes in ward reports that appear nowhere in the register (e.g. `MPH/BOS/01/PD`, `MPH-IL-…`/`MPH-ID-…` inventory labels in Maternity/Medical Records/OPD reports) — kept out of the seed; they surface in the dashboard's "Reconcile Locations" report when entered.
+
+---
+
+# Seed v6 — Office rooms moved into their own departments (2026-07-23)
+
+**Problem reported:** searching a department like *Biomedical Engineer Office* showed three entries — the umbrella departments that actually held the record (*Administrative Department*, *1st Floor General Admin*) and the office's own department showing **0 rooms • 0 items**, even though the LOCATION RECORDS document clearly has records for it (same for Matron Office, Accounts Department / Accountant Office, CEO, HR, SMO, Operations Manager, CCTV, Cashier, Customer Service, Transport, EOC, ICT, EHR, Social Worker, Consultants…).
+
+**Fix.** A shared consolidation map (`mphConsolidateOfficeRooms` in `asset-normalizer.js`) now knows which surveyed room titles belong to which office department — including every historical title variant (e.g. *"Matrons Office"*, *"2nd FL Matron Office"*, *"Matron - DNS Office - 2fl"* → **Matron Office (DNS)**). It moves those rooms out of the umbrella departments into the office's own department, union-merging items when the room already exists there (so nothing duplicates and nothing is lost). It is applied:
+
+1. **to the seed itself** at build time (fresh devices start with the clean layout);
+2. **inside every location-records merge** — seed apply, login sync, cloud sync, backup restore — so existing devices are migrated on their next load (`LOCATIONS_SEED_VERSION` 5 → 6 forces one merge pass), and an un-migrated device's cloud copy can never re-introduce the old layout.
+
+**Where rooms moved** (source: Administrative Department / 1st–2nd Floor General Admin / Front Administrative Department):
+Biomedical Engineer Office · Matron Office (DNS) (incl. Deputy Matron) · Accounts Department (Accountant Office + Accounts Department rooms) · Human Resource Department (Main Office + Senior HR Officer) · Operations Manager Office · ICT Department (MIS/ICT) · EHR Department · Administrator Office · Chief Executive Officer Office · CEO Secretary Office (incl. Stationery Room) · SMO & DNS Secretary Office · Senior Medical Officer Office · Social Worker Office · Consultants Office (Dr. Campbell + Surgeon offices) · Customer Service Department (incl. Senior CSO office) · Cashier Office (Main Cashier 2B 1012) · CCTV Office · Emergency Operational Centre · Transport Department (incl. Sleeping Quarters) · In Service Department (Room 2B 1002).
+
+Rooms that genuinely belong to the umbrella locations stay put (reception/telephone areas, conference area, lunch/recreation rooms, passage ways, kitchen, police/security posts, Nurse Moores Office).
+
+**Verified headless (Chromium):**
+- Fresh seed: office departments populated (e.g. Biomedical Engineer Office = its 14-item room + register bucket); totals 58 departments / 504 rooms / 12,447 items (2 duplicate-titled rooms merged, zero items lost).
+- A device with the old layout (offices under 1st/2nd Floor General Admin, empty office departments — the reported state) migrates fully on next load: rooms move home, no duplicates, user-created departments/rooms untouched.
+- Merging an old-layout cloud backup into a migrated device re-consolidates automatically; extra items from the cloud copy are still unioned in.

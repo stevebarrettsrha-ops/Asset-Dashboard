@@ -1,7 +1,7 @@
 /* Bump this whenever the seed data below changes so the Location
    Records page refreshes cached seed data in the browser (the page MERGES
    this seed into existing records — user data is never replaced). */
-var LOCATIONS_SEED_VERSION = '5';
+var LOCATIONS_SEED_VERSION = '6';
 
 /* ============================================================
    Location Records — seed data v4 (generated 2026-07-22)
@@ -32,6 +32,16 @@ var LOCATIONS_SEED_VERSION = '5';
    4 Accident & Emergency rooms from the 20 Nov 2024 / 26 Jun 2025
    surveys). New rooms are appended AFTER the v4 array is built so every
    existing seed4 room/item id is unchanged (tombstones stay valid).
+
+   v6 (2026-07-23): office rooms now live in their own departments.
+   Surveyed office records used to sit under umbrella departments
+   (Administrative Department, 1st/2nd Floor General Admin, Front
+   Administrative Department) while e.g. "Biomedical Engineer Office"
+   showed 0 rooms. The shared consolidation map in asset-normalizer.js
+   (mphConsolidateOfficeRooms) moves each office's rooms home — applied
+   to this seed at build time below, and to every device's live data on
+   each merge (seed apply, cloud sync, restore), so old layouts clean
+   themselves up. Room objects move intact; ids are unchanged.
    ============================================================ */
 function SEED_DEPARTMENTS() {
     let seq = 0;
@@ -14048,5 +14058,11 @@ function SEED_DEPARTMENTS() {
             }
         }
     });
+
+    /* v6: move office rooms into their own departments (shared map in
+       asset-normalizer.js — same normalization every merge applies). */
+    if (typeof window !== 'undefined' && window.mphConsolidateOfficeRooms) {
+        window.mphConsolidateOfficeRooms({ departments: deps });
+    }
     return deps;
 }
