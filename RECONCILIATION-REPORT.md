@@ -63,3 +63,49 @@ In the Add/Edit Asset form, departments that have rooms recorded in Location Rec
 - Saving in the embedded page marks the dashboard dirty for auto-sync; the dirty flag also bridges edits made on the standalone page.
 - Register additions applied once (105 assets, idempotent on re-run).
 - Room picker renders 34 expandable departments / 445 rooms and writes department + room correctly.
+
+---
+
+# Seed v5 — Reconciliation against the full LOCATION RECORDS document (2026-07-23)
+
+**Sources compared**
+- `merged_compressed.pdf` — the complete LOCATION RECORDS document (564 pages, **376 room survey reports** across 38 location headings). This is the printed room-by-room survey record and was used as the reference for "which rooms exist".
+- `AllTablesExport.xlsx` (uploaded 2026-07-23) — **byte-identical** to the copy seed v4 was built from (same MD5), so the Access-table export contained nothing new.
+- `AssetRegister_AllYears_20260723.xlsx` — newest system register export (8,775 rows).
+- `locations-seed.js` v4 + `register-seed.js` v2 + `register-additions.js` v1 — the previous seeding.
+
+**Method.** Every report in the PDF was parsed (location, room title, survey date, asset codes). Rooms were matched to seed v4 rooms first by normalised title, then — for renamed/resurveyed rooms — by asset-code overlap using the system's own code identity (`mphCodeKey`, format-insensitive).
+
+## Rooms: 344 matched · 19 renamed/resurveyed · 8 were missing → now seeded
+
+- **344 reports matched a seed room by title** (all wards, OT, OPD, Radiology, Laboratory, Maternity, Paediatrics, stores, admin offices, …).
+- **19 reports are the same physical rooms under different titles/dates** (e.g. *"Doctors Room - 2A 009"* ≙ seed *"Doctors Quarters - 2A 009"*; *"Matron - DNS Office - 2fl"* ≙ *"2nd FL Matron Office"*; the Jul/Nov 2025 admin resurveys of Accounts, HR, Operations Manager, SMO, CEO offices). Verified by code overlap — no action needed.
+- **8 surveyed rooms had never been seeded** — these are the rooms that were left out of the first seeding, now added in seed **v5** with their full item lists transcribed from the PDF:
+
+| Department | Room (as surveyed) | Survey date | Items |
+|---|---|---|---|
+| Field Hospital | Open Area - FH | 9 Dec 2024 | 36 |
+| Field Hospital | Room One | 9 Dec 2024 | 40 |
+| Field Hospital | Room Two | 9 Dec 2024 | 21 |
+| Field Hospital | Staff Area | 9 Dec 2024 | 50 |
+| Accident & Emergency | Treatment and Observation Area - 2A 019 - 2A 020 | 20 Nov 2024 | 38 |
+| Accident & Emergency | Passage of Nurses Quarters | 20 Nov 2024 | 8 |
+| Accident & Emergency | Soiled Utility Room - 2A 018 | 20 Nov 2024 | 4 |
+| Accident & Emergency | Security Post | 26 Jun 2025 | 2 |
+
+**Total seed v5: 58 departments, 506 rooms, 12,447 items** (v4 was 498 rooms / 12,248 items). New rooms are appended *after* the whole v4 structure is built, so every existing seed4 room/item id is byte-identical — user tombstones (deliberate deletions) and the union merge keep working exactly as before. `LOCATIONS_SEED_VERSION` bumped 4 → 5; devices union-merge the new rooms on next load, user data untouched.
+
+## Register: 20260723 export reconciled — 2 assets added
+
+All 8,775 rows of `AssetRegister_AllYears_20260723.xlsx` already exist in the system register (seed v2 + additions) **except two Consultants Office plastic chairs** — `MPH/COADM/133/01` and `MPH/COADM/133/02` (01-FEB-2021, $6,900 each). They ship in `register-additions.js` **v2** and are added additively (never overwriting) on each device's next load.
+
+## Why some departments look "empty" (not actually missing)
+
+The PDF document itself files the admin-office surveys under **Administrative Department** (and 1st/2nd FL variants) — which is where the seed also keeps their room records (e.g. *Administrative Department → 2nd FL Matron Office / 2nd FL Accounts Department / Biomedical Engineer Office*, *1st/2nd Floor General Admin → CEO / Administrator / SMO offices*). The separate one-per-office departments in the dashboard (Human Resource Department, Matron Office (DNS), Operations Manager Office, CEO Secretary Office, …) therefore contain only their *"Register Items — Room Not Yet Assigned"* bucket. Nothing is lost — but if you'd prefer each office's room record to live inside its own department instead of under "Administrative Department", that's a rename/move we can do next.
+
+## Flagged for physical verification (not auto-merged)
+
+Resurveys of *existing* rooms sometimes list codes the seed doesn't have — usually because items were re-tagged or relocated between survey rounds. These were **not** auto-added (risk of double-counting the same physical item); verify on the floor:
+- *Accountant Office (24 Oct 2024 survey)*: `MPH/ADM/AC/173/01` (document holder) and `MPH/ADM/AC/112/01` (bin) are marked **"Relocated to Area MPH/112/02/ADM/OPRM"**; laptop `MPH/ADM/AC/405/01` (SRHA/MIS/2970) not in the Nov 2025 resurvey.
+- *A&E Doctors Office Two - 2A 008 (26 Jun 2025 resurvey)*: adds `MPH/138/01/CSSD`, `MPH/113/17/AE`, `MPH/174/01/AE`, `MPH/725/06/AE`, label `MPH-I-L-0046`.
+- Isolated one-off codes in ward reports that appear nowhere in the register (e.g. `MPH/BOS/01/PD`, `MPH-IL-…`/`MPH-ID-…` inventory labels in Maternity/Medical Records/OPD reports) — kept out of the seed; they surface in the dashboard's "Reconcile Locations" report when entered.
