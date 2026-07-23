@@ -177,3 +177,12 @@ localStorage's ~5MB quota was the root cause of lost saves, and pruning backups 
 **Verified headless** by recreating the reported state (Female Medical Ward with 19 ghost rooms → 42 rooms): after one load it returns to **23 rooms, zero empty**, ghost-typed data preserved, and 5 legitimate double-survey rooms in the seed itself also merged (A&E Staff Lounge 3J 010, Treatment/Observation 2A 019, OT Orderly Lounge 2Q-020, OT Control/Scheduling 2Q-002, FSW Room 2R 005).
 
 **`location-records-restore.json`** (repo root) — the complete reconciled dataset (58 departments · 499 rooms · 12,444 items from the LOCATION RECORDS document + Access export + register), shaped for the Location Records **Restore → Merge** button. Uploading it on any device fills in anything missing; on an up-to-date device it adds exactly nothing (verified idempotent: +0 departments, +0 rooms, +0 items).
+
+---
+
+# Dashboard → room assignment, series popup fixes, register self-heal (2026-07-23)
+
+1. **Assign inventory to rooms from the dashboard.** New 📍 button on every Asset Register row opens a searchable Department → Room picker (rooms listed with item counts, plus "Department only" and "＋ New room…"). Choosing a room updates the asset's department/room, writes an audit entry, and adds the item to that room's Location Record — moved there from any other room that listed its code, so an item is never recorded in two places. The same record-sync now also runs when an asset is saved from the Add/Edit form with a room picked. Changes flag the cloud sync so they ride to Google Drive.
+2. **Next-code series now scans every source.** The popup was blank on devices whose local register copy is sparse. Series are now computed across the dashboard inventory, the stored asset register AND every item saved in Location Records (same code identity counted once) — verified to produce the full A&E series (incl. `MPH/AE/133/66`) with the register completely empty.
+3. **Popup stacking fixed.** The next-code and assign-to-room popups now sit above the Add Asset modal (z-index 100001 vs 10000) instead of opening behind it.
+4. **Register self-heal.** A device observed with only 75 assets: the "seed applied" flag survived an old data wipe, so the 9,186-asset structured register never re-applied. `applyStructureMigration` now re-applies (idempotent, code-identity merge, local assets kept) whenever the live register holds less than half the seed despite the flag, and re-runs the additions afterwards. Verified: a gutted 75-asset device recovers to 9,286 assets on next load.

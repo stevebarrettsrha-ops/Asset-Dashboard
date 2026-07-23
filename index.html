@@ -5600,8 +5600,11 @@
             background: rgba(26, 188, 156, 0.10) !important;
         }
 
-        /* Keep the asset-code picker above the Add Asset modal (z-index 10000) */
-        #assetCodePickerModal {
+        /* Keep the asset-code picker, next-code-in-series and assign-to-room
+           popups above the Add Asset modal (z-index 10000) */
+        #assetCodePickerModal,
+        #nextCodeModal,
+        #assignRoomModal {
             z-index: 100001;
         }
 
@@ -10313,6 +10316,22 @@
                 <input type="text" id="nextCodeSearch" class="asset-code-search-box" placeholder="Filter by group number or item name..." oninput="renderNextCodeList()" style="width: 100%; margin-bottom: 10px;">
                 <p style="font-size: 0.82rem; color: var(--text-secondary, #7078a0); margin: 0 0 10px;">Code series already registered for this department, each with its next free number. Click one to fill the Asset Code field.</p>
                 <div id="nextCodeList" style="max-height: 52vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Asset to Department & Room Modal -->
+    <div class="asset-code-modal" id="assignRoomModal">
+        <div class="asset-code-modal-content" style="max-width: 560px;">
+            <div class="asset-code-modal-header">
+                <h2>📍 Assign to Department &amp; Room</h2>
+                <button class="asset-code-modal-close" onclick="closeAssignRoomModal()">&times;</button>
+            </div>
+            <div class="asset-code-modal-body">
+                <p id="assignRoomAsset" style="font-size: 0.82rem; font-weight: 600; margin: 0 0 10px;"></p>
+                <input type="text" id="assignRoomSearch" class="asset-code-search-box" placeholder="Search departments and rooms..." oninput="renderAssignRoomList()" style="width: 100%; margin-bottom: 10px;">
+                <p style="font-size: 0.78rem; color: var(--text-secondary, #7078a0); margin: 0 0 10px;">Pick a room to place this item in — it is added to that room's Location Record (and removed from any other room that listed it).</p>
+                <div id="assignRoomList" style="max-height: 52vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;"></div>
             </div>
         </div>
     </div>
@@ -16156,36 +16175,59 @@
             }
             return '';
         }
+        // Series are computed across EVERY source of codes on the device —
+        // the dashboard inventory (in-memory), the stored asset register,
+        // and every item recorded in the Location Records — so the next
+        // number is right even on a device whose register copy is sparse.
+        // The same physical item (same code identity) is only counted once.
         function computeNextCodeSeries(deptName) {
             const token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
             const tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
-            const assets = (typeof allAssetsData !== 'undefined' && Array.isArray(allAssetsData) && allAssetsData.length)
-                ? allAssetsData : loadAssetsFromStorage();
+            const deptK = String(deptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
             const groups = {};
-            assets.forEach(a => {
+            const seen = {};   // code identities already counted (across sources)
+            function feed(code, ownerDeptName) {
+                if (!code) return false;
+                const p = window.mphParseCode ? window.mphParseCode(code) : null;
+                if (!p || !p.item) return false;
+                const pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+                // the series is defined by the code's own department token;
+                // unmapped/custom departments match by assignment instead
+                const ownerK = String(ownerDeptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                const match = tokN ? (pTok === tokN) : (!pTok && ownerK === deptK);
+                if (!match) return false;
+                const ck = window.mphCodeKey ? window.mphCodeKey(code) : String(code).toUpperCase();
+                if (ck && seen[ck]) return true;   // same item seen in another source
+                if (ck) seen[ck] = true;
+                const g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
+                g.count++;
+                String(p.seq || '').split('-').forEach(s => {
+                    const n = parseInt(s, 10);
+                    if (!isNaN(n)) {
+                        if (n > g.max) g.max = n;
+                        if (/^\d+$/.test(s)) g.pad = Math.max(g.pad, s.length);
+                    }
+                });
+                return true;
+            }
+            // Source 1: the dashboard inventory currently in memory
+            // Source 2: the stored asset register (covers a stale in-memory copy)
+            const inMemory = (typeof allAssetsData !== 'undefined' && Array.isArray(allAssetsData)) ? allAssetsData : [];
+            let stored = [];
+            try { stored = loadAssetsFromStorage() || []; } catch (e) {}
+            inMemory.concat(stored).forEach(a => {
+                if (!a) return;
                 const codes = [a.assetCode].concat(a.aliases || []);
                 for (const c of codes) {
-                    if (!c) continue;
-                    const p = window.mphParseCode ? window.mphParseCode(c) : null;
-                    if (!p || !p.item) continue;
-                    const pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
-                    // the series is defined by the code's own department token;
-                    // unmapped/custom departments match by assignment instead
-                    const match = tokN ? (pTok === tokN)
-                                       : (!pTok && String(a.department || '') === deptName);
-                    if (!match) continue;
-                    const g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
-                    g.count++;
-                    String(p.seq || '').split('-').forEach(s => {
-                        const n = parseInt(s, 10);
-                        if (!isNaN(n)) {
-                            if (n > g.max) g.max = n;
-                            if (/^\d+$/.test(s)) g.pad = Math.max(g.pad, s.length);
-                        }
-                    });
-                    break;   // one series entry per asset
+                    if (feed(c, a.department)) break;   // one series entry per asset
                 }
             });
+            // Source 3: every item saved in the Location Records
+            try {
+                const rec = window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny();
+                (rec && rec.departments || []).forEach(d => (d.rooms || []).forEach(r =>
+                    (r.items || []).forEach(it => feed(it.assetCode, d.name))));
+            } catch (e) {}
             return Object.values(groups).map(g => {
                 const next = g.max + 1;
                 const seq = String(next).padStart(Math.min(g.pad, 3), '0');
@@ -16249,6 +16291,163 @@
                 input.focus();
             }
             closeNextCodePopup();
+        }
+
+        /* ============================================================
+           Assign an inventory asset to a department & room (📍 button
+           in the Asset Register). Assigning updates the asset's
+           department/room AND its Location Record: the item appears in
+           the chosen room's record, moved there from any other room
+           that held its code — the register and the room records stay
+           in step. The same sync runs when an asset is saved with a
+           room picked in the Add/Edit form.
+        ============================================================ */
+        function _assignToast(msg) {
+            let el = document.getElementById('assignRoomToast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'assignRoomToast';
+                el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#27ae60; color:#fff; padding:10px 18px; border-radius:10px; font-size:0.85rem; z-index:99999; box-shadow:0 6px 18px rgba(0,0,0,0.25); transition:opacity 0.4s;';
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.style.opacity = '1';
+            clearTimeout(el._t);
+            el._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+        }
+        // Mirror an asset into its room's Location Record (move semantics:
+        // the item leaves any other room that carried its asset code).
+        function syncAssetToLocationRecord(asset, deptName, roomTitle) {
+            try {
+                deptName = deptName || asset.department;
+                if (!deptName) return false;
+                const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
+                if (!Array.isArray(db.departments)) db.departments = [];
+                const KX = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase();
+                let dept = db.departments.find(d => KX(d.name) === KX(deptName));
+                if (!dept) {
+                    dept = { id: 'custom_d_' + Date.now().toString(36), name: deptName, icon: '🏢', location: deptName, note: '', rooms: [] };
+                    db.departments.push(dept);
+                }
+                dept.rooms = dept.rooms || [];
+                const bucketTitle = 'Register Items — Room Not Yet Assigned';
+                const targetTitle = (roomTitle && String(roomTitle).trim()) ? String(roomTitle).trim() : bucketTitle;
+                let room = dept.rooms.find(r => KX(r.title) === KX(targetTitle));
+                if (!room) {
+                    room = { id: 'assign_r_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), title: targetTitle, verifiedBy: '', dateUpdated: '', note: '', items: [] };
+                    dept.rooms.push(room);
+                }
+                room.items = room.items || [];
+                const key = (window.mphCodeKey && asset.assetCode) ? window.mphCodeKey(asset.assetCode) : null;
+                if (key) {
+                    // the physical item lives in exactly one room
+                    db.departments.forEach(d => (d.rooms || []).forEach(r => {
+                        if (r === room || !Array.isArray(r.items)) return;
+                        r.items = r.items.filter(it => {
+                            const k = window.mphCodeKey ? window.mphCodeKey(it.assetCode) : null;
+                            return k !== key;
+                        });
+                    }));
+                }
+                const already = key && room.items.some(it => window.mphCodeKey(it.assetCode) === key);
+                if (!already) {
+                    room.items.push({
+                        id: 'assign_i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                        item: asset.itemType || asset.description || '',
+                        description: asset.description || '',
+                        assetCode: asset.assetCode || '',
+                        remarks: asset.serialModel ? ('Serial: ' + asset.serialModel) : ''
+                    });
+                }
+                if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
+                try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                if (typeof notifyLocationRecordsFrame === 'function') notifyLocationRecordsFrame();
+                return true;
+            } catch (e) {
+                console.warn('Location record sync failed:', e);
+                return false;
+            }
+        }
+        let _assignRoomAssetId = null;
+        let _assignExpanded = {};
+        function openAssignRoomModal(assetId) {
+            _assignRoomAssetId = assetId;
+            _assignExpanded = {};
+            const asset = allAssetsData.find(a => a.id === assetId);
+            if (!asset) return;
+            const sub = document.getElementById('assignRoomAsset');
+            if (sub) sub.textContent = (asset.assetCode || 'no code') + ' — ' + (asset.description || asset.itemType || '') +
+                (asset.department ? '  ·  currently: ' + asset.department + (asset.room ? ' › ' + asset.room : '') : '  ·  no department yet');
+            const search = document.getElementById('assignRoomSearch');
+            if (search) search.value = '';
+            renderAssignRoomList();
+            const modal = document.getElementById('assignRoomModal');
+            if (modal) modal.style.display = 'flex';
+            if (search) setTimeout(() => search.focus(), 50);
+        }
+        function closeAssignRoomModal() {
+            const modal = document.getElementById('assignRoomModal');
+            if (modal) modal.style.display = 'none';
+            _assignRoomAssetId = null;
+        }
+        function toggleAssignDept(name) {
+            _assignExpanded[name] = !_assignExpanded[name];
+            renderAssignRoomList();
+        }
+        function renderAssignRoomList() {
+            const listEl = document.getElementById('assignRoomList');
+            if (!listEl) return;
+            const term = (document.getElementById('assignRoomSearch') ? document.getElementById('assignRoomSearch').value : '').toLowerCase().trim();
+            const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
+            const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            let html = '';
+            (db.departments || []).forEach(d => {
+                const rooms = (d.rooms || []).filter(r => !/Room Not Yet Assigned/i.test(r.title || ''));
+                const deptHit = (d.name || '').toLowerCase().includes(term);
+                const roomHits = term ? rooms.filter(r => (r.title || '').toLowerCase().includes(term)) : rooms;
+                if (term && !deptHit && !roomHits.length) return;
+                const open = term ? true : !!_assignExpanded[d.name];
+                const shown = (term && !deptHit) ? roomHits : rooms;
+                html += `<div onclick="toggleAssignDept('${esc(d.name).replace(/'/g, '&#39;')}')" style="display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; background:rgba(102,126,234,0.06); border-bottom:1px solid rgba(0,0,0,0.06); font-weight:600; font-size:0.85rem;">
+                    <span>${open ? '▾' : '▸'}</span><span>${esc(d.icon || '🏢')}</span>
+                    <span style="flex:1;">${esc(d.name)}</span>
+                    <span style="font-weight:400; font-size:0.72rem; color:var(--text-secondary,#7078a0);">${rooms.length} room${rooms.length === 1 ? '' : 's'}</span>
+                </div>`;
+                if (open) {
+                    shown.forEach(r => {
+                        html += `<div onclick="assignRoomChoose('${esc(d.name).replace(/'/g, '&#39;')}', '${esc(r.title).replace(/'/g, '&#39;')}')"
+                            style="display:flex; align-items:center; gap:8px; padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04); font-size:0.82rem;"
+                            onmouseover="this.style.background='rgba(39,174,96,0.08)'" onmouseout="this.style.background=''">
+                            <span style="flex:1;">${esc(r.title)}</span>
+                            <span style="font-size:0.7rem; color:var(--text-secondary,#7078a0);">${(r.items || []).length} items</span>
+                        </div>`;
+                    });
+                    html += `<div onclick="assignRoomChoose('${esc(d.name).replace(/'/g, '&#39;')}', '')"
+                        style="padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04); font-size:0.78rem; color:var(--text-secondary,#7078a0);"
+                        onmouseover="this.style.background='rgba(102,126,234,0.06)'" onmouseout="this.style.background=''">📦 Department only (no specific room yet)</div>`;
+                    html += `<div onclick="assignRoomNew('${esc(d.name).replace(/'/g, '&#39;')}')"
+                        style="padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.06); font-size:0.78rem; color:#667eea;"
+                        onmouseover="this.style.background='rgba(102,126,234,0.06)'" onmouseout="this.style.background=''">＋ New room…</div>`;
+                }
+            });
+            listEl.innerHTML = html || '<div style="padding:16px; text-align:center; color:var(--text-secondary,#7078a0); font-size:0.85rem;">No departments or rooms match.</div>';
+        }
+        function assignRoomNew(deptName) {
+            const title = prompt('New room title for ' + deptName + ':');
+            if (title && title.trim()) assignRoomChoose(deptName, title.trim());
+        }
+        function assignRoomChoose(deptName, roomTitle) {
+            const asset = allAssetsData.find(a => a.id === _assignRoomAssetId);
+            if (!asset) { closeAssignRoomModal(); return; }
+            asset.department = deptName;
+            asset.room = roomTitle || '';
+            saveAssetsToStorage(allAssetsData);
+            addAuditEntry(asset.assetCode, 'Assigned to Room', deptName, roomTitle ? ('Assigned to ' + deptName + ' › ' + roomTitle) : ('Assigned to ' + deptName));
+            syncAssetToLocationRecord(asset, deptName, roomTitle);
+            closeAssignRoomModal();
+            if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+            _assignToast('📍 ' + (asset.assetCode || 'Asset') + ' → ' + deptName + (roomTitle ? ' › ' + roomTitle : ''));
         }
 
         // Populate asset modal department dropdown
@@ -17067,6 +17266,9 @@
                     // Sync changes to Board of Survey disposal records
                     syncMainAssetToDisposals(assetData, currentEditingAsset);
 
+                    // Mirror an explicit room choice into Location Records
+                    if (assetData.room) syncAssetToLocationRecord(assetData, assetData.department, assetData.room);
+
                     alert('✅ Asset updated successfully!');
                 }
             } else {
@@ -17085,12 +17287,14 @@
                         expandedAsset.salvageValue = calcSalvageValue(assetData.unitPrice, assetData.category || '');
                         assets.push(expandedAsset);
                         addAuditEntry(expandedAsset.assetCode, 'Asset Created', expandedAsset.department, 'New asset added to inventory (expanded from qty ' + qty + ')');
+                        if (expandedAsset.room) syncAssetToLocationRecord(expandedAsset, expandedAsset.department, expandedAsset.room);
                     }
                     alert(`✅ ${qty} individual assets created! (${baseCode}-01 through ${baseCode}-${String(qty).padStart(padLen, '0')})`);
                 } else {
                     assetData.quantity = 1;
                     assets.push(assetData);
                     addAuditEntry(assetData.assetCode, 'Asset Created', assetData.department, 'New asset added to inventory');
+                    if (assetData.room) syncAssetToLocationRecord(assetData, assetData.department, assetData.room);
                     alert('✅ Asset added successfully!');
                 }
             }
@@ -17182,9 +17386,20 @@
             if (!seed || !Array.isArray(seed.assets) || !seed.assets.length) return false;
             let applied = 0;
             try { applied = parseInt(localStorage.getItem(STRUCTURE_VERSION_KEY) || '0', 10) || 0; } catch (e) {}
-            if (applied >= seed.version) return false;
 
             const live = loadAssetsFromStorage();
+            if (applied >= seed.version) {
+                // Self-heal: the "already applied" flag can survive a data wipe
+                // (the old destructive-sync era), leaving a device with a tiny
+                // register (e.g. 75 assets) that never re-seeds. The merge
+                // below is idempotent — it matches by code identity and keeps
+                // every local asset — so when most of the register is missing,
+                // re-apply it despite the flag.
+                if (live.length >= Math.floor(seed.assets.length / 2)) return false;
+                try { localStorage.removeItem('assetRegisterAdditionsVersion'); } catch (e) {}
+                console.warn('Register looks incomplete (' + live.length + ' assets vs ' +
+                    seed.assets.length + ' in the seed) — re-applying the structured register.');
+            }
             // Safety backup of the register exactly as it was before restructuring
             try {
                 _dbSet(STORAGE_KEY + '_backup_structure_v' + seed.version, JSON.parse(JSON.stringify(live)));
@@ -29389,6 +29604,7 @@
                             <td>${commentHtml}</td>
                             <td style="white-space: nowrap;">
                                 ${disposed ? `<button class="btn-delete-inline btn-reverse" data-asset-code="${escapeHtml(asset.assetCode)}" onclick="reverseDisposalByAssetCode(this.getAttribute('data-asset-code'))" title="Reverse Disposal - Mark as Not Disposed" style="margin-right: 4px;">↩️</button>` : ''}
+                                <button class="btn-delete-inline btn-duplicate" onclick="openAssignRoomModal('${asset.id}')" title="Assign to Department & Room (adds the item to that room's Location Record)" style="margin-right: 4px;">📍</button>
                                 <button class="btn-delete-inline btn-edit" onclick="viewAssetDetails('${asset.id}')" title="Edit Asset" style="margin-right: 4px;">✏️</button>
                                 <button class="btn-delete-inline btn-duplicate" onclick="openDuplicateAssetModal('${asset.id}')" title="Duplicate Asset" style="margin-right: 4px;">📋</button>
                                 <button class="btn-delete-inline" onclick="deleteAssetFromRegister('${asset.id}')" title="Delete Asset">🗑️</button>
