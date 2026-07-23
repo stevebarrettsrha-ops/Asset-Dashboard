@@ -577,6 +577,37 @@
             font-size: 16px; font-weight: 700; margin: 20px 0 10px 0; padding-bottom: 8px;
             border-bottom: 2px solid var(--border-color);
         }
+
+        /* ============================================
+           MOBILE UI IMPROVEMENTS
+           ============================================ */
+        @media (max-width: 768px) {
+            /* Keep form controls at 16px so iOS Safari doesn't zoom on focus */
+            input[type="text"], input[type="search"], input[type="number"],
+            input[type="email"], input[type="password"], input[type="date"],
+            select, textarea {
+                font-size: 16px !important;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            /* Comfortable touch targets */
+            .btn, .hamburger-btn {
+                min-height: 44px;
+            }
+
+            /* Momentum scrolling for wide tables */
+            .table-container,
+            .preview-table-wrap {
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .stats-row {
+                gap: 10px;
+            }
+        }
     </style>
 </head>
 <body>

@@ -290,6 +290,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
+            /* keep the header controls clear of the fixed night-mode toggle */
+            padding-right: 56px;
         }
 
         .header-left {
@@ -6216,6 +6218,158 @@
         }
         .catalog-show-more:hover {
             background: var(--table-hover);
+        }
+
+        /* ============================================
+           MOBILE UI IMPROVEMENTS
+           (kept last so these override earlier rules)
+           ============================================ */
+
+        /* Tablet & below: the sidebar is off-canvas and two fixed round
+           buttons (hamburger left, night-mode right) float over the sticky
+           header, so the header must clear them. */
+        @media (max-width: 900px) {
+            .header-top {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                /* clearance is handled per-row below; .header-left clears
+                   the toggles, the controls row uses the full width */
+                padding-right: 0;
+            }
+
+            /* Title row clears the fixed hamburger (left) and night-mode
+               toggle (right) */
+            .header-left {
+                padding-left: 56px;
+                padding-right: 52px;
+                min-height: 44px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            /* Controls row (cloud sync / user info / settings) wraps instead
+               of overflowing on narrow screens */
+            .header-top > div:not(.header-left) {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .user-info {
+                flex-wrap: wrap;
+                white-space: normal;
+            }
+
+            /* Align the night-mode toggle with the hamburger so the pair
+               visually flank the header */
+            .night-mode-toggle,
+            body:not(.sidebar-hidden) .night-mode-toggle {
+                width: 44px;
+                height: 44px;
+                font-size: 1.1em;
+                top: 14px;
+                right: 12px;
+            }
+
+            /* Anchor the cloud-sync dropdown to the left so it stays
+               on-screen (its trigger sits on the left in stacked layout) */
+            .cloud-dropdown-menu {
+                left: 0;
+                right: auto;
+                max-width: min(320px, calc(100vw - 30px));
+            }
+
+            /* Off-canvas sidebar: never wider than the phone, contain
+               scrolling so the page behind doesn't move */
+            .sidebar,
+            .sidebar.collapsed {
+                width: min(290px, 85vw);
+            }
+
+            .sidebar-nav {
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .sidebar-nav-item {
+                padding: 12px;
+                min-height: 44px;
+            }
+
+            /* Lock body scroll while the mobile sidebar is open */
+            body.sidebar-mobile-open {
+                overflow: hidden;
+            }
+        }
+
+        /* Phones */
+        @media (max-width: 768px) {
+            /* iOS Safari auto-zooms into fields with fonts below 16px;
+               keep form controls at 16px so focus doesn't zoom the page */
+            input[type="text"], input[type="search"], input[type="number"],
+            input[type="email"], input[type="password"], input[type="date"],
+            input[type="datetime-local"], input[type="month"], input[type="tel"],
+            input[type="url"], select, textarea {
+                font-size: 16px !important;
+            }
+
+            /* Comfortable touch targets */
+            .btn, .tab-btn, .search-btn, .clear-btn, .scanner-btn,
+            .cloud-menu-btn, .cloud-menu-item, .settings-nav-btn,
+            .page-action-bar button, .modal-footer button, .sidebar-logout-btn {
+                min-height: 44px;
+            }
+
+            .close-modal {
+                min-width: 44px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Tighter dashboard chrome on phones */
+            .dashboard-container {
+                padding: 12px;
+            }
+
+            .kpi-section {
+                gap: 12px;
+            }
+
+            .kpi-card {
+                padding: 18px;
+            }
+
+            .kpi-value {
+                font-size: 1.8em;
+            }
+
+            .search-section,
+            .chart-section .chart-card,
+            .register-container,
+            .disposal-container {
+                padding: 15px;
+            }
+
+            /* Floating export button: smaller and clear of the screen edge */
+            .export-btn {
+                bottom: 16px;
+                right: 16px;
+                padding: 12px 20px;
+                font-size: 0.9em;
+            }
+
+            /* Smooth momentum scrolling for every horizontally scrolling
+               table wrapper */
+            .table-container,
+            .audit-table-container,
+            .disposal-table-container,
+            .register-table-container,
+            .asset-code-table-wrapper {
+                -webkit-overflow-scrolling: touch;
+            }
         }
     </style>
 </head>
@@ -18637,9 +18791,11 @@
 
         function sidebarNavigate(pageNum) {
             showPage(pageNum);
-            // Close mobile sidebar after navigation
+            // Close mobile sidebar after navigation and jump to the top of
+            // the newly opened page
             if (window.innerWidth <= 900) {
                 closeMobileSidebar();
+                window.scrollTo(0, 0);
             }
         }
 
@@ -19656,6 +19812,7 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.add('mobile-open');
             overlay.classList.add('visible');
+            document.body.classList.add('sidebar-mobile-open');
         }
 
         function closeMobileSidebar() {
@@ -19663,7 +19820,34 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.remove('mobile-open');
             overlay.classList.remove('visible');
+            document.body.classList.remove('sidebar-mobile-open');
         }
+
+        // Keep the hamburger button in sync with the viewport. Its
+        // visibility is set with an inline style at login, so without this
+        // it never appears/disappears when the device rotates or the
+        // window is resized across the 900px breakpoint.
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileToggle = document.getElementById('sidebarMobileToggle');
+            const loggedIn = sidebar && sidebar.style.display !== 'none';
+            if (mobileToggle) {
+                mobileToggle.style.display = (loggedIn && window.innerWidth <= 900) ? 'flex' : 'none';
+            }
+            if (window.innerWidth > 900) {
+                closeMobileSidebar();
+            }
+        });
+
+        // Close the mobile sidebar with the Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('mobile-open')) {
+                    closeMobileSidebar();
+                }
+            }
+        });
 
         function showSidebar() {
             const sidebar = document.getElementById('sidebar');
