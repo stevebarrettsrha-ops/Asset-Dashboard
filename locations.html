@@ -610,20 +610,7 @@
         } else {
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); ok = true; } catch (e) {}
         }
-        if (!ok) {
-            // Never fail silently: the change is still on screen but did NOT
-            // persist — losing it on reload without warning is data loss.
-            toast('⚠️ NOT SAVED — browser storage is full', 'error');
-            if (!window._mphStorageFullWarned) {
-                window._mphStorageFullWarned = true;
-                try {
-                    alert('⚠️ Your browser storage is full — this change could NOT be saved.\n\n' +
-                          'Click "Backup" now to download a copy of your records so nothing is lost, ' +
-                          'then reload the page. If this keeps happening, clear old site data for this ' +
-                          'site (or use another browser profile) and restore from your backup.');
-                } catch (e) {}
-            }
-        }
+        if (!ok) warnNotSaved();
         // Flag the change for the dashboard's cloud auto-sync (index.html
         // checks this key and uploads location records with the next sync,
         // even when the edit happened on this standalone page).
@@ -635,6 +622,23 @@
             }
         } catch (e) { /* ignore */ }
     }
+    // Never fail silently: a change is on screen but did NOT persist — losing
+    // it on reload without warning is data loss. Fired synchronously when a
+    // save can't be written, and asynchronously when the IndexedDB write later
+    // rejects (registered below) so the optimistic return can't hide a failure.
+    function warnNotSaved() {
+        toast('⚠️ NOT SAVED — browser storage is full', 'error');
+        if (!window._mphStorageFullWarned) {
+            window._mphStorageFullWarned = true;
+            try {
+                alert('⚠️ Your browser storage is full — this change could NOT be saved.\n\n' +
+                      'Click "Backup" now to download a copy of your records so nothing is lost, ' +
+                      'then reload the page. If this keeps happening, clear old site data for this ' +
+                      'site (or use another browser profile) and restore from your backup.');
+            } catch (e) {}
+        }
+    }
+    if (window.mphOnLocationSaveError) window.mphOnLocationSaveError(warnNotSaved);
     const SEED_VERSION_KEY = 'hospitalLocationRecordsSeedVersion';
     function currentSeedVersion() {
         return (typeof LOCATIONS_SEED_VERSION !== 'undefined') ? String(LOCATIONS_SEED_VERSION) : '1';
@@ -945,9 +949,13 @@
     function selectDept(id) { selectedDeptId = id; selectedRoomId = null; render(); window.scrollTo(0,0); }
     function selectRoom(id) { selectedRoomId = id; render(); window.scrollTo(0,0); document.querySelectorAll('.cell-input').forEach(autoGrow); }
 
+    // Debounced: each keystroke re-scans every department/room/item and
+    // rebuilds the view; coalescing to ~160ms keeps typing smooth at scale.
+    let _searchTimer = null;
     function onSearch() {
         searchTerm = document.getElementById('deptSearch').value.trim();
-        render();
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(render, 160);
     }
 
     /* ============================================================
@@ -1270,7 +1278,13 @@
         destRoom.items = destRoom.items || [];
         const key = window.mphCodeKey && it.assetCode ? window.mphCodeKey(it.assetCode) : null;
         const dup = key && destRoom.items.find(x => window.mphCodeKey(x.assetCode) === key);
-        if (!dup) destRoom.items.push(it);
+        if (!dup) {
+            destRoom.items.push(it);
+        } else {
+            // same code already there: don't drop the moved row's data —
+            // fill any blank fields on the existing item from the moved one
+            ['item', 'description', 'remarks'].forEach(f => { if (!dup[f] && it[f]) dup[f] = it[f]; });
+        }
         save();
         // re-home the matching main-register asset (department + room), and
         // flag the dashboard so it syncs

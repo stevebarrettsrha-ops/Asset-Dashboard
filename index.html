@@ -8745,7 +8745,7 @@
                     </div>
                     <div class="register-search-box">
                         <input type="text" id="registerSearchInput" placeholder="Search by asset code, description, supplier..."
-                               oninput="filterAssetRegister()">
+                               oninput="debouncedFilterAssetRegister()">
                     </div>
                     <div class="register-filter-group" style="display: flex; align-items: center;">
                         <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer; white-space: nowrap;">
@@ -12680,6 +12680,46 @@
             return loadAssetsFromStorage();
         }
 
+        // Single source of truth for the Google Drive backup payload. Every
+        // upload path (auto-sync, silent save, manual save) builds it here so a
+        // new backed-up field or a version bump can never be added to some
+        // paths and forgotten in others — a divergence that only surfaces at
+        // restore time. Keep this the ONLY place that assembles backupData.
+        function buildBackupPayload() {
+            return {
+                version: '1.4',
+                timestamp: new Date().toISOString(),
+                savedBy: currentUser ? currentUser.username : 'Unknown',
+                data: {
+                    assets: assetsForCloudUpload(),
+                    qrCodeRegistry: loadQRRegistry(),
+                    auditTrail: loadAuditFromStorage(),
+                    departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
+                    categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+                    disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
+                    deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
+                    disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
+                    portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
+                    portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
+                    monthComments: loadMonthComments(),
+                    locationRecords: getLocationRecords(),
+                    locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
+                    localUserSettings: localUserSettings,
+                    localUsers: localUsers, // Backup local users (passwords are hashed)
+                    form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
+                }
+            };
+        }
+
+        // Single accessor for the Location Records object (IndexedDB-backed
+        // store, with the legacy localStorage copy as fallback) — replaces the
+        // read ternary that was duplicated ~8 times.
+        function getLocationRecords() {
+            return window.mphGetLocationRecordsAny
+                ? window.mphGetLocationRecordsAny()
+                : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null');
+        }
+
         async function performAutoSync() {
             if (autoSyncInProgress) return;
             if (!isCloudConnected || !googleAccessToken) return;
@@ -12690,9 +12730,14 @@
                 if (localStorage.getItem('hospitalLocationRecordsDirty') === '1') dataIsDirty = true;
             } catch (e) { /* ignore */ }
             if (!dataIsDirty) return; // Skip sync if no local changes
-            dataIsDirty = false;
+            // NOTE: the dirty flag is NOT cleared here. It is cleared only
+            // after a confirmed successful upload (below). Clearing it up
+            // front meant a failed upload silently dropped the edit from sync
+            // forever — the change would never re-attempt until an unrelated
+            // future edit re-set the flag.
 
             autoSyncInProgress = true;
+            let uploadSucceeded = false;
 
             try {
                 // Ensure we have a file ID
@@ -12708,6 +12753,7 @@
                 // Step 1: Download cloud data (OAuth for the owner, public
                 // API-key fallback for other accounts reading the shared backup)
                 let cloudData = null;
+                let downloadOk = !cloudFileId;   // no remote file yet ⇒ nothing to merge, safe to create
                 if (cloudFileId) {
                     try {
                         const dlResp = await fetchBackupMediaResponse(cloudFileId);
@@ -12718,12 +12764,21 @@
                         }
                         if (dlResp && dlResp.ok) {
                             cloudData = await dlResp.json();
+                            downloadOk = true;
+                        } else if (dlResp && dlResp.status === 404) {
+                            downloadOk = true;   // file genuinely gone ⇒ re-create it
                         }
                     } catch (e) {
                         console.log('[AutoSync] Download error:', e.message);
-                        autoSyncInProgress = false;
-                        return;
                     }
+                }
+                // A transient download failure (5xx/network) must NOT proceed to
+                // overwrite the cloud with un-merged local data — that would
+                // clobber newer records another device just uploaded. Abort and
+                // retry next cycle (dirty flag stays set).
+                if (!downloadOk) {
+                    console.log('[AutoSync] Skipping upload — cloud read failed, will retry');
+                    return;
                 }
 
                 // Step 2: Merge cloud data into local
@@ -12735,29 +12790,7 @@
                 // Pick up location-record edits saved moments ago in another
                 // tab/frame so the upload always carries the latest state.
                 if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
-                const backupData = {
-                    version: '1.4',
-                    timestamp: new Date().toISOString(),
-                    savedBy: currentUser ? currentUser.username : 'Unknown',
-                    data: {
-                        assets: assetsForCloudUpload(),
-                        qrCodeRegistry: loadQRRegistry(),
-                        auditTrail: loadAuditFromStorage(),
-                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
-                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-                        disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
-                        deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
-                        disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
-                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
-                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
-                        monthComments: loadMonthComments(),
-                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
-                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
-                        localUserSettings: localUserSettings,
-                        localUsers: localUsers, // Backup local users (passwords are hashed)
-                        form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
-                    }
-                };
+                const backupData = buildBackupPayload();
 
                 const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
 
@@ -12799,6 +12832,7 @@
                 }
 
                 if (uploadResp && uploadResp.ok) {
+                    uploadSucceeded = true;
                     lastSyncTime = new Date();
                     localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
                     try { localStorage.removeItem('hospitalLocationRecordsDirty'); } catch (e) {}
@@ -12811,6 +12845,10 @@
             } catch (e) {
                 console.log('[AutoSync] Error:', e.message);
             } finally {
+                // Only a confirmed upload clears the dirty flag; on any failure
+                // it stays set so the edit is retried on the next cycle instead
+                // of being silently dropped from sync.
+                if (uploadSucceeded) dataIsDirty = false;
                 autoSyncInProgress = false;
             }
         }
@@ -12828,7 +12866,7 @@
                 if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) return false;
                 if (!window.mphMergeLocationRecords) return false;
                 let localRec = null;
-                try { localRec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
+                try { localRec = getLocationRecords(); } catch (e) {}
                 if (!localRec || !Array.isArray(localRec.departments)) localRec = { departments: [] };
                 const res = window.mphMergeLocationRecords(localRec, cloudDataObj.locationRecords);
                 if (res.changed) {
@@ -13557,29 +13595,7 @@
                 // Pick up location-record edits saved moments ago in another
                 // tab/frame so the upload always carries the latest state.
                 if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
-                const backupData = {
-                    version: '1.4',
-                    timestamp: new Date().toISOString(),
-                    savedBy: currentUser ? currentUser.username : 'Unknown',
-                    data: {
-                        assets: assetsForCloudUpload(),
-                        qrCodeRegistry: loadQRRegistry(),
-                        auditTrail: loadAuditFromStorage(),
-                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
-                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-                        disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
-                        deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
-                        disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
-                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
-                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
-                        monthComments: loadMonthComments(),
-                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
-                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
-                        localUserSettings: localUserSettings,
-                        localUsers: localUsers,
-                        form7cForms: form7cCloudPayload()
-                    }
-                };
+                const backupData = buildBackupPayload();
                 const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
 
                 let response;
@@ -13646,29 +13662,7 @@
                 // Pick up location-record edits saved moments ago in another
                 // tab/frame so the upload always carries the latest state.
                 if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
-                const backupData = {
-                    version: '1.4',
-                    timestamp: new Date().toISOString(),
-                    savedBy: currentUser ? currentUser.username : 'Unknown',
-                    data: {
-                        assets: assetsForCloudUpload(),
-                        qrCodeRegistry: loadQRRegistry(),
-                        auditTrail: loadAuditFromStorage(),
-                        departments: JSON.parse(localStorage.getItem(DEPARTMENTS_STORAGE_KEY) || '[]'),
-                        categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-                        disposalRecords: (_dbGet(DISPOSAL_STORAGE_KEY) || []),
-                        deletedAssetIds: (_dbGet(ASSET_DELETED_IDS_KEY) || []),
-                        disposalDeletedIds: (_dbGet(DISPOSAL_DELETED_IDS_KEY) || []),
-                        portalUserAccounts: JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'),
-                        portalHeadingSettings: JSON.parse(localStorage.getItem('portalHeadingSettings') || 'null'),
-                        monthComments: loadMonthComments(),
-                        locationRecords: (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')),
-                        locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
-                        localUserSettings: localUserSettings,
-                        localUsers: localUsers, // Backup local users (passwords are hashed)
-                        form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
-                    }
-                };
+                const backupData = buildBackupPayload();
 
                 const jsonContent = JSON.stringify(backupData, null, 2);
                 const blob = new Blob([jsonContent], { type: 'application/json' });
@@ -15599,7 +15593,7 @@
                 // genuine unknowns become real Location Records so they stay linked
                 if (genuine.length) {
                     let rec = null;
-                    try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
+                    try { rec = getLocationRecords(); } catch (e) {}
                     if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                     const have = new Set(rec.departments.map(x => String(x.name || '').trim().toLowerCase()));
                     let added = false;
@@ -15683,7 +15677,7 @@
             // have a location record, so create one if it doesn't exist yet.
             try {
                 let rec = null;
-                try { rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); } catch (e) {}
+                try { rec = getLocationRecords(); } catch (e) {}
                 if (!rec || !Array.isArray(rec.departments)) rec = { departments: [] };
                 const exists = rec.departments.some(d =>
                     String(d.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
@@ -16104,7 +16098,7 @@
         function getLocationRoomsByDept() {
             const map = {};
             try {
-                const rec = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null'));
+                const rec = getLocationRecords();
                 if (rec && Array.isArray(rec.departments)) {
                     rec.departments.forEach(d => {
                         const key = String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -16349,16 +16343,22 @@
                         });
                     }));
                 }
-                const already = key && room.items.some(it => window.mphCodeKey(it.assetCode) === key);
-                if (!already) {
-                    room.items.push({
-                        id: 'assign_i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                        item: asset.itemType || asset.description || '',
-                        description: asset.description || '',
-                        assetCode: asset.assetCode || '',
-                        remarks: asset.serialModel ? ('Serial: ' + asset.serialModel) : ''
-                    });
-                }
+                // De-dupe: by code identity when the asset has a parseable
+                // code, else by a description/serial fingerprint — otherwise a
+                // code-less asset saved twice would append a duplicate row each
+                // time (mphCodeKey returns null for blank/free-text codes).
+                const fp = it => [String(it.item || '').toLowerCase(), String(it.description || '').toLowerCase(), String(it.assetCode || '').toLowerCase()].join('|');
+                const newRow = {
+                    id: 'assign_i_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    item: asset.itemType || asset.description || '',
+                    description: asset.description || '',
+                    assetCode: asset.assetCode || '',
+                    remarks: asset.serialModel ? ('Serial: ' + asset.serialModel) : ''
+                };
+                const already = key
+                    ? room.items.some(it => window.mphCodeKey(it.assetCode) === key)
+                    : room.items.some(it => fp(it) === fp(newRow));
+                if (!already) room.items.push(newRow);
                 if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
                 try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
                 if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
@@ -16429,7 +16429,12 @@
             if (!listEl) return;
             const term = (document.getElementById('assignRoomSearch') ? document.getElementById('assignRoomSearch').value : '').toLowerCase().trim();
             const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
-            const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            // Attribute-context escape. Dept/room names are user-entered (and
+            // can arrive via a restored backup), so they are carried in
+            // data-* attributes and read back with .dataset — never spliced
+            // into an onclick JS string (that let a name like  x');alert(1)//
+            // break out and run). Escape both & and " for the attribute.
+            const escA = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             let html = '';
             (db.departments || []).forEach(d => {
                 const rooms = (d.rooms || []).filter(r => !/Room Not Yet Assigned/i.test(r.title || ''));
@@ -16438,29 +16443,39 @@
                 if (term && !deptHit && !roomHits.length) return;
                 const open = term ? true : !!_assignExpanded[d.name];
                 const shown = (term && !deptHit) ? roomHits : rooms;
-                html += `<div onclick="toggleAssignDept('${esc(d.name).replace(/'/g, '&#39;')}')" style="display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; background:rgba(102,126,234,0.06); border-bottom:1px solid rgba(0,0,0,0.06); font-weight:600; font-size:0.85rem;">
-                    <span>${open ? '▾' : '▸'}</span><span>${esc(d.icon || '🏢')}</span>
-                    <span style="flex:1;">${esc(d.name)}</span>
+                const dn = escA(d.name);
+                html += `<div class="assign-row" data-act="toggle" data-dept="${dn}" style="display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; background:rgba(102,126,234,0.06); border-bottom:1px solid rgba(0,0,0,0.06); font-weight:600; font-size:0.85rem;">
+                    <span>${open ? '▾' : '▸'}</span><span>${escA(d.icon || '🏢')}</span>
+                    <span style="flex:1;">${escA(d.name)}</span>
                     <span style="font-weight:400; font-size:0.72rem; color:var(--text-secondary,#7078a0);">${rooms.length} room${rooms.length === 1 ? '' : 's'}</span>
                 </div>`;
                 if (open) {
                     shown.forEach(r => {
-                        html += `<div onclick="assignRoomChoose('${esc(d.name).replace(/'/g, '&#39;')}', '${esc(r.title).replace(/'/g, '&#39;')}')"
+                        html += `<div class="assign-row" data-act="choose" data-dept="${dn}" data-room="${escA(r.title)}"
                             style="display:flex; align-items:center; gap:8px; padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04); font-size:0.82rem;"
                             onmouseover="this.style.background='rgba(39,174,96,0.08)'" onmouseout="this.style.background=''">
-                            <span style="flex:1;">${esc(r.title)}</span>
+                            <span style="flex:1;">${escA(r.title)}</span>
                             <span style="font-size:0.7rem; color:var(--text-secondary,#7078a0);">${(r.items || []).length} items</span>
                         </div>`;
                     });
-                    html += `<div onclick="assignRoomChoose('${esc(d.name).replace(/'/g, '&#39;')}', '')"
+                    html += `<div class="assign-row" data-act="choose" data-dept="${dn}" data-room=""
                         style="padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04); font-size:0.78rem; color:var(--text-secondary,#7078a0);"
                         onmouseover="this.style.background='rgba(102,126,234,0.06)'" onmouseout="this.style.background=''">📦 Department only (no specific room yet)</div>`;
-                    html += `<div onclick="assignRoomNew('${esc(d.name).replace(/'/g, '&#39;')}')"
+                    html += `<div class="assign-row" data-act="new" data-dept="${dn}"
                         style="padding:7px 12px 7px 34px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.06); font-size:0.78rem; color:#667eea;"
                         onmouseover="this.style.background='rgba(102,126,234,0.06)'" onmouseout="this.style.background=''">＋ New room…</div>`;
                 }
             });
             listEl.innerHTML = html || '<div style="padding:16px; text-align:center; color:var(--text-secondary,#7078a0); font-size:0.85rem;">No departments or rooms match.</div>';
+            // one delegated handler; values come from dataset, never from code
+            listEl.onclick = (e) => {
+                const row = e.target.closest('.assign-row');
+                if (!row) return;
+                const dept = row.dataset.dept || '';
+                if (row.dataset.act === 'toggle') toggleAssignDept(dept);
+                else if (row.dataset.act === 'new') assignRoomNew(dept);
+                else if (row.dataset.act === 'choose') assignRoomChoose(dept, row.dataset.room || '');
+            };
         }
         function assignRoomNew(deptName) {
             const title = prompt('New room title for ' + deptName + ':');
@@ -17484,10 +17499,16 @@
                 }
             });
 
-            // Seed assets this device didn't have yet
-            let added = 0;
+            // Seed assets this device didn't have yet — but NEVER resurrect
+            // an asset the user deliberately deleted (honored via the deleted
+            // -id tombstones). Without this, the self-heal re-run (which fires
+            // when the live register is under half the seed) would re-inject
+            // every previously-deleted/disposed asset, undoing real disposals.
+            let added = 0, skippedDeleted = 0;
             seed.assets.forEach(sa => {
-                if (!usedSeed.has(sa.id)) { out.push(_seedToAsset(sa)); added++; }
+                if (usedSeed.has(sa.id)) return;
+                if (deletedAssetIds && deletedAssetIds.has(sa.id)) { skippedDeleted++; return; }
+                out.push(_seedToAsset(sa)); added++;
             });
 
             saveAssetsToStorage(out);
@@ -17866,6 +17887,15 @@
             }
             try { updateStructureReviewBadge(); } catch (e) {}
             try { updateAllDepartmentDropdowns(); } catch (e) {}
+            // Release the parsed seed asset arrays (~4.7MB register + additions)
+            // now that migration is done — only `.review`/`.version`/`.stats`
+            // are needed afterwards (the review badge/queue). This roughly
+            // halves resident register memory for the rest of the session; a
+            // later page load re-parses the seed .js fresh if ever needed.
+            try {
+                if (window.MPH_REGISTER_SEED) window.MPH_REGISTER_SEED.assets = null;
+                if (window.MPH_REGISTER_ADDITIONS) window.MPH_REGISTER_ADDITIONS.assets = null;
+            } catch (e) {}
         });
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -29405,6 +29435,14 @@
         }
 
         // Filter asset register
+        // Debounced wrapper for the search box: each keystroke re-filters all
+        // ~9,300 assets, so coalescing to ~160ms avoids a filter storm while
+        // fast typing. filterAssetRegister() stays directly callable elsewhere.
+        let _registerSearchTimer = null;
+        function debouncedFilterAssetRegister() {
+            clearTimeout(_registerSearchTimer);
+            _registerSearchTimer = setTimeout(filterAssetRegister, 160);
+        }
         function filterAssetRegister() {
             const searchTerm = document.getElementById('registerSearchInput').value.toLowerCase();
             const categoryFilter = document.getElementById('registerCategoryFilter').value;
@@ -29571,12 +29609,18 @@
                     </tr>
                 `;
             } else {
+                // Build a code→disposal-record map ONCE per render instead of
+                // two full linear scans of the disposal list per row (was
+                // O(rows × disposals × 2); now O(disposals + rows)).
+                const _disposalByCode = new Map();
+                (_dbGet(DISPOSAL_STORAGE_KEY) || []).forEach(r => { if (r && !_disposalByCode.has(r.assetCode)) _disposalByCode.set(r.assetCode, r); });
+
                 tbody.innerHTML = pageData.map(asset => {
                     const categoryBadge = getCategoryBadgeHtml(asset.category);
 
-                    // Check if asset is disposed
-                    const disposed = isAssetDisposed(asset.assetCode);
-                    const disposalInfo = disposed ? getDisposalInfo(asset.assetCode) : null;
+                    // Check if asset is disposed (single map lookup)
+                    const disposalInfo = _disposalByCode.get(asset.assetCode) || null;
+                    const disposed = !!disposalInfo;
 
                     // Asset code with disposal indicator if disposed
                     const assetCodeDisplay = disposed
@@ -30625,7 +30669,7 @@
         // ============================================
         function reconcileLocations() {
             let db;
-            try { db = (window.mphGetLocationRecordsAny ? window.mphGetLocationRecordsAny() : JSON.parse(localStorage.getItem('hospitalLocationRecords') || 'null')); }
+            try { db = getLocationRecords(); }
             catch (e) { db = null; }
             if (!db || !Array.isArray(db.departments) || db.departments.length === 0) {
                 alert('No saved Location Records found.\n\nOpen the Location Records page first (it seeds and saves the records to this browser), then run the reconciliation.');

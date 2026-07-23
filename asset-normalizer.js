@@ -93,8 +93,22 @@ function normToken(t) {
 }
 
 // Parse any historical code shape into {dept, item, seq, year}
+// Memoized: codes are stable, highly repeated strings and this sits on
+// every consolidation/sync/series hot path (tens of thousands of calls
+// per popup/render). The cache is keyed on the raw input string; results
+// are treated as read-only by all callers.
+var _parseCodeCache = new Map();
 window.mphParseCode = function (code) {
     if (code == null || !String(code).trim()) return null;
+    var raw = String(code);
+    if (_parseCodeCache.has(raw)) return _parseCodeCache.get(raw);
+    var result = _mphParseCodeUncached(raw);
+    // bound the cache so a pathological import can't grow it without limit
+    if (_parseCodeCache.size > 50000) _parseCodeCache.clear();
+    _parseCodeCache.set(raw, result);
+    return result;
+};
+function _mphParseCodeUncached(code) {
     var c = String(code).trim().toUpperCase();
     var m = c.match(/\(([^)]+)\)/);
     if (m && m[1].indexOf('MPH') !== -1) {
@@ -547,14 +561,25 @@ window.mphSaveLocationRecords = function (db) {
             }).catch(function () {
                 _locPending--;
                 _locHasIDB = false;
-                _locLegacyWrite(_locCache);   // degrade to localStorage rather than lose data
+                // degrade to localStorage rather than lose data; if THAT also
+                // fails, surface it so the page can warn instead of pretending
+                // the save succeeded (the return value already went out true).
+                if (!_locLegacyWrite(_locCache)) _locFireSaveError();
             });
         };
         if (_locLoaded) write(); else window.mphLocationStoreReady.then(write);
         return true;
     }
-    return _locLegacyWrite(db);
+    var ok = _locLegacyWrite(db);
+    if (!ok) _locFireSaveError();
+    return ok;
 };
+// Listeners notified when a save could not be persisted anywhere (async IDB
+// failure + localStorage fallback both failed). Lets the UI show a real
+// "NOT SAVED" warning even though mphSaveLocationRecords returned optimistically.
+var _locSaveErrorListeners = [];
+window.mphOnLocationSaveError = function (fn) { if (typeof fn === 'function') _locSaveErrorListeners.push(fn); };
+function _locFireSaveError() { _locSaveErrorListeners.forEach(function (fn) { try { fn(); } catch (e) {} }); }
 // Re-read the store (used when another tab/frame announced a change).
 window.mphRefreshLocationRecords = function () {
     if (!_locHasIDB) { _locCache = _locLegacyRead(); return Promise.resolve(_locCache); }
@@ -725,7 +750,10 @@ window.mphDedupeLocationRooms = function (db) {
             var k = mphRoomTitleKey(r.title);
             (groups[k.key] = groups[k.key] || { coded: k.coded, rooms: [] }).rooms.push(r);
         });
-        var drop = {};
+        // dropped rooms are tracked by object reference (a Set), never by
+        // r.id — rooms with a missing/undefined id would otherwise collide
+        // (drop[undefined]) and take the surviving primary down with them.
+        var drop = new Set();
         Object.keys(groups).forEach(function (gk) {
             var g = groups[gk];
             if (g.rooms.length < 2) return;
@@ -758,12 +786,12 @@ window.mphDedupeLocationRooms = function (db) {
                 ['verifiedBy', 'dateUpdated', 'note'].forEach(function (f) {
                     if (!primary[f] && r[f]) primary[f] = r[f];
                 });
-                drop[r.id] = true;
+                drop.add(r);
                 changed = true;
             });
         });
-        if (changed) {
-            d.rooms = d.rooms.filter(function (r) { return r && !drop[r.id]; });
+        if (drop.size) {
+            d.rooms = d.rooms.filter(function (r) { return r && !drop.has(r); });
         }
     });
     return changed;
@@ -848,6 +876,12 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
             });
         });
     });
+    // Honor tombstones on records ALREADY held locally (not just incoming).
+    // The union loop above only blocks re-adding tombstoned records; a peer
+    // that already holds a department/room/item a user deleted elsewhere
+    // would otherwise keep it forever and re-upload it. This prune removes
+    // locally-present records whose id (or dept name-key) is tombstoned.
+    if (window.mphPruneTombstoned(merged, tombs)) changed = true;
     // normalize: office rooms always live in their own department, and
     // duplicate ghost rooms collapse into the copy that holds the data
     if (window.mphConsolidateOfficeRooms(merged)) changed = true;
@@ -856,6 +890,35 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
         merged.lastModified = new Date().toISOString();
     }
     return { merged: merged, changed: changed };
+};
+// Remove records the user deliberately deleted (by tombstone) that are still
+// present in `db`. Returns true if anything was removed.
+window.mphPruneTombstoned = function (db, tombs) {
+    if (!db || !Array.isArray(db.departments)) return false;
+    tombs = tombs || window.mphGetLocationTombstones();
+    var changed = false;
+    var keptDepts = [];
+    db.departments.forEach(function (d) {
+        if (!d) return;
+        if (tombs.departments && tombs.departments[K(d.name)]) { changed = true; return; }  // whole dept deleted
+        if (Array.isArray(d.rooms)) {
+            var keptRooms = [];
+            d.rooms.forEach(function (r) {
+                if (!r) return;
+                if (tombs.rooms && tombs.rooms[r.id]) { changed = true; return; }            // room deleted
+                if (Array.isArray(r.items)) {
+                    var before = r.items.length;
+                    r.items = r.items.filter(function (it) { return it && !(tombs.items && tombs.items[it.id]); });
+                    if (r.items.length !== before) changed = true;
+                }
+                keptRooms.push(r);
+            });
+            d.rooms = keptRooms;
+        }
+        keptDepts.push(d);
+    });
+    db.departments = keptDepts;
+    return changed;
 };
 window.mphLocationRecordsKey = LOC_RECORDS_KEY;
 
