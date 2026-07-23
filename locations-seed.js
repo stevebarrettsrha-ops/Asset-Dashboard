@@ -1,7 +1,7 @@
 /* Bump this whenever the seed data below changes so the Location
    Records page refreshes cached seed data in the browser (the page MERGES
    this seed into existing records — user data is never replaced). */
-var LOCATIONS_SEED_VERSION = '4';
+var LOCATIONS_SEED_VERSION = '5';
 
 /* ============================================================
    Location Records — seed data v4 (generated 2026-07-22)
@@ -23,6 +23,15 @@ var LOCATIONS_SEED_VERSION = '4';
    This file supplies INITIAL data only. locations.html MERGES it into
    whatever the user already has (by room title / asset code), so user
    edits and cloud data are never overwritten or lost.
+
+   v5 (2026-07-23): reconciled against merged_compressed.pdf (the full
+   564-page LOCATION RECORDS document — 376 room reports). 344 rooms
+   matched the seed by title and 19 more matched as renamed/resurveyed
+   rooms; 8 surveyed rooms were missing from the seed entirely and are
+   appended below (4 Field Hospital rooms from the 9 Dec 2024 survey,
+   4 Accident & Emergency rooms from the 20 Nov 2024 / 26 Jun 2025
+   surveys). New rooms are appended AFTER the v4 array is built so every
+   existing seed4 room/item id is unchanged (tombstones stay valid).
    ============================================================ */
 function SEED_DEPARTMENTS() {
     let seq = 0;
@@ -37,7 +46,7 @@ function SEED_DEPARTMENTS() {
             }))
         };
     }
-    return [
+    var deps = [
         {
             id: 'seed4_d_accident_emergency',
             name: "Accident & Emergency",
@@ -13805,4 +13814,239 @@ function SEED_DEPARTMENTS() {
             ]
         },
     ];
+
+    /* ---- v5 additions: rooms surveyed in the LOCATION RECORDS document
+       (merged_compressed.pdf) that were missing from seed v4. Appended
+       here — after every v4 id has been allocated — so existing seed4
+       room/item ids are unchanged and user tombstones stay valid. ---- */
+    var v5Rooms = {
+        "Field Hospital": [
+            room("Open Area - FH", [
+                ["Bed Screen", "Privacy Screen", "MPH/649/08/FH", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/02/FH", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/03/FH", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/04/FH", ""],
+                ["Chair", "Multiple Stacking Chair - Stock of 4", "MPH/139/01/FH", ""],
+                ["Chair", "Multiple Stacking Chair - Stock of 4", "MPH/139/02/FH", ""],
+                ["Digital Scale", "Digital Column Scale", "MPH/647/03/FH", ""],
+                ["IV Stand", "IV Stand - 4 Leg, Removable Top, 2 Hook", "MPH/640/09/FH", ""],
+                ["Overbed Table", "Overbed Table - w/Gas Spring", "MPH/671/13/FH", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/06/FH", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/07/FH", ""],
+                ["Iron Chair", "Iron Folding Chair", "", ""],
+                ["Metal Bin", "Linen Bin - Metal", "", ""],
+                ["Red Bin", "Red Step-on Bin", "MPH/113/05/FH", ""],
+                ["Red Bin", "Red Step-on Bin", "MPH/113/13/FH", ""],
+                ["Red Bin", "Red Step-on Bin", "", ""],
+                ["Red Bin", "Red Step-on Bin", "", ""],
+                ["Bassinet", "Bassinet", "", ""],
+                ["Bedside Locker", "Plastic Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Plastic Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Plastic Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Plastic Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Plastic Bedside Cabinet/Locker", "", ""],
+                ["Suction Machine", "Suction Machine", "MPH/608/01/FH", ""],
+                ["Suction Machine", "Suction Machine", "MPH/608/02/FH", ""],
+                ["Medical Trolley", "Iron Medical Trolley", "", ""],
+                ["Medical Trolley", "Iron Medical Trolley", "", ""],
+                ["Overbed Table", "Overbed Table", "", "Code MPH/671/13/FH repeated on survey sheet — verify tag"],
+                ["Wheel Chair", "Wheel Chair", "", ""],
+                ["Wheel Chair", "Wheel Chair", "", ""],
+                ["Drip Stand", "Saline Drip Stand", "", ""],
+                ["Patient Stretcher", "Patient/Transport Stretcher", "", ""],
+                ["Patient Stretcher", "Patient/Transport Stretcher", "", ""],
+                ["Patient Stretcher", "Patient/Transport Stretcher", "", ""],
+                ["Patient Stretcher", "Patient/Transport Stretcher", "", ""],
+                ["Bed Screen", "Privacy Screen", "MPH/649/05/FH", ""],
+            ]),
+            room("Room One", [
+                ["Bin", "Step-on Bin - Baige", "MPH/113/16/FH", ""],
+                ["Bin", "Step-on Bin - Baige", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Stretcher", "Stretcher (Semi-Functional)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Bedside Locker", "Bedside Locker (Plastic)", "", ""],
+                ["Wheel Chair", "Wheel Chair", "", ""],
+                ["Wheel Chair", "Wheel Chair", "", ""],
+                ["Wheel Chair", "Wheel Chair", "", ""],
+                ["Bed Screen", "Bedside Medical Screen", "", ""],
+                ["Hospital Bed", "Hospital Bed", "", ""],
+                ["Hospital Bed", "Hospital Bed", "", ""],
+                ["Hospital Bed", "Hospital Bed", "", ""],
+                ["Overbed Table", "Overbed Table", "MPH/671/16/FH", ""],
+            ]),
+            room("Room Two", [
+                ["BP Machine", "Blood Pressure Machine (w/Wheel Stand)", "MPH/731/03/FH", ""],
+                ["Patient Stretcher", "Transport/Patient Stretcher", "", ""],
+                ["Patient Stretcher", "Transport/Patient Stretcher", "", ""],
+                ["Patient Stretcher", "Transport/Patient Stretcher", "", ""],
+                ["Patient Stretcher", "Transport/Patient Stretcher", "", ""],
+                ["Patient Stretcher", "Transport/Patient Stretcher", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["Recliner", "Reclining Chair - Dark Green", "", ""],
+                ["Overbed Table", "Overbed Table", "", ""],
+                ["Overbed Table", "Overbed Table", "", ""],
+                ["Bin", "Step-on Bin (Beige)", "", ""],
+                ["Bed Screen", "Bedside Medical Screen", "MPH/649/03/FH", "Code also recorded in Open Area - FH — verify tag"],
+            ]),
+            room("Staff Area", [
+                ["Bin", "Step-on Bin (Beige)", "MPH/113/06/FH", ""],
+                ["Bin", "Step-on Bin (Beige)", "MPH/113/03/FH", ""],
+                ["Lawn Bed", "Lawn Beach Bed", "", ""],
+                ["Lawn Bed", "Lawn Beach Bed", "", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "MPH/331/13/FH", ""],
+                ["Bedside Locker", "Bedside Cabinet/Locker", "", ""],
+                ["ECG Machine", "ECG Monitor", "MPH/619/01/FH", ""],
+                ["ECG Machine", "ECG Monitor", "MPH/619/02/FH", ""],
+                ["ECG Machine - w/Defrbrillator", "Mindray ECG Monitor", "MPH/612/01/FH", ""],
+                ["Medical Trolley", "Metal Medical Trolley", "", ""],
+                ["Medicine Trolley", "Medicine Trolley", "MPH/662/01/MM", "Relocated"],
+                ["Refrigerator", "Refrigerator (Daewoo) - 10 Cuft", "", ""],
+                ["Refrigerator", "Refrigerator (Fridgidaire) - 10 Cuft", "", ""],
+                ["Bed Screen", "Bedside Medical Screen", "", ""],
+                ["Locker", "4 Door Locker - Metal", "MPH/180/04/FH", ""],
+                ["Locker", "4 Door Locker - Metal", "", ""],
+                ["Locker", "4 Door Locker - Metal", "", ""],
+                ["Locker", "4 Door Locker - Metal", "", ""],
+                ["Shelf", "Standing Shelf", "", ""],
+                ["Shelf", "Standing Shelf", "", ""],
+                ["Filing Cabinet", "4 Drawer Cabinet", "MPH/199/06/FH", ""],
+                ["Filing Cabinet", "4 Drawer Cabinet", "MPH/119/05/FH", ""],
+                ["Filing Cabinet", "4 Drawer Cabinet", "", ""],
+                ["Filing Cabinet", "4 Drawer Cabinet", "", ""],
+                ["Filing Cabinet", "4 Drawer Cabinet", "", ""],
+                ["Single Bed", "Single Bed", "", ""],
+                ["Single Bed", "Single Bed", "", ""],
+                ["Single Couch", "Single Couch - Black", "MPH/197/04/DQ", "Relocated"],
+                ["Bed Screen", "Medical Bedside Screen", "MPH/649/05/MAT", "Relocated"],
+                ["Office Chair", "Executive Chair", "", ""],
+                ["Office Chair", "Executive Chair", "", ""],
+                ["Office Desk", "Single Desk (Executive)", "", ""],
+                ["Office Desk", "Single Desk (Executive)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Metal Chair", "Iron Frame Chair (w/Sponge Seating)", "", ""],
+                ["Help Walker", "Walker (Walking Assist Equipment)", "", ""],
+                ["Recliner", "Reclining Chair", "", ""],
+                ["Overbed Table", "Overbed Table", "", ""],
+                ["Overbed Table", "Overbed Table", "", ""],
+                ["Microwave", "Microwave Oven", "MPH/187/01/FH", ""],
+                ["Electric Kettle", "Kettle - Stainless Steel", "", ""],
+                ["Small Table", "Small Dinner Table", "", ""],
+                ["Computer Desk", "Single Computer Desk", "", ""],
+                ["Arm Chair", "Arm Chair (Burgundy)", "", ""],
+                ["Mini Fan", "Small Industrial Fan", "", ""],
+                ["Telephone", "Polycom-Telephone", "", ""],
+            ]),
+        ],
+        "Accident & Emergency": [
+            room("Treatment and Observation Area - 2A 019 - 2A 020", [
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/18", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/19", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/20", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/21", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/22", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/23", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/24", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/25", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/26", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/27", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/28", ""],
+                ["Transport Stretcher", "Patient Stretcher IV Stand", "MPH/AE/747/29", ""],
+                ["Transport Stretcher", "Medical Trolley", "MPH/AE/655/03", ""],
+                ["Recliner", "Recliner (Chair) - Green", "MPH/152/07/Annex", ""],
+                ["Overbed Table", "Overbed Table", "", ""],
+                ["Overbed Table", "Overbed Table", "MPH/671/13/AE", ""],
+                ["Overbed Table", "Overbed Table (Wooden Finish)", "MPH/671/11/AE", ""],
+                ["Examination Stool", "Examination Stool w/Back Rest", "MPH/AE/200/01", ""],
+                ["Examination Stool", "Examination Stool w/Back Rest", "MPH/AE/200/02", ""],
+                ["Bed Screen", "Medical Screen (White)", "MPH/AE/659/12", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Drip Stand", "Saline (Drip) Stand", "", ""],
+                ["Bin", "Step-on Bin", "MPH/113/15/AE", ""],
+                ["Suction Machine", "Suction Machine", "MPH/AE/608/04", ""],
+                ["Patient Monitor", "Patient Monitor - Omni I (Wall Mounted)", "MPH/AE/619/07", ""],
+                ["General Trolley", "General Trolley", "MPH/AE/655/04", ""],
+                ["Docket Stand", "Docket Stand - Round (Stainless Steel)", "MPH/AE/235/03", ""],
+                ["Wall Fan", "Wall Monted Fan (Roshan)", "MPH/AE/174/14", ""],
+                ["Bin", "Step-on Bin (Red)", "MPH/AE/113/19", ""],
+                ["Computer Cart", "Computer Cart (Desktop)", "", ""],
+                ["Computer Cart", "Computer Cart (Desktop)", "", ""],
+                ["Patient Monitor", "Patient Monitor", "MPH/AE/718/01", ""],
+                ["Drip Stand", "Saline Drip Stand", "", ""],
+            ]),
+            room("Passage of Nurses Quarters", [
+                ["Locker (5)", "Locker - 5 Drawer (Beige)", "MPH/AE/180/15", ""],
+                ["Locker (4)", "Locker - 4 Drawer (Gray)", "MPH/AE/180/16", ""],
+                ["Locker (5)", "Locker - 5 Drawer (Beige)", "MPH/120/05/AE", ""],
+                ["Locker (4)", "Locker - 4 Drawer (Gray)", "MPH/AE/180/17", ""],
+                ["Locker (6)", "Locker - 6 Drawer (Gray)", "MPH/AE/180/18", ""],
+                ["Locker (6)", "Locker - 6 Drawer (Gray)", "MPH/AE/180/19", ""],
+                ["Locker (6)", "Locker - 6 Drawer (Gray)", "MPH/AE/180/20", ""],
+                ["Cabinet (4)", "Filing Cabinet - 4 Drawer", "MPH/119/07/AE", ""],
+            ]),
+            room("Soiled Utility Room - 2A 018", [
+                ["Metal Trolley", "Medical Metal Trolley", "MPH/AE/655/01/2024", ""],
+                ["Metal Trolley", "Medical Metal Trolley", "MPH/AE/655/02", ""],
+                ["Storage Bin", "Linen Bin", "MPH/AE/332/05", ""],
+                ["Rack", "Item Rack", "MPH/AE/522/01", ""],
+            ]),
+            room("Security Post", [
+                ["Chair", "Plastic Chair - Blue", "", "C35-130-81"],
+                ["Metal Chair", "Black Metal Chair - Upholstered", "MPH/137/25/AE", ""],
+            ]),
+        ],
+    };
+    Object.keys(v5Rooms).forEach(function (deptName) {
+        for (var i = 0; i < deps.length; i++) {
+            if (deps[i].name === deptName) {
+                v5Rooms[deptName].forEach(function (r) { deps[i].rooms.push(r); });
+                break;
+            }
+        }
+    });
+    return deps;
 }
