@@ -285,6 +285,14 @@
         .col-act { width: 40px; text-align: center; }
         .row-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 8px; }
         .row-del:hover { opacity: 1; }
+        .row-move { background: none; border: none; cursor: pointer; font-size: 0.95rem; opacity: 0.6; padding: 8px; }
+        .row-move:hover { opacity: 1; }
+        /* Move-item picker */
+        .move-modal-list { max-height: 46vh; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; margin-top: 8px; text-align: left; }
+        .move-dept-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; background: rgba(255,107,53,0.06); border-bottom: 1px solid var(--border-color); font-weight: 600; font-size: 0.85rem; }
+        .move-room-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 32px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 0.82rem; }
+        .move-room-row:hover, .move-opt-row:hover { background: rgba(255,107,53,0.08); }
+        .move-opt-row { padding: 7px 12px 7px 32px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 0.78rem; color: #d2691e; }
         /* Asset Code cell: textarea + lookup button */
         .assetcode-cell { display: flex; align-items: stretch; }
         .assetcode-cell .cell-input { flex: 1; }
@@ -762,13 +770,12 @@
     function renderDept(c) {
         const d = getDept(selectedDeptId);
         if (!d) { selectedDeptId = null; return renderHome(c); }
-        const term = searchTerm.toLowerCase();
+        // The sidebar search box filters the DEPARTMENT list only — it must
+        // never hide rooms inside an opened department (that made whole wards
+        // look nearly empty, e.g. "23 rooms / 599 items" showing one card).
         let rooms = d.rooms;
         let roomCards = rooms.map(r => {
             const n = (r.items || []).length;
-            if (term && !r.title.toLowerCase().includes(term) &&
-                !(r.items || []).some(it => (it.item||'').toLowerCase().includes(term) || (it.description||'').toLowerCase().includes(term) || (it.assetCode||'').toLowerCase().includes(term)))
-                return '';
             return `
             <div class="room-card" onclick="selectRoom('${r.id}')">
                 <h3>${esc(r.title)}</h3>
@@ -860,9 +867,12 @@
             <td class="col-num">${i + 1}</td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
-            <td><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
+            <td><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
             <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
-            <td class="col-act"><button class="row-del" title="Delete row" onclick="deleteItem('${it.id}')">✕</button></td>
+            <td class="col-act" style="white-space:nowrap;">
+                <button class="row-move" title="Move this item to another room or department" onclick="openMoveItemModal('${it.id}')">➡️</button>
+                <button class="row-del" title="Delete row" onclick="deleteItem('${it.id}')">✕</button>
+            </td>
         </tr>`;
     }
 
@@ -1095,6 +1105,81 @@
         const it = r.items.find(x => x.id === id); if (!it) return;
         it[field] = val; save(); flashSaved();
     }
+
+    /* Assign the next code in series to a Location Records item. The item
+       group is inferred from the item's existing/placeholder code or the
+       description; the department token + next free sequence produce the
+       code. When embedded, the dashboard's fuller series (register +
+       inventory + records) is used; standalone, records are scanned. */
+    function assignNextSeriesCode(id) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const it = r.items.find(x => x.id === id); if (!it) return;
+        let series = null;
+        try {
+            if (window.parent && window.parent !== window && typeof window.parent.computeNextCodeSeries === 'function') {
+                series = window.parent.computeNextCodeSeries(d.name);
+            }
+        } catch (e) { series = null; }
+        if (!series) series = _localNextCodeSeries(d.name);
+        if (!series.length) { toast('No existing coded series for this department yet — enter the first code manually.', 'error'); return; }
+        // infer the item group from the current code, else pick the group
+        // whose description best matches this item
+        let group = null;
+        const p = window.mphParseCode && it.assetCode ? window.mphParseCode(it.assetCode) : null;
+        if (p && p.item) group = String(p.item);
+        let chosen = group ? series.find(s => s.group === group) : null;
+        if (!chosen) {
+            const hay = ((it.item || '') + ' ' + (it.description || '')).toLowerCase();
+            chosen = series.find(s => s.desc && hay && (hay.indexOf(s.desc.toLowerCase().split(',')[0]) >= 0 ||
+                s.desc.toLowerCase().split(',')[0].indexOf(hay.split(' ')[0]) >= 0));
+        }
+        if (!chosen) {
+            // let the user pick from the series list
+            openSeriesPickModal(id, series);
+            return;
+        }
+        applySeriesCode(id, chosen.nextCode);
+    }
+    function _localNextCodeSeries(deptName) {
+        const token = (window.mphDeptToken && window.mphDeptToken(deptName)) || 'DN';
+        const tokN = token.replace(/[^A-Z&]/gi, '').toUpperCase();
+        const groups = {}, seen = {};
+        db.departments.forEach(dep => (dep.rooms || []).forEach(room => (room.items || []).forEach(item => {
+            const p = window.mphParseCode ? window.mphParseCode(item.assetCode) : null;
+            if (!p || !p.item) return;
+            const pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+            if (pTok !== tokN) return;
+            const ck = window.mphCodeKey ? window.mphCodeKey(item.assetCode) : item.assetCode;
+            if (ck && seen[ck]) return; if (ck) seen[ck] = true;
+            const g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2, desc: '' });
+            g.count++;
+            String(p.seq || '').split('-').forEach(s => { const n = parseInt(s, 10); if (!isNaN(n)) { if (n > g.max) g.max = n; if (/^\d+$/.test(s)) g.pad = Math.max(g.pad, s.length); } });
+        })));
+        return Object.values(groups).map(g => ({ group: g.group, count: g.count, max: g.max, desc: g.desc,
+            nextCode: 'MPH/' + token + '/' + g.group + '/' + String(g.max + 1).padStart(Math.min(g.pad, 3), '0') }))
+            .sort((a, b) => b.count - a.count);
+    }
+    function openSeriesPickModal(id, series) {
+        const rows = series.map(s => `<div class="move-room-row" onclick="applySeriesCode('${id}', '${s.nextCode}')">
+            <span style="flex:1;">${esc(s.group)}${s.desc ? ' — ' + esc(s.desc) : ''}</span>
+            <span style="font-family:monospace; font-weight:700; color:#27ae60;">${esc(s.nextCode)}</span></div>`).join('');
+        document.getElementById('modalBox').innerHTML = `
+            <h3>Assign next code in series</h3>
+            <p class="sub">Pick the item group — the next free number is assigned.</p>
+            <div class="move-modal-list">${rows}</div>
+            <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`;
+        openModal();
+    }
+    function applySeriesCode(id, code) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const it = r.items.find(x => x.id === id); if (!it) return;
+        it.assetCode = code; save(); closeModal();
+        renderRoom(document.getElementById('content'));
+        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        toast('Assigned ' + code, 'success');
+    }
     function deleteItem(id) {
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
@@ -1103,6 +1188,102 @@
         save(); renderRoom(document.getElementById('content'));
         document.querySelectorAll('.cell-input').forEach(autoGrow);
         renderDeptList();
+    }
+
+    /* ============================================================
+       Move an item to another room/department. Built for emptying the
+       "Register Items — Room Not Yet Assigned" bucket: pick a target
+       room and the item moves there (kept out of the source), and the
+       matching asset in the main register is re-homed to that room too.
+    ============================================================ */
+    let _moveItemId = null;
+    function openMoveItemModal(itemId) {
+        _moveItemId = itemId;
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const it = r && (r.items || []).find(x => x.id === itemId);
+        if (!it) return;
+        const label = (it.item || it.description || 'item') + (it.assetCode ? ' (' + it.assetCode + ')' : '');
+        document.getElementById('modalBox').innerHTML = `
+            <h3>Move item to a room</h3>
+            <p class="sub">Moving <b>${esc(label)}</b><br>from ${esc(d.name)} › ${esc(r.title)}.</p>
+            <input type="text" id="moveSearch" placeholder="Search departments and rooms..." oninput="renderMoveTargets()"
+                   style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:8px; font-size:0.85rem;">
+            <div class="move-modal-list" id="moveTargets"></div>
+            <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`;
+        openModal();
+        renderMoveTargets();
+        setTimeout(() => { const s = document.getElementById('moveSearch'); if (s) s.focus(); }, 50);
+    }
+    function renderMoveTargets() {
+        const box = document.getElementById('moveTargets');
+        if (!box) return;
+        const term = (document.getElementById('moveSearch') || {}).value || '';
+        const t = term.toLowerCase().trim();
+        let html = '';
+        db.departments.forEach(dep => {
+            const isSourceDept = dep.id === selectedDeptId;
+            const rooms = (dep.rooms || []).filter(r =>
+                r.id !== selectedRoomId && !/Room Not Yet Assigned/i.test(r.title || ''));
+            const deptHit = (dep.name || '').toLowerCase().includes(t);
+            const shown = t ? rooms.filter(r => deptHit || (r.title || '').toLowerCase().includes(t)) : rooms;
+            if (t && !deptHit && !shown.length) return;
+            const dn = String(dep.id);
+            html += `<div class="move-dept-row" onclick="moveItemTo('${dn}', '')">
+                <span>${esc(dep.icon || '🏢')}</span><span style="flex:1;">${esc(dep.name)}</span>
+                <span style="font-weight:400; font-size:0.72rem; color:var(--text-secondary,#7078a0);">${rooms.length} room${rooms.length === 1 ? '' : 's'} · move to dept</span></div>`;
+            shown.forEach(r => {
+                html += `<div class="move-room-row" onclick="moveItemTo('${dn}', '${String(r.id)}')">
+                    <span style="flex:1;">${esc(r.title)}</span>
+                    <span style="font-size:0.7rem; color:var(--text-secondary,#7078a0);">${(r.items || []).length} items</span></div>`;
+            });
+            if (!t || deptHit) {
+                html += `<div class="move-opt-row" onclick="moveItemNewRoom('${dn}')">＋ New room…</div>`;
+            }
+        });
+        box.innerHTML = html || '<div style="padding:16px; text-align:center; color:var(--text-secondary,#7078a0); font-size:0.85rem;">No matching room.</div>';
+    }
+    function moveItemNewRoom(deptId) {
+        const title = prompt('New room title:');
+        if (!title || !title.trim()) return;
+        const dep = getDept(deptId);
+        const room = { id: uid('room'), title: title.trim(), verifiedBy: '', dateUpdated: '', note: '', items: [] };
+        dep.rooms.push(room);
+        moveItemTo(deptId, room.id);
+    }
+    function moveItemTo(destDeptId, destRoomId) {
+        const srcDept = getDept(selectedDeptId);
+        const srcRoom = getRoom(srcDept, selectedRoomId);
+        const idx = srcRoom.items.findIndex(x => x.id === _moveItemId);
+        if (idx < 0) { closeModal(); return; }
+        const it = srcRoom.items[idx];
+        const destDept = getDept(destDeptId);
+        let destRoom = destRoomId ? getRoom(destDept, destRoomId) : null;
+        if (!destRoom) {
+            // "move to department" → its register bucket, created if needed
+            const bucketTitle = 'Register Items — Room Not Yet Assigned';
+            destRoom = (destDept.rooms || []).find(r => String(r.title).trim().toLowerCase() === bucketTitle.toLowerCase());
+            if (!destRoom) { destRoom = { id: uid('room'), title: bucketTitle, verifiedBy: '', dateUpdated: '', note: '', items: [] }; destDept.rooms.push(destRoom); }
+        }
+        // remove from source, add to destination (dedupe by code within dest)
+        srcRoom.items.splice(idx, 1);
+        destRoom.items = destRoom.items || [];
+        const key = window.mphCodeKey && it.assetCode ? window.mphCodeKey(it.assetCode) : null;
+        const dup = key && destRoom.items.find(x => window.mphCodeKey(x.assetCode) === key);
+        if (!dup) destRoom.items.push(it);
+        save();
+        // re-home the matching main-register asset (department + room), and
+        // flag the dashboard so it syncs
+        try {
+            if (window.parent && window.parent !== window && typeof window.parent.rehomeAssetToRoom === 'function') {
+                window.parent.rehomeAssetToRoom(it.assetCode, destDept.name, destRoom.title.indexOf('Not Yet Assigned') >= 0 ? '' : destRoom.title);
+            }
+        } catch (e) { /* standalone page: register lives in the dashboard */ }
+        closeModal();
+        selectedDeptId = destDeptId; selectedRoomId = destRoom.id;
+        render(); window.scrollTo(0, 0);
+        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        toast('Item moved to ' + destDept.name + ' › ' + destRoom.title, 'success');
     }
 
     function flashSaved() {

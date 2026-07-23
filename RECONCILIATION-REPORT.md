@@ -186,3 +186,15 @@ localStorage's ~5MB quota was the root cause of lost saves, and pruning backups 
 2. **Next-code series now scans every source.** The popup was blank on devices whose local register copy is sparse. Series are now computed across the dashboard inventory, the stored asset register AND every item saved in Location Records (same code identity counted once) — verified to produce the full A&E series (incl. `MPH/AE/133/66`) with the register completely empty.
 3. **Popup stacking fixed.** The next-code and assign-to-room popups now sit above the Add Asset modal (z-index 100001 vs 10000) instead of opening behind it.
 4. **Register self-heal.** A device observed with only 75 assets: the "seed applied" flag survived an old data wipe, so the 9,186-asset structured register never re-applied. `applyStructureMigration` now re-applies (idempotent, code-identity merge, local assets kept) whenever the live register holds less than half the seed despite the flag, and re-runs the additions afterwards. Verified: a gutted 75-asset device recovers to 9,286 assets on next load.
+
+---
+
+# Location Records: move items, assign next code, and search-hides-rooms fix (2026-07-23)
+
+**Critical fix — rooms vanished when searching.** The sidebar department search term was also filtering the room cards inside an opened department, so typing e.g. "female" to find a ward then hid every room whose title didn't contain "female" — a 23-room / 599-item ward showed a single 12-item card. The data was never lost. `renderDept` no longer applies the department-search term to room cards; all rooms of the opened department always render.
+
+**Move an item to a room (from Location Records).** Every item row has a ➡️ button opening a searchable Department → Room picker (built to empty the "Register Items — Room Not Yet Assigned" bucket). Moving takes the item out of its source room into the chosen room (dedup by code), and — when embedded in the dashboard — re-homes the matching main-register asset to that department/room via a new `window.rehomeAssetToRoom(code, dept, room)`. "Move to department" drops it in that department's register bucket; "＋ New room…" creates one on the fly.
+
+**Assign next code in series (from Location Records).** Each item's Asset Code cell has a 🔢 button that assigns the next free code in that item's series. The item group is taken from the row's existing/placeholder code or inferred from its description; when embedded, the dashboard's fuller series (register + inventory + records) is used, otherwise records are scanned. Ambiguous cases show a one-click series picker. Verified collision-free (`MPH/AE/133/66`, 0 clashes).
+
+All verified headless: 23/23 room cards render with an active search; move empties the bucket and re-homes the register asset; next-code assignment works standalone and embedded.

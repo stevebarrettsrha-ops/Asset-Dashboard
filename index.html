@@ -16369,6 +16369,35 @@
                 return false;
             }
         }
+        // Called by the embedded Location Records page when a user moves an
+        // item into a room there: re-home the matching register asset so the
+        // main inventory and the room records stay in step. Matches by code
+        // identity; safe no-op when the code isn't in the register.
+        window.rehomeAssetToRoom = function (assetCode, deptName, roomTitle) {
+            try {
+                if (!assetCode || !window.mphCodeKey) return false;
+                const key = window.mphCodeKey(assetCode);
+                if (!key) return false;
+                const assets = loadAssetsFromStorage();
+                let changed = false;
+                assets.forEach(a => {
+                    const codes = [a.assetCode].concat(a.aliases || []);
+                    if (codes.some(c => window.mphCodeKey(c) === key)) {
+                        if (deptName) a.department = deptName;
+                        a.room = roomTitle || '';
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    saveAssetsToStorage(assets);
+                    allAssetsData = assets;
+                    if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                    if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+                }
+                return changed;
+            } catch (e) { console.warn('rehomeAssetToRoom failed:', e); return false; }
+        };
+
         let _assignRoomAssetId = null;
         let _assignExpanded = {};
         function openAssignRoomModal(assetId) {
