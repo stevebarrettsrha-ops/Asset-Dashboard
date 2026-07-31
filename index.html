@@ -12723,6 +12723,7 @@
                     monthComments: loadMonthComments(),
                     locationRecords: getLocationRecords(),
                     locationTombstones: (window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null),
+                    locationMoves: (window.mphGetLocationMoves ? window.mphGetLocationMoves() : null),
                     localUserSettings: localUserSettings,
                     localUsers: stripPlaintextPasswords(localUsers), // hashes only — never plaintext
                     form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
@@ -12872,6 +12873,24 @@
             }
         }
 
+        // Apply the transfer ledger to the Location Records we already hold —
+        // used when a sync brings transfers but no records payload.
+        function applyLocationMovesToLocal() {
+            try {
+                if (!window.mphApplyLocationMoves) return false;
+                const local = getLocationRecords();
+                if (!local || !Array.isArray(local.departments)) return false;
+                let changed = window.mphPruneTombstoned ? window.mphPruneTombstoned(local) : false;
+                if (window.mphApplyLocationMoves(local)) changed = true;
+                if (changed) {
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(local);
+                    else localStorage.setItem('hospitalLocationRecords', JSON.stringify(local));
+                    notifyLocationRecordsFrame();
+                }
+                return changed;
+            } catch (e) { return false; }
+        }
+
         // Shared safe path for adopting cloud Location Records: tombstones
         // first (so deletions hold), then a full item-level UNION merge.
         // A cloud copy that is empty or older can never wipe local records.
@@ -12882,7 +12901,17 @@
                 if (cloudDataObj.locationTombstones && window.mphMergeLocationTombstones) {
                     window.mphMergeLocationTombstones(cloudDataObj.locationTombstones);
                 }
-                if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) return false;
+                // Transfers recorded on other devices, newest wins. Must land
+                // BEFORE the records merge so the merge places every item in
+                // the department it was last transferred to.
+                if (cloudDataObj.locationMoves && window.mphMergeLocationMoves) {
+                    window.mphMergeLocationMoves(cloudDataObj.locationMoves);
+                }
+                if (!cloudDataObj.locationRecords || !Array.isArray(cloudDataObj.locationRecords.departments)) {
+                    // No records in this payload, but a transfer ledger may
+                    // still have arrived — apply it to what we already hold.
+                    return applyLocationMovesToLocal();
+                }
                 if (!window.mphMergeLocationRecords) return false;
                 let localRec = null;
                 try { localRec = getLocationRecords(); } catch (e) {}
@@ -16330,11 +16359,34 @@
         }
         // Mirror an asset into its room's Location Record (move semantics:
         // the item leaves any other room that carried its asset code).
-        function syncAssetToLocationRecord(asset, deptName, roomTitle) {
+        // `from` ({dept, room}) is where the asset was BEFORE this change —
+        // callers know it, and by the time we run they have usually already
+        // overwritten asset.department, so it has to be passed in.
+        function syncAssetToLocationRecord(asset, deptName, roomTitle, from) {
+            try {
+                const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
+                if (!placeAssetInLocationDb(db, asset, deptName, roomTitle, from)) return false;
+                if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
+                try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                if (typeof notifyLocationRecordsFrame === 'function') notifyLocationRecordsFrame();
+                return true;
+            } catch (e) {
+                console.warn('Location record sync failed:', e);
+                return false;
+            }
+        }
+        // Same placement, but against a caller-held records object so a bulk
+        // department change is one read + one write instead of one per asset.
+        function placeAssetInLocationDb(db, asset, deptName, roomTitle, from) {
             try {
                 deptName = deptName || asset.department;
                 if (!deptName) return false;
-                const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
+                // An item the user deleted from the Location Records stays
+                // deleted: an incidental save of the register asset must not
+                // re-create the row. Only an explicit re-assignment (which
+                // lifts the tombstone first) puts it back.
+                if (window.mphIsItemTombstoned && window.mphIsItemTombstoned({ assetCode: asset.assetCode })) return false;
                 if (!Array.isArray(db.departments)) db.departments = [];
                 const KX = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase();
                 let dept = db.departments.find(d => KX(d.name) === KX(deptName));
@@ -16351,15 +16403,26 @@
                     dept.rooms.push(room);
                 }
                 room.items = room.items || [];
+                const origins = [];
+                (Array.isArray(from) ? from : (from ? [from] : [])).forEach(o => {
+                    if (o && o.dept && o.dept !== dept.name) origins.push({ dept: o.dept, room: o.room || '' });
+                });
+                if (asset.department && asset.department !== dept.name) {
+                    origins.push({ dept: asset.department, room: asset.room || '' });
+                }
                 const key = (window.mphCodeKey && asset.assetCode) ? window.mphCodeKey(asset.assetCode) : null;
                 if (key) {
-                    // the physical item lives in exactly one room
+                    // the physical item lives in exactly one room — and every
+                    // room it is taken out of here is an origin the ledger has
+                    // to remember, or a stale snapshot puts it right back
                     db.departments.forEach(d => (d.rooms || []).forEach(r => {
                         if (r === room || !Array.isArray(r.items)) return;
+                        const before = r.items.length;
                         r.items = r.items.filter(it => {
                             const k = window.mphCodeKey ? window.mphCodeKey(it.assetCode) : null;
                             return k !== key;
                         });
+                        if (r.items.length !== before) origins.push({ dept: d.name, room: r.title });
                     }));
                 }
                 // De-dupe: by code identity when the asset has a parseable
@@ -16374,17 +16437,19 @@
                     assetCode: asset.assetCode || '',
                     remarks: asset.serialModel ? ('Serial: ' + asset.serialModel) : ''
                 };
-                const already = key
-                    ? room.items.some(it => window.mphCodeKey(it.assetCode) === key)
-                    : room.items.some(it => fp(it) === fp(newRow));
-                if (!already) room.items.push(newRow);
-                if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
-                try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
-                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
-                if (typeof notifyLocationRecordsFrame === 'function') notifyLocationRecordsFrame();
+                const existing = key
+                    ? room.items.find(it => window.mphCodeKey(it.assetCode) === key)
+                    : room.items.find(it => fp(it) === fp(newRow));
+                if (!existing) room.items.push(newRow);
+                // Record where this asset now lives. The ledger is what stops a
+                // later merge of an older snapshot from putting the item back
+                // in the department it was transferred out of.
+                if (window.mphRecordLocationMove) {
+                    window.mphRecordLocationMove(existing || newRow, dept.name, targetTitle, origins);
+                }
                 return true;
             } catch (e) {
-                console.warn('Location record sync failed:', e);
+                console.warn('Location record placement failed:', e);
                 return false;
             }
         }
@@ -16404,6 +16469,9 @@
                     if (codes.some(c => window.mphCodeKey(c) === key)) {
                         if (deptName) a.department = deptName;
                         a.room = roomTitle || '';
+                        // stamp the transfer so the structured-register
+                        // migration can never re-seed the old department
+                        a.locationUpdatedAt = new Date().toISOString();
                         changed = true;
                     }
                 });
@@ -16503,11 +16571,17 @@
         function assignRoomChoose(deptName, roomTitle) {
             const asset = allAssetsData.find(a => a.id === _assignRoomAssetId);
             if (!asset) { closeAssignRoomModal(); return; }
+            const cameFrom = { dept: asset.department, room: asset.room || '' };
             asset.department = deptName;
             asset.room = roomTitle || '';
+            asset.locationUpdatedAt = new Date().toISOString();
+            // explicit (re-)placement by the user lifts any deletion tombstone
+            if (window.mphUntombstoneLocationItem) {
+                window.mphUntombstoneLocationItem({ assetCode: asset.assetCode });
+            }
             saveAssetsToStorage(allAssetsData);
             addAuditEntry(asset.assetCode, 'Assigned to Room', deptName, roomTitle ? ('Assigned to ' + deptName + ' › ' + roomTitle) : ('Assigned to ' + deptName));
-            syncAssetToLocationRecord(asset, deptName, roomTitle);
+            syncAssetToLocationRecord(asset, deptName, roomTitle, cameFrom);
             closeAssignRoomModal();
             if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
             _assignToast('📍 ' + (asset.assetCode || 'Asset') + ' → ' + deptName + (roomTitle ? ' › ' + roomTitle : ''));
@@ -17321,6 +17395,13 @@
                         assetData.priceConfirmed = currentEditingAsset.priceConfirmed || false;
                     }
 
+                    // A department/room change here IS a transfer — stamp it so
+                    // neither the structured-register seed nor a stale cloud
+                    // snapshot can send the asset back to where it came from.
+                    const movedDept = (currentEditingAsset.department || '') !== (assetData.department || '');
+                    const movedRoom = (currentEditingAsset.room || '') !== (assetData.room || '');
+                    if (movedDept || movedRoom) assetData.locationUpdatedAt = new Date().toISOString();
+
                     // Merge onto the stored record so fields the form doesn't
                     // edit (aliases, registerOrigin, disposed flags, …) survive
                     assets[index] = Object.assign({}, assets[index], assetData);
@@ -17329,8 +17410,13 @@
                     // Sync changes to Board of Survey disposal records
                     syncMainAssetToDisposals(assetData, currentEditingAsset);
 
-                    // Mirror an explicit room choice into Location Records
-                    if (assetData.room) syncAssetToLocationRecord(assetData, assetData.department, assetData.room);
+                    // Mirror the location into Location Records. A department
+                    // change with no room still has to be mirrored — otherwise
+                    // the records kept showing the asset in the old department.
+                    if (assetData.room || movedDept || movedRoom) {
+                        syncAssetToLocationRecord(assets[index], assetData.department, assetData.room,
+                            { dept: currentEditingAsset.department, room: currentEditingAsset.room || '' });
+                    }
 
                     alert('✅ Asset updated successfully!');
                 }
@@ -17451,6 +17537,9 @@
             try { applied = parseInt(localStorage.getItem(STRUCTURE_VERSION_KEY) || '0', 10) || 0; } catch (e) {}
 
             const live = loadAssetsFromStorage();
+            // A re-run re-applies a seed that predates every transfer made on
+            // this device, so on a re-run the live department/room always win.
+            const isReRun = applied >= seed.version;
             if (applied >= seed.version) {
                 // Self-heal: the "already applied" flag can survive a data wipe
                 // (the old destructive-sync era), leaving a device with a tiny
@@ -17490,7 +17579,20 @@
                     usedSeed.add(sa.id);
                     // Structured seed fields win; the live asset's id and
                     // runtime-only flags (disposed, bosAsset, …) survive.
-                    out.push(Object.assign({}, a, _seedToAsset(sa), { id: a.id || sa.id }));
+                    const m = Object.assign({}, a, _seedToAsset(sa), { id: a.id || sa.id });
+                    // …but NEVER the seed's location. The seed is a snapshot of
+                    // where assets were when it was generated; letting it win
+                    // silently sent every transferred asset back to the
+                    // department it was moved out of. A live asset that has
+                    // been transferred (or any asset at all on a re-run) keeps
+                    // the department and room the user put it in.
+                    if (a.locationUpdatedAt || isReRun) {
+                        if (a.department) m.department = a.department;
+                        if (a.room != null) m.room = a.room;
+                        if (a.locationUpdatedAt) m.locationUpdatedAt = a.locationUpdatedAt;
+                        if (a.departmentOriginal) m.departmentOriginal = a.departmentOriginal;
+                    }
+                    out.push(m);
                     matched++;
                 } else {
                     // Added on this device after the export — keep it, but
@@ -17569,6 +17671,12 @@
                 if (names.length >= 1 && names[0] !== UNASSIGNED) {
                     // The department field already names a real Location — it wins.
                     target = names[0];
+                } else if (a.locationUpdatedAt) {
+                    // The user deliberately put this asset here (a transfer).
+                    // Deriving from the code below would send it straight back
+                    // to the department its code was issued under — which is
+                    // exactly the department it was transferred out of.
+                    target = names.length >= 1 ? names[0] : (dept ? null : UNASSIGNED);
                 } else {
                     // Department is Unassigned, empty, or unrecognised. The asset
                     // CODE usually says where it belongs (e.g. MPH/139/8/OPD ->
@@ -17904,6 +18012,18 @@
             if (window.mphEnsureLocationDepartments) {
                 try { window.mphEnsureLocationDepartments(); } catch (e) {}
             }
+            // Re-assert deletions and transfers on the Location Records this
+            // device holds, before anything renders from them. Deleting an
+            // item or moving it to another department has to survive a
+            // refresh on every page, not just the page it was done on.
+            try {
+                const applyLocState = () => { try { applyLocationMovesToLocal(); } catch (e) {} };
+                if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
+                    window.mphLocationStoreReady.then(applyLocState);
+                } else {
+                    applyLocState();
+                }
+            } catch (e) {}
             try { updateStructureReviewBadge(); } catch (e) {}
             try { updateAllDepartmentDropdowns(); } catch (e) {}
             // Release the parsed seed asset arrays (~4.7MB register + additions)
@@ -31506,13 +31626,40 @@
 
             let assets = loadAssetsFromStorage();
             let updated = 0;
+            const moved = [];
             assets.forEach(a => {
                 if (bulkSelectedIds.has(a.id)) {
+                    const changedDept = (a.department || '') !== dept;
+                    const cameFrom = { dept: a.department, room: a.room || '' };
                     a.department = dept;
+                    if (changedDept) {
+                        // a bulk department change is a transfer: clear the old
+                        // room (it belongs to the department being left) and
+                        // stamp it so nothing can re-seed the old department
+                        a.room = '';
+                        a.locationUpdatedAt = new Date().toISOString();
+                        moved.push({ asset: a, from: cameFrom });
+                    }
                     updated++;
                 }
             });
             saveAssetsToStorage(assets);
+            // Mirror the transfer into the Location Records — one read and one
+            // write for the whole batch. Previously the records were not
+            // touched at all, so every bulk-transferred asset stayed listed
+            // under the department it had been moved out of.
+            if (moved.length) {
+                try {
+                    const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || { departments: [] };
+                    let any = false;
+                    moved.forEach(m => { if (placeAssetInLocationDb(db, m.asset, dept, '', m.from)) any = true; });
+                    if (any) {
+                        if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
+                        try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
+                        if (typeof notifyLocationRecordsFrame === 'function') notifyLocationRecordsFrame();
+                    }
+                } catch (e) { console.warn('Bulk location sync failed:', e); }
+            }
             addAuditEntry('BULK', 'Bulk Department', dept, `Set department "${dept}" for ${updated} assets`);
             alert(`✅ Department updated for ${updated} asset(s)!`);
             refreshAllViews();
