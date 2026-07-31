@@ -348,15 +348,24 @@ var LOC_TOMBSTONES_KEY = 'hospitalLocationRecordsTombstones';
 
 // Tombstones remember what a user deliberately deleted so a merge from the
 // cloud (or a re-applied seed) doesn't resurrect it.
-// Shape: { items: {id: iso}, rooms: {id: iso}, departments: {nameKey: iso} }
+// Shape: { items: {id: iso}, codes: {codeKey: iso}, rooms: {id: iso},
+//          departments: {nameKey: iso} }
+//
+// `codes` exists because a row id is NOT stable across devices: the same
+// physical asset is carried by the seed under one id, by the dashboard's
+// assign flow under another, and by a restored backup under a third. An
+// id-only tombstone therefore blocked exactly one copy and the deleted item
+// walked back in under a different id on the next merge. The asset code is
+// the real-world identity, so deleting a coded item tombstones the code and
+// the deletion holds on every page and every device.
 window.mphGetLocationTombstones = function () {
     try {
         var t = JSON.parse(localStorage.getItem(LOC_TOMBSTONES_KEY) || 'null');
         if (t && typeof t === 'object') {
-            return { items: t.items || {}, rooms: t.rooms || {}, departments: t.departments || {} };
+            return { items: t.items || {}, codes: t.codes || {}, rooms: t.rooms || {}, departments: t.departments || {} };
         }
     } catch (e) { /* ignore */ }
-    return { items: {}, rooms: {}, departments: {} };
+    return { items: {}, codes: {}, rooms: {}, departments: {} };
 };
 window.mphSaveLocationTombstones = function (t) {
     try { localStorage.setItem(LOC_TOMBSTONES_KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
@@ -373,18 +382,285 @@ window.mphClearLocationTombstone = function (kind, key) {
     var t = window.mphGetLocationTombstones();
     if (t[kind] && t[kind][key]) { delete t[kind][key]; window.mphSaveLocationTombstones(t); }
 };
+// Tombstone a deleted item by BOTH identities: its row id and, when it has a
+// parseable asset code, that code. Use this everywhere an item is deleted.
+window.mphTombstoneLocationItem = function (it) {
+    if (!it) return;
+    var t = window.mphGetLocationTombstones();
+    var now = new Date().toISOString();
+    var touched = false;
+    if (it.id) { t.items[it.id] = now; touched = true; }
+    var ck = window.mphCodeKey(it.assetCode);
+    if (ck) { t.codes[ck] = now; touched = true; }
+    if (touched) window.mphSaveLocationTombstones(t);
+};
+// Has this item been deliberately deleted (under either identity)?
+window.mphIsItemTombstoned = function (it, tombs) {
+    if (!it) return false;
+    tombs = tombs || window.mphGetLocationTombstones();
+    if (it.id && tombs.items && tombs.items[it.id]) return true;
+    var ck = window.mphCodeKey(it.assetCode);
+    return !!(ck && tombs.codes && tombs.codes[ck]);
+};
+// Undo a deletion for an item the user is deliberately (re-)placing.
+window.mphUntombstoneLocationItem = function (it) {
+    if (!it) return false;
+    var t = window.mphGetLocationTombstones();
+    var changed = false;
+    if (it.id && t.items[it.id]) { delete t.items[it.id]; changed = true; }
+    var ck = window.mphCodeKey(it.assetCode);
+    if (ck && t.codes[ck]) { delete t.codes[ck]; changed = true; }
+    if (changed) window.mphSaveLocationTombstones(t);
+    return changed;
+};
 // Union tombstones arriving from the cloud into the local set.
 window.mphMergeLocationTombstones = function (incoming) {
     if (!incoming || typeof incoming !== 'object') return false;
     var t = window.mphGetLocationTombstones();
     var changed = false;
-    ['items', 'rooms', 'departments'].forEach(function (kind) {
+    ['items', 'codes', 'rooms', 'departments'].forEach(function (kind) {
+        if (!t[kind]) t[kind] = {};
         var src = incoming[kind] || {};
         Object.keys(src).forEach(function (k) {
             if (!t[kind][k]) { t[kind][k] = src[k]; changed = true; }
         });
     });
     if (changed) window.mphSaveLocationTombstones(t);
+    return changed;
+};
+
+/* ---- transfer ledger: where each item was last deliberately placed ----
+   Deleting is remembered by a tombstone; MOVING was not remembered by
+   anything. The merge below is a union, so an older copy of the records
+   (the cloud backup written before the move, a re-applied seed, a restored
+   backup, or a peer device that hasn't synced yet) still carried the item
+   in the department it was transferred FROM — and the union happily added
+   it back there. The item then existed in both departments, and the
+   department it left showed it again on the next refresh.
+
+   The ledger fixes that at the source: every transfer records where the item
+   went AND where it came from, keyed by an identity that survives a
+   re-generated row id (the asset code when there is one, else the row id).
+   It travels with the cloud backup exactly like tombstones do, newest entry
+   wins, and mphApplyLocationMoves has the last word on placement inside
+   every merge.
+
+   Recording the ORIGIN is what keeps this surgical. 449 asset codes in the
+   real survey data legitimately appear in more than one room (the same code
+   written on several room sheets), so "one code, one row" would delete real
+   records. A ledger entry can only ever remove a copy from a place the user
+   personally moved that item out of; every other copy is left alone.
+   Shape: { moves: { "<identity>":
+              {dept, deptName, room, roomTitle, from:[{dept,room}], at} } } */
+var LOC_MOVES_KEY = 'hospitalLocationRecordsMoves';
+var LOC_MOVES_MAX = 20000;
+var LOC_BUCKET_TITLE = 'Register Items — Room Not Yet Assigned';
+window.mphLocationBucketTitle = LOC_BUCKET_TITLE;
+
+// Identity of a physical item for transfer tracking. The asset code is the
+// real-world identity and survives a row being re-created on another device;
+// a code-less row can only be tracked by its id.
+window.mphLocationMoveKey = function (it) {
+    if (!it) return null;
+    var ck = window.mphCodeKey(it.assetCode);
+    if (ck) return 'c|' + ck;
+    return it.id ? 'i|' + it.id : null;
+};
+window.mphGetLocationMoves = function () {
+    try {
+        var m = JSON.parse(localStorage.getItem(LOC_MOVES_KEY) || 'null');
+        if (m && typeof m === 'object' && m.moves && typeof m.moves === 'object') return m;
+    } catch (e) { /* ignore */ }
+    return { moves: {} };
+};
+// Keep the ledger bounded (oldest entries drop first) so it can never grow
+// into the localStorage quota that the records themselves had to escape.
+function _pruneLocationMoves(m) {
+    var keys = Object.keys(m.moves || {});
+    if (keys.length <= LOC_MOVES_MAX) return m;
+    keys.sort(function (a, b) {
+        return String(m.moves[a] && m.moves[a].at || '').localeCompare(String(m.moves[b] && m.moves[b].at || ''));
+    });
+    keys.slice(0, keys.length - LOC_MOVES_MAX).forEach(function (k) { delete m.moves[k]; });
+    return m;
+}
+window.mphSaveLocationMoves = function (m) {
+    try { localStorage.setItem(LOC_MOVES_KEY, JSON.stringify(_pruneLocationMoves(m || { moves: {} }))); return true; }
+    catch (e) { return false; }
+};
+var LOC_MOVE_ORIGINS_MAX = 8;
+function _originList(from) {
+    if (!from) return [];
+    var arr = Array.isArray(from) ? from : [from];
+    var out = [];
+    arr.forEach(function (o) {
+        if (!o || !o.dept) return;
+        var e = { dept: K(o.dept), room: K((o.room && String(o.room).trim()) || LOC_BUCKET_TITLE) };
+        for (var i = 0; i < out.length; i++) if (out[i].dept === e.dept && out[i].room === e.room) return;
+        out.push(e);
+    });
+    return out;
+}
+// Record that `item` now lives in deptName › roomTitle, having come from
+// `from` ({dept, room} or an array of them). A blank room means the
+// department's register bucket. Origins accumulate across repeated moves, so
+// an item transferred A → B → C never reappears in A or B.
+window.mphRecordLocationMove = function (item, deptName, roomTitle, from) {
+    var key = window.mphLocationMoveKey(item);
+    if (!key || !deptName) return false;
+    var title = (roomTitle && String(roomTitle).trim()) ? String(roomTitle).trim() : LOC_BUCKET_TITLE;
+    var destDept = K(deptName), destRoom = K(title);
+    var m = window.mphGetLocationMoves();
+    var prev = m.moves[key];
+    var origins = _originList(from);
+    if (prev) {
+        // everything the item has already left stays left, and wherever it
+        // was before this move is now an origin too
+        origins = origins.concat(_originList(prev.from || []));
+        if (prev.dept) origins = origins.concat(_originList([{ dept: prev.dept, room: prev.roomTitle || prev.room }]));
+    }
+    origins = _originList(origins).filter(function (o) {
+        return !(o.dept === destDept && o.room === destRoom);   // never disown the destination
+    }).slice(0, LOC_MOVE_ORIGINS_MAX);
+    m.moves[key] = {
+        dept: destDept, deptName: String(deptName),
+        room: destRoom, roomTitle: title,
+        from: origins,
+        itemId: (item && item.id) || '',
+        at: new Date().toISOString()
+    };
+    return window.mphSaveLocationMoves(m);
+};
+// Is `it`, sitting in deptName › roomTitle, a copy left behind at a place the
+// user transferred this item out of?
+window.mphIsStaleLocationCopy = function (it, deptName, roomTitle, moves) {
+    var key = window.mphLocationMoveKey(it);
+    if (!key) return false;
+    moves = moves || window.mphGetLocationMoves();
+    var mv = (moves.moves || {})[key];
+    if (!mv || !Array.isArray(mv.from) || !mv.from.length) return false;
+    var d = K(deptName), r = K((roomTitle && String(roomTitle).trim()) || LOC_BUCKET_TITLE);
+    if (d === mv.dept && r === mv.room) return false;           // this IS the destination
+    for (var i = 0; i < mv.from.length; i++) {
+        if (mv.from[i].dept === d && mv.from[i].room === r) return true;
+    }
+    return false;
+};
+// Drop an item's ledger entry — it was deleted, so it is not "placed"
+// anywhere any more and must not be relocated back into the records.
+window.mphForgetLocationMove = function (item) {
+    var key = window.mphLocationMoveKey(item);
+    if (!key) return false;
+    var m = window.mphGetLocationMoves();
+    if (!m.moves[key]) return false;
+    delete m.moves[key];
+    return window.mphSaveLocationMoves(m);
+};
+// Union the ledger arriving from the cloud into the local one; for an item
+// both sides know about, the most recent transfer wins.
+window.mphMergeLocationMoves = function (incoming) {
+    if (!incoming || typeof incoming !== 'object') return false;
+    var src = incoming.moves && typeof incoming.moves === 'object' ? incoming.moves : incoming;
+    var m = window.mphGetLocationMoves();
+    var changed = false;
+    Object.keys(src).forEach(function (k) {
+        var inc = src[k];
+        if (!inc || typeof inc !== 'object' || !inc.dept) return;
+        var cur = m.moves[k];
+        if (!cur) { m.moves[k] = inc; changed = true; return; }
+        // Newest transfer wins for the destination, but origins UNION: a peer
+        // may know about a hop this device never saw, and an item must not
+        // return to any location it has been moved out of.
+        var origins = _originList((cur.from || []).concat(inc.from || []));
+        var newest = String(cur.at || '') < String(inc.at || '') ? inc : cur;
+        var older = newest === inc ? cur : inc;
+        if (older.dept) origins = _originList(origins.concat([{ dept: older.dept, room: older.roomTitle || older.room }]));
+        origins = origins.filter(function (o) { return !(o.dept === newest.dept && o.room === newest.room); })
+                         .slice(0, LOC_MOVE_ORIGINS_MAX);
+        var merged = {
+            dept: newest.dept, deptName: newest.deptName, room: newest.room, roomTitle: newest.roomTitle,
+            from: origins, itemId: newest.itemId || cur.itemId || '', at: newest.at || cur.at
+        };
+        if (JSON.stringify(merged) !== JSON.stringify(cur)) { m.moves[k] = merged; changed = true; }
+    });
+    if (changed) window.mphSaveLocationMoves(m);
+    return changed;
+};
+var _locMoveRoomSeq = 0;
+// Enforce the ledger on `db`. For every transferred item:
+//   • a copy sitting where it was transferred FROM is removed, and
+//   • if the item is nowhere to be found at its destination, that copy is
+//     relocated there instead (a device that learned of the transfer only
+//     through the synced ledger).
+// Copies anywhere else are left untouched — the same asset code legitimately
+// appears in several rooms in the survey data, and only the places this item
+// was actually moved out of are the app's business. Returns true if the
+// records changed.
+window.mphApplyLocationMoves = function (db, moves) {
+    if (!db || !Array.isArray(db.departments)) return false;
+    moves = moves || window.mphGetLocationMoves();
+    var table = (moves && moves.moves) || {};
+    if (!Object.keys(table).length) return false;
+    var changed = false;
+
+    var placements = {};                    // identity -> [{dept, room, item}]
+    var deptByKey = {};
+    db.departments.forEach(function (d) {
+        if (!d) return;
+        if (d.name && !deptByKey[K(d.name)]) deptByKey[K(d.name)] = d;
+        (d.rooms || []).forEach(function (r) {
+            if (!r || !Array.isArray(r.items)) return;
+            r.items.forEach(function (it) {
+                var k = window.mphLocationMoveKey(it);
+                if (!k || !table[k]) return;
+                (placements[k] = placements[k] || []).push({ dept: d, room: r, item: it });
+            });
+        });
+    });
+
+    Object.keys(placements).forEach(function (k) {
+        var mv = table[k];
+        var origins = Array.isArray(mv.from) ? mv.from : [];
+        var home = null, stale = [];
+        placements[k].forEach(function (p) {
+            var d = K(p.dept.name), r = K(p.room.title);
+            if (!home && d === mv.dept && r === mv.room) { home = p; return; }
+            for (var i = 0; i < origins.length; i++) {
+                if (origins[i].dept === d && origins[i].room === r) { stale.push(p); return; }
+            }
+            // some other room that happens to carry the same code — not ours
+        });
+        function drop(p) {
+            p.room.items = p.room.items.filter(function (x) { return x !== p.item; });
+            changed = true;
+        }
+        if (home) { stale.forEach(drop); return; }   // already home: clear what it left behind
+        if (!stale.length) return;                   // nothing of ours to move
+
+        // The item is still sitting at a place it was transferred out of and
+        // is absent from its destination: relocate it.
+        var destDept = deptByKey[mv.dept];
+        if (!destDept) return;               // department not present yet; retry next merge
+        destDept.rooms = destDept.rooms || [];
+        var destRoom = null;
+        for (var i = 0; i < destDept.rooms.length; i++) {
+            if (destDept.rooms[i] && K(destDept.rooms[i].title) === mv.room) { destRoom = destDept.rooms[i]; break; }
+        }
+        if (!destRoom) {
+            destRoom = {
+                id: 'move_r_' + Date.now().toString(36) + '_' + (++_locMoveRoomSeq),
+                title: mv.roomTitle || LOC_BUCKET_TITLE,
+                verifiedBy: '', dateUpdated: '', note: '', items: []
+            };
+            destDept.rooms.push(destRoom);
+        }
+        destRoom.items = destRoom.items || [];
+        var keep = stale.shift();
+        drop(keep);
+        destRoom.items.push(keep.item);
+        stale.forEach(drop);
+        changed = true;
+    });
     return changed;
 };
 
@@ -800,11 +1076,40 @@ window.mphDedupeLocationRooms = function (db) {
 // Merge `incoming` location records INTO `local` (both {departments:[...]}).
 // Union semantics: local data always survives; incoming-only departments,
 // rooms and items are adopted unless tombstoned. Returns {merged, changed}.
-window.mphMergeLocationRecords = function (local, incoming, tombs) {
+//
+// The union is POSITION-AWARE, in two narrow ways:
+//   • a row id local already holds anywhere is never adopted into a second
+//     room (an id identifies one row, so a second sighting of it is a stale
+//     snapshot of where that row used to be), and
+//   • an item is never adopted into a room the transfer ledger says it was
+//     moved OUT of.
+// Without those checks an older copy of the records — the cloud backup
+// written before a transfer, a re-applied seed, a restored backup — re-added
+// every transferred item to the department it left, so the transfer appeared
+// to undo itself on the next refresh. Both checks are deliberately narrow:
+// hundreds of asset codes legitimately appear in more than one room in the
+// survey data, and those are none of the merge's business.
+window.mphMergeLocationRecords = function (local, incoming, tombs, moves) {
     tombs = tombs || window.mphGetLocationTombstones();
+    moves = moves || window.mphGetLocationMoves();
     var merged = (local && Array.isArray(local.departments)) ? local : { departments: [] };
     var changed = false;
     if (!incoming || !Array.isArray(incoming.departments)) return { merged: merged, changed: false };
+
+    // Every row id local already holds, across ALL departments. The per-room
+    // checks further down only ever answered "is it in THIS room?".
+    var heldIds = {};
+    function noteHeld(it) { if (it && it.id) heldIds[it.id] = true; }
+    // Should this incoming row be adopted into deptName › roomTitle?
+    function rejected(it, deptName, roomTitle) {
+        if (!it) return true;
+        if (it.id && heldIds[it.id]) return true;                       // same row, older position
+        return window.mphIsStaleLocationCopy(it, deptName, roomTitle, moves);
+    }
+    merged.departments.forEach(function (d) {
+        if (!d) return;
+        (d.rooms || []).forEach(function (r) { (r && r.items || []).forEach(noteHeld); });
+    });
 
     var deptByName = {};
     merged.departments.forEach(function (d) { deptByName[K(d.name)] = d; });
@@ -816,11 +1121,17 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
         if (tombs.departments[dKey]) return;                       // deliberately deleted
         var ld = deptByName[dKey];
         if (!ld) {
-            // new department: adopt it minus anything tombstoned inside it
+            // new department: adopt it minus anything tombstoned inside it,
+            // and minus any item we already hold elsewhere (a transferred item
+            // must not reappear because an old copy of its former department
+            // arrived from the cloud/seed)
             var copy = JSON.parse(JSON.stringify(cd));
             copy.rooms = (copy.rooms || []).filter(function (r) { return r && !tombs.rooms[r.id]; });
             copy.rooms.forEach(function (r) {
-                r.items = (r.items || []).filter(function (it) { return it && !tombs.items[it.id]; });
+                r.items = (r.items || []).filter(function (it) {
+                    return it && !window.mphIsItemTombstoned(it, tombs) && !rejected(it, copy.name, r.title);
+                });
+                r.items.forEach(noteHeld);
             });
             merged.departments.push(copy);
             deptByName[dKey] = copy;
@@ -843,7 +1154,10 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
             var lr = roomById[cr.id] || roomByTitle[K(cr.title)];
             if (!lr) {
                 var rcopy = JSON.parse(JSON.stringify(cr));
-                rcopy.items = (rcopy.items || []).filter(function (it) { return it && !tombs.items[it.id]; });
+                rcopy.items = (rcopy.items || []).filter(function (it) {
+                    return it && !window.mphIsItemTombstoned(it, tombs) && !rejected(it, ld.name, rcopy.title);
+                });
+                rcopy.items.forEach(noteHeld);
                 ld.rooms.push(rcopy);
                 roomById[rcopy.id] = rcopy;
                 var ntk = K(rcopy.title);
@@ -866,12 +1180,18 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
             });
             (cr.items || []).forEach(function (cit) {
                 if (!cit || typeof cit !== 'object') return;
-                if (tombs.items[cit.id]) return;
+                if (window.mphIsItemTombstoned(cit, tombs)) return;
                 if (ids[cit.id]) return;
+                // this incoming copy is the item's OLD position, left behind in
+                // a stale snapshot — adopting it is what put transferred
+                // assets back in the department they came from
+                if (rejected(cit, ld.name, lr.title)) return;
                 var k = locItemKey(cit);
                 if (keyCount[k] > 0) { keyCount[k]--; return; }     // same item already here
-                lr.items.push(JSON.parse(JSON.stringify(cit)));
+                var adopted = JSON.parse(JSON.stringify(cit));
+                lr.items.push(adopted);
                 ids[cit.id] = true;
+                noteHeld(adopted);
                 changed = true;
             });
         });
@@ -886,6 +1206,10 @@ window.mphMergeLocationRecords = function (local, incoming, tombs) {
     // duplicate ghost rooms collapse into the copy that holds the data
     if (window.mphConsolidateOfficeRooms(merged)) changed = true;
     if (window.mphDedupeLocationRooms(merged)) changed = true;
+    // The transfer ledger has the last word on WHERE an item lives, so a
+    // stale copy that survived any of the passes above (or that predates the
+    // ledger) is pulled back to the department it was transferred to.
+    if (window.mphApplyLocationMoves(merged, moves)) changed = true;
     if (changed) {
         merged.lastModified = new Date().toISOString();
     }
@@ -908,7 +1232,9 @@ window.mphPruneTombstoned = function (db, tombs) {
                 if (tombs.rooms && tombs.rooms[r.id]) { changed = true; return; }            // room deleted
                 if (Array.isArray(r.items)) {
                     var before = r.items.length;
-                    r.items = r.items.filter(function (it) { return it && !(tombs.items && tombs.items[it.id]); });
+                    // by row id AND by asset code — a deleted item that came
+                    // back under a fresh id is still a deleted item
+                    r.items = r.items.filter(function (it) { return it && !window.mphIsItemTombstoned(it, tombs); });
                     if (r.items.length !== before) changed = true;
                 }
                 keptRooms.push(r);

@@ -685,6 +685,15 @@
                 if (fresh && Array.isArray(fresh.departments)) db = fresh;
             }
         }
+        // Honour transfers recorded on this or any synced device: an item is
+        // shown in the department it was moved TO, never back in the one it
+        // came from. Cheap when nothing has ever been transferred.
+        let placed = false;
+        // deletions first: an item the user removed must not be here at all,
+        // whatever id it came back under
+        if (window.mphPruneTombstoned) placed = window.mphPruneTombstoned(db) || placed;
+        if (window.mphApplyLocationMoves) placed = window.mphApplyLocationMoves(db) || placed;
+        if (placed) save();
     }
 
     /* ---------- Lookups ---------- */
@@ -1019,7 +1028,9 @@
                 window.mphAddLocationTombstone('departments', String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase());
                 (d.rooms || []).forEach(r => {
                     window.mphAddLocationTombstone('rooms', r.id);
-                    (r.items || []).forEach(it => window.mphAddLocationTombstone('items', it.id));
+                    // by row id AND asset code, so the item can't return under
+                    // a fresh id from a seed, a peer device or a restore
+                    (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
                 });
             }
             db.departments = db.departments.filter(x => x.id !== id);
@@ -1074,7 +1085,7 @@
         confirmModal(`Delete “${r.title}”?`, `This removes the room record and its ${(r.items||[]).length} item(s). This cannot be undone.`, () => {
             if (window.mphAddLocationTombstone) {
                 window.mphAddLocationTombstone('rooms', r.id);
-                (r.items || []).forEach(it => window.mphAddLocationTombstone('items', it.id));
+                (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
             }
             d.rooms = d.rooms.filter(x => x.id !== id);
             if (selectedRoomId === id) selectedRoomId = null;
@@ -1111,7 +1122,13 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
-        it[field] = val; save(); flashSaved();
+        it[field] = val;
+        if (field === 'assetCode') {
+            // Typing a code here is a deliberate placement: lift any deletion
+            // tombstone on that code so the row isn't pruned by the next merge.
+            if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
+        }
+        save(); flashSaved();
     }
 
     /* Assign the next code in series to a Location Records item. The item
@@ -1183,7 +1200,10 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
-        it.assetCode = code; save(); closeModal();
+        it.assetCode = code;
+        // deliberate placement — see updateItem()
+        if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
+        save(); closeModal();
         renderRoom(document.getElementById('content'));
         document.querySelectorAll('.cell-input').forEach(autoGrow);
         toast('Assigned ' + code, 'success');
@@ -1191,7 +1211,14 @@
     function deleteItem(id) {
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
-        if (window.mphAddLocationTombstone) window.mphAddLocationTombstone('items', id);
+        const it = (r.items || []).find(x => x.id === id);
+        // Tombstone by row id AND asset code. An id-only tombstone let the
+        // same physical item return under a different id (the seed's, another
+        // device's, a restored backup's) on the very next merge.
+        if (window.mphTombstoneLocationItem) window.mphTombstoneLocationItem(it || { id: id });
+        else if (window.mphAddLocationTombstone) window.mphAddLocationTombstone('items', id);
+        // a deleted item is no longer "placed" anywhere
+        if (it && window.mphForgetLocationMove) window.mphForgetLocationMove(it);
         r.items = r.items.filter(x => x.id !== id);
         save(); renderRoom(document.getElementById('content'));
         document.querySelectorAll('.cell-input').forEach(autoGrow);
@@ -1284,6 +1311,14 @@
             // same code already there: don't drop the moved row's data —
             // fill any blank fields on the existing item from the moved one
             ['item', 'description', 'remarks'].forEach(f => { if (!dup[f] && it[f]) dup[f] = it[f]; });
+        }
+        // Remember the transfer. Without this the next merge of an older copy
+        // of the records (cloud backup, re-applied seed, a peer device) put
+        // the item straight back in the department it just left.
+        if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(dup || it);
+        if (window.mphRecordLocationMove) {
+            window.mphRecordLocationMove(dup || it, destDept.name, destRoom.title,
+                                         { dept: srcDept.name, room: srcRoom.title });
         }
         save();
         // re-home the matching main-register asset (department + room), and
@@ -1474,12 +1509,16 @@
         openModal();
         document.getElementById('importMergeBtn').onclick = () => {
             closeModal();
-            const r = mergeIntoDb(data); save(); goHome();
+            const r = mergeIntoDb(data); _reconcileAfterImport(); save(); goHome();
             toast('Merged: +' + r.addedDepts + ' depts, +' + r.addedRooms + ' rooms, +' + r.addedItems + ' items', 'success');
         };
         document.getElementById('importReplaceBtn').onclick = () => {
             closeModal();
-            db = data; save(); goHome(); toast('Records replaced', 'success');
+            // deletions and transfers still hold — a backup file is not a
+            // licence to resurrect what the user removed or un-move what
+            // they transferred
+            db = data; _reconcileAfterImport(); save(); goHome();
+            toast('Records replaced', 'success');
         };
     }
 
@@ -1497,6 +1536,21 @@
         return [it.item, it.description, it.assetCode, it.remarks]
             .map(s => String(s == null ? '' : s).trim().toLowerCase()).join('||');
     }
+    // A restore gives every incoming row a fresh id, so an id-only tombstone
+    // never matched and deleted items walked back in with the backup. Filter
+    // the incoming side through the tombstones (which now also key on the
+    // asset code) before anything is adopted.
+    function _liveIncoming(items) {
+        return (items || []).filter(it =>
+            !(window.mphIsItemTombstoned && window.mphIsItemTombstoned(it)));
+    }
+    // Re-assert deletions and transfers after any restore.
+    function _reconcileAfterImport() {
+        let changed = false;
+        if (window.mphPruneTombstoned) changed = window.mphPruneTombstoned(db) || changed;
+        if (window.mphApplyLocationMoves) changed = window.mphApplyLocationMoves(db) || changed;
+        return changed;
+    }
     function _countAllItems() {
         return db.departments.reduce((s, d) => s + d.rooms.reduce((t, r) => t + (r.items ? r.items.length : 0), 0), 0);
     }
@@ -1504,7 +1558,7 @@
         return {
             id: uid('room'), title: room.title || '',
             verifiedBy: room.verifiedBy || '', dateUpdated: room.dateUpdated || '', note: room.note || '',
-            items: (room.items || []).map(it => ({
+            items: _liveIncoming(room.items).map(it => ({
                 id: uid('item'), item: it.item || '', description: it.description || '',
                 assetCode: it.assetCode || '', remarks: it.remarks || ''
             }))
@@ -1515,7 +1569,7 @@
         const existingCounts = {};
         existingRoom.items.forEach(it => { const s = _itemSig(it); existingCounts[s] = (existingCounts[s] || 0) + 1; });
         const incGroups = {};
-        (incomingRoom.items || []).forEach(it => { const s = _itemSig(it); (incGroups[s] = incGroups[s] || []).push(it); });
+        _liveIncoming(incomingRoom.items).forEach(it => { const s = _itemSig(it); (incGroups[s] = incGroups[s] || []).push(it); });
         Object.keys(incGroups).forEach(s => {
             const deficit = incGroups[s].length - (existingCounts[s] || 0);
             for (let i = 0; i < deficit; i++) {
