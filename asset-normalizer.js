@@ -546,6 +546,62 @@ window.mphIsStaleLocationCopy = function (it, deptName, roomTitle, moves) {
     }
     return false;
 };
+/* ---- Location Records → Asset Register change queue ----
+   The Location Records page is the field-survey view; the Asset Register is
+   the financial record. An edit made in the records has to reach the
+   register, but the two live in different stores and the records page also
+   runs standalone (not embedded in the dashboard), where it cannot call into
+   the dashboard at all — so a direct call was only ever made for one action,
+   and only when embedded.
+
+   Every change is instead appended here. The dashboard drains the queue on
+   load and the moment it is told records changed, so an edit made on the
+   standalone page still lands in the register the next time the dashboard is
+   opened. Ops are idempotent: replaying one is a no-op.
+   Op shape: { op:'place'|'edit'|'code'|'delete', code, ... , at } */
+var LOC_REG_QUEUE_KEY = 'hospitalLocationRegisterQueue';
+var LOC_REG_QUEUE_MAX = 5000;
+window.mphGetRegisterQueue = function () {
+    try {
+        var q = JSON.parse(localStorage.getItem(LOC_REG_QUEUE_KEY) || 'null');
+        if (Array.isArray(q)) return q;
+    } catch (e) { /* ignore */ }
+    return [];
+};
+window.mphQueueRegisterChange = function (op) {
+    if (!op || !op.op) return false;
+    var q = window.mphGetRegisterQueue();
+    op.at = new Date().toISOString();
+    q.push(op);
+    if (q.length > LOC_REG_QUEUE_MAX) q = q.slice(q.length - LOC_REG_QUEUE_MAX);
+    try { localStorage.setItem(LOC_REG_QUEUE_KEY, JSON.stringify(q)); return true; }
+    catch (e) { return false; }
+};
+// Read and clear in one step — the caller owns the ops it takes.
+window.mphTakeRegisterQueue = function () {
+    var q = window.mphGetRegisterQueue();
+    if (q.length) { try { localStorage.removeItem(LOC_REG_QUEUE_KEY); } catch (e) { /* ignore */ } }
+    return q;
+};
+// Does any room still list this asset code? Used before a queued delete is
+// allowed to remove the register asset: hundreds of codes appear on more than
+// one room sheet, and removing one survey row must not delete the asset while
+// another room still records it.
+window.mphCodeStillInRecords = function (db, code) {
+    var key = window.mphCodeKey(code);
+    if (!key || !db || !Array.isArray(db.departments)) return false;
+    for (var i = 0; i < db.departments.length; i++) {
+        var rooms = (db.departments[i] && db.departments[i].rooms) || [];
+        for (var j = 0; j < rooms.length; j++) {
+            var items = (rooms[j] && rooms[j].items) || [];
+            for (var k = 0; k < items.length; k++) {
+                if (window.mphCodeKey(items[k].assetCode) === key) return true;
+            }
+        }
+    }
+    return false;
+};
+
 // Drop an item's ledger entry — it was deleted, so it is not "placed"
 // anywhere any more and must not be relocated back into the records.
 window.mphForgetLocationMove = function (item) {

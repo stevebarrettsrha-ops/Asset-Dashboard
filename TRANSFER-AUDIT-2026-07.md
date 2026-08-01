@@ -3,12 +3,13 @@
 **Date:** 2026-07-31 · **Scope:** `index.html`, `locations.html`, `asset-normalizer.js`
 **Reported:** assets transferred from one department to another reappear in the
 department they were transferred *out of* when the dashboard refreshes.
-**Follow-up requirement:** items deleted from the Location Records must stay
-deleted, on every page.
+**Follow-up requirements:** items deleted from the Location Records must stay
+deleted, on every page; and changes made in the Location Records must reach the
+Asset Register.
 
-Both are reproduced, root-caused and fixed below. Verified against the real
-dataset (58 departments, 12,443 Location-Record items, ~9,500 coded assets) in
-headless Chromium, plus 21 unit checks on the shared merge logic.
+All three are reproduced, root-caused and fixed below. Verified against the real
+dataset (58 departments, 12,443 Location-Record items, 9,436 register assets) in
+headless Chromium — 46 checks in total.
 
 ---
 
@@ -155,9 +156,52 @@ is exactly `seed − 1`, proving no survey rows were collaterally destroyed.
 migration runs, the backup payload carries the ledger, a dashboard transfer
 records an origin, and there are no page errors.
 
+**Records → register bridge — 11 checks** (`bridge.js`), with the dashboard
+**closed** while the edits are made: seed the register (9,436 assets), close the
+dashboard, then on the standalone records page move one asset, edit another's
+description and delete a third through the page's own handlers. Reopening the
+dashboard must apply all three — department, room, description, and the deletion
+— removing exactly one asset, and the deletion must survive a further reload.
+
 ---
 
-## 4. Open observations (not changed)
+## 4. Location Records → Asset Register
+
+**Requirement:** edits made in the Location Records must reach the Asset Register.
+
+Before this, exactly one action propagated — a move — and only when the records
+page was running *embedded in the dashboard* (`window.parent.rehomeAssetToRoom`).
+Opened on its own, the page changed nothing in the register. Description edits,
+re-codings and deletions never propagated at all, from either context.
+
+Every change is now appended to a shared queue (`hospitalLocationRegisterQueue`)
+that the dashboard drains on load and whenever it hears the records changed. An
+edit made on the standalone page therefore lands in the register the next time
+the dashboard is opened, with the dashboard closed in between. Ops are matched
+by asset-code identity **including historical aliases**, and are idempotent.
+
+| Change in Location Records | Effect on the Asset Register |
+|---|---|
+| Move item to another department/room | `department` + `room` updated, stamped `locationUpdatedAt` |
+| Edit description / item / remarks | `description` / `itemType` / `serialModel` updated (a `Serial:` prefix is stripped) |
+| Enter or assign an asset code | `assetCode` updated, the previous code kept as an alias so it stays searchable |
+| Delete an item, room or department | The asset is **deleted from the register** — removed, tombstoned so it cannot re-sync, disposal records cleared, audit entry written. Identical to the dashboard's own Delete Asset. |
+
+**Deletion is guarded twice.** 449 asset codes appear in more than one room, so
+removing one survey row must not delete an asset another room still records. The
+records page only queues a delete when no room still lists that code, and the
+dashboard re-checks against the current records before removing anything — a
+stale queue entry cannot delete the wrong asset.
+
+Because deleting a survey row now destroys a financial record, the confirmations
+say so. Deleting an item previously had **no confirmation at all** (a one-click
+`✕`); it now warns when that row is the last record of its code. The room and
+department dialogs spell out that every asset not recorded elsewhere goes with
+them.
+
+---
+
+## 5. Open observations (not changed)
 
 - **449 asset codes appear in more than one room** in the survey data (84 span
   more than one department). Some are genuine duplicate survey entries, some are
@@ -167,8 +211,9 @@ records an origin, and there are no page errors.
   Maternity Store" contains "Maternity") is rewritten to the canonical location
   by `canonicalizeAllAssetDepartments` on every load. That is the intended
   messy-name cleanup, but it makes such custom names impossible to keep.
-- **Deleting an item from the Location Records does not delete the asset from
-  the financial register.** That is deliberate — the register carries
-  acquisition cost and depreciation — but it means the two stores can disagree
-  by design. The "Reconcile Locations" report on the Asset Register surfaces the
-  drift. Say the word if deletion should propagate to the register too.
+- **Deleting from the Location Records now deletes the register asset**
+  (§4), on the owner's explicit instruction. It is irreversible without a
+  backup restore, and the queue applies it on the next dashboard load even if
+  the deletion was made days earlier on the standalone page. The guards above
+  stop it from over-reaching, but a bulk room or department deletion is now a
+  bulk register deletion — worth knowing before clearing out old survey data.
