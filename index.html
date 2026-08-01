@@ -12873,6 +12873,103 @@
             }
         }
 
+        // Apply changes made in the Location Records to the Asset Register.
+        // The records page (embedded or standalone) queues an op per edit; we
+        // drain them here, so a survey correction, a transfer, a re-coding or
+        // a deletion made over there lands in the register.
+        // Matching is by asset-code identity, including historical aliases.
+        window.drainLocationRegisterQueue = function () {
+            try {
+                if (!window.mphTakeRegisterQueue || !window.mphCodeKey) return false;
+                const ops = window.mphTakeRegisterQueue();
+                if (!ops.length) return false;
+
+                const assets = loadAssetsFromStorage();
+                const byKey = new Map();
+                assets.forEach(a => {
+                    [a.assetCode].concat(a.aliases || []).forEach(c => {
+                        const k = window.mphCodeKey(c);
+                        if (k && !byKey.has(k)) byKey.set(k, a);
+                    });
+                });
+                const records = getLocationRecords();
+                const removed = new Set();
+                let changed = 0, deleted = 0;
+
+                ops.forEach(op => {
+                    const key = window.mphCodeKey(op.oldCode || op.code);
+                    if (!key) return;
+                    const a = byKey.get(key);
+                    if (!a || removed.has(a.id)) return;
+
+                    if (op.op === 'place') {
+                        if (op.dept) a.department = op.dept;
+                        a.room = op.room || '';
+                        a.locationUpdatedAt = op.at || new Date().toISOString();
+                        changed++;
+                    } else if (op.op === 'edit') {
+                        // survey field -> register field
+                        const map = { description: 'description', item: 'itemType', remarks: 'serialModel' };
+                        const target = map[op.field];
+                        if (!target) return;
+                        let val = op.value == null ? '' : String(op.value);
+                        if (op.field === 'remarks') val = val.replace(/^\s*Serial:\s*/i, '');
+                        if ((a[target] || '') === val) return;
+                        a[target] = val;
+                        changed++;
+                    } else if (op.op === 'code') {
+                        const next = String(op.code || '').trim();
+                        if (!next || next === a.assetCode) return;
+                        // keep the old code searchable rather than losing it
+                        if (a.assetCode) a.aliases = (a.aliases || []).concat([a.assetCode]);
+                        a.assetCode = next;
+                        const nk = window.mphCodeKey(next);
+                        if (nk) byKey.set(nk, a);
+                        changed++;
+                    } else if (op.op === 'delete') {
+                        // Re-check against the CURRENT records: a queued delete
+                        // must not remove an asset that another room still
+                        // records (hundreds of codes sit on several sheets), nor
+                        // one that has since been re-added.
+                        if (window.mphCodeStillInRecords && window.mphCodeStillInRecords(records, op.code)) return;
+                        removed.add(a.id);
+                        deleted++;
+                    }
+                });
+
+                if (!changed && !deleted) return false;
+                let out = assets;
+                if (deleted) {
+                    out = assets.filter(a => !removed.has(a.id));
+                    // same bookkeeping the dashboard's own Delete Asset does
+                    if (typeof trackDeletedAssetIds === 'function') trackDeletedAssetIds([...removed]);
+                    assets.forEach(a => {
+                        if (!removed.has(a.id)) return;
+                        try {
+                            if (typeof removeDisposalRecordsForAsset === 'function') {
+                                removeDisposalRecordsForAsset(a.assetCode, a.id);
+                            }
+                            if (typeof addAuditEntry === 'function') {
+                                addAuditEntry(a.assetCode, 'Deleted', a.department,
+                                    'Deleted from Location Records (last record of this asset code)');
+                            }
+                        } catch (e) { /* keep deleting the rest */ }
+                    });
+                }
+                saveAssetsToStorage(out);
+                allAssetsData = out;
+                if (typeof filteredData !== 'undefined') filteredData = out;
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                console.log('Location Records → register: ' + changed + ' updated, ' + deleted + ' deleted');
+                if (typeof refreshAllViews === 'function') { try { refreshAllViews(); } catch (e) {} }
+                else if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+                return true;
+            } catch (e) {
+                console.warn('Location Records → register sync failed:', e);
+                return false;
+            }
+        };
+
         // Apply the transfer ledger to the Location Records we already hold —
         // used when a sync brings transfers but no records payload.
         function applyLocationMovesToLocal() {
@@ -12945,6 +13042,8 @@
             if (e.origin !== window.location.origin) return;
             if (e.data && e.data.type === 'mph-location-records-updated') {
                 dataIsDirty = true;
+                // an edit over there may carry a register change with it
+                try { drainLocationRegisterQueue(); } catch (err) {}
             }
         });
 
@@ -18017,7 +18116,12 @@
             // item or moving it to another department has to survive a
             // refresh on every page, not just the page it was done on.
             try {
-                const applyLocState = () => { try { applyLocationMovesToLocal(); } catch (e) {} };
+                const applyLocState = () => {
+                    try { applyLocationMovesToLocal(); } catch (e) {}
+                    // changes made on the standalone Location Records page,
+                    // with the dashboard closed, land in the register now
+                    try { drainLocationRegisterQueue(); } catch (e) {}
+                };
                 if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
                     window.mphLocationStoreReady.then(applyLocState);
                 } else {

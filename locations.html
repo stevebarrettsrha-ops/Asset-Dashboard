@@ -1021,7 +1021,8 @@
     }
     function deleteDept(id) {
         const d = getDept(id);
-        confirmModal(`Delete “${d.name}”?`, `This removes the department and all ${d.rooms.length} room record(s). This cannot be undone.`, () => {
+        confirmModal(`Delete “${d.name}”?`,
+            `This removes the department and all ${d.rooms.length} room record(s), and DELETES from the Asset Register every asset whose code is not recorded in another department. This cannot be undone.`, () => {
             // tombstone the department and everything inside it so cloud
             // syncs and seed refreshes don't bring the deleted data back
             if (window.mphAddLocationTombstone) {
@@ -1033,7 +1034,9 @@
                     (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
                 });
             }
+            const goneItems = (d.rooms || []).reduce((acc, r) => acc.concat(r.items || []), []);
             db.departments = db.departments.filter(x => x.id !== id);
+            goneItems.forEach(queueRegisterDelete);   // after the removal — see the guard
             if (selectedDeptId === id) { selectedDeptId = null; selectedRoomId = null; }
             save(); render(); toast('Department deleted', 'success');
         });
@@ -1082,12 +1085,15 @@
     function deleteRoom(id) {
         const d = getDept(selectedDeptId);
         const r = getRoom(d, id);
-        confirmModal(`Delete “${r.title}”?`, `This removes the room record and its ${(r.items||[]).length} item(s). This cannot be undone.`, () => {
+        confirmModal(`Delete “${r.title}”?`,
+            `This removes the room record and its ${(r.items||[]).length} item(s), and DELETES from the Asset Register every asset whose code is not recorded in another room. This cannot be undone.`, () => {
             if (window.mphAddLocationTombstone) {
                 window.mphAddLocationTombstone('rooms', r.id);
                 (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
             }
+            const goneItems = (r.items || []).slice();
             d.rooms = d.rooms.filter(x => x.id !== id);
+            goneItems.forEach(queueRegisterDelete);   // after the removal — see the guard
             if (selectedRoomId === id) selectedRoomId = null;
             save(); render(); toast('Room deleted', 'success');
         });
@@ -1122,13 +1128,38 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
+        const before = it[field];
         it[field] = val;
         if (field === 'assetCode') {
             // Typing a code here is a deliberate placement: lift any deletion
             // tombstone on that code so the row isn't pruned by the next merge.
             if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
+            queueRegisterChange({ op: 'code', code: val, oldCode: before, dept: d.name, room: r.title });
+        } else {
+            // description / item / remarks edited here are the same facts the
+            // register holds, so the register is updated to match
+            queueRegisterChange({ op: 'edit', code: it.assetCode, field: field, value: val });
         }
         save(); flashSaved();
+    }
+    /* Send a change made here to the Asset Register. The dashboard drains the
+       queue on load and whenever it hears the records changed, so this works
+       from the embedded frame AND from this page opened on its own. */
+    function queueRegisterChange(op) {
+        if (!op || !window.mphQueueRegisterChange) return;
+        if (!op.code && !op.oldCode) return;        // nothing to match on
+        window.mphQueueRegisterChange(op);
+    }
+    /* Deleting a row here deletes the asset from the Asset Register too.
+       Call AFTER the row has been removed from `db`: the guard below asks
+       whether any room still lists that code, and hundreds of codes appear on
+       more than one room sheet — removing one survey row must not delete an
+       asset another room still records. The dashboard re-checks this when it
+       drains the queue, so a stale queue entry can't delete the wrong asset. */
+    function queueRegisterDelete(it) {
+        if (!it || !it.assetCode) return;
+        if (window.mphCodeStillInRecords && window.mphCodeStillInRecords(db, it.assetCode)) return;
+        queueRegisterChange({ op: 'delete', code: it.assetCode, description: it.description || it.item || '' });
     }
 
     /* Assign the next code in series to a Location Records item. The item
@@ -1200,9 +1231,11 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
+        const oldCode = it.assetCode;
         it.assetCode = code;
         // deliberate placement — see updateItem()
         if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
+        queueRegisterChange({ op: 'code', code: code, oldCode: oldCode, dept: d.name, room: r.title });
         save(); closeModal();
         renderRoom(document.getElementById('content'));
         document.querySelectorAll('.cell-input').forEach(autoGrow);
@@ -1212,6 +1245,21 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = (r.items || []).find(x => x.id === id);
+        // This now also removes the asset from the Asset Register (cost,
+        // depreciation and all), so it is no longer a silent one-click action.
+        if (it && it.assetCode && window.mphCodeStillInRecords &&
+            !window.mphCodeStillInRecords({ departments: db.departments.map(dep => ({
+                rooms: (dep.rooms || []).map(rr => ({
+                    items: (rr.items || []).filter(x => x.id !== id) })) })) }, it.assetCode)) {
+            const label = (it.description || it.item || it.assetCode);
+            if (!confirm('Delete "' + label + '" (' + it.assetCode + ')?\n\n' +
+                         'This is the last record of this asset code, so the asset will also be ' +
+                         'DELETED FROM THE ASSET REGISTER — its cost and depreciation leave every ' +
+                         'total and report.\n\nThis cannot be undone.')) return;
+        }
+        doDeleteItem(id, d, r, it);
+    }
+    function doDeleteItem(id, d, r, it) {
         // Tombstone by row id AND asset code. An id-only tombstone let the
         // same physical item return under a different id (the seed's, another
         // device's, a restored backup's) on the very next merge.
@@ -1220,6 +1268,7 @@
         // a deleted item is no longer "placed" anywhere
         if (it && window.mphForgetLocationMove) window.mphForgetLocationMove(it);
         r.items = r.items.filter(x => x.id !== id);
+        queueRegisterDelete(it);
         save(); renderRoom(document.getElementById('content'));
         document.querySelectorAll('.cell-input').forEach(autoGrow);
         renderDeptList();
@@ -1320,14 +1369,23 @@
             window.mphRecordLocationMove(dup || it, destDept.name, destRoom.title,
                                          { dept: srcDept.name, room: srcRoom.title });
         }
+        // Re-home the matching register asset. Queued (not called directly on
+        // the parent) so the transfer also reaches the register when this page
+        // is open on its own, with the dashboard closed.
+        queueRegisterChange({
+            op: 'place',
+            code: (dup || it).assetCode,
+            dept: destDept.name,
+            room: destRoom.title.indexOf('Not Yet Assigned') >= 0 ? '' : destRoom.title
+        });
         save();
-        // re-home the matching main-register asset (department + room), and
-        // flag the dashboard so it syncs
+        // apply immediately when embedded, so the register view behind the
+        // frame updates without waiting for a reload
         try {
-            if (window.parent && window.parent !== window && typeof window.parent.rehomeAssetToRoom === 'function') {
-                window.parent.rehomeAssetToRoom(it.assetCode, destDept.name, destRoom.title.indexOf('Not Yet Assigned') >= 0 ? '' : destRoom.title);
+            if (window.parent && window.parent !== window && typeof window.parent.drainLocationRegisterQueue === 'function') {
+                window.parent.drainLocationRegisterQueue();
             }
-        } catch (e) { /* standalone page: register lives in the dashboard */ }
+        } catch (e) { /* standalone page: the dashboard drains it on next load */ }
         closeModal();
         selectedDeptId = destDeptId; selectedRoomId = destRoom.id;
         render(); window.scrollTo(0, 0);
