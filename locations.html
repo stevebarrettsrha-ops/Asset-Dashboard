@@ -283,6 +283,10 @@
         table.items-table tr:nth-child(even) td { background: var(--table-hover); }
         .col-num { width: 34px; text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 8px 4px !important; }
         .col-act { width: 40px; text-align: center; }
+        .col-item { width: 22%; }
+        .col-desc { width: 34%; }
+        .col-code { width: 20%; }
+        .col-remarks { width: 20%; }
         .row-del { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 8px; }
         .row-del:hover { opacity: 1; }
         .row-move { background: none; border: none; cursor: pointer; font-size: 0.95rem; opacity: 0.6; padding: 8px; }
@@ -455,6 +459,96 @@
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior: contain;
             }
+
+            /* Give the item table room to breathe rather than crushing
+               every word onto its own line inside a narrow column.
+               table-layout: fixed so the column percentages below actually
+               hold — under auto layout the browser hands the space to
+               whichever column has the longest words, which starved the
+               Asset Code column until "MPH/AE/591/01" broke over 3 lines. */
+            .items-table-scroll { overscroll-behavior-x: contain; }
+            table.items-table { min-width: 720px; table-layout: fixed; }
+            table.items-table th { padding: 8px 8px; }
+            table.items-table td .cell-input { padding: 8px 8px; }
+            /* Asset Code is widened to pay for the two lookup buttons that
+               share the cell with the code itself. */
+            .col-item { width: 19%; }
+            .col-desc { width: 29%; }
+            .col-code { width: 28%; }
+            .col-remarks { width: 24%; }
+            .assetcode-lookup { padding: 0 6px; }
+        }
+
+        /* ============================================
+           PHONES — the 5-column form does not fit a phone at any
+           column width, so each item becomes a stacked card with its
+           column name as the label. No horizontal scrolling, and every
+           field gets the full width of the sheet.
+           ============================================ */
+        @media (max-width: 640px) {
+            .record-sheet { padding: 18px 12px; }
+            .items-table-scroll { overflow-x: visible; }
+
+            table.items-table,
+            table.items-table tbody,
+            table.items-table tr,
+            table.items-table td { display: block; width: auto; }
+            .col-item, .col-desc, .col-code, .col-remarks { width: auto; }
+            table.items-table { min-width: 0; border-collapse: separate; border-spacing: 0; }
+            table.items-table thead { display: none; }
+
+            table.items-table tr {
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                margin-bottom: 12px;
+                padding: 6px 10px 10px;
+                background: var(--bg-card);
+                position: relative;
+            }
+            table.items-table tr:nth-child(even) td { background: transparent; }
+            table.items-table tr:nth-child(even) { background: var(--table-hover); }
+
+            table.items-table td { border: none; padding: 6px 0 0; }
+            table.items-table td::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.4px;
+                text-transform: uppercase;
+                color: var(--text-secondary);
+                margin-bottom: 3px;
+            }
+            table.items-table td .cell-input {
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 9px 10px;
+                min-height: 44px;
+            }
+
+            /* Row number sits as a badge in the card header; the row
+               actions sit beside it instead of in a 40px column. */
+            table.items-table td.col-num {
+                width: auto; text-align: left; padding: 2px 0 0 !important;
+                font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);
+            }
+            table.items-table td.col-num::before { content: "#"; display: inline; margin: 0; }
+            table.items-table td.col-act {
+                position: absolute; top: 4px; right: 6px;
+                width: auto; padding: 0;
+            }
+            table.items-table td.col-act::before { display: none; }
+            table.items-table td.col-act .row-move,
+            table.items-table td.col-act .row-del { font-size: 1.05rem; opacity: 0.75; padding: 8px 6px; }
+
+            /* Asset Code keeps its lookup buttons, sized for a thumb */
+            .assetcode-cell {
+                border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;
+            }
+            .assetcode-cell .cell-input { border: none; border-radius: 0; }
+            .assetcode-lookup { padding: 0 12px; font-size: 1rem; }
+
+            .add-row-btn { width: 100%; min-height: 44px; }
         }
     </style>
 </head>
@@ -859,10 +953,10 @@
                     <thead>
                         <tr>
                             <th class="col-num">#</th>
-                            <th style="width:22%">Item</th>
-                            <th style="width:34%">Description/Make</th>
-                            <th style="width:20%">Asset Code</th>
-                            <th style="width:20%">Remarks</th>
+                            <th class="col-item">Item</th>
+                            <th class="col-desc">Description/Make</th>
+                            <th class="col-code">Asset Code</th>
+                            <th class="col-remarks">Remarks</th>
                             <th class="col-act"></th>
                         </tr>
                     </thead>
@@ -872,24 +966,43 @@
                 <button class="btn btn-primary btn-sm add-row-btn" onclick="addItem()">＋ Add Item Row</button>
                 <div class="rec-footer-note">⚠️ ${APPROVAL_NOTE}</div>
             </div>`;
+        // Grow now, then again once the browser has laid the table out —
+        // the first pass is a no-op while widths are still unresolved.
+        growAllCells();
+        requestAnimationFrame(growAllCells);
     }
 
     function rowHtml(it, i) {
         return `
         <tr data-id="${it.id}">
-            <td class="col-num">${i + 1}</td>
-            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
-            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
-            <td><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
-            <td><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
-            <td class="col-act" style="white-space:nowrap;">
+            <td class="col-num" data-label="#">${i + 1}</td>
+            <td data-label="Item"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
+            <td data-label="Description/Make"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
+            <td data-label="Asset Code"><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
+            <td data-label="Remarks"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
+            <td class="col-act" data-label="Actions" style="white-space:nowrap;">
                 <button class="row-move" title="Move this item to another room or department" onclick="openMoveItemModal('${it.id}')">➡️</button>
                 <button class="row-del" title="Delete row" onclick="deleteItem('${it.id}')">✕</button>
             </td>
         </tr>`;
     }
 
-    function autoGrow(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
+    function autoGrow(el) {
+        if (!el) return;
+        el.style.height = 'auto';
+        // A textarea that is not laid out yet (hidden tab, iframe still
+        // sizing) reports scrollHeight 0 — leave the CSS min-height alone
+        // rather than collapsing the row to nothing.
+        if (el.scrollHeight) el.style.height = el.scrollHeight + 'px';
+    }
+    /* Re-measure every cell of the record. A cell keeps whatever height it
+       was last given, so any change of column width — first render, phone
+       rotation, the dashboard iframe resizing, the switch to the stacked
+       phone layout — wraps the text onto more lines and clips it unless the
+       textareas are grown again. */
+    function growAllCells() {
+        document.querySelectorAll('table.items-table .cell-input').forEach(autoGrow);
+    }
 
     /* ============================================================
        Asset code lookup pop-up (shared reference from asset-codes.js)
@@ -956,7 +1069,7 @@
     ============================================================ */
     function goHome() { selectedDeptId = null; selectedRoomId = null; render(); }
     function selectDept(id) { selectedDeptId = id; selectedRoomId = null; render(); window.scrollTo(0,0); }
-    function selectRoom(id) { selectedRoomId = id; render(); window.scrollTo(0,0); document.querySelectorAll('.cell-input').forEach(autoGrow); }
+    function selectRoom(id) { selectedRoomId = id; render(); window.scrollTo(0,0); growAllCells(); }
 
     // Debounced: each keystroke re-scans every department/room/item and
     // rebuilds the view; coalescing to ~160ms keeps typing smooth at scale.
@@ -1120,6 +1233,7 @@
         tmp.innerHTML = rowHtml(it, r.items.length - 1);
         const tr = tmp.firstElementChild;
         body.appendChild(tr);
+        tr.querySelectorAll('.cell-input').forEach(autoGrow);
         const first = tr.querySelector('.cell-input');
         if (first) first.focus();
         renderDeptList();
@@ -1238,7 +1352,7 @@
         queueRegisterChange({ op: 'code', code: code, oldCode: oldCode, dept: d.name, room: r.title });
         save(); closeModal();
         renderRoom(document.getElementById('content'));
-        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        growAllCells();
         toast('Assigned ' + code, 'success');
     }
     function deleteItem(id) {
@@ -1270,7 +1384,7 @@
         r.items = r.items.filter(x => x.id !== id);
         queueRegisterDelete(it);
         save(); renderRoom(document.getElementById('content'));
-        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        growAllCells();
         renderDeptList();
     }
 
@@ -1389,7 +1503,7 @@
         closeModal();
         selectedDeptId = destDeptId; selectedRoomId = destRoom.id;
         render(); window.scrollTo(0, 0);
-        document.querySelectorAll('.cell-input').forEach(autoGrow);
+        growAllCells();
         toast('Item moved to ' + destDept.name + ' › ' + destRoom.title, 'success');
     }
 
@@ -1728,6 +1842,19 @@
        Init — wait for the IndexedDB-backed store (it also migrates any
        legacy localStorage records on first run), then load + render.
     ============================================================ */
+    /* Re-flow the record whenever the available width changes: rotating the
+       phone, the on-screen keyboard opening, or the dashboard iframe being
+       resized all rewrap the item cells. Debounced so a drag-resize does not
+       re-measure on every frame. */
+    (function () {
+        let t = null;
+        function reflow() { clearTimeout(t); t = setTimeout(growAllCells, 120); }
+        window.addEventListener('resize', reflow);
+        window.addEventListener('orientationchange', reflow);
+        // Web fonts land after first paint and change the wrap points.
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(growAllCells).catch(() => {});
+    })();
+
     function startPage() { load(); render(); }
     if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
         window.mphLocationStoreReady.then(startPage);
