@@ -1225,7 +1225,12 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         r.items = r.items || [];
-        const it = { id: uid('item'), item: '', description: '', assetCode: '', remarks: '' };
+        // isNew marks a row that has never been reconciled to the register. It
+        // is what stops a brand-new physical item from renaming an existing
+        // asset just because someone typed that asset's code into the row
+        // first (copying a neighbour's label) before asking for a free one.
+        // The dashboard clears it once the row and an asset are paired.
+        const it = { id: uid('item'), item: '', description: '', assetCode: '', remarks: '', isNew: true };
         r.items.push(it);
         save();
         const body = document.getElementById('itemsBody');
@@ -1248,13 +1253,65 @@
             // Typing a code here is a deliberate placement: lift any deletion
             // tombstone on that code so the row isn't pruned by the next merge.
             if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
-            queueRegisterChange({ op: 'code', code: val, oldCode: before, dept: d.name, room: r.title });
+            queueCodeChange(it, before, val, d, r);
         } else {
             // description / item / remarks edited here are the same facts the
             // register holds, so the register is updated to match
-            queueRegisterChange({ op: 'edit', code: it.assetCode, field: field, value: val });
+            queueRegisterChange({ op: 'edit', code: it.assetCode, field: field, value: val,
+                itemId: it.id, regId: it.regId || null });
         }
         save(); flashSaved();
+    }
+    /* Giving a row a code means one of two very different things, and the
+       code string alone cannot tell them apart:
+
+         re-code  — this row already IS a register asset (it carries regId, or
+                    its previous code matches one); the asset is renamed and
+                    the old code kept as an alias.
+         create   — this row is a newly surveyed item; the register has never
+                    heard of it and must gain an asset.
+
+       Treating the second as the first is what silently renamed an unrelated
+       asset and left the new item out of the register entirely, so the two
+       stores drifted and duplicates got added by hand to paper over it. */
+    function queueCodeChange(it, oldCode, newCode, d, r) {
+        // A row added in this session is a newly surveyed item, so it creates
+        // an asset — it never re-codes one, whatever code was typed into it
+        // on the way. Only a row that already stands for a register asset
+        // (linked by regId, or whose previous code is one the register holds)
+        // may rename that asset.
+        const linked = !it.isNew && (it.regId || codeIsInRegister(oldCode));
+        if (linked) {
+            queueRegisterChange({ op: 'code', code: newCode, oldCode: oldCode,
+                dept: d.name, room: r.title, itemId: it.id, regId: it.regId || null });
+        } else {
+            queueRegisterChange({ op: 'create', code: newCode, dept: d.name, room: r.title,
+                item: it.item || '', description: it.description || it.item || '',
+                remarks: it.remarks || '', itemId: it.id });
+        }
+    }
+    /* The Asset Register, read-only, from wherever the freshest copy is.
+       Embedded in the dashboard that is its live in-memory inventory; opened
+       on its own it is the register's own IndexedDB store, which this page
+       reads directly. Either way this page never writes to the register —
+       changes go through the queue the dashboard drains. */
+    function registerAssets() {
+        try {
+            if (window.parent && window.parent !== window &&
+                typeof window.parent.loadAssetsFromStorage === 'function') {
+                const live = Array.isArray(window.parent.allAssetsData) ? window.parent.allAssetsData : [];
+                return live.concat(window.parent.loadAssetsFromStorage() || []);
+            }
+        } catch (e) { /* cross-origin or not embedded — fall through */ }
+        return (window.mphGetRegisterAssetsAny && window.mphGetRegisterAssetsAny()) || [];
+    }
+    /* Does the register already hold this code (as a code or an alias)? */
+    function codeIsInRegister(code) {
+        if (!code || !window.mphCodeKey) return false;
+        const key = window.mphCodeKey(code);
+        if (!key) return false;
+        return registerAssets().some(a => a && [a.assetCode].concat(a.aliases || [])
+            .some(c => window.mphCodeKey(c) === key));
     }
     /* Send a change made here to the Asset Register. The dashboard drains the
        queue on load and whenever it hears the records changed, so this works
@@ -1273,7 +1330,8 @@
     function queueRegisterDelete(it) {
         if (!it || !it.assetCode) return;
         if (window.mphCodeStillInRecords && window.mphCodeStillInRecords(db, it.assetCode)) return;
-        queueRegisterChange({ op: 'delete', code: it.assetCode, description: it.description || it.item || '' });
+        queueRegisterChange({ op: 'delete', code: it.assetCode, description: it.description || it.item || '',
+            itemId: it.id, regId: it.regId || null });
     }
 
     /* Assign the next code in series to a Location Records item. The item
@@ -1285,13 +1343,7 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
-        let series = null;
-        try {
-            if (window.parent && window.parent !== window && typeof window.parent.computeNextCodeSeries === 'function') {
-                series = window.parent.computeNextCodeSeries(d.name);
-            }
-        } catch (e) { series = null; }
-        if (!series) series = _localNextCodeSeries(d.name);
+        const series = nextCodeSeries(d.name);
         if (!series.length) { toast('No existing coded series for this department yet — enter the first code manually.', 'error'); return; }
         // infer the item group from the current code, else pick the group
         // whose description best matches this item
@@ -1311,24 +1363,16 @@
         }
         applySeriesCode(id, chosen.nextCode);
     }
-    function _localNextCodeSeries(deptName) {
-        const token = (window.mphDeptToken && window.mphDeptToken(deptName)) || 'DN';
-        const tokN = token.replace(/[^A-Z&]/gi, '').toUpperCase();
-        const groups = {}, seen = {};
-        db.departments.forEach(dep => (dep.rooms || []).forEach(room => (room.items || []).forEach(item => {
-            const p = window.mphParseCode ? window.mphParseCode(item.assetCode) : null;
-            if (!p || !p.item) return;
-            const pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
-            if (pTok !== tokN) return;
-            const ck = window.mphCodeKey ? window.mphCodeKey(item.assetCode) : item.assetCode;
-            if (ck && seen[ck]) return; if (ck) seen[ck] = true;
-            const g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2, desc: '' });
-            g.count++;
-            String(p.seq || '').split('-').forEach(s => { const n = parseInt(s, 10); if (!isNaN(n)) { if (n > g.max) g.max = n; if (/^\d+$/.test(s)) g.pad = Math.max(g.pad, s.length); } });
-        })));
-        return Object.values(groups).map(g => ({ group: g.group, count: g.count, max: g.max, desc: g.desc,
-            nextCode: 'MPH/' + token + '/' + g.group + '/' + String(g.max + 1).padStart(Math.min(g.pad, 3), '0') }))
-            .sort((a, b) => b.count - a.count);
+    /* Next code in each series for a department.
+       Computed by the shared engine in asset-normalizer.js over BOTH stores —
+       the Asset Register (including historical aliases) and the Location
+       Records — so the number offered here is the number the register itself
+       would issue. This page used to scan only its own items when it could not
+       reach the dashboard, which meant every asset added on the register side
+       since the last survey was invisible and the code offered here collided
+       with one already in use. */
+    function nextCodeSeries(deptName) {
+        return window.mphComputeNextCodeSeries(deptName, registerAssets(), db);
     }
     function openSeriesPickModal(id, series) {
         const rows = series.map(s => `<div class="move-room-row" onclick="applySeriesCode('${id}', '${s.nextCode}')">
@@ -1349,7 +1393,7 @@
         it.assetCode = code;
         // deliberate placement — see updateItem()
         if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem(it);
-        queueRegisterChange({ op: 'code', code: code, oldCode: oldCode, dept: d.name, room: r.title });
+        queueCodeChange(it, oldCode, code, d, r);
         save(); closeModal();
         renderRoom(document.getElementById('content'));
         growAllCells();
@@ -1490,7 +1534,9 @@
             op: 'place',
             code: (dup || it).assetCode,
             dept: destDept.name,
-            room: destRoom.title.indexOf('Not Yet Assigned') >= 0 ? '' : destRoom.title
+            room: destRoom.title.indexOf('Not Yet Assigned') >= 0 ? '' : destRoom.title,
+            itemId: (dup || it).id,
+            regId: (dup || it).regId || null
         });
         save();
         // apply immediately when embedded, so the register view behind the
@@ -1834,7 +1880,7 @@
         // The dashboard merged cloud data and asks us to refresh.
         window.addEventListener('message', e => {
             if (e.origin !== window.location.origin) return;
-            if (e.data && e.data.type === 'mph-location-records-reload') reloadFromStorage();
+            if (e.data && e.data.type === 'mph-location-records-reload') { reloadFromStorage(); refreshRegisterCache(); }
         });
     })();
 
@@ -1855,7 +1901,22 @@
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(growAllCells).catch(() => {});
     })();
 
-    function startPage() { load(); render(); }
+    function startPage() {
+        load(); render();
+        // Standalone, the register is only reachable by reading its own store.
+        // Load it so the first code lookup already knows every issued number;
+        // the page works either way, it is just better informed once this
+        // resolves.
+        if (window.mphLoadRegisterAssets) {
+            window.mphLoadRegisterAssets().catch(() => {});
+        }
+    }
+    /* The dashboard drained the queue or synced — our register copy is stale. */
+    function refreshRegisterCache() {
+        if (!window.mphInvalidateRegisterAssets || !window.mphLoadRegisterAssets) return;
+        window.mphInvalidateRegisterAssets();
+        window.mphLoadRegisterAssets().catch(() => {});
+    }
     if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
         window.mphLocationStoreReady.then(startPage);
     } else {

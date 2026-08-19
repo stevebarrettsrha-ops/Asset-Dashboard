@@ -602,6 +602,177 @@ window.mphCodeStillInRecords = function (db, code) {
     return false;
 };
 
+/* ---- Asset Register: read-only view for pages that do not own it ----
+   The register lives in IndexedDB 'AssetDashboardDB'/appData under
+   'assetInventoryData' and is written only by index.html. The Location
+   Records page needs to READ it so that the next code it offers in a
+   series is the same number the register itself would issue. Without
+   this the standalone page saw only its own items, so every asset added
+   on the register side since the last survey was invisible and the page
+   handed out a number the register had already used.
+   Read-only: nothing here ever writes to the register. */
+var REG_IDB_NAME = 'AssetDashboardDB';
+var REG_IDB_STORE = 'appData';
+var REG_ASSETS_KEY = 'assetInventoryData';
+var REG_DELETED_KEY = 'assetDeletedIds';
+var _regCache = null;          // assets array once loaded, else null
+var _regLoading = null;        // in-flight load promise
+
+function _regIdbGet(key) {
+    return new Promise(function (resolve, reject) {
+        // Opened WITHOUT a version so this never fights the owner page over
+        // the schema, and never fails because index.html bumped IDB_VERSION.
+        var req = indexedDB.open(REG_IDB_NAME);
+        req.onupgradeneeded = function () {
+            if (!req.result.objectStoreNames.contains(REG_IDB_STORE)) {
+                req.result.createObjectStore(REG_IDB_STORE);
+            }
+        };
+        req.onerror = function () { reject(req.error); };
+        req.onsuccess = function () {
+            var dbh = req.result;
+            if (!dbh.objectStoreNames.contains(REG_IDB_STORE)) { dbh.close(); resolve(undefined); return; }
+            try {
+                var tx = dbh.transaction(REG_IDB_STORE, 'readonly');
+                var rq = tx.objectStore(REG_IDB_STORE).get(key);
+                rq.onsuccess = function () { resolve(rq.result); dbh.close(); };
+                rq.onerror = function () { reject(rq.error); dbh.close(); };
+            } catch (e) { dbh.close(); reject(e); }
+        };
+    });
+}
+// The owner page falls back to localStorage when IndexedDB is unusable, and
+// leaves a crash-safe flush copy mid-write; honour both, newest first.
+function _regLegacyRead(key) {
+    try {
+        var flush = localStorage.getItem('__idbflush_' + key);
+        if (flush) { var f = JSON.parse(flush); if (f) return f; }
+    } catch (e) { /* ignore */ }
+    try {
+        var raw = localStorage.getItem(key);
+        if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    return null;
+}
+/* Load (and cache) the register for read-only use. Resolves to an array —
+   empty when this device has no register yet, which is not an error. */
+window.mphLoadRegisterAssets = function () {
+    if (_regLoading) return _regLoading;
+    _regLoading = (function () {
+        var read = (typeof indexedDB !== 'undefined')
+            ? _regIdbGet(REG_ASSETS_KEY).catch(function () { return null; })
+            : Promise.resolve(null);
+        return read.then(function (assets) {
+            if (!Array.isArray(assets)) assets = _regLegacyRead(REG_ASSETS_KEY);
+            if (!Array.isArray(assets)) return [];
+            var delRead = (typeof indexedDB !== 'undefined')
+                ? _regIdbGet(REG_DELETED_KEY).catch(function () { return null; })
+                : Promise.resolve(null);
+            return delRead.then(function (del) {
+                if (!Array.isArray(del)) del = _regLegacyRead(REG_DELETED_KEY);
+                // Match the owner page's own accessor, which hides deleted ids.
+                if (Array.isArray(del) && del.length) {
+                    var gone = {};
+                    del.forEach(function (id) { gone[id] = true; });
+                    assets = assets.filter(function (a) { return a && !gone[a.id]; });
+                }
+                return assets;
+            });
+        }).then(function (assets) {
+            _regCache = assets;
+            return assets;
+        }).catch(function () { _regCache = []; return []; });
+    })();
+    return _regLoading;
+};
+// Synchronous accessor for call sites that cannot await. Empty until
+// mphLoadRegisterAssets() has resolved at least once.
+window.mphGetRegisterAssetsAny = function () {
+    return _regCache || [];
+};
+// Force the next read to hit storage again (the owner page saved).
+window.mphInvalidateRegisterAssets = function () { _regLoading = null; };
+
+/* ---- Next code in a series — one engine, every page ----
+   A "series" is (department token, item group): the MPH/AE/133/… family.
+   The next code is max(sequence seen) + 1, counting a physical item once
+   however many sources mention it (register asset, its historical
+   aliases, and the Location Records item that records it).
+
+   This used to exist twice — the register-aware version in index.html and
+   a records-only copy in locations.html — so the number you were offered
+   depended on which page you asked. One implementation, both pages. */
+window.mphNextCodeGroupDesc = function (group) {
+    var g = String(group).replace(/^0+(?=.)/, '');
+    var lists = [window.ASSET_CODES_1997 || [], window.ASSET_CODES_1998 || []];
+    for (var i = 0; i < lists.length; i++) {
+        for (var j = 0; j < lists[i].length; j++) {
+            if (String(lists[i][j].code).replace(/^0+(?=.)/, '') === g) return lists[i][j].desc;
+        }
+    }
+    return '';
+};
+window.mphComputeNextCodeSeries = function (deptName, assets, records) {
+    var token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
+    var tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+    var deptK = String(deptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    var groups = {};
+    var seen = {};   // code identities already counted, across every source
+
+    function feed(code, ownerDeptName) {
+        if (!code) return false;
+        var p = window.mphParseCode ? window.mphParseCode(code) : null;
+        if (!p || !p.item) return false;
+        var pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+        // the series is defined by the code's own department token;
+        // unmapped/custom departments match by assignment instead
+        var ownerK = String(ownerDeptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        var match = tokN ? (pTok === tokN) : (!pTok && ownerK === deptK);
+        if (!match) return false;
+        var ck = window.mphCodeKey ? window.mphCodeKey(code) : String(code).toUpperCase();
+        if (ck && seen[ck]) return true;   // same item, another source
+        if (ck) seen[ck] = true;
+        var g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
+        g.count++;
+        String(p.seq || '').split('-').forEach(function (sq) {
+            var n = parseInt(sq, 10);
+            if (!isNaN(n)) {
+                if (n > g.max) g.max = n;
+                if (/^\d+$/.test(sq)) g.pad = Math.max(g.pad, sq.length);
+            }
+        });
+        return true;
+    }
+
+    (assets || []).forEach(function (a) {
+        if (!a) return;
+        var codes = [a.assetCode].concat(a.aliases || []);
+        for (var i = 0; i < codes.length; i++) {
+            if (feed(codes[i], a.department)) break;   // one series entry per asset
+        }
+    });
+    ((records && records.departments) || []).forEach(function (d) {
+        (d.rooms || []).forEach(function (r) {
+            (r.items || []).forEach(function (it) { feed(it.assetCode, d.name); });
+        });
+    });
+
+    return Object.keys(groups).map(function (k) {
+        var g = groups[k];
+        var next = g.max + 1;
+        return {
+            group: g.group,
+            count: g.count,
+            max: g.max,
+            pad: g.pad,
+            next: next,
+            nextCode: 'MPH/' + (token || 'DN') + '/' + g.group + '/' +
+                String(next).padStart(Math.min(g.pad, 3), '0'),
+            desc: window.mphNextCodeGroupDesc(g.group)
+        };
+    }).sort(function (a, b) { return b.count - a.count; });
+};
+
 // Drop an item's ledger entry — it was deleted, so it is not "placed"
 // anywhere any more and must not be relocated back into the records.
 window.mphForgetLocationMove = function (item) {
