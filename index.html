@@ -16430,7 +16430,12 @@
             try { stored = loadAssetsFromStorage() || []; } catch (e) {}
             let records = null;
             try { records = window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny(); } catch (e) {}
-            return window.mphComputeNextCodeSeries(deptName, inMemory.concat(stored), records);
+            // Boarded codes are spent numbers, even once the asset itself is
+            // gone from the register — otherwise the series slides back and
+            // hands a live item a code the Board of Survey has written off.
+            let boarded = [];
+            try { boarded = (_dbGet(DISPOSAL_STORAGE_KEY) || []).map(r => r.assetCode).filter(Boolean); } catch (e) {}
+            return window.mphComputeNextCodeSeries(deptName, inMemory.concat(stored), records, boarded);
         }
         let _nextCodeSeriesCache = [];
         function openNextCodePopup(deptName) {
@@ -18174,6 +18179,9 @@
                     // changes made on the standalone Location Records page,
                     // with the dashboard closed, land in the register now
                     try { drainLocationRegisterQueue(); } catch (e) {}
+                    // and any boarding done before this ran gets stamped onto
+                    // the register and the room sheets
+                    try { applyDisposalsToAssets(); } catch (e) {}
                 };
                 if (window.mphLocationStoreReady && typeof window.mphLocationStoreReady.then === 'function') {
                     window.mphLocationStoreReady.then(applyLocState);
@@ -27522,9 +27530,74 @@
             if (typeof updateRegisterStats === 'function') updateRegisterStats();
         }
 
+        // Raw-string set, kept for the few places that compare literal codes.
         function getDisposedAssetCodes() {
             const disposedRecords = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
             return new Set(disposedRecords.map(r => r.assetCode));
+        }
+        /* The same thing by code IDENTITY. A Board of Survey sheet spells a
+           code however the ward wrote it (MPH-GS-000-01 for MPH/GS/000/01),
+           and an asset may hold the boarded spelling only as an alias — a
+           raw-string compare misses both, leaving a written-off asset looking
+           active and its number looking free. */
+        function getDisposedCodeKeys() {
+            const recs = (_dbGet(DISPOSAL_STORAGE_KEY) || []);
+            const set = new Set();
+            recs.forEach(r => { const k = window.mphCodeKey && window.mphCodeKey(r.assetCode); if (k) set.add(k); });
+            return set;
+        }
+        // Has this asset been boarded — under its own code or any of its aliases?
+        function assetIsBoarded(asset, keys) {
+            if (!asset) return false;
+            const set = keys || getDisposedCodeKeys();
+            return [asset.assetCode].concat(asset.aliases || [])
+                .some(c => { const k = window.mphCodeKey && window.mphCodeKey(c); return k && set.has(k); });
+        }
+        /* Board of Survey → Asset Register → Location Records.
+           Boarding an asset that the register already held used to leave no
+           mark on it at all: only assets CREATED by a BOS import got
+           disposed:true, so a pre-existing asset stayed in the active
+           inventory totals while also sitting in the disposal list — counted
+           twice, once as live value and once as written off. The room sheet
+           was never told anything either. This stamps all three. */
+        function applyDisposalsToAssets() {
+            const keys = getDisposedCodeKeys();
+            if (!keys.size) return false;
+            const assets = loadAssetsFromStorage();
+            let changed = 0;
+            assets.forEach(a => {
+                const boarded = assetIsBoarded(a, keys);
+                if (boarded && a.disposed !== true) { a.disposed = true; changed++; }
+                else if (!boarded && a.disposed === true && a.bosAsset !== true) {
+                    // the disposal was reversed or deleted
+                    delete a.disposed; changed++;
+                }
+            });
+            if (changed) { saveAssetsToStorage(assets); allAssetsData = assets; }
+            const marked = markBoardedInLocationRecords(keys);
+            return changed > 0 || marked;
+        }
+        /* Mark boarded items on the room sheets. The row is kept, not deleted:
+           a Location Record is the survey of what was in that room, and the
+           deletion path here would also delete the register asset. */
+        function markBoardedInLocationRecords(keys) {
+            try {
+                const recs = getLocationRecords();
+                if (!recs || !Array.isArray(recs.departments)) return false;
+                const set = keys || getDisposedCodeKeys();
+                let changed = 0;
+                recs.departments.forEach(d => (d.rooms || []).forEach(r => (r.items || []).forEach(it => {
+                    const k = it.assetCode && window.mphCodeKey && window.mphCodeKey(it.assetCode);
+                    const boarded = !!(k && set.has(k));
+                    if (boarded && !it.disposed) { it.disposed = true; changed++; }
+                    else if (!boarded && it.disposed) { delete it.disposed; changed++; }
+                })));
+                if (changed) {
+                    if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(recs);
+                    notifyLocationRecordsFrame();
+                }
+                return changed > 0;
+            } catch (e) { return false; }
         }
 
         // An asset explicitly flagged disposed (created from a Board-of-Survey /
@@ -27775,6 +27848,8 @@
             }
 
             saveDisposalRecords();
+            // the register and the room sheets must show it too
+            applyDisposalsToAssets();
             addAuditEntry(assetCode, currentEditingDisposal ? 'Disposal Updated' : 'Disposed',
                 `Reason: ${record.reason}, Method: ${record.method}`,
                 currentUser ? currentUser.username : 'Unknown');
@@ -27817,6 +27892,7 @@
             disposalRecords = disposalRecords.filter(r => r.id !== recordId);
             trackDeletedDisposalIds([recordId]);
             saveDisposalRecords();
+            applyDisposalsToAssets();
 
             // Also remove the asset from main storage so it disappears from Dashboard & Asset Register
             let assets = loadAssetsFromStorage();
@@ -27854,6 +27930,7 @@
             disposalRecords = disposalRecords.filter(r => r.id !== recordId);
             trackDeletedDisposalIds([recordId]);
             saveDisposalRecords();
+            applyDisposalsToAssets();
 
             addAuditEntry(record.assetCode, 'Disposal Reversed',
                 record.reason || '',
@@ -27923,6 +28000,7 @@
             disposalRecords = disposalRecords.filter(r => !selectedIds.includes(r.id));
             trackDeletedDisposalIds(selectedIds);
             saveDisposalRecords();
+            applyDisposalsToAssets();
 
             // Also remove the associated assets from main storage
             let assets = loadAssetsFromStorage();
@@ -29915,13 +29993,20 @@
                 // two full linear scans of the disposal list per row (was
                 // O(rows × disposals × 2); now O(disposals + rows)).
                 const _disposalByCode = new Map();
-                (_dbGet(DISPOSAL_STORAGE_KEY) || []).forEach(r => { if (r && !_disposalByCode.has(r.assetCode)) _disposalByCode.set(r.assetCode, r); });
+                (_dbGet(DISPOSAL_STORAGE_KEY) || []).forEach(r => {
+                    // keyed by identity so a differently spelled BOS code still
+                    // badges its asset
+                    const k = (r && window.mphCodeKey && window.mphCodeKey(r.assetCode)) || (r && r.assetCode);
+                    if (k && !_disposalByCode.has(k)) _disposalByCode.set(k, r);
+                });
 
                 tbody.innerHTML = pageData.map(asset => {
                     const categoryBadge = getCategoryBadgeHtml(asset.category);
 
                     // Check if asset is disposed (single map lookup)
-                    const disposalInfo = _disposalByCode.get(asset.assetCode) || null;
+                    const disposalInfo = [asset.assetCode].concat(asset.aliases || [])
+                        .map(c => _disposalByCode.get((window.mphCodeKey && window.mphCodeKey(c)) || c))
+                        .find(Boolean) || null;
                     const disposed = !!disposalInfo;
 
                     // Asset code with disposal indicator if disposed

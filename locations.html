@@ -283,6 +283,16 @@
         table.items-table tr:nth-child(even) td { background: var(--table-hover); }
         .col-num { width: 34px; text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 8px 4px !important; }
         .col-act { width: 40px; text-align: center; }
+        /* Written off at Board of Survey: the row stays (the sheet records
+           what was surveyed in that room) but must never read as live stock. */
+        table.items-table tr.row-boarded td { opacity: 0.62; }
+        table.items-table tr.row-boarded td .cell-input { text-decoration: line-through; }
+        .bos-badge {
+            display: inline-block; margin-left: 4px; padding: 0 4px;
+            background: var(--danger); color: #fff; border-radius: 3px;
+            font-size: 0.62rem; font-weight: 700; letter-spacing: 0.3px;
+            vertical-align: middle; text-decoration: none;
+        }
         .col-item { width: 22%; }
         .col-desc { width: 34%; }
         .col-code { width: 20%; }
@@ -974,8 +984,8 @@
 
     function rowHtml(it, i) {
         return `
-        <tr data-id="${it.id}">
-            <td class="col-num" data-label="#">${i + 1}</td>
+        <tr data-id="${it.id}"${it.disposed ? ' class="row-boarded"' : ''}>
+            <td class="col-num" data-label="#">${i + 1}${it.disposed ? '<span class="bos-badge" title="Written off at Board of Survey">BOS</span>' : ''}</td>
             <td data-label="Item"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
             <td data-label="Description/Make"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
             <td data-label="Asset Code"><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
@@ -1372,7 +1382,20 @@
        since the last survey was invisible and the code offered here collided
        with one already in use. */
     function nextCodeSeries(deptName) {
-        return window.mphComputeNextCodeSeries(deptName, registerAssets(), db);
+        return window.mphComputeNextCodeSeries(deptName, registerAssets(), db, boardedCodes());
+    }
+    /* Codes the Board of Survey has written off. Their numbers are spent even
+       after the asset leaves the register, so they must never be offered
+       again. */
+    function boardedCodes() {
+        try {
+            if (window.parent && window.parent !== window &&
+                typeof window.parent.getDisposedAssetCodes === 'function') {
+                return [...window.parent.getDisposedAssetCodes()];
+            }
+        } catch (e) { /* not embedded — read our own copy */ }
+        return (window.mphGetDisposalRecordsAny ? window.mphGetDisposalRecordsAny() : [])
+            .map(r => r && r.assetCode).filter(Boolean);
     }
     function openSeriesPickModal(id, series) {
         const rows = series.map(s => `<div class="move-room-row" onclick="applySeriesCode('${id}', '${s.nextCode}')">

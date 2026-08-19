@@ -615,8 +615,10 @@ var REG_IDB_NAME = 'AssetDashboardDB';
 var REG_IDB_STORE = 'appData';
 var REG_ASSETS_KEY = 'assetInventoryData';
 var REG_DELETED_KEY = 'assetDeletedIds';
+var REG_DISPOSAL_KEY = 'assetDisposalRecords';
 var _regCache = null;          // assets array once loaded, else null
 var _regLoading = null;        // in-flight load promise
+var _disposalCache = null;     // disposal records once loaded, else null
 
 function _regIdbGet(key) {
     return new Promise(function (resolve, reject) {
@@ -680,8 +682,18 @@ window.mphLoadRegisterAssets = function () {
             });
         }).then(function (assets) {
             _regCache = assets;
-            return assets;
-        }).catch(function () { _regCache = []; return []; });
+            // Board-of-Survey / disposal records live in the same store. A
+            // boarded asset's number is spent for good, so these are loaded
+            // together and never handed out again.
+            var dRead = (typeof indexedDB !== 'undefined')
+                ? _regIdbGet(REG_DISPOSAL_KEY).catch(function () { return null; })
+                : Promise.resolve(null);
+            return dRead.then(function (recs) {
+                if (!Array.isArray(recs)) recs = _regLegacyRead(REG_DISPOSAL_KEY);
+                _disposalCache = Array.isArray(recs) ? recs : [];
+                return assets;
+            });
+        }).catch(function () { _regCache = []; _disposalCache = []; return []; });
     })();
     return _regLoading;
 };
@@ -689,6 +701,23 @@ window.mphLoadRegisterAssets = function () {
 // mphLoadRegisterAssets() has resolved at least once.
 window.mphGetRegisterAssetsAny = function () {
     return _regCache || [];
+};
+window.mphGetDisposalRecordsAny = function () {
+    return _disposalCache || [];
+};
+/* Every asset code that has been boarded/disposed, as code IDENTITIES.
+   Identity rather than the raw string because a Board of Survey sheet spells
+   a code however the ward wrote it — MPH-GS-000-01 for MPH/GS/000/01 — and a
+   disposal that only matches one spelling silently leaves the asset looking
+   active and its number looking free. */
+window.mphDisposedCodeKeys = function (records) {
+    var recs = records || window.mphGetDisposalRecordsAny();
+    var out = Object.create(null);
+    (recs || []).forEach(function (r) {
+        var k = r && window.mphCodeKey(r.assetCode);
+        if (k) out[k] = true;
+    });
+    return out;
 };
 // Force the next read to hit storage again (the owner page saved).
 window.mphInvalidateRegisterAssets = function () { _regLoading = null; };
@@ -712,7 +741,7 @@ window.mphNextCodeGroupDesc = function (group) {
     }
     return '';
 };
-window.mphComputeNextCodeSeries = function (deptName, assets, records) {
+window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedCodes) {
     var token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
     var tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
     var deptK = String(deptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -756,6 +785,10 @@ window.mphComputeNextCodeSeries = function (deptName, assets, records) {
             (r.items || []).forEach(function (it) { feed(it.assetCode, d.name); });
         });
     });
+    // Boarded/disposed codes. The asset is gone but the number is spent —
+    // reissuing it would put a live item under a code the Board of Survey has
+    // already written off.
+    (reservedCodes || []).forEach(function (c) { feed(c, deptName); });
 
     return Object.keys(groups).map(function (k) {
         var g = groups[k];
