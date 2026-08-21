@@ -220,6 +220,50 @@
         .add-tile:hover { border-color: var(--primary-orange); color: var(--primary-orange); background: #fff8f5; }
         .add-tile .plus { font-size: 1.8rem; line-height: 1; }
 
+        /* ===== In-location search (department view + record view) ===== */
+        .loc-search-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+        .loc-search-wrap { position: relative; flex: 1 1 260px; min-width: 220px; max-width: 480px; }
+        .loc-search {
+            width: 100%; padding: 10px 34px;
+            border: 1px solid var(--border-color); border-radius: 10px;
+            background: var(--bg-card); color: var(--text-primary);
+            font-size: 0.9rem; font-family: inherit;
+        }
+        .loc-search:focus { outline: none; border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(255,107,53,0.12); }
+        .loc-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 0.85rem; pointer-events: none; opacity: 0.75; }
+        .loc-search-clear {
+            position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+            border: none; background: transparent; color: var(--text-secondary);
+            cursor: pointer; font-size: 1rem; line-height: 1; padding: 5px 8px; border-radius: 7px;
+        }
+        .loc-search-clear:hover { background: var(--table-hover); color: var(--text-primary); }
+        .loc-search-count { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .loc-hit-head {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-secondary); font-weight: 700; margin: 26px 0 10px;
+        }
+        .loc-hit-list { display: flex; flex-direction: column; gap: 8px; }
+        .loc-hit {
+            background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 11px;
+            padding: 11px 14px; cursor: pointer; transition: all 0.15s;
+            display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+        }
+        .loc-hit:hover { border-color: var(--primary-orange); background: var(--table-hover); }
+        .loc-hit-main { flex: 1 1 200px; min-width: 0; }
+        .loc-hit-title { font-weight: 600; font-size: 0.92rem; }
+        .loc-hit-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 3px; }
+        .loc-hit-code {
+            font-size: 0.76rem; font-weight: 700; color: var(--primary-orange);
+            font-family: 'Courier New', monospace; white-space: nowrap;
+        }
+        .loc-hit mark, .room-card mark { background: rgba(255,107,53,0.28); color: inherit; border-radius: 3px; padding: 0 1px; }
+        .loc-more { padding: 10px 4px 0; font-size: 0.8rem; color: var(--text-secondary); }
+        .no-hits { padding: 30px 20px; text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Row filter inside an open location record */
+        .rec-search-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
         .empty-state .big { font-size: 3rem; margin-bottom: 10px; }
 
@@ -700,7 +744,9 @@
     let db = { departments: [] };
     let selectedDeptId = null;
     let selectedRoomId = null;
-    let searchTerm = '';
+    let searchTerm = '';        // sidebar box — filters the department list
+    let deptViewTerm = '';      // department view — searches that location's rooms & items
+    let roomViewTerm = '';      // open record — filters the rows of that room
 
     /* ---------- ID helper ---------- */
     function uid(prefix) { return (prefix || 'id') + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7); }
@@ -831,13 +877,32 @@
         }
     }
 
+    /* One definition of "this row matches what was typed", shared by the
+       sidebar, the department search and the record row filter, so all three
+       boxes agree on what counts as a hit. */
+    function itemMatches(it, term) {
+        return (it.item || '').toLowerCase().includes(term)
+            || (it.description || '').toLowerCase().includes(term)
+            || (it.assetCode || '').toLowerCase().includes(term)
+            || (it.remarks || '').toLowerCase().includes(term);
+    }
+
     function deptMatches(d, term) {
         if (d.name.toLowerCase().includes(term)) return true;
         return d.rooms.some(r => r.title.toLowerCase().includes(term)
-            || (r.items || []).some(it =>
-                (it.item || '').toLowerCase().includes(term) ||
-                (it.description || '').toLowerCase().includes(term) ||
-                (it.assetCode || '').toLowerCase().includes(term)));
+            || (r.items || []).some(it => itemMatches(it, term)));
+    }
+
+    /* Escaped text with every occurrence of the search term marked. The text
+       is escaped first, then the (escaped) term is matched against it, so a
+       term containing & or < still lines up with what is on screen. */
+    function highlight(text, term) {
+        const safe = esc(text);
+        const t = esc(String(term || '')).trim();
+        if (!t) return safe;
+        try {
+            return safe.replace(new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>');
+        } catch (e) { return safe; }
     }
 
     /* ============================================================
@@ -883,26 +948,15 @@
             <div class="dept-overview-grid">${cards}</div>`;
     }
 
-    /* ---- Department view (rooms) ---- */
+    /* ---- Department view (rooms + in-location search) ---- */
     function renderDept(c) {
         const d = getDept(selectedDeptId);
         if (!d) { selectedDeptId = null; return renderHome(c); }
         // The sidebar search box filters the DEPARTMENT list only — it must
         // never hide rooms inside an opened department (that made whole wards
         // look nearly empty, e.g. "23 rooms / 599 items" showing one card).
-        let rooms = d.rooms;
-        let roomCards = rooms.map(r => {
-            const n = (r.items || []).length;
-            return `
-            <div class="room-card" onclick="selectRoom('${r.id}')">
-                <h3>${esc(r.title)}</h3>
-                <div class="room-loc">${esc(d.name)}</div>
-                <div class="room-card-foot">
-                    <span class="room-chip ${n ? 'has-items' : ''}">${n} item${n !== 1 ? 's' : ''}</span>
-                    <span style="font-size:0.72rem;color:var(--text-secondary);">${r.dateUpdated ? esc(r.dateUpdated) : 'No date'}</span>
-                </div>
-            </div>`;
-        }).join('');
+        // Searching *within* this location is the separate box below, whose
+        // term lives in deptViewTerm.
         c.innerHTML = `
             <div class="breadcrumb"><a onclick="goHome()">All Departments</a> › <strong>${esc(d.name)}</strong></div>
             <div class="section-head">
@@ -918,12 +972,121 @@
                     <button class="btn btn-danger" onclick="deleteDept('${d.id}')">🗑 Delete</button>
                 </div>
             </div>
-            <div class="card-grid">
-                ${roomCards}
-                <div class="add-tile" onclick="openRoomModal()">
-                    <span class="plus">＋</span><span>Add Room</span>
+            <div class="loc-search-bar">
+                <div class="loc-search-wrap">
+                    <span class="loc-search-icon">🔍</span>
+                    <input type="text" class="loc-search" id="deptViewSearch"
+                           placeholder="Search rooms and items in ${escAttr(d.name)}…"
+                           value="${escAttr(deptViewTerm)}" oninput="onDeptViewSearch()">
+                    <button class="loc-search-clear" id="deptViewClear" title="Clear search"
+                            onclick="clearDeptViewSearch()" style="${deptViewTerm ? '' : 'display:none'}">✕</button>
+                </div>
+                <span class="loc-search-count" id="deptViewCount"></span>
+            </div>
+            <div id="deptViewBody"></div>`;
+        paintDeptView();
+    }
+
+    function roomCardHtml(d, r, term, matchCount) {
+        const n = (r.items || []).length;
+        const chip = (matchCount == null)
+            ? `<span class="room-chip ${n ? 'has-items' : ''}">${n} item${n !== 1 ? 's' : ''}</span>`
+            : `<span class="room-chip ${matchCount ? 'has-items' : ''}">${matchCount} of ${n} item${n !== 1 ? 's' : ''} match</span>`;
+        return `
+            <div class="room-card" onclick="${matchCount == null ? `selectRoom('${r.id}')` : `openRoomFromSearch('${r.id}')`}">
+                <h3>${highlight(r.title, term)}</h3>
+                <div class="room-loc">${esc(d.name)}</div>
+                <div class="room-card-foot">
+                    ${chip}
+                    <span style="font-size:0.72rem;color:var(--text-secondary);">${r.dateUpdated ? esc(r.dateUpdated) : 'No date'}</span>
                 </div>
             </div>`;
+    }
+
+    /* Paints only the results below the search box, so typing never costs the
+       input its focus or caret position. */
+    const DEPT_HIT_LIMIT = 300;
+    function paintDeptView() {
+        const d = getDept(selectedDeptId);
+        const host = document.getElementById('deptViewBody');
+        if (!d || !host) return;
+        const raw = deptViewTerm.trim();
+        const term = raw.toLowerCase();
+        const countEl = document.getElementById('deptViewCount');
+        const clearBtn = document.getElementById('deptViewClear');
+        if (clearBtn) clearBtn.style.display = raw ? '' : 'none';
+
+        if (!term) {
+            host.innerHTML = `
+                <div class="card-grid">
+                    ${d.rooms.map(r => roomCardHtml(d, r, '', null)).join('')}
+                    <div class="add-tile" onclick="openRoomModal()">
+                        <span class="plus">＋</span><span>Add Room</span>
+                    </div>
+                </div>`;
+            if (countEl) countEl.textContent = '';
+            return;
+        }
+
+        const roomHits = [];
+        const itemHits = [];
+        d.rooms.forEach(r => {
+            const matches = (r.items || []).filter(it => itemMatches(it, term));
+            const titleHit = (r.title || '').toLowerCase().includes(term);
+            if (titleHit || matches.length) roomHits.push({ room: r, n: matches.length });
+            matches.forEach(it => itemHits.push({ room: r, it: it }));
+        });
+
+        if (!roomHits.length) {
+            host.innerHTML = `<div class="no-hits">Nothing in ${esc(d.name)} matches “${esc(raw)}”.</div>`;
+            if (countEl) countEl.textContent = 'No matches';
+            return;
+        }
+
+        let html = `<div class="card-grid">${roomHits.map(h => roomCardHtml(d, h.room, raw, h.n)).join('')}</div>`;
+        if (itemHits.length) {
+            const shown = itemHits.slice(0, DEPT_HIT_LIMIT);
+            html += `<div class="loc-hit-head">Matching items (${itemHits.length})</div>
+                <div class="loc-hit-list">${shown.map(h => `
+                    <div class="loc-hit" onclick="openRoomFromSearch('${h.room.id}')">
+                        <div class="loc-hit-main">
+                            <div class="loc-hit-title">${highlight(h.it.item || h.it.description || '(untitled item)', raw)}</div>
+                            <div class="loc-hit-sub">${highlight(h.it.description || '', raw)}${h.it.description ? ' • ' : ''}${esc(h.room.title)}${h.it.remarks ? ' • ' + highlight(h.it.remarks, raw) : ''}</div>
+                        </div>
+                        <div class="loc-hit-code">${highlight(h.it.assetCode || '—', raw)}</div>
+                    </div>`).join('')}</div>`;
+            if (itemHits.length > shown.length) {
+                html += `<div class="loc-more">Showing the first ${shown.length} of ${itemHits.length} matching items. Refine your search to see the rest.</div>`;
+            }
+        }
+        host.innerHTML = html;
+        if (countEl) {
+            countEl.textContent = roomHits.length + ' room' + (roomHits.length !== 1 ? 's' : '')
+                + ', ' + itemHits.length + ' item' + (itemHits.length !== 1 ? 's' : '');
+        }
+    }
+
+    let _deptViewTimer = null;
+    function onDeptViewSearch() {
+        const el = document.getElementById('deptViewSearch');
+        deptViewTerm = el ? el.value : '';
+        const clearBtn = document.getElementById('deptViewClear');
+        if (clearBtn) clearBtn.style.display = deptViewTerm.trim() ? '' : 'none';
+        clearTimeout(_deptViewTimer);
+        _deptViewTimer = setTimeout(paintDeptView, 140);
+    }
+    function clearDeptViewSearch() {
+        deptViewTerm = '';
+        const el = document.getElementById('deptViewSearch');
+        if (el) { el.value = ''; el.focus(); }
+        clearTimeout(_deptViewTimer);
+        paintDeptView();
+    }
+    /* Opening a room from a search result carries the term into the record so
+       the row you clicked is already in view. */
+    function openRoomFromSearch(roomId) {
+        roomViewTerm = deptViewTerm;
+        selectRoom(roomId, true);
     }
 
     /* ---- Room record editor ---- */
@@ -931,7 +1094,6 @@
         const d = getDept(selectedDeptId);
         const r = getRoom(d, selectedRoomId);
         if (!r) { selectedRoomId = null; return renderDept(c); }
-        let rows = (r.items || []).map((it, i) => rowHtml(it, i)).join('');
         c.innerHTML = `
             <div class="breadcrumb"><a onclick="goHome()">All Departments</a> › <a onclick="selectDept('${d.id}')">${esc(d.name)}</a> › <strong>${esc(r.title)}</strong></div>
             <div class="record-toolbar">
@@ -958,6 +1120,17 @@
                     <div class="rec-field-row"><label>Verified by and date:</label><input type="text" value="${escAttr(r.verifiedBy||'')}" placeholder="Name & date" onchange="updateRoomField('${r.id}','verifiedBy',this.value)"></div>
                     <div class="rec-field-row"><label>Date updated:</label><input type="text" value="${escAttr(r.dateUpdated||'')}" placeholder="e.g. Thursday, 24 October 2024" onchange="updateRoomField('${r.id}','dateUpdated',this.value)"></div>
                 </div>
+                <div class="rec-search-bar">
+                    <div class="loc-search-wrap">
+                        <span class="loc-search-icon">🔍</span>
+                        <input type="text" class="loc-search" id="roomSearch"
+                               placeholder="Search items in this record…"
+                               value="${escAttr(roomViewTerm)}" oninput="onRoomSearch()">
+                        <button class="loc-search-clear" id="roomSearchClear" title="Clear search"
+                                onclick="clearRoomSearch()" style="${roomViewTerm ? '' : 'display:none'}">✕</button>
+                    </div>
+                    <span class="loc-search-count" id="roomSearchCount"></span>
+                </div>
                 <div class="items-table-scroll">
                 <table class="items-table">
                     <thead>
@@ -970,16 +1143,66 @@
                             <th class="col-act"></th>
                         </tr>
                     </thead>
-                    <tbody id="itemsBody">${rows}</tbody>
+                    <tbody id="itemsBody"></tbody>
                 </table>
                 </div>
                 <button class="btn btn-primary btn-sm add-row-btn" onclick="addItem()">＋ Add Item Row</button>
                 <div class="rec-footer-note">⚠️ ${APPROVAL_NOTE}</div>
             </div>`;
-        // Grow now, then again once the browser has laid the table out —
-        // the first pass is a no-op while widths are still unresolved.
+        // paintRoomRows fills the table body and grows the cells — now, and
+        // again once the browser has laid the table out (the first pass is a
+        // no-op while column widths are still unresolved).
+        paintRoomRows();
+    }
+
+    /* ---- Row filter inside an open location record ---- */
+    /* Rows keep their real position in the record, so row 47 still reads 47
+       while a filter is on. */
+    function visibleRoomItems(r) {
+        const term = roomViewTerm.trim().toLowerCase();
+        return (r.items || [])
+            .map((it, i) => ({ it: it, i: i }))
+            .filter(x => !term || itemMatches(x.it, term));
+    }
+
+    function paintRoomRows() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const body = document.getElementById('itemsBody');
+        if (!r || !body) return;
+        const raw = roomViewTerm.trim();
+        const vis = visibleRoomItems(r);
+        const total = (r.items || []).length;
+        body.innerHTML = vis.length
+            ? vis.map(x => rowHtml(x.it, x.i)).join('')
+            : `<tr><td colspan="6" class="no-hits">No item in this record matches “${esc(raw)}”.</td></tr>`;
+        const countEl = document.getElementById('roomSearchCount');
+        if (countEl) {
+            countEl.textContent = raw
+                ? vis.length + ' of ' + total + ' item' + (total !== 1 ? 's' : '') + ' shown'
+                : '';
+        }
+        const clearBtn = document.getElementById('roomSearchClear');
+        if (clearBtn) clearBtn.style.display = raw ? '' : 'none';
         growAllCells();
         requestAnimationFrame(growAllCells);
+    }
+
+    let _roomSearchTimer = null;
+    function onRoomSearch() {
+        const el = document.getElementById('roomSearch');
+        roomViewTerm = el ? el.value : '';
+        const clearBtn = document.getElementById('roomSearchClear');
+        if (clearBtn) clearBtn.style.display = roomViewTerm.trim() ? '' : 'none';
+        clearTimeout(_roomSearchTimer);
+        _roomSearchTimer = setTimeout(paintRoomRows, 140);
+    }
+    function clearRoomSearch(keepFocusOff) {
+        roomViewTerm = '';
+        const el = document.getElementById('roomSearch');
+        if (el) { el.value = ''; if (!keepFocusOff) el.focus(); }
+        clearTimeout(_roomSearchTimer);
+        paintRoomRows();
     }
 
     function rowHtml(it, i) {
@@ -1077,9 +1300,22 @@
     /* ============================================================
        Navigation
     ============================================================ */
-    function goHome() { selectedDeptId = null; selectedRoomId = null; render(); }
-    function selectDept(id) { selectedDeptId = id; selectedRoomId = null; render(); window.scrollTo(0,0); }
-    function selectRoom(id) { selectedRoomId = id; render(); window.scrollTo(0,0); growAllCells(); }
+    function goHome() {
+        selectedDeptId = null; selectedRoomId = null;
+        deptViewTerm = ''; roomViewTerm = '';
+        render();
+    }
+    function selectDept(id) {
+        // Coming back to the department you were searching keeps that search;
+        // switching to a different department starts clean.
+        if (id !== selectedDeptId) deptViewTerm = '';
+        selectedDeptId = id; selectedRoomId = null; roomViewTerm = '';
+        render(); window.scrollTo(0,0);
+    }
+    function selectRoom(id, keepFilter) {
+        if (!keepFilter) roomViewTerm = '';
+        selectedRoomId = id; render(); window.scrollTo(0,0); growAllCells();
+    }
 
     // Debounced: each keystroke re-scans every department/room/item and
     // rebuilds the view; coalescing to ~160ms keeps typing smooth at scale.
@@ -1244,13 +1480,23 @@
         r.items.push(it);
         save();
         const body = document.getElementById('itemsBody');
-        const tmp = document.createElement('tbody');
-        tmp.innerHTML = rowHtml(it, r.items.length - 1);
-        const tr = tmp.firstElementChild;
-        body.appendChild(tr);
-        tr.querySelectorAll('.cell-input').forEach(autoGrow);
-        const first = tr.querySelector('.cell-input');
-        if (first) first.focus();
+        let tr;
+        if (roomViewTerm.trim()) {
+            // A blank new row matches no search, so an active filter would
+            // swallow it. Drop the filter and show the whole record instead.
+            clearRoomSearch(true);   // the new row takes the focus, not the search box
+            tr = body.querySelector('tr[data-id="' + it.id + '"]');
+        } else {
+            const tmp = document.createElement('tbody');
+            tmp.innerHTML = rowHtml(it, r.items.length - 1);
+            tr = tmp.firstElementChild;
+            body.appendChild(tr);
+        }
+        if (tr) {
+            tr.querySelectorAll('.cell-input').forEach(autoGrow);
+            const first = tr.querySelector('.cell-input');
+            if (first) first.focus();
+        }
         renderDeptList();
     }
     function updateItem(id, field, val) {
