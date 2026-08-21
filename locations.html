@@ -1173,9 +1173,11 @@
         const raw = roomViewTerm.trim();
         const vis = visibleRoomItems(r);
         const total = (r.items || []).length;
+        // "nothing matches" only when something was actually searched for —
+        // a brand-new record with no rows yet is empty, not a failed search.
         body.innerHTML = vis.length
             ? vis.map(x => rowHtml(x.it, x.i)).join('')
-            : `<tr><td colspan="6" class="no-hits">No item in this record matches “${esc(raw)}”.</td></tr>`;
+            : (raw ? `<tr><td colspan="6" class="no-hits">No item in this record matches “${esc(raw)}”.</td></tr>` : '');
         const countEl = document.getElementById('roomSearchCount');
         if (countEl) {
             countEl.textContent = raw
@@ -1234,7 +1236,20 @@
        phone layout — wraps the text onto more lines and clips it unless the
        textareas are grown again. */
     function growAllCells() {
-        document.querySelectorAll('table.items-table .cell-input').forEach(autoGrow);
+        const cells = document.querySelectorAll('table.items-table .cell-input');
+        if (!cells.length) return;
+        // Batched on purpose. Growing one cell at a time writes a height, then
+        // reads scrollHeight, which forces the browser to re-lay-out the whole
+        // table before every single read — 4,260 textareas in the largest
+        // record made that ~28s, and the row filter re-measures on each
+        // keystroke. Clearing every height, then reading every height, then
+        // writing every height costs two layouts instead of thousands.
+        for (let i = 0; i < cells.length; i++) cells[i].style.height = 'auto';
+        const h = new Array(cells.length);
+        for (let i = 0; i < cells.length; i++) h[i] = cells[i].scrollHeight;
+        // A cell that is not laid out yet (hidden tab, iframe still sizing)
+        // reports 0 — leave it on the CSS min-height, as autoGrow does.
+        for (let i = 0; i < cells.length; i++) if (h[i]) cells[i].style.height = h[i] + 'px';
     }
 
     /* ============================================================
@@ -1369,6 +1384,7 @@
         } else {
             const d = { id: uid('dept'), name, icon, location: name, note, rooms: [] };
             db.departments.push(d);
+            deptViewTerm = ''; roomViewTerm = '';   // the new department opens unfiltered
             selectedDeptId = d.id;
             // re-creating a previously deleted department lifts its tombstone
             if (window.mphClearLocationTombstone) {
@@ -1396,7 +1412,10 @@
             const goneItems = (d.rooms || []).reduce((acc, r) => acc.concat(r.items || []), []);
             db.departments = db.departments.filter(x => x.id !== id);
             goneItems.forEach(queueRegisterDelete);   // after the removal — see the guard
-            if (selectedDeptId === id) { selectedDeptId = null; selectedRoomId = null; }
+            if (selectedDeptId === id) {
+                selectedDeptId = null; selectedRoomId = null;
+                deptViewTerm = ''; roomViewTerm = '';
+            }
             save(); render(); toast('Department deleted', 'success');
         });
     }
@@ -1436,6 +1455,7 @@
         } else {
             const r = { id: uid('room'), title, verifiedBy: '', dateUpdated: date, note: '', items: [] };
             d.rooms.push(r);
+            roomViewTerm = '';                      // the new room opens unfiltered
             selectedRoomId = r.id;
             toast('Room added', 'success');
         }
@@ -1816,6 +1836,10 @@
             }
         } catch (e) { /* standalone page: the dashboard drains it on next load */ }
         closeModal();
+        // Jumping to the destination record: the search that was filtering
+        // the SOURCE room must not follow the item there, or the record you
+        // land in looks empty.
+        deptViewTerm = ''; roomViewTerm = '';
         selectedDeptId = destDeptId; selectedRoomId = destRoom.id;
         render(); window.scrollTo(0, 0);
         growAllCells();
