@@ -12961,6 +12961,7 @@
                             // pretending it is worth nothing.
                             reviewFlag: 'Added from Location Records survey — cost and purchase details needed',
                             registerOrigin: 'location-survey',
+                            surveyAdded: true,     // a person asked for this one
                             locationUpdatedAt: op.at || new Date().toISOString()
                         };
                         assets.push(fresh);
@@ -13100,11 +13101,19 @@
 
              row with a code, asset found      link it (regId), fill blanks
                                                both ways
-             row with a code, no such asset    create the asset, flagged for
-                                               cost details (same shape the
-                                               queue's 'create' op builds)
-             row linked to a DELETED asset     the register delete wins: the
-                                               row is removed and tombstoned
+             row with a code, no such asset    left alone and counted; the
+                                               Reconcile report adds it to
+                                               the register or removes the
+                                               row, on request. (The first
+                                               version created the asset —
+                                               on a live device that was
+                                               2,600 assets whose owners had
+                                               deleted them from the register
+                                               on purpose, all dated the day
+                                               the pass ran, so the dashboard
+                                               jumped by thousands. Any such
+                                               asset still around is removed,
+                                               see pass 0.)
              asset in a real room AND in the   the bucket copy is a stale
              "Room Not Yet Assigned" bucket    placeholder — dropped
              asset's department/room differs   the room sheet wins; stamped
@@ -13148,35 +13157,15 @@
             }
             return 'loc_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
         }
-        function _assetFromSurveyRow(id, it, deptName, roomTitle, at) {
-            const bucket = /Room Not Yet Assigned/i.test(String(roomTitle || ''));
-            return {
-                id: id,
-                assetCode: String(it.assetCode || '').trim(),
-                aliases: [],
-                dateIn: String(at || new Date().toISOString()).slice(0, 10),
-                quantity: 1,
-                description: it.description || it.item || '',
-                itemType: it.item || '',
-                supplier: '',
-                department: deptName || '',
-                room: bucket ? '' : String(roomTitle || '').trim(),
-                category: '',
-                serialModel: String(it.remarks || '').replace(/^\s*Serial:\s*/i, ''),
-                unitPrice: 0,
-                totalPrice: 0,
-                source: '',
-                month: '',
-                usefulLife: 0,
-                salvageValue: 0,
-                depreciationMethod: 'straight',
-                comment: '',
-                // a floor survey cannot know cost or purchase details, so the
-                // asset lands in the review queue for the register owner
-                reviewFlag: 'Added from Location Records survey — cost and purchase details needed',
-                registerOrigin: 'location-survey',
-                locationUpdatedAt: at || new Date().toISOString()
-            };
+        /* An asset the first version of the pass minted on its own: the
+           deterministic id it used (loc_ + the code identity, upper case
+           only — the queue's older ids carry a lower-case timestamp), the
+           survey origin, no cost, and none of the marks a person's own
+           action leaves (surveyAdded from the queue's 'create'). */
+        function _isAutoCreatedSurveyAsset(a) {
+            return !!(a && typeof a.id === 'string' && /^loc_[A-Z0-9_]+$/.test(a.id) &&
+                a.registerOrigin === 'location-survey' && !a.surveyAdded &&
+                !(parseFloat(a.unitPrice) > 0) && !(parseFloat(a.totalPrice) > 0));
         }
         function reconcileRegisterWithLocations() {
             if (_locReconcileRunning) return false;
@@ -13214,7 +13203,24 @@
             const tombs = window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null;
             const now = new Date().toISOString();
 
-            const assets = loadAssetsFromStorage();
+            let assets = loadAssetsFromStorage();
+            const stats = { undone: 0, linked: 0, orphans: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0 };
+            let assetsChanged = 0, recordsChanged = 0;
+
+            /* ---- pass 0: undo what the first version minted ----
+               Whenever they turn up — on this device, or arriving later from
+               a cloud backup another device wrote before it was fixed — they
+               go, and their ids are tombstoned so no merge brings them back.
+               The sheet rows that pointed at them stay (they are the survey)
+               and are unlinked below. */
+            const undone = assets.filter(_isAutoCreatedSurveyAsset);
+            if (undone.length) {
+                const goneIds = new Set(undone.map(a => a.id));
+                assets = assets.filter(a => !goneIds.has(a.id));
+                try { if (typeof trackDeletedAssetIds === 'function') trackDeletedAssetIds([...goneIds]); } catch (e) {}
+                stats.undone = undone.length; assetsChanged++;
+            }
+
             const byId = new Map(), byPrimary = new Map(), byAlias = new Map();
             const keysOf = a => [a.assetCode].concat(a.aliases || []).map(key).filter(Boolean);
             const index = a => {
@@ -13226,12 +13232,8 @@
             };
             assets.forEach(index);
 
-            const stats = { linked: 0, created: 0, rowsRemoved: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0 };
-            let assetsChanged = 0, recordsChanged = 0;
             const placements = new Map();      // asset.id -> [{dept, room, item, bucket}]
             const seenKeys = new Set();        // every code identity any room records
-            const createdAssets = [];
-            const removedRows = [];
 
             /* ---- pass 1: every coded row stands for exactly one asset ---- */
             records.departments.forEach(d => {
@@ -13261,19 +13263,16 @@
                             a = byPrimary.get(rowKeys[i]) || byAlias.get(rowKeys[i]) || null;
                         }
                         if (!a) {
-                            if (it.regId && deletedAssetIds && deletedAssetIds.has(it.regId)) {
-                                // The asset this row stood for was deleted on the
-                                // register side. A deletion there is as deliberate
-                                // as one here, so the row goes with it — and is
-                                // tombstoned (below, in one write) so no merge
-                                // brings it back.
-                                removedRows.push(it);
-                                stats.rowsRemoved++; recordsChanged++;
-                                return;
-                            }
-                            a = _assetFromSurveyRow(_surveyAssetId(k, byId), it, d.name, r.title, now);
-                            assets.push(a); index(a); createdAssets.push(a);
-                            stats.created++; assetsChanged++;
+                            // No register asset carries this code. Whether that
+                            // is a newly surveyed item or an asset someone
+                            // deleted from the register on purpose, only a
+                            // person can say — the Reconcile report lists these
+                            // rows and adds or removes them on request. A link
+                            // to an asset that is gone is dropped.
+                            if (it.regId) { delete it.regId; recordsChanged++; }
+                            stats.orphans++;
+                            keep.push(it);
+                            return;
                         }
                         if (it.regId !== a.id) { it.regId = a.id; recordsChanged++; stats.linked++; }
                         if (it.isNew) { delete it.isNew; recordsChanged++; }
@@ -13381,44 +13380,18 @@
 
             if (!assetsChanged && !recordsChanged) return false;
 
-            if (removedRows.length) {
-                // one read and one write each for the tombstones and the
-                // transfer ledger, however many rows went
-                try {
-                    if (window.mphGetLocationTombstones && window.mphSaveLocationTombstones) {
-                        const t = window.mphGetLocationTombstones();
-                        removedRows.forEach(it => {
-                            if (it.id) t.items[it.id] = now;
-                            const ck = key(it.assetCode);
-                            if (ck) t.codes[ck] = now;
-                        });
-                        window.mphSaveLocationTombstones(t);
-                    }
-                    if (window.mphGetLocationMoves && window.mphSaveLocationMoves && window.mphLocationMoveKey) {
-                        const m = window.mphGetLocationMoves();
-                        let touched = false;
-                        removedRows.forEach(it => {
-                            const mk = window.mphLocationMoveKey(it);
-                            if (mk && m.moves && m.moves[mk]) { delete m.moves[mk]; touched = true; }
-                        });
-                        if (touched) window.mphSaveLocationMoves(m);
-                    }
-                } catch (e) { /* the rows are gone from the records regardless */ }
-            }
             if (assetsChanged) {
                 saveAssetsToStorage(assets);
                 allAssetsData = assets;
                 if (typeof filteredData !== 'undefined') filteredData = assets;
                 // One audit entry per kind of change — not one per asset. An
-                // entry per created asset re-saved the whole audit trail each
-                // time, which on a phone with a long trail froze the page.
+                // entry per asset re-saved the whole audit trail each time,
+                // which on a phone with a long trail froze the page.
                 try {
                     if (typeof addAuditEntry === 'function') {
-                        if (createdAssets.length) {
-                            const sample = createdAssets.slice(0, 8).map(a => a.assetCode).join(', ');
+                        if (stats.undone) {
                             addAuditEntry('BULK', 'Location Sync', '-',
-                                createdAssets.length + ' asset(s) added to the register from Location Records survey rows (cost details needed): ' +
-                                sample + (createdAssets.length > 8 ? ', …' : ''), '', 0);
+                                stats.undone + ' asset(s) the consistency pass had created from survey rows were removed again; the rows stay on the Location Records', '', 0);
                         }
                         if (stats.relocated) {
                             addAuditEntry('BULK', 'Location Sync', '-',
@@ -13439,10 +13412,9 @@
             if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
             console.log('Location Records ⇄ register: ' + JSON.stringify(stats));
             const said = [];
-            if (stats.created) said.push(stats.created + ' asset' + (stats.created === 1 ? '' : 's') + ' added to the register');
+            if (stats.undone) said.push(stats.undone + ' auto-created asset' + (stats.undone === 1 ? '' : 's') + ' removed');
             if (stats.relocated) said.push(stats.relocated + ' re-homed');
             if (stats.placed) said.push(stats.placed + ' placed on room sheets');
-            if (stats.rowsRemoved) said.push(stats.rowsRemoved + ' deleted row' + (stats.rowsRemoved === 1 ? '' : 's') + ' cleared');
             if (said.length && typeof _assignToast === 'function') {
                 try { _assignToast('🔗 Location Records ⇄ Register: ' + said.join(', ')); } catch (e) {}
             }
@@ -31722,12 +31694,14 @@
                 '<div>' +
                     (unlinked.length ? btn('reconLinkBtn', '🔗 Link ' + unlinked.length + ' matched row' + (unlinked.length === 1 ? '' : 's'), '#2980b9') : '') +
                     (orphans.length ? btn('reconAddBtn', '➕ Add ' + orphans.length + ' missing asset' + (orphans.length === 1 ? '' : 's') + ' to the register', '#27ae60') : '') +
+                    (orphans.length ? btn('reconRemoveBtn', '🗑️ Remove ' + orphans.length + ' row' + (orphans.length === 1 ? '' : 's') + ' from the Location Records', '#c0392b') : '') +
                 '</div>' +
                 (unlinked.length ? '<p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:14px;">' +
                     '<strong>Matched but unlinked</strong> rows already point at the right asset by code. Linking records that pairing so later edits follow the asset instead of guessing from the code.</p>' : '') +
                 (orphans.length ?
                     '<h4 style="margin:14px 0 6px;">Recorded in a room, missing from the register (' + orphans.length + ')</h4>' +
-                    '<p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:8px;">Adding these creates an asset per code, flagged for cost details.</p>' +
+                    '<p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:8px;">A newly surveyed item, or an asset that was deleted from the register on purpose — only you can say, so nothing happens automatically. ' +
+                    '<strong>Add</strong> creates an asset per code, flagged for cost details. <strong>Remove</strong> deletes these rows from their room sheets (they will not come back from a backup or another device).</p>' +
                     table(['Location', 'Item', 'Code (not in register)', 'Suggested match (by description)'], orphanRows,
                         orphans.length > 200 ? 'Showing first 200 of ' + orphans.length + '.' : '')
                     : '<p style="color:#27ae60; font-weight:600;">✓ Every coded location item exists in the register.</p>') +
@@ -31753,6 +31727,61 @@
             if (linkBtn) linkBtn.onclick = () => applyReconLinks();
             const addBtn = document.getElementById('reconAddBtn');
             if (addBtn) addBtn.onclick = () => applyReconAdditions();
+            const removeBtn = document.getElementById('reconRemoveBtn');
+            if (removeBtn) removeBtn.onclick = () => applyReconRowRemovals();
+        }
+
+        /* The other way to make the two agree: the sheet rows that record a
+           code the register does not hold are deleted from their rooms.
+           Tombstoned by row id and code in one write, so no backup, seed or
+           peer device re-adds them; the register is not touched. */
+        function applyReconRowRemovals() {
+            if (!_reconState || !_reconState.orphans.length) return;
+            const rows = _reconState.orphans;
+            if (!confirm('Remove ' + rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' from the Location Records?\n\n' +
+                'These rows record codes the register does not hold. They are deleted from their room sheets and will not come back from a backup or another device.\n\n' +
+                'Nothing changes in the register.')) return;
+            const ids = new Set(rows.map(r => r.id).filter(Boolean));
+            const db = getLocationRecords();
+            const removed = [];
+            (db.departments || []).forEach(d => (d.rooms || []).forEach(r => {
+                if (!Array.isArray(r.items)) return;
+                r.items = r.items.filter(it => {
+                    if (it && ids.has(it.id)) { removed.push(it); return false; }
+                    return true;
+                });
+            }));
+            if (removed.length) {
+                const now = new Date().toISOString();
+                try {
+                    if (window.mphGetLocationTombstones && window.mphSaveLocationTombstones) {
+                        const t = window.mphGetLocationTombstones();
+                        removed.forEach(it => {
+                            if (it.id) t.items[it.id] = now;
+                            const ck = window.mphCodeKey ? window.mphCodeKey(it.assetCode) : null;
+                            if (ck) t.codes[ck] = now;
+                        });
+                        window.mphSaveLocationTombstones(t);
+                    }
+                    if (window.mphGetLocationMoves && window.mphSaveLocationMoves && window.mphLocationMoveKey) {
+                        const m = window.mphGetLocationMoves();
+                        let touched = false;
+                        removed.forEach(it => {
+                            const mk = window.mphLocationMoveKey(it);
+                            if (mk && m.moves && m.moves[mk]) { delete m.moves[mk]; touched = true; }
+                        });
+                        if (touched) window.mphSaveLocationMoves(m);
+                    }
+                } catch (e) { /* the rows are gone from the records regardless */ }
+                db.lastModified = now;
+                if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
+                try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
+                if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+                notifyLocationRecordsFrame();
+                try { addAuditEntry('BULK', 'Location Sync', '-', removed.length + ' Location Records row(s) recording codes the register does not hold were removed from their room sheets', '', 0); } catch (e) {}
+            }
+            alert('Removed ' + removed.length + ' row' + (removed.length === 1 ? '' : 's') + ' from the Location Records.');
+            reconcileLocations();
         }
 
         /* Record the pairing the report already found, so later edits to a
