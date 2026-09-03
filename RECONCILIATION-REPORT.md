@@ -198,3 +198,28 @@ localStorage's ~5MB quota was the root cause of lost saves, and pruning backups 
 **Assign next code in series (from Location Records).** Each item's Asset Code cell has a 🔢 button that assigns the next free code in that item's series. The item group is taken from the row's existing/placeholder code or inferred from its description; when embedded, the dashboard's fuller series (register + inventory + records) is used, otherwise records are scanned. Ambiguous cases show a one-click series picker. Verified collision-free (`MPH/AE/133/66`, 0 clashes).
 
 All verified headless: 23/23 room cards render with an active search; move empties the bucket and re-homes the register asset; next-code assignment works standalone and embedded.
+
+---
+
+# Location Records ⇄ Asset Register ⇄ Board of Survey: automatic consistency (2026-09-03)
+
+**Problem reported:** the room sheets (Location Records), the Fixed Asset Register and the Board of Survey did not correspond — items on a room sheet were missing from the register, the register placed assets in a different department from their sheet, and the Board of Survey could not find or badge an asset whose code was spelled differently. On the shipped seeds alone a fresh device started with 300 coded room items the register lacked and 608 assets filed under a different department from their room sheet. Every existing sync was per-edit (the register queue, the transfer ledger, the room mirror on asset save); nothing ever squared up what was already there, and the "Reconcile Locations" report only acted when someone clicked its buttons.
+
+**Fix — one idempotent pass, `reconcileRegisterWithLocations()` in `index.html`.** It runs at boot (after the register queue is drained, before disposals are stamped), after every cloud merge or restore, and debounced after every Location Records save and every register refresh. The room sheets are the survey of what the hospital holds, so they win:
+
+| Situation | Outcome |
+|---|---|
+| Coded row, asset found (by `regId`, then code identity incl. aliases, then the base code of a `CODE-N` quantity row) | Row linked (`regId`); blank description / item type filled on whichever side is empty |
+| Coded row, no such asset | Asset created from the row, flagged *"cost and purchase details needed"*, with a **deterministic id** (`loc_<code identity>`) so two devices reconciling the same row make one asset, not two |
+| Row linked to an asset that was **deleted from the register** | The row is removed and tombstoned — a register delete now reaches the sheet, as a sheet delete already reached the register |
+| Asset recorded in a real room **and** in *"Register Items — Room Not Yet Assigned"* | The bucket copy is dropped and the transfer ledger records it, so an older snapshot cannot put it back |
+| Asset's department/room differs from its row(s) | The register follows the sheet, stamped as a transfer (`locationUpdatedAt`) so no seed re-run or stale snapshot undoes it |
+| Asset on no sheet at all | Placed in its department's bucket room (boarded assets and tombstoned codes excepted) |
+
+A code genuinely written on the sheets of several departments keeps every row; the register follows the department it already has when that is one of them, else the first, and the Reconcile report now lists these under *"Code in several departments"* for a person to settle. Uncoded rows are untouched — a code is the only identity the register can hold.
+
+**Board of Survey.** Every path now resolves an asset by id, then code identity including aliases (`findAssetForDisposalRecord`): the disposal search accepts any spelling (`MPH-AE-133-01` finds `MPH/AE/133/01`) and shows the item's room; boarding, editing, reversing and deleting a record flag/unflag the right asset and its room-sheet row; a BOS Excel upload links the register asset the sheet names instead of creating a duplicate, and stamps the register and the sheets; the disposal table, export and print carry a **Location** column; reversing the last disposal record now clears the flags it left (it used to return early on an empty set).
+
+**Asset Register.** The department cell shows the room from the Location Record, so the register reads like the sheet.
+
+**Verified headless** against the real pages (Chromium, no CDN): after the seed applies, orphans / unlinked / department mismatches / room mismatches / bucket duplicates / assets on no sheet are all **0**; a second pass and a reload change nothing; a differently spelled Board of Survey code flags the asset and its row and the reversal clears both; a BOS upload of a dashed code creates no duplicate; a register delete removes the linked row and it stays removed; an import on the Location Records page creates the missing asset (`loc_AE_31337_1`) in the right room; a register-side asset with no room appears on its department's sheet.
