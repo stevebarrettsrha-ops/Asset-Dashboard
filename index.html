@@ -13120,7 +13120,14 @@
         ============================================================ */
         let _locReconcileTimer = null;
         let _locReconcileRunning = false;
+        let _locReconcileRefreshing = false;   // the pass is re-rendering the views itself
+        let _locReconcileChanges = [];         // times of recent runs that changed something
+        let _locReconcileTripped = false;      // automatic runs paused for this session
         function scheduleLocationReconcile(delay) {
+            // The pass refreshes the views when it changes assets, and a view
+            // refresh asks for a pass: without this guard that is a loop that
+            // re-renders every page every 400 ms and freezes the browser.
+            if (_locReconcileRefreshing || _locReconcileTripped) return;
             clearTimeout(_locReconcileTimer);
             _locReconcileTimer = setTimeout(() => {
                 _locReconcileTimer = null;
@@ -13174,8 +13181,25 @@
         function reconcileRegisterWithLocations() {
             if (_locReconcileRunning) return false;
             _locReconcileRunning = true;
-            try { return _reconcileRegisterWithLocations(); }
+            let changed = false;
+            try { changed = _reconcileRegisterWithLocations(); }
             finally { _locReconcileRunning = false; }
+            if (changed) {
+                // Circuit breaker. The pass is idempotent, so a run that keeps
+                // finding changes means something else keeps undoing them.
+                // Whatever that is, the device must stay usable: stop the
+                // automatic runs for this session rather than fight it.
+                const t = Date.now();
+                _locReconcileChanges = _locReconcileChanges.filter(x => t - x < 120000);
+                _locReconcileChanges.push(t);
+                if (_locReconcileChanges.length >= 5 && !_locReconcileTripped) {
+                    _locReconcileTripped = true;
+                    clearTimeout(_locReconcileTimer);
+                    console.warn('Location Records ⇄ register: the pass keeps finding changes — automatic runs are paused for this session. ' +
+                                 'Reconcile Locations (Asset Register) still runs it on demand.');
+                }
+            }
+            return changed;
         }
         function _reconcileRegisterWithLocations() {
             if (!window.mphCodeKey) return false;
@@ -13207,6 +13231,7 @@
             const placements = new Map();      // asset.id -> [{dept, room, item, bucket}]
             const seenKeys = new Set();        // every code identity any room records
             const createdAssets = [];
+            const removedRows = [];
 
             /* ---- pass 1: every coded row stands for exactly one asset ---- */
             records.departments.forEach(d => {
@@ -13240,9 +13265,9 @@
                                 // The asset this row stood for was deleted on the
                                 // register side. A deletion there is as deliberate
                                 // as one here, so the row goes with it — and is
-                                // tombstoned so no merge brings it back.
-                                if (window.mphTombstoneLocationItem) window.mphTombstoneLocationItem(it);
-                                if (window.mphForgetLocationMove) window.mphForgetLocationMove(it);
+                                // tombstoned (below, in one write) so no merge
+                                // brings it back.
+                                removedRows.push(it);
                                 stats.rowsRemoved++; recordsChanged++;
                                 return;
                             }
@@ -13252,11 +13277,12 @@
                         }
                         if (it.regId !== a.id) { it.regId = a.id; recordsChanged++; stats.linked++; }
                         if (it.isNew) { delete it.isNew; recordsChanged++; }
-                        // the same facts on both sides: fill whichever is blank
+                        // the same facts on both sides: a blank asset field is
+                        // filled from the row here; blank row fields are filled
+                        // from the asset in pass 2, once every row has had its
+                        // say, so one run settles it
                         if (!a.description && (it.description || it.item)) { a.description = it.description || it.item; assetsChanged++; stats.filled++; }
                         if (!a.itemType && it.item) { a.itemType = it.item; assetsChanged++; stats.filled++; }
-                        if (!it.description && a.description) { it.description = a.description; recordsChanged++; stats.filled++; }
-                        if (!it.item && a.itemType) { it.item = a.itemType; recordsChanged++; stats.filled++; }
                         if (!placements.has(a.id)) placements.set(a.id, []);
                         placements.get(a.id).push({ dept: d, room: r, item: it, bucket: isBucket(r.title) });
                         keep.push(it);
@@ -13269,17 +13295,18 @@
             placements.forEach((list, assetId) => {
                 const a = byId.get(assetId);
                 if (!a) return;
+                list.forEach(p => {
+                    if (!p.item.description && a.description) { p.item.description = a.description; recordsChanged++; stats.filled++; }
+                    if (!p.item.item && a.itemType) { p.item.item = a.itemType; recordsChanged++; stats.filled++; }
+                });
                 const real = list.filter(p => !p.bucket);
                 if (real.length && real.length < list.length) {
                     // recorded in a real room: the bucket placeholder is stale.
-                    // Recorded in the transfer ledger as "left the bucket" so an
-                    // older snapshot (cloud, seed, peer) cannot put it back.
+                    // (Should an older snapshot bring it back, the next pass
+                    // drops it again — cheaper than a ledger write per row.)
                     list.filter(p => p.bucket).forEach(p => {
                         p.room.items = p.room.items.filter(x => x !== p.item);
                         stats.bucketCopies++; recordsChanged++;
-                        if (window.mphRecordLocationMove) {
-                            try { window.mphRecordLocationMove(real[0].item, real[0].dept.name, real[0].room.title, [{ dept: p.dept.name, room: p.room.title }]); } catch (e) {}
-                        }
                     });
                 }
                 const use = real.length ? real : list;
@@ -13354,17 +13381,48 @@
 
             if (!assetsChanged && !recordsChanged) return false;
 
+            if (removedRows.length) {
+                // one read and one write each for the tombstones and the
+                // transfer ledger, however many rows went
+                try {
+                    if (window.mphGetLocationTombstones && window.mphSaveLocationTombstones) {
+                        const t = window.mphGetLocationTombstones();
+                        removedRows.forEach(it => {
+                            if (it.id) t.items[it.id] = now;
+                            const ck = key(it.assetCode);
+                            if (ck) t.codes[ck] = now;
+                        });
+                        window.mphSaveLocationTombstones(t);
+                    }
+                    if (window.mphGetLocationMoves && window.mphSaveLocationMoves && window.mphLocationMoveKey) {
+                        const m = window.mphGetLocationMoves();
+                        let touched = false;
+                        removedRows.forEach(it => {
+                            const mk = window.mphLocationMoveKey(it);
+                            if (mk && m.moves && m.moves[mk]) { delete m.moves[mk]; touched = true; }
+                        });
+                        if (touched) window.mphSaveLocationMoves(m);
+                    }
+                } catch (e) { /* the rows are gone from the records regardless */ }
+            }
             if (assetsChanged) {
                 saveAssetsToStorage(assets);
                 allAssetsData = assets;
                 if (typeof filteredData !== 'undefined') filteredData = assets;
+                // One audit entry per kind of change — not one per asset. An
+                // entry per created asset re-saved the whole audit trail each
+                // time, which on a phone with a long trail froze the page.
                 try {
                     if (typeof addAuditEntry === 'function') {
-                        createdAssets.forEach(a => addAuditEntry(a.assetCode, 'Created', a.department,
-                            'Added from Location Records survey' + (a.room ? ' (' + a.room + ')' : ''), a.description, 0));
+                        if (createdAssets.length) {
+                            const sample = createdAssets.slice(0, 8).map(a => a.assetCode).join(', ');
+                            addAuditEntry('BULK', 'Location Sync', '-',
+                                createdAssets.length + ' asset(s) added to the register from Location Records survey rows (cost details needed): ' +
+                                sample + (createdAssets.length > 8 ? ', …' : ''), '', 0);
+                        }
                         if (stats.relocated) {
                             addAuditEntry('BULK', 'Location Sync', '-',
-                                stats.relocated + ' asset(s) re-homed to the department/room their Location Record shows');
+                                stats.relocated + ' asset(s) re-homed to the department/room their Location Record shows', '', 0);
                         }
                     }
                 } catch (e) { /* the register change still stands */ }
@@ -13388,9 +13446,20 @@
             if (said.length && typeof _assignToast === 'function') {
                 try { _assignToast('🔗 Location Records ⇄ Register: ' + said.join(', ')); } catch (e) {}
             }
-            if (assetsChanged) {
-                if (typeof refreshAllViews === 'function') { try { refreshAllViews(); } catch (e) {} }
-                else if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+            // Re-render only once someone is logged in and looking (login
+            // renders everything anyway), in its own task so the pass and
+            // the re-render are two shorter blocks with a frame between them
+            // rather than one long freeze — and never let that refresh ask
+            // for another pass.
+            if (assetsChanged && typeof currentUser !== 'undefined' && currentUser) {
+                setTimeout(() => {
+                    _locReconcileRefreshing = true;
+                    try {
+                        if (typeof refreshAllViews === 'function') refreshAllViews();
+                        else if (typeof displayAssetRegister === 'function') displayAssetRegister();
+                    } catch (e) { /* views catch up on their next render */ }
+                    finally { _locReconcileRefreshing = false; }
+                }, 0);
             }
             return true;
         }
@@ -13472,8 +13541,12 @@
                 // an edit over there may carry a register change with it
                 try { drainLocationRegisterQueue(); } catch (err) {}
                 // and a restore/import over there carries none, so square
-                // the two stores up as a whole (coalesced across a burst)
-                scheduleLocationReconcile();
+                // the two stores up as a whole. Coalesced across a burst,
+                // and late enough that the frame's own writes have committed
+                // and refreshed this page's copy before the pass reads it —
+                // the two contexts write the whole records blob without a
+                // compare-and-set, so reading too early works on a stale copy.
+                scheduleLocationReconcile(1500);
             }
         });
 
@@ -18507,8 +18580,10 @@
                     // then the whole of the two stores are squared up: every
                     // coded room item is a register asset, in the department
                     // and room its sheet shows, and every register asset is on
-                    // a sheet
-                    try { reconcileRegisterWithLocations(); } catch (e) {}
+                    // a sheet. Deferred: on a phone the first run over a full
+                    // register takes a moment, and run synchronously here it
+                    // sat between the page and the login screen.
+                    try { scheduleLocationReconcile(1500); } catch (e) {}
                     // and any boarding done before this ran gets stamped onto
                     // the register and the room sheets
                     try { applyDisposalsToAssets(); } catch (e) {}
