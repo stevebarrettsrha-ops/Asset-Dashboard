@@ -12937,7 +12937,12 @@
                             id: _surveyAssetId(ck || op.code, byId),
                             assetCode: op.code,
                             aliases: [],
-                            dateIn: (op.at || new Date().toISOString()).slice(0, 10),
+                            // A floor survey does not know when the item was
+                            // bought: no Date In until the register owner
+                            // records one. (Stamping the survey day here put
+                            // every surveyed item on the dashboard as a new
+                            // acquisition in the month it was coded.)
+                            dateIn: '',
                             quantity: 1,
                             description: op.description || op.item || '',
                             itemType: op.item || '',
@@ -17354,6 +17359,15 @@
                         }
                         if (asset.dateIn) {
                             asset.dateIn = normalizeDateToDisplay(asset.dateIn);
+                        }
+                        // Survey-created assets once had their Date In stamped
+                        // with the day their room row was coded; that date was
+                        // never real. Clear it wherever it still stands (this
+                        // device, or arriving from another device's backup).
+                        if (asset.dateIn && isLocationSurveyAsset(asset) && hasFabricatedSurveyDate(asset)) {
+                            asset.dateIn = '';
+                            asset.month = '';
+                            needsSave = true;
                         }
                         // Auto-calculate salvage for assets that don't have one yet
                         if ((!asset.salvageValue || asset.salvageValue === 0) && (asset.totalPrice || asset.unitPrice)) {
@@ -24098,6 +24112,10 @@
                     // Assets explicitly flagged disposed (from Board of Survey) never
                     // count as active inventory, regardless of the toggle.
                     if (isDisposedAsset(asset)) return false;
+                    // Items the register gained from Location Records room
+                    // sheets are surveyed stock, not acquisitions — never on
+                    // the dashboard, whatever date or year they carry.
+                    if (isLocationSurveyAsset(asset)) return false;
                     const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
                     // Only include assets with a determinable fiscal year that matches
                     // Assets with null fiscal year (unparseable dates) are excluded
@@ -28038,6 +28056,36 @@
         // active and once as a disposal record (double-count).
         function isDisposedAsset(asset) {
             return !!(asset && asset.disposed === true);
+        }
+
+        // An asset the register gained from a Location Records room sheet —
+        // a surveyed item, not a purchase or donation record. The floor
+        // survey knows what sits in the room, not what it cost or when it
+        // came in, so these never belong in the main dashboard's acquisition
+        // figures (KPIs, charts, inventory table, search, monthly breakdown).
+        // They live on the Asset Register page, flagged for the register
+        // owner to complete.
+        function isLocationSurveyAsset(asset) {
+            if (!asset) return false;
+            if (asset.registerOrigin === 'location-survey' || asset.surveyAdded === true) return true;
+            // ids minted for survey rows (loc_<code identity>), including
+            // any the first consistency pass created before it was fixed
+            return typeof asset.id === 'string' && asset.id.indexOf('loc_') === 0;
+        }
+
+        // The day a survey row was coded, which the register used to write
+        // into the new asset's Date In. A floor survey knows nothing about
+        // when the item was bought, so that date was fiction — and it put
+        // every surveyed item on the dashboard as a fresh acquisition in the
+        // month of the survey. True while the asset still carries exactly
+        // that stamp and nobody has completed its details.
+        function hasFabricatedSurveyDate(asset) {
+            if (!asset || !asset.dateIn || !asset.locationUpdatedAt) return false;
+            if (parseFloat(asset.unitPrice) > 0 || parseFloat(asset.totalPrice) > 0) return false;
+            if (asset.source) return false;
+            const stampDay = String(asset.locationUpdatedAt).slice(0, 10);   // YYYY-MM-DD
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(stampDay)) return false;
+            return normalizeDateToDisplay(stampDay) === normalizeDateToDisplay(asset.dateIn);
         }
 
         // Load disposal records from localStorage
