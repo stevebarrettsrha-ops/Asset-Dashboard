@@ -20900,6 +20900,13 @@
             return raw < 0 ? 0 : raw;
         }
 
+        // Round to cents. Every figure on this form is rounded at the line so
+        // the printed columns reconcile exactly against the printed totals.
+        function faaRound2(n) {
+            if (!isFinite(n)) return 0;
+            return Math.round((n + Number.EPSILON) * 100) / 100;
+        }
+
         // Per-line figures, mirroring the Word form:
         //   Price (Excl. GCT) = quantity x unit price
         //   GCT               = price x rate
@@ -20907,19 +20914,30 @@
         function faaLineFigures(item, form) {
             const qty = faaNum(item && item.quantity);
             const unit = faaNum(item && item.unitPrice);
-            const price = qty * unit;
-            const gct = price * (faaGctRate(form) / 100);
-            return { qty: qty, unit: unit, price: price, gct: gct, extended: price + gct };
+            const price = faaRound2(qty * unit);
+            const gct = faaRound2(price * (faaGctRate(form) / 100));
+            return { qty: qty, unit: unit, price: price, gct: gct, extended: faaRound2(price + gct) };
         }
 
         // This form's own totals. Deliberately NOT connected to any dashboard
         // total — nothing else in the app reads these numbers.
+        //
+        //   Sub Total = the Price (Excl. GCT) column
+        //   Tax       = the GCT column
+        //   Total     = Sub Total + Tax  (and therefore the Extended Price column)
+        //
+        // Because each line is rounded to cents before it is added up, all three
+        // printed columns add to the printed totals with no penny drift.
         function faaFormTotals(form) {
             const d = form || faaData;
             let subTotal = 0;
-            (d.items || []).forEach(function(it) { subTotal += faaLineFigures(it, d).price; });
-            const tax = subTotal * (faaGctRate(d) / 100);
-            return { subTotal: subTotal, tax: tax, total: subTotal + tax };
+            let tax = 0;
+            (d.items || []).forEach(function(it) {
+                const f = faaLineFigures(it, d);
+                subTotal = faaRound2(subTotal + f.price);
+                tax = faaRound2(tax + f.gct);
+            });
+            return { subTotal: subTotal, tax: tax, total: faaRound2(subTotal + tax) };
         }
 
         // A line counts as "filled in" once any of its fields carries content.
@@ -21223,7 +21241,7 @@
             wrap.innerHTML = '' +
                 '<div class="faa-total-card"><div class="faa-total-label">Sub Total (Excl. GCT)</div><div class="faa-total-value">$' + faaFmtMoney(t.subTotal) + '</div></div>' +
                 '<div class="faa-total-card"><div class="faa-total-label">Tax (GCT ' + faaGctRate(faaData) + '%)</div><div class="faa-total-value">$' + faaFmtMoney(t.tax) + '</div></div>' +
-                '<div class="faa-total-card"><div class="faa-total-label">Total</div><div class="faa-total-value">$' + faaFmtMoney(t.total) + '</div></div>';
+                '<div class="faa-total-card"><div class="faa-total-label">Total (Sub Total + Tax)</div><div class="faa-total-value">$' + faaFmtMoney(t.total) + '</div></div>';
         }
 
         // ---- Formatting ----------------------------------------------------
