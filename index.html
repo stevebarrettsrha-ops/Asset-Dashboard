@@ -10261,6 +10261,9 @@
             background: var(--bg-secondary); color: var(--text-primary); font-size: 0.85rem; font-family: inherit;
         }
         .faa-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .faa-check { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; }
+        .faa-check input[type="checkbox"] { width: 17px; height: 17px; accent-color: #8e44ad; cursor: pointer; flex: 0 0 auto; margin: 0; }
+        .faa-check-note { font-size: 0.74rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
         .faa-items-editor { margin-top: 6px; }
         .faa-item-card { border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 12px 12px; margin-bottom: 12px; background: var(--bg-secondary); position: relative; }
         .faa-item-card .faa-item-num { position: absolute; top: -10px; left: 10px; background: #8e44ad; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
@@ -10411,6 +10414,11 @@
                         <input type="number" step="0.01" min="0" data-faa="gctRate" oninput="faaOnInput(this)" placeholder="15">
                     </div>
                 </div>
+                <label class="faa-check">
+                    <input type="checkbox" data-faa="applyGct" onchange="faaOnInput(this)">
+                    <span>Apply GCT (<span id="faaApplyGctRateHint">15%</span>) to this form</span>
+                </label>
+                <div class="faa-check-note">Leave this unticked and no tax is calculated &mdash; the GCT column stays at 0.00 and the Total equals the Sub Total.</div>
                 <div class="faa-field-row">
                     <div class="faa-field">
                         <label>Prepared by</label>
@@ -20837,6 +20845,8 @@
                 acquisitionDate: '',
                 preparedBy: '',
                 verifiedBy: '',
+                // GCT is never charged unless the user ticks "Apply GCT".
+                applyGct: false,
                 gctRate: String(FAA_DEFAULT_GCT),
                 items: [faaBlankItem()]
             };
@@ -20869,6 +20879,10 @@
             if (!form.updatedAt) form.updatedAt = form.createdAt;
             if (!Array.isArray(form.items) || form.items.length === 0) form.items = [faaBlankItem()];
             form.items = form.items.map(function(it) { return Object.assign(faaBlankItem(), it || {}); });
+            // A form saved before the Apply GCT box existed was always charged
+            // GCT, so keep its figures exactly as they were printed.
+            if (obj && typeof obj === 'object' && obj.applyGct === undefined) form.applyGct = true;
+            form.applyGct = !!form.applyGct;
             return form;
         }
 
@@ -20894,10 +20908,31 @@
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function faaGctRate(form) {
+        // Is GCT switched on for this form?
+        function faaGctApplied(form) {
+            const d = form || faaData;
+            return !!(d && d.applyGct);
+        }
+
+        // The rate stored on the form, whether or not GCT is switched on.
+        // Used for the rate input and the on-screen labels.
+        function faaRawGctRate(form) {
             const d = form || faaData;
             const raw = (d && d.gctRate !== undefined && d.gctRate !== '') ? faaNum(d.gctRate) : FAA_DEFAULT_GCT;
             return raw < 0 ? 0 : raw;
+        }
+
+        // The rate actually applied to the figures: zero until the user ticks
+        // "Apply GCT", so no tax is calculated unless they ask for it.
+        function faaGctRate(form) {
+            return faaGctApplied(form) ? faaRawGctRate(form) : 0;
+        }
+
+        // How the Tax line is labelled on screen and in the Excel export.
+        function faaTaxLabel(form) {
+            return faaGctApplied(form)
+                ? 'Tax (GCT ' + faaRawGctRate(form) + '%)'
+                : 'Tax (GCT not applied)';
         }
 
         // Round to cents. Every figure on this form is rounded at the line so
@@ -21011,16 +21046,38 @@
         function faaBindHeaderInputs() {
             document.querySelectorAll('#page18 [data-faa]').forEach(function(el) {
                 const key = el.getAttribute('data-faa');
-                el.value = (faaData && faaData[key] !== undefined) ? faaData[key] : '';
+                const val = (faaData && faaData[key] !== undefined) ? faaData[key] : '';
+                if (el.type === 'checkbox') el.checked = !!val;
+                else el.value = val;
             });
+            faaSyncGctControls();
+        }
+
+        // The rate box only means anything once GCT is switched on, so grey it
+        // out when it is off and keep the tick-box label showing the rate.
+        function faaSyncGctControls() {
+            const on = faaGctApplied(faaData);
+            const rate = document.querySelector('#page18 [data-faa="gctRate"]');
+            if (rate) {
+                rate.disabled = !on;
+                rate.style.opacity = on ? '' : '0.5';
+                rate.title = on ? '' : 'Tick “Apply GCT” to charge tax on this form';
+            }
+            const label = document.getElementById('faaApplyGctRateHint');
+            if (label) label.textContent = faaRawGctRate(faaData) + '%';
         }
 
         function faaOnInput(el) {
             const key = el.getAttribute('data-faa');
-            faaData[key] = el.value;
+            faaData[key] = (el.type === 'checkbox') ? el.checked : el.value;
             faaSave();
-            // The GCT rate changes every computed figure, so refresh the lines too.
-            if (key === 'gctRate') faaRenderEditor();
+            // Switching GCT on or off, or changing the rate, changes every
+            // computed figure — refresh the lines and the totals too.
+            if (key === 'gctRate' || key === 'applyGct') {
+                faaSyncGctControls();
+                faaRenderEditor();
+                faaRenderFormsList();
+            }
             faaRenderTotals();
             faaRenderPreview();
             if (key === 'title') faaRenderFormsList();
@@ -21240,7 +21297,7 @@
             const t = faaFormTotals(faaData);
             wrap.innerHTML = '' +
                 '<div class="faa-total-card"><div class="faa-total-label">Sub Total (Excl. GCT)</div><div class="faa-total-value">$' + faaFmtMoney(t.subTotal) + '</div></div>' +
-                '<div class="faa-total-card"><div class="faa-total-label">Tax (GCT ' + faaGctRate(faaData) + '%)</div><div class="faa-total-value">$' + faaFmtMoney(t.tax) + '</div></div>' +
+                '<div class="faa-total-card"><div class="faa-total-label">' + escapeHtml(faaTaxLabel(faaData)) + '</div><div class="faa-total-value">$' + faaFmtMoney(t.tax) + '</div></div>' +
                 '<div class="faa-total-card"><div class="faa-total-label">Total (Sub Total + Tax)</div><div class="faa-total-value">$' + faaFmtMoney(t.total) + '</div></div>';
         }
 
@@ -21394,7 +21451,7 @@
             const totalLabel = { font: { name: 'Calibri', sz: 11, bold: true, italic: true }, alignment: { horizontal: 'center' }, border: allThin };
             const totalValue = { font: { name: 'Calibri', sz: 11, bold: true, italic: true }, alignment: { horizontal: 'center' }, border: allThin };
             setCell('F' + totalRow, 'Sub Total', totalLabel);
-            setCell('G' + totalRow, 'Tax (GCT ' + faaGctRate(d) + '%)', totalLabel);
+            setCell('G' + totalRow, faaTaxLabel(d), totalLabel);
             setCell('H' + totalRow, 'Total', totalLabel);
             setCell('F' + (totalRow + 1), t.subTotal, totalValue, true);
             setCell('G' + (totalRow + 1), t.tax, totalValue, true);
