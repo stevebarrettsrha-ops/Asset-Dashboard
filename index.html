@@ -17269,7 +17269,11 @@
                     }
                 });
             }
-            openNextCodePopup(value);
+            // Deliberately NOT opening the next-code popup here: it is a
+            // full-screen overlay, and auto-opening it over the Add/Edit Asset
+            // form swallows every click meant for the form, Save Asset
+            // included. The 🔢 button beside the Asset Code field opens the
+            // same list whenever it is wanted.
         }
 
         // Rooms recorded for each department on the Location Records page,
@@ -17325,7 +17329,7 @@
                     opt.classList.toggle('selected', opt.dataset.value === dept);
                 });
             }
-            openNextCodePopup(dept);
+            // Same as above: opened from the 🔢 button, never over the form.
         }
 
         /* ============================================================
@@ -17363,7 +17367,12 @@
         let _nextCodeSeriesCache = [];
         function openNextCodePopup(deptName) {
             deptName = deptName || (document.getElementById('department') || {}).value;
-            if (!deptName) { showNotification && showNotification('Select a department first', 'info'); return; }
+            if (!deptName) {
+                // `showNotification && …` on a name that is never declared throws
+                // a ReferenceError instead of guarding, so say it plainly.
+                alert('Select a department first.');
+                return;
+            }
             _nextCodeSeriesCache = computeNextCodeSeries(deptName);
             const modal = document.getElementById('nextCodeModal');
             const title = document.getElementById('nextCodeTitle');
@@ -17373,7 +17382,33 @@
             renderNextCodeList();
             if (modal) modal.style.display = 'flex';
             if (search) setTimeout(() => search.focus(), 50);
+            nextCodePopupBindDismiss();
         }
+
+        // This popup covers whatever is under it, so it closes on Escape and on
+        // a click outside the panel, not only via the X.
+        let _nextCodeDismissBound = false;
+        function nextCodePopupBindDismiss() {
+            if (_nextCodeDismissBound) return;
+            _nextCodeDismissBound = true;
+
+            const modal = document.getElementById('nextCodeModal');
+            if (modal) {
+                // A click on the backdrop (not the panel) closes it.
+                modal.addEventListener('mousedown', function(e) {
+                    if (e.target === modal) closeNextCodePopup();
+                });
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && nextCodePopupIsOpen()) closeNextCodePopup();
+            });
+        }
+
+        function nextCodePopupIsOpen() {
+            const modal = document.getElementById('nextCodeModal');
+            return !!(modal && modal.style.display && modal.style.display !== 'none');
+        }
+
         function closeNextCodePopup() {
             const modal = document.getElementById('nextCodeModal');
             if (modal) modal.style.display = 'none';
