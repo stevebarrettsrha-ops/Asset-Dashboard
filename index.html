@@ -7366,6 +7366,18 @@
                     </button>
                 </div>
 
+                <!-- Which fiscal year this table is showing. Without it the
+                     year filter is invisible and a newly added asset dated in
+                     another year looks like it was never saved. -->
+                <div class="dash-year-bar" id="dashYearBar">
+                    <span class="dash-year-icon">&#128197;</span>
+                    <button class="dash-year-nav" id="dashPrevYear" onclick="dashboardShiftYear(-1)" title="Previous fiscal year">&#9664;</button>
+                    <span class="dash-year-label" id="dashYearLabel">FY</span>
+                    <button class="dash-year-nav" id="dashNextYear" onclick="dashboardShiftYear(1)" title="Next fiscal year">&#9654;</button>
+                    <span class="dash-year-count" id="dashYearCount"></span>
+                    <button class="dash-year-all" id="dashAllYearsBtn" onclick="dashboardToggleAllYears()">Show all years</button>
+                </div>
+
                 <div class="table-container" id="tableContainer">
                     <div class="loading">
                         <div class="loading-spinner"></div>
@@ -10051,6 +10063,29 @@
     <!-- ============================================================= -->
     <style>
         /* Form 7C builder layout */
+        /* Fiscal-year banner above the main inventory table */
+        .dash-year-bar {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;
+        }
+        .dash-year-icon { font-size: 1rem; }
+        .dash-year-nav {
+            background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);
+            border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 0.72rem; line-height: 1; padding: 0;
+        }
+        .dash-year-nav:hover:not(:disabled) { border-color: var(--primary-orange, #e67e22); color: var(--primary-orange, #e67e22); }
+        .dash-year-nav:disabled { cursor: default; }
+        .dash-year-label { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); min-width: 120px; text-align: center; }
+        .dash-year-count { font-size: 0.8rem; color: var(--text-secondary); }
+        .dash-year-all {
+            margin-left: auto; background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 7px; padding: 6px 14px;
+            font-size: 0.8rem; font-weight: 600; cursor: pointer;
+        }
+        .dash-year-all:hover { border-color: var(--primary-orange, #e67e22); color: var(--primary-orange, #e67e22); }
+        .dash-year-all.active { background: var(--primary-orange, #e67e22); border-color: var(--primary-orange, #e67e22); color: #fff; }
+
         .f7c-layout { display: grid; grid-template-columns: minmax(360px, 440px) 1fr; gap: 24px; align-items: start; padding: 0 4px; }
         @media (max-width: 1100px) { .f7c-layout { grid-template-columns: 1fr; } }
         .f7c-editor { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
@@ -17269,7 +17304,11 @@
                     }
                 });
             }
-            openNextCodePopup(value);
+            // Deliberately NOT opening the next-code popup here: it is a
+            // full-screen overlay, and auto-opening it over the Add/Edit Asset
+            // form swallows every click meant for the form, Save Asset
+            // included. The 🔢 button beside the Asset Code field opens the
+            // same list whenever it is wanted.
         }
 
         // Rooms recorded for each department on the Location Records page,
@@ -17325,7 +17364,7 @@
                     opt.classList.toggle('selected', opt.dataset.value === dept);
                 });
             }
-            openNextCodePopup(dept);
+            // Same as above: opened from the 🔢 button, never over the form.
         }
 
         /* ============================================================
@@ -17363,7 +17402,12 @@
         let _nextCodeSeriesCache = [];
         function openNextCodePopup(deptName) {
             deptName = deptName || (document.getElementById('department') || {}).value;
-            if (!deptName) { showNotification && showNotification('Select a department first', 'info'); return; }
+            if (!deptName) {
+                // `showNotification && …` on a name that is never declared throws
+                // a ReferenceError instead of guarding, so say it plainly.
+                alert('Select a department first.');
+                return;
+            }
             _nextCodeSeriesCache = computeNextCodeSeries(deptName);
             const modal = document.getElementById('nextCodeModal');
             const title = document.getElementById('nextCodeTitle');
@@ -17373,7 +17417,33 @@
             renderNextCodeList();
             if (modal) modal.style.display = 'flex';
             if (search) setTimeout(() => search.focus(), 50);
+            nextCodePopupBindDismiss();
         }
+
+        // This popup covers whatever is under it, so it closes on Escape and on
+        // a click outside the panel, not only via the X.
+        let _nextCodeDismissBound = false;
+        function nextCodePopupBindDismiss() {
+            if (_nextCodeDismissBound) return;
+            _nextCodeDismissBound = true;
+
+            const modal = document.getElementById('nextCodeModal');
+            if (modal) {
+                // A click on the backdrop (not the panel) closes it.
+                modal.addEventListener('mousedown', function(e) {
+                    if (e.target === modal) closeNextCodePopup();
+                });
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && nextCodePopupIsOpen()) closeNextCodePopup();
+            });
+        }
+
+        function nextCodePopupIsOpen() {
+            const modal = document.getElementById('nextCodeModal');
+            return !!(modal && modal.style.display && modal.style.display !== 'none');
+        }
+
         function closeNextCodePopup() {
             const modal = document.getElementById('nextCodeModal');
             if (modal) modal.style.display = 'none';
@@ -18466,6 +18536,7 @@
             };
 
             let assets = loadAssetsFromStorage();
+            let savedFeedback = '';
 
             if (currentEditingAsset) {
                 // Update existing asset
@@ -18509,7 +18580,7 @@
                             { dept: currentEditingAsset.department, room: currentEditingAsset.room || '' });
                     }
 
-                    alert('✅ Asset updated successfully!');
+                    savedFeedback = '✅ Asset updated successfully!';
                 }
             } else {
                 // Add new asset(s) — expand by quantity if qty > 1
@@ -18529,19 +18600,45 @@
                         addAuditEntry(expandedAsset.assetCode, 'Asset Created', expandedAsset.department, 'New asset added to inventory (expanded from qty ' + qty + ')');
                         if (expandedAsset.room) syncAssetToLocationRecord(expandedAsset, expandedAsset.department, expandedAsset.room);
                     }
-                    alert(`✅ ${qty} individual assets created! (${baseCode}-01 through ${baseCode}-${String(qty).padStart(padLen, '0')})`);
+                    savedFeedback = `✅ ${qty} individual assets created! (${baseCode}-01 through ${baseCode}-${String(qty).padStart(padLen, '0')})`;
                 } else {
                     assetData.quantity = 1;
                     assets.push(assetData);
                     addAuditEntry(assetData.assetCode, 'Asset Created', assetData.department, 'New asset added to inventory');
                     if (assetData.room) syncAssetToLocationRecord(assetData, assetData.department, assetData.room);
-                    alert('✅ Asset added successfully!');
+                    savedFeedback = '✅ Asset added successfully!';
                 }
             }
 
             saveAssetsToStorage(assets);
             closeAssetModal();
+
+            // The dashboard's inventory table shows ONE fiscal year. An asset
+            // dated outside it is saved but invisible here, which reads as "it
+            // did not save". Move the dashboard to the asset's own year so the
+            // user can see what they just added, and say so.
+            let yearNote = '';
+            if (!currentEditingAsset) {
+                const assetFY = getFiscalYearFromDate(assetData.dateIn);
+                if (assetFY === null) {
+                    yearNote = '\n\nNote: it has no usable Date In, so it will not appear on the ' +
+                        'dashboard inventory (which lists assets by acquisition year). ' +
+                        'You will find it on the Asset Register page.';
+                } else if (!dashboardAllYears && assetFY !== currentFiscalYear) {
+                    const from = 'FY ' + currentFiscalYear + '/' + (currentFiscalYear + 1);
+                    const to = 'FY ' + assetFY + '/' + (assetFY + 1);
+                    yearNote = '\n\nIts Date In (' + assetData.dateIn + ') falls in ' + to +
+                        ', and the dashboard was showing ' + from + '. The dashboard has been ' +
+                        'switched to ' + to + ' so you can see it.';
+                    dashboardAllYears = false;
+                    currentFiscalYear = assetFY;
+                    if (typeof updateFiscalYearDisplay === 'function') updateFiscalYearDisplay();
+                }
+            }
+
             refreshAllViews();
+            if (typeof updateDashboardYearBanner === 'function') updateDashboardYearBanner();
+            alert(savedFeedback + yearNote);
         }
 
         function deleteCurrentAsset() {
@@ -20185,6 +20282,64 @@
             return currentFiscalYear;
         }
 
+        // The main dashboard shows a single fiscal year. That filter used to be
+        // invisible here - there was no label and no control on this page - so an
+        // asset saved with a Date In from another year simply never appeared and
+        // nothing said why. The banner above the inventory table now states the
+        // year on screen and can move between years or drop the filter entirely.
+        let dashboardAllYears = false;
+
+        function updateDashboardYearBanner() {
+            const label = document.getElementById('dashYearLabel');
+            if (label) {
+                label.textContent = dashboardAllYears
+                    ? 'All years'
+                    : 'FY ' + currentFiscalYear + '/' + (currentFiscalYear + 1);
+            }
+            const count = document.getElementById('dashYearCount');
+            if (count) {
+                const shown = (typeof allAssetsData !== 'undefined' && Array.isArray(allAssetsData)) ? allAssetsData.length : 0;
+                let total = 0;
+                try { total = loadAssetsFromStorage().length; } catch (e) {}
+                count.textContent = 'showing ' + shown.toLocaleString() + ' of ' + total.toLocaleString() + ' assets in the register';
+            }
+            const btn = document.getElementById('dashAllYearsBtn');
+            if (btn) {
+                btn.textContent = dashboardAllYears ? 'Show one year' : 'Show all years';
+                btn.classList.toggle('active', dashboardAllYears);
+            }
+            ['dashPrevYear', 'dashNextYear'].forEach(function(id) {
+                const b = document.getElementById(id);
+                if (b) { b.disabled = dashboardAllYears; b.style.opacity = dashboardAllYears ? '0.4' : ''; }
+            });
+        }
+
+        async function dashboardShiftYear(delta) {
+            if (dashboardAllYears) return;
+            currentFiscalYear += delta;
+            updateFiscalYearDisplay();
+            await loadData();
+            updateDashboardYearBanner();
+        }
+
+        async function dashboardToggleAllYears() {
+            dashboardAllYears = !dashboardAllYears;
+            await loadData();
+            updateDashboardYearBanner();
+        }
+
+        // Move the dashboard to the fiscal year a given date falls in.
+        async function dashboardGoToYearOf(dateStr) {
+            const fy = getFiscalYearFromDate(dateStr);
+            if (fy === null) return false;
+            dashboardAllYears = false;
+            currentFiscalYear = fy;
+            updateFiscalYearDisplay();
+            await loadData();
+            updateDashboardYearBanner();
+            return true;
+        }
+
         async function previousFiscalYear() {
             currentFiscalYear--;
             console.log('Previous clicked, now FY:', currentFiscalYear);
@@ -20272,6 +20427,10 @@
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page' + pageNum).classList.add('active');
+
+            if (pageNum === 1 && typeof updateDashboardYearBanner === 'function') {
+                updateDashboardYearBanner();
+            }
 
             // Update sidebar active state
             updateSidebarActiveState(pageNum);
@@ -26223,10 +26382,15 @@
                     // sheets are surveyed stock, not acquisitions — never on
                     // the dashboard, whatever date or year they carry.
                     if (isLocationSurveyAsset(asset)) return false;
-                    const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
-                    // Only include assets with a determinable fiscal year that matches
-                    // Assets with null fiscal year (unparseable dates) are excluded
-                    if (assetFiscalYear === null || assetFiscalYear !== currentFiscalYear) return false;
+                    // The dashboard normally shows one fiscal year. "All years"
+                    // lifts that, so an asset can always be found from here
+                    // whatever date it carries.
+                    if (!dashboardAllYears) {
+                        const assetFiscalYear = getFiscalYearFromDate(asset.dateIn);
+                        // Only include assets with a determinable fiscal year that matches
+                        // Assets with null fiscal year (unparseable dates) are excluded
+                        if (assetFiscalYear === null || assetFiscalYear !== currentFiscalYear) return false;
+                    }
                     // Exclude disposed assets if toggle is on
                     if (disposedCodes && disposedCodes.has(asset.assetCode)) return false;
                     return true;
@@ -26603,6 +26767,8 @@
             filteredData = allAssetsData;
             updateKPICards();
             displayTable();
+            // Keep the "which year am I looking at" banner honest on every load.
+            if (typeof updateDashboardYearBanner === 'function') updateDashboardYearBanner();
         }
 
         // Merge categoryStats from purchased and donated data
@@ -26842,6 +27008,9 @@
 
         function displayTable() {
             const container = document.getElementById('tableContainer');
+            // Whichever path rendered the table, the banner above it has to say
+            // which fiscal year these rows are.
+            if (typeof updateDashboardYearBanner === 'function') updateDashboardYearBanner();
 
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="loading">No data to display</div>';
