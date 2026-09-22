@@ -10270,7 +10270,13 @@
         .faa-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
         .faa-item-grid label { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 3px; }
         .faa-item-full { grid-column: 1 / -1; }
-        .faa-item-remove { position: absolute; top: 8px; right: 8px; background: #e74c3c; color: #fff; border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+        .faa-item-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+        .faa-item-remove, .faa-item-dup { border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.85rem; line-height: 1; color: #fff; padding: 0; }
+        .faa-item-remove { background: #e74c3c; }
+        .faa-item-dup { background: #8e44ad; }
+        .faa-item-remove:hover, .faa-item-dup:hover { filter: brightness(1.1); }
+        .faa-dup-btn { width: 100%; padding: 9px; margin-top: 8px; border: 1px dashed var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+        .faa-dup-btn:hover { border-color: #8e44ad; color: #8e44ad; }
         .faa-item-calc { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.74rem; color: var(--text-secondary); }
         .faa-item-calc strong { color: var(--text-primary); font-size: 0.8rem; }
         .faa-add-row-btn { width: 100%; padding: 10px; border: 2px dashed var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 0.85rem; }
@@ -10426,6 +10432,23 @@
         .faa-drive-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; border-radius: 9px; padding: 2px 8px; }
         .faa-drive-pill.saved { background: rgba(22,160,133,0.16); color: #16a085; }
         .faa-drive-pill.none { background: rgba(127,140,141,0.16); color: #7f8c8d; }
+
+        /* Google Drive disconnection banner */
+        .drive-notice {
+            display: none; position: fixed; right: 20px; bottom: 20px; z-index: 11000;
+            align-items: flex-start; gap: 12px; max-width: 420px; padding: 14px 16px;
+            background: #c0392b; color: #fff; border-radius: 12px; box-shadow: 0 10px 34px rgba(0,0,0,0.32);
+            font-size: 0.88rem; line-height: 1.45;
+        }
+        .drive-notice-icon { font-size: 1.15rem; line-height: 1.2; }
+        .drive-notice-body { flex: 1; }
+        .drive-notice-title { font-weight: 700; margin-bottom: 3px; }
+        .drive-notice-text { font-size: 0.82rem; opacity: 0.95; }
+        .drive-notice-btn { align-self: center; background: #fff; color: #c0392b; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .drive-notice-btn:hover { filter: brightness(0.95); }
+        .drive-notice-close { background: none; border: none; color: #fff; font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 2px; opacity: .8; }
+        .drive-notice-close:hover { opacity: 1; }
+        @media (max-width: 640px) { .drive-notice { left: 12px; right: 12px; bottom: 12px; max-width: none; } }
 
         /* Drive save status under the page action bar */
         .faa-drive-status { margin: 10px 0 0; padding: 9px 14px; border-radius: 8px; font-size: 0.84rem; font-weight: 600; background: rgba(255,255,255,0.18); color: #fff; }
@@ -10597,6 +10620,7 @@
                 <h3 style="margin-top: 22px;">&#128230; Assets Added</h3>
                 <div class="faa-items-editor" id="faaItemsEditor"></div>
                 <button class="faa-add-row-btn" onclick="faaAddRow()">&#10133; Add Asset Line</button>
+                <button class="faa-dup-btn" onclick="faaDuplicateLastRow()" title="Copy the last filled-in line as many times as you need">&#10697; Duplicate last line &times; N</button>
 
                 <div class="faa-totals" id="faaTotals"><!-- rendered by faaRenderTotals() --></div>
             </div>
@@ -12453,8 +12477,7 @@
                 closeSmartMergeModal();
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
-                    disconnectFromGoogleDrive();
+                    forceDriveDisconnect('Your Google Drive session has expired. Reconnect to start backing up again.');
                 } else {
                     alert(`Failed to load cloud data: ${error.message}`);
                 }
@@ -12773,11 +12796,13 @@
                     isCloudConnected = true;
                     updateCloudUI(true);
                     startAutoSync();
+                    startDriveConnectionWatch();
                     return;
                 }
             }
 
             updateCloudUI(false);
+            startDriveConnectionWatch();
         }
 
         // Update cloud UI based on connection status (all dropdowns)
@@ -14207,8 +14232,116 @@
         }
 
         // Disconnect from Google Drive
+        // ============================================
+        // GOOGLE DRIVE DISCONNECTION NOTICE
+        // A dropped Drive connection is silent otherwise: work keeps saving to
+        // the device but stops being backed up, and nobody finds out until they
+        // look at the little status dot. A banner says so plainly, stays until
+        // the connection is back, and offers to reconnect on the spot.
+        // ============================================
+        let driveNoticeWasConnected = false;
+        let driveNoticeUserInitiated = false;   // a deliberate Disconnect needs no warning
+        let driveNoticeWatchdog = null;
+
+        // Connected means: the flag is set, there is a token, and the stored
+        // expiry (if any) has not passed. Google's tokens last about an hour, so
+        // a long session WILL cross it.
+        function driveIsConnectedNow() {
+            if (typeof isCloudConnected === 'undefined' || !isCloudConnected) return false;
+            if (!googleAccessToken) return false;
+            try {
+                const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+                if (expiry && new Date(expiry) <= new Date()) return false;
+            } catch (e) { /* ignore */ }
+            return true;
+        }
+
+        function showDriveDisconnectedNotice(reason) {
+            let el = document.getElementById('driveDisconnectedNotice');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'driveDisconnectedNotice';
+                el.className = 'drive-notice';
+                el.innerHTML =
+                    '<span class="drive-notice-icon">&#9888;&#65039;</span>' +
+                    '<div class="drive-notice-body">' +
+                        '<div class="drive-notice-title">Google Drive is disconnected</div>' +
+                        '<div class="drive-notice-text" id="driveNoticeReason"></div>' +
+                    '</div>' +
+                    '<button class="drive-notice-btn" onclick="driveNoticeReconnect()">Reconnect</button>' +
+                    '<button class="drive-notice-close" title="Dismiss" onclick="dismissDriveDisconnectedNotice()">&times;</button>';
+                document.body.appendChild(el);
+            }
+            const reasonEl = el.querySelector('#driveNoticeReason');
+            if (reasonEl) {
+                reasonEl.textContent = reason ||
+                    'Your work is still being saved on this device, but it is not being backed up to Google Drive.';
+            }
+            el.style.display = 'flex';
+        }
+
+        function dismissDriveDisconnectedNotice() {
+            const el = document.getElementById('driveDisconnectedNotice');
+            if (el) el.style.display = 'none';
+        }
+
+        function driveNoticeReconnect() {
+            dismissDriveDisconnectedNotice();
+            if (typeof connectToGoogleDrive === 'function') connectToGoogleDrive();
+        }
+
+        // Drop the connection WITHOUT the "are you sure?" prompt, for the cases
+        // where Google has already ended it (an expired or rejected token). The
+        // user did not choose this, so they get told.
+        function forceDriveDisconnect(reason) {
+            const wasConnected = driveIsConnectedNow();
+            try { if (typeof stopAutoSync === 'function') stopAutoSync(); } catch (e) {}
+            googleAccessToken = null;
+            if (typeof isCloudConnected !== 'undefined') isCloudConnected = false;
+            try {
+                localStorage.removeItem('assetDashboardGoogleAccessToken');
+                localStorage.removeItem('assetDashboardGoogleTokenExpiry');
+            } catch (e) { /* ignore */ }
+            try { sessionStorage.removeItem('assetDashboardGoogleAccessToken'); } catch (e) { /* ignore */ }
+            try { if (typeof updateCloudUI === 'function') updateCloudUI(false); } catch (e) {}
+            try { document.querySelectorAll('.cloud-dropdown-menu.show').forEach(function(m) { m.classList.remove('show'); }); } catch (e) {}
+            driveNoticeWasConnected = false;
+            if (wasConnected || reason) showDriveDisconnectedNotice(reason);
+        }
+
+        // Watch the connection and speak up the moment it drops.
+        function startDriveConnectionWatch() {
+            if (driveNoticeWatchdog) return;
+            driveNoticeWasConnected = driveIsConnectedNow();
+            driveNoticeWatchdog = setInterval(function() {
+                const connected = driveIsConnectedNow();
+                if (driveNoticeWasConnected && !connected) {
+                    if (driveNoticeUserInitiated) {
+                        // They pressed Disconnect and were told already.
+                        driveNoticeUserInitiated = false;
+                    } else {
+                        let reason = 'Your work is still being saved on this device, but it is not being backed up to Google Drive.';
+                        try {
+                            const expiry = localStorage.getItem('assetDashboardGoogleTokenExpiry');
+                            if (expiry && new Date(expiry) <= new Date()) {
+                                reason = 'The Google Drive session has expired. Your work is still being saved on this device, but it is not being backed up until you reconnect.';
+                            }
+                        } catch (e) { /* ignore */ }
+                        showDriveDisconnectedNotice(reason);
+                    }
+                } else if (!driveNoticeWasConnected && connected) {
+                    dismissDriveDisconnectedNotice();
+                }
+                driveNoticeWasConnected = connected;
+            }, 15000);
+        }
+
         function disconnectFromGoogleDrive() {
             if (confirm('Are you sure you want to disconnect from Google Drive? Your local data will remain intact.')) {
+                // Chosen deliberately: the watchdog must not also warn about it.
+                driveNoticeUserInitiated = true;
+                driveNoticeWasConnected = false;
+                dismissDriveDisconnectedNotice();
                 stopAutoSync();
                 googleAccessToken = null;
                 isCloudConnected = false;
@@ -14671,6 +14804,12 @@
                 if (typeof updateLastSavedByDisplay === 'function') updateLastSavedByDisplay();
                 if (typeof setCloudSyncing === 'function') setCloudSyncing(false);
                 if (typeof dataIsDirty !== 'undefined') dataIsDirty = false;
+                // Mirror each Asset Addition Form's data as JSON into its own
+                // Drive folder, beside its PDF. Runs after the backup succeeded
+                // and never blocks or fails it.
+                if (typeof faaSyncFormsJsonToDrive === 'function') {
+                    faaSyncFormsJsonToDrive().catch(function(e) { console.warn('Addition form JSON sync:', e); });
+                }
                 return true;
             } catch (e) {
                 console.warn('Silent cloud save failed:', e);
@@ -14757,6 +14896,11 @@
                 updateLastSavedByDisplay();
 
                 setCloudSyncing(false);
+                // Mirror each Asset Addition Form's data as JSON into its own
+                // Drive folder, beside its PDF.
+                if (typeof faaSyncFormsJsonToDrive === 'function') {
+                    faaSyncFormsJsonToDrive().catch(function(e) { console.warn('Addition form JSON sync:', e); });
+                }
                 alert(`Data saved to Google Drive successfully!\n\nSaved by: ${lastSavedBy}`);
 
             } catch (error) {
@@ -14764,8 +14908,7 @@
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
-                    disconnectFromGoogleDrive();
+                    forceDriveDisconnect('Your Google Drive session has expired. Reconnect to start backing up again.');
                 } else {
                     alert(`Failed to save to cloud: ${error.message}`);
                 }
@@ -14920,8 +15063,7 @@
                 setCloudSyncing(false);
 
                 if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
-                    alert('Your session has expired. Please reconnect to Google Drive.');
-                    disconnectFromGoogleDrive();
+                    forceDriveDisconnect('Your Google Drive session has expired. Reconnect to start backing up again.');
                 } else {
                     alert(`Failed to sync from cloud: ${error.message}`);
                 }
@@ -21314,6 +21456,49 @@
             faaRenderFormsList();
         }
 
+        // Copy a line for another item of the same description. The serial and
+        // asset code identify one physical asset, so they start blank on the copy
+        // rather than being duplicated onto a second one; everything else carries
+        // over. Ask for more than one and that many copies are inserted.
+        function faaDuplicateRow(i, count) {
+            const src = faaData.items[i];
+            if (!src) return;
+            let n = parseInt(count, 10);
+            if (!(n > 0)) n = 1;
+            n = Math.min(n, 50);
+            const copies = [];
+            for (let c = 0; c < n; c++) {
+                copies.push(Object.assign(faaBlankItem(), src, { serial: '', code: '' }));
+            }
+            faaData.items.splice.apply(faaData.items, [i + 1, 0].concat(copies));
+            faaSave();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+            // Put the cursor in the new line's asset code, which is what needs typing.
+            setTimeout(function() {
+                const next = document.querySelector('#faaItemsEditor [data-i="' + (i + 1) + '"][data-field="code"]');
+                if (next) { next.focus(); next.scrollIntoView({ block: 'center' }); }
+            }, 0);
+        }
+
+        // Duplicate the last line that has anything on it, asking how many copies.
+        function faaDuplicateLastRow() {
+            let idx = -1;
+            (faaData.items || []).forEach(function(it, i) { if (faaItemHasContent(it)) idx = i; });
+            if (idx === -1) {
+                alert('Fill in a line first, then it can be duplicated.');
+                return;
+            }
+            const answer = prompt('How many more of “' +
+                ((faaData.items[idx].description || '').trim() || 'this line') + '”?', '1');
+            if (answer === null) return;
+            const n = parseInt(answer, 10);
+            if (!(n > 0)) return;
+            faaDuplicateRow(idx, n);
+        }
+
         function faaRemoveRow(i) {
             faaData.items.splice(i, 1);
             if (faaData.items.length === 0) faaData.items.push(faaBlankItem());
@@ -21690,7 +21875,10 @@
                 return '' +
                 '<div class="faa-item-card">' +
                     '<span class="faa-item-num">Line ' + (i + 1) + '</span>' +
-                    '<button class="faa-item-remove" title="Remove line" onclick="faaRemoveRow(' + i + ')">&times;</button>' +
+                    '<div class="faa-item-actions">' +
+                        '<button class="faa-item-dup" title="Duplicate this line — same description, location, quantity and price; serial and asset code left blank" onclick="faaDuplicateRow(' + i + ')">&#10697;</button>' +
+                        '<button class="faa-item-remove" title="Remove line" onclick="faaRemoveRow(' + i + ')">&times;</button>' +
+                    '</div>' +
                     '<div class="faa-item-grid">' +
                         '<div class="faa-item-full"><label>Asset Description</label>' +
                             '<textarea rows="2" data-i="' + i + '" data-field="description" oninput="faaItemInput(this)" placeholder="e.g. Panasonic Microwave">' + escapeHtml(item.description || '') + '</textarea></div>' +
@@ -22059,6 +22247,10 @@
                 headers: Object.assign({ 'Authorization': 'Bearer ' + googleAccessToken }, (options || {}).headers || {})
             }));
             if (res.status === 401) {
+                // Google has already ended the session - say so once, loudly.
+                if (typeof forceDriveDisconnect === 'function') {
+                    forceDriveDisconnect('Your Google Drive session has expired. Reconnect to start backing up again.');
+                }
                 throw new Error('Your Google Drive session has expired. Please reconnect to Google Drive and try again.');
             }
             return res;
@@ -22199,9 +22391,18 @@
                     folderId: folderId,
                     savedAt: new Date().toISOString()
                 };
-                if (d === faaData) faaSave(); else { d.updatedAt = new Date().toISOString(); faaSaveAll(); }
+                // Also write the form's data as JSON beside the PDF.
+                faaDriveStatus('Saving the form data…', 'busy');
+                try { await faaDriveUploadJson(d, folderId); } catch (e) {
+                    console.warn('Asset Addition Form JSON save failed:', e);
+                }
 
-                faaDriveStatus('Saved to Google Drive → ' + FAA_DRIVE_FOLDER_NAME + ' / ' + d.drive.fileName, 'ok');
+                // Recording Drive ids is not an edit to the form's contents, so
+                // updatedAt is deliberately left alone.
+                faaSaveAll();
+
+                faaDriveStatus('Saved to Google Drive → ' + FAA_DRIVE_FOLDER_NAME + ' / ' +
+                    d.drive.fileName + ' (with its .json)', 'ok');
                 faaRenderFormsList();
                 if (faaView === 'library') faaRenderLibrary();
             } catch (err) {
@@ -22224,6 +22425,174 @@
             } else {
                 alert('This form has no PDF saved to Google Drive yet. Use “Save PDF to Drive” first.');
             }
+        }
+
+        // ---- The form's data as JSON, beside its PDF -------------------------
+        // Every cloud sync also writes each form's data to a .json file in the
+        // same "Asset Addition Form" folder, next to that form's PDF. The PDF is
+        // what people read; the JSON is the machine-readable record, so a form
+        // can be inspected or rebuilt from Drive alone.
+
+        // What one form's .json file contains.
+        function faaFormJson(form) {
+            const d = form || faaData;
+            const t = faaFormTotals(d);
+            return {
+                type: 'fixed-asset-addition-form',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                form: {
+                    id: d.id,
+                    title: faaFormTitle(d),
+                    formName: d.title || '',
+                    headingLine1: d.orgName || '',
+                    headingLine2: d.formTitle || '',
+                    acquisitionDate: d.acquisitionDate || '',
+                    preparedBy: d.preparedBy || '',
+                    verifiedBy: d.verifiedBy || '',
+                    gctApplied: faaGctApplied(d),
+                    gctRate: faaRawGctRate(d),
+                    createdAt: d.createdAt,
+                    updatedAt: d.updatedAt,
+                    items: (d.items || []).filter(faaItemHasContent).map(function(it) {
+                        const f = faaLineFigures(it, d);
+                        return {
+                            description: it.description || '',
+                            serial: it.serial || '',
+                            code: it.code || '',
+                            location: it.location || '',
+                            quantity: f.qty,
+                            unitPrice: f.unit,
+                            priceExclGct: f.price,
+                            gct: f.gct,
+                            extendedPrice: f.extended
+                        };
+                    })
+                },
+                totals: { subTotal: t.subTotal, tax: t.tax, total: t.total },
+                // Stated in the file itself so nobody downstream mistakes these
+                // forms for register data.
+                note: 'Standalone Fixed Asset Addition Form. These figures are not part of the asset register or any dashboard total.'
+            };
+        }
+
+        function faaJsonFileName(form) {
+            const base = faaFormTitle(form).replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 80) || 'Asset Addition Form';
+            return base + '.json';
+        }
+
+        // Write one form's JSON into the folder, replacing its previous file.
+        async function faaDriveUploadJson(form, folderId) {
+            const fileName = faaJsonFileName(form);
+            const blob = new Blob([JSON.stringify(faaFormJson(form), null, 2)], { type: 'application/json' });
+            const drive = form.drive || {};
+            let existingId = drive.jsonFileId || null;
+
+            // No id on record: look for a file of this name already in the folder
+            // so a rename or a reinstall does not leave duplicates behind.
+            if (!existingId) {
+                const q = "'" + folderId + "' in parents and name='" + fileName.replace(/'/g, "\\'") + "' and trashed=false";
+                const look = await faaDriveFetch(
+                    'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)&pageSize=1');
+                if (look.ok) {
+                    const data = await look.json();
+                    if (data.files && data.files.length) existingId = data.files[0].id;
+                }
+            }
+
+            let res = null;
+            if (existingId) {
+                const check = await faaDriveFetch(
+                    'https://www.googleapis.com/drive/v3/files/' + existingId + '?fields=id,trashed,parents');
+                let prev = check.ok ? await check.json() : null;
+                if (prev && prev.id && !prev.trashed) {
+                    const parents = prev.parents || [];
+                    let move = '';
+                    if (parents.indexOf(folderId) === -1) {
+                        move = '&addParents=' + encodeURIComponent(folderId);
+                        if (parents.length) move += '&removeParents=' + encodeURIComponent(parents.join(','));
+                    }
+                    const meta = new FormData();
+                    meta.append('metadata', new Blob([JSON.stringify({ name: fileName })], { type: 'application/json' }));
+                    meta.append('file', blob, fileName);
+                    res = await faaDriveFetch(
+                        'https://www.googleapis.com/upload/drive/v3/files/' + existingId +
+                        '?uploadType=multipart&fields=id,name,webViewLink' + move,
+                        { method: 'PATCH', body: meta });
+                    if (res.status === 404) res = null;
+                }
+            }
+            if (!res) {
+                const meta = new FormData();
+                meta.append('metadata', new Blob([JSON.stringify({ name: fileName, parents: [folderId], mimeType: 'application/json' })], { type: 'application/json' }));
+                meta.append('file', blob, fileName);
+                res = await faaDriveFetch(
+                    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+                    { method: 'POST', body: meta });
+            }
+            if (!res.ok) throw new Error('Google Drive rejected the JSON upload (' + res.status + ').');
+
+            const result = await res.json();
+            form.drive = Object.assign({}, form.drive, {
+                folderId: folderId,
+                jsonFileId: result.id,
+                jsonFileName: result.name || fileName,
+                jsonWebViewLink: result.webViewLink || ('https://drive.google.com/file/d/' + result.id + '/view'),
+                jsonSavedAt: new Date().toISOString(),
+                // Stamped with the content this JSON was written from, so the
+                // next sync can skip forms that have not changed.
+                jsonSavedFor: form.updatedAt || ''
+            });
+            return form.drive;
+        }
+
+        // Called after every successful cloud sync. Writes the JSON for each form
+        // whose contents changed since its last write, and leaves the rest alone
+        // so a two-minute auto-sync does not hammer the Drive API.
+        // Never throws: a Drive problem here must not break the main backup.
+        let faaJsonSyncBusy = false;
+        async function faaSyncFormsJsonToDrive(options) {
+            const opts = options || {};
+            if (faaJsonSyncBusy) return { skipped: true };
+            if (!googleAccessToken) return { skipped: true };
+
+            const forms = (faaForms || []).filter(function(f) {
+                return (f.items || []).some(faaItemHasContent) ||
+                       (f.title || '').trim() || (f.orgName || '').trim();
+            });
+            const due = opts.force ? forms : forms.filter(function(f) {
+                const drive = f.drive || {};
+                return !drive.jsonFileId || drive.jsonSavedFor !== (f.updatedAt || '');
+            });
+            if (!due.length) return { written: 0, skipped: forms.length };
+
+            faaJsonSyncBusy = true;
+            let written = 0, failed = 0;
+            try {
+                const folderId = await faaDriveFolder();
+                for (const form of due) {
+                    try {
+                        await faaDriveUploadJson(form, folderId);
+                        written++;
+                    } catch (e) {
+                        failed++;
+                        console.warn('Asset Addition Form JSON sync failed for "' + faaFormTitle(form) + '":', e);
+                    }
+                }
+                if (written) {
+                    // Record the Drive ids without touching updatedAt: saving to
+                    // Drive is not an edit to the form's contents.
+                    faaSaveAll();
+                    faaRenderFormsList();
+                    if (faaView === 'library') faaRenderLibrary();
+                }
+            } catch (e) {
+                console.warn('Asset Addition Form JSON sync could not reach the Drive folder:', e);
+                failed = due.length;
+            } finally {
+                faaJsonSyncBusy = false;
+            }
+            return { written: written, failed: failed };
         }
 
         // ---- Cloud backup (backup only — never merged into the register) ----
@@ -23496,8 +23865,7 @@
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        alert('Your Google Drive session has expired. Please reconnect.');
-                        disconnectFromGoogleDrive();
+                        forceDriveDisconnect('Your Google Drive session has expired. Reconnect to start backing up again.');
                         throw new Error('Session expired');
                     }
                     throw new Error(`Upload failed: ${response.status}`);
