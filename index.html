@@ -10357,22 +10357,68 @@
         .faa-signoff .faa-sign-line { line-height: 1.5; }
         .faa-empty-note { text-align: center; color: var(--text-muted); font-style: italic; }
 
-        /* ---- Saved forms strip (multiple addition forms) ---- */
-        .faa-forms-panel { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e1e6ef); border-radius: 12px; padding: 14px 18px; margin: 18px 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .faa-forms-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-        .faa-forms-panel-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary, #2c3e50); }
-        .faa-forms-hint { font-weight: 400; font-size: 0.78rem; color: var(--text-secondary, #7f8c8d); margin-left: 8px; }
+        /* ---- The two views on this page: editor and saved-forms library ---- */
+        .faa-viewtabs { display: flex; gap: 8px; margin: 18px 24px 0; flex-wrap: wrap; }
+        .faa-viewtab {
+            display: flex; align-items: center; gap: 8px; background: var(--bg-card); color: var(--text-secondary);
+            border: 1px solid var(--border-color); border-bottom-width: 3px; border-radius: 10px 10px 0 0;
+            padding: 11px 20px; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: color .15s, border-color .15s;
+        }
+        .faa-viewtab:hover { color: #8e44ad; }
+        .faa-viewtab.active { color: #8e44ad; border-bottom-color: #8e44ad; background: var(--bg-card); }
+        .faa-viewtab-sub { font-weight: 400; font-size: 0.8rem; color: var(--text-muted, #95a5a6); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .faa-viewtab-count { background: #8e44ad; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 0.74rem; font-weight: 700; }
+
+        .faa-library { margin: 0 24px; }
+        .faa-lib-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 18px 0 14px; }
+        .faa-lib-search, .faa-lib-sort {
+            padding: 9px 12px; border: 1px solid var(--border-color); border-radius: 8px;
+            background: var(--bg-card); color: var(--text-primary); font-size: 0.88rem; font-family: inherit;
+        }
+        .faa-lib-search { flex: 1 1 320px; min-width: 220px; }
+        .faa-lib-summary { display: flex; gap: 22px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 18px; margin-bottom: 14px; }
+        .faa-lib-stat-label { font-size: 0.7rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text-secondary); }
+        .faa-lib-stat-value { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-top: 2px; }
+        .faa-lib-note { flex: 1 1 100%; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.5; }
+
+        .faa-lib-tablewrap { overflow-x: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; }
+        .faa-lib-table { width: 100%; border-collapse: collapse; }
+        .faa-lib-table th {
+            background: var(--bg-secondary) !important; color: var(--text-secondary) !important; text-align: left !important;
+            font-size: 0.72rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .4px;
+            padding: 11px 12px !important; white-space: nowrap; border-bottom: 1px solid var(--border-color) !important; min-width: 0 !important;
+        }
+        .faa-lib-table td {
+            padding: 11px 12px !important; font-size: 0.86rem !important; color: var(--text-primary) !important;
+            border-bottom: 1px solid var(--border-color); vertical-align: middle !important; min-width: 0 !important;
+        }
+        .faa-lib-table tbody tr { cursor: pointer; }
+        .faa-lib-table tbody tr:hover { background: var(--table-hover, rgba(142,68,173,0.06)); }
+        .faa-lib-table tbody tr.selected { background: rgba(155,89,182,0.12); }
+        .faa-lib-table tbody tr.live td:first-child { box-shadow: inset 3px 0 0 #8e44ad; }
+        .faa-lib-name { font-weight: 700; }
+        .faa-lib-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+        .faa-lib-live { color: #8e44ad; font-size: 0.66rem; font-weight: 700; letter-spacing: .4px; margin-left: 6px; }
+        .faa-lib-money { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .faa-lib-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; border-radius: 9px; padding: 2px 8px; }
+        .faa-lib-tag.on { background: rgba(39,174,96,0.14); color: #219a52; }
+        .faa-lib-tag.off { background: rgba(127,140,141,0.16); color: #7f8c8d; }
+        .faa-lib-actions { white-space: nowrap; text-align: right !important; }
+        .faa-lib-btn { border: none; border-radius: 7px; padding: 6px 11px; font-size: 0.76rem; font-weight: 600; cursor: pointer; margin-left: 5px; color: #fff; }
+        .faa-lib-btn.open { background: #8e44ad; } .faa-lib-btn.print { background: #2980b9; }
+        .faa-lib-btn.excel { background: #27ae60; } .faa-lib-btn.del { background: #e74c3c; }
+        .faa-lib-btn.close { background: var(--bg-secondary); color: var(--text-primary); }
+        .faa-lib-btn:hover { filter: brightness(1.08); }
+        .faa-lib-empty { padding: 34px 20px; text-align: center; color: var(--text-secondary); font-size: 0.9rem; }
+
+        .faa-lib-viewer { margin: 18px 0 0; }
+        .faa-lib-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .faa-lib-viewer-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary); }
+        .faa-lib-viewer-actions { display: flex; gap: 0; flex-wrap: wrap; }
+
+        /* ---- "New Form" button, shared by the toolbar and the modal ---- */
         .faa-newform-btn { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
         .faa-newform-btn:hover { filter: brightness(1.06); }
-        .faa-forms-list { display: flex; gap: 12px; overflow-x: auto; padding: 12px 2px 4px; }
-        .faa-form-card { position: relative; flex: 0 0 auto; min-width: 190px; max-width: 250px; background: var(--bg-secondary, #f6f8fb); border: 2px solid var(--border-color, #e1e6ef); border-radius: 10px; padding: 12px 30px 12px 14px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-        .faa-form-card:hover { border-color: #9b59b6; box-shadow: 0 3px 10px rgba(155,89,182,0.18); }
-        .faa-form-card.active { border-color: #8e44ad; background: rgba(155,89,182,0.10); box-shadow: 0 3px 12px rgba(142,68,173,0.22); }
-        .faa-form-card-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary, #2c3e50); word-break: break-word; }
-        .faa-form-card-live { color: #8e44ad; font-size: 0.68rem; font-weight: 700; letter-spacing: .4px; }
-        .faa-form-card-meta { margin-top: 5px; font-size: 0.74rem; color: var(--text-secondary, #7f8c8d); }
-        .faa-form-card-del { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none; border-radius: 50%; background: rgba(231,76,60,0.12); color: #e74c3c; font-size: 15px; cursor: pointer; padding: 0; }
-        .faa-form-card-del:hover { background: #e74c3c; color: #fff; }
 
         /* ---- Totals summary (this form only) ---- */
         .faa-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 18px 0 4px; }
@@ -10418,16 +10464,57 @@
             </div>
         </div>
 
-        <!-- Saved forms strip: every generated form stays live and selectable -->
-        <div class="faa-forms-panel no-print">
-            <div class="faa-forms-panel-head">
-                <h3>&#128193; Saved Addition Forms <span class="faa-forms-hint">Click a form to open it. Use &ldquo;New Form&rdquo; to start a clean one.</span></h3>
-                <button class="faa-newform-btn" onclick="faaNewFormRequest()">&#128196; New Form</button>
-            </div>
-            <div class="faa-forms-list" id="faaFormsList"><!-- rendered by faaRenderFormsList() --></div>
+        <!-- Two views on this page: the form editor, and the library of every
+             form already saved. -->
+        <div class="faa-viewtabs no-print">
+            <button class="faa-viewtab active" id="faaTabEditor" onclick="faaShowView('editor')">
+                &#9998; Form Editor <span class="faa-viewtab-sub" id="faaTabEditorName"></span>
+            </button>
+            <button class="faa-viewtab" id="faaTabLibrary" onclick="faaShowView('library')">
+                &#128193; Saved Forms <span class="faa-viewtab-count" id="faaTabLibraryCount">0</span>
+            </button>
         </div>
 
-        <div class="faa-layout">
+        <!-- ============ VIEW 2: SAVED FORMS LIBRARY ============ -->
+        <div class="faa-library no-print" id="faaLibraryView" style="display: none;">
+            <div class="faa-lib-toolbar">
+                <input type="search" id="faaLibSearch" class="faa-lib-search" oninput="faaRenderLibrary()"
+                       placeholder="Search by form name, heading, asset, code or location…">
+                <select id="faaLibSort" class="faa-lib-sort" onchange="faaRenderLibrary()">
+                    <option value="created-desc">Newest first</option>
+                    <option value="created-asc">Oldest first</option>
+                    <option value="updated-desc">Recently edited</option>
+                    <option value="name-asc">Name (A–Z)</option>
+                    <option value="total-desc">Highest total</option>
+                </select>
+                <button class="faa-newform-btn" onclick="faaNewFormRequest()">&#128196; New Form</button>
+            </div>
+
+            <div class="faa-lib-summary" id="faaLibSummary"><!-- rendered by faaRenderLibrary() --></div>
+
+            <div class="faa-lib-tablewrap">
+                <table class="faa-lib-table" id="faaLibTable"><!-- rendered by faaRenderLibrary() --></table>
+            </div>
+
+            <!-- Read-only look at whichever saved form is selected -->
+            <div class="faa-lib-viewer" id="faaLibViewer" style="display: none;">
+                <div class="faa-lib-viewer-head">
+                    <h3 id="faaLibViewerTitle">Form</h3>
+                    <div class="faa-lib-viewer-actions">
+                        <button class="faa-lib-btn open" onclick="faaLibOpenSelected()">&#9998; Open in Editor</button>
+                        <button class="faa-lib-btn print" onclick="faaLibPrintSelected()">&#128424;&#65039; Print / PDF</button>
+                        <button class="faa-lib-btn excel" onclick="faaLibExcelSelected()">&#128229; Excel</button>
+                        <button class="faa-lib-btn close" onclick="faaLibCloseViewer()">&times; Close</button>
+                    </div>
+                </div>
+                <div class="faa-preview-wrap">
+                    <div class="faa-doc" id="faaLibDoc"><!-- rendered by faaLibSelect() --></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ VIEW 1: FORM EDITOR ============ -->
+        <div class="faa-layout" id="faaEditorView">
             <!-- Editor -->
             <div class="faa-editor no-print">
                 <div class="faa-standalone-note">
@@ -21112,10 +21199,11 @@
         function initFixedAssetAdditionPage() {
             faaLoad();
             faaBindHeaderInputs();
-            faaRenderFormsList();
             faaRenderEditor();
             faaRenderTotals();
             faaRenderPreview();
+            // Come back to whichever view was last open on this page.
+            faaShowView(faaView);
         }
 
         // Push the active form's header values into the editor inputs.
@@ -21220,29 +21308,195 @@
 
         // ---- Multiple forms: list, switching, creating, deleting ----
 
-        function faaRenderFormsList() {
-            const wrap = document.getElementById('faaFormsList');
-            if (!wrap) return;
-            if (!faaForms.length) { wrap.innerHTML = ''; return; }
-            // Newest first so the most recent work is on top.
-            const ordered = faaForms.slice().sort(function(a, b) {
-                return (b.createdAt || '').localeCompare(a.createdAt || '');
-            });
-            wrap.innerHTML = ordered.map(function(form) {
-                const isActive = form.id === faaActiveId;
-                const itemCount = (form.items || []).filter(faaItemHasContent).length;
-                const canDelete = faaForms.length > 1;
-                const totals = faaFormTotals(form);
-                return '' +
-                '<div class="faa-form-card' + (isActive ? ' active' : '') + '" onclick="faaSwitchForm(\'' + form.id + '\')" title="Open this form">' +
-                    '<div class="faa-form-card-title">' + escapeHtml(faaFormTitle(form)) + (isActive ? ' <span class="faa-form-card-live">● LIVE</span>' : '') + '</div>' +
-                    '<div class="faa-form-card-meta">Created ' + escapeHtml(faaFmtDateTime(form.createdAt)) +
-                        ' &bull; ' + itemCount + ' line' + (itemCount === 1 ? '' : 's') +
-                        '<br>Total $' + faaFmtMoney(totals.total) + '</div>' +
-                    (canDelete ? '<button class="faa-form-card-del" title="Delete this form" onclick="event.stopPropagation(); faaDeleteForm(\'' + form.id + '\')">&times;</button>' : '') +
-                '</div>';
-            }).join('');
+        // ---- The two views on this page ------------------------------------
+        // 'editor'  - build/edit the active form with its live preview
+        // 'library' - browse every form already saved, read-only
+        let faaView = 'editor';
+        let faaLibSelectedId = null;
+
+        function faaShowView(view) {
+            faaView = (view === 'library') ? 'library' : 'editor';
+            const editorEl = document.getElementById('faaEditorView');
+            const libraryEl = document.getElementById('faaLibraryView');
+            if (editorEl) editorEl.style.display = (faaView === 'editor') ? '' : 'none';
+            if (libraryEl) libraryEl.style.display = (faaView === 'library') ? '' : 'none';
+
+            const tabEditor = document.getElementById('faaTabEditor');
+            const tabLibrary = document.getElementById('faaTabLibrary');
+            if (tabEditor) tabEditor.classList.toggle('active', faaView === 'editor');
+            if (tabLibrary) tabLibrary.classList.toggle('active', faaView === 'library');
+
+            if (faaView === 'library') faaRenderLibrary();
+            faaRenderFormsList();
+            window.scrollTo(0, 0);
         }
+
+        // Keep the tab bar honest: the active form's name and the saved count.
+        function faaRenderFormsList() {
+            const nameEl = document.getElementById('faaTabEditorName');
+            if (nameEl) nameEl.textContent = faaData ? faaFormTitle(faaData) : '';
+            const countEl = document.getElementById('faaTabLibraryCount');
+            if (countEl) countEl.textContent = faaForms.length;
+            if (faaView === 'library') faaRenderLibrary();
+        }
+
+        // Everything a search should match on a saved form.
+        function faaFormSearchText(form) {
+            const parts = [faaFormTitle(form), form.orgName, form.formTitle, form.preparedBy, form.verifiedBy];
+            (form.items || []).forEach(function(it) {
+                parts.push(it.description, it.serial, it.code, it.location);
+            });
+            return parts.join(' ').toLowerCase();
+        }
+
+        function faaLibSortedForms() {
+            const q = (document.getElementById('faaLibSearch') || {}).value || '';
+            const sort = (document.getElementById('faaLibSort') || {}).value || 'created-desc';
+            const needle = q.trim().toLowerCase();
+
+            let list = faaForms.slice();
+            if (needle) {
+                list = list.filter(function(f) { return faaFormSearchText(f).indexOf(needle) !== -1; });
+            }
+            list.sort(function(a, b) {
+                switch (sort) {
+                    case 'created-asc':  return (a.createdAt || '').localeCompare(b.createdAt || '');
+                    case 'updated-desc': return (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '');
+                    case 'name-asc':     return faaFormTitle(a).toLowerCase().localeCompare(faaFormTitle(b).toLowerCase());
+                    case 'total-desc':   return faaFormTotals(b).total - faaFormTotals(a).total;
+                    default:             return (b.createdAt || '').localeCompare(a.createdAt || '');
+                }
+            });
+            return list;
+        }
+
+        function faaRenderLibrary() {
+            const table = document.getElementById('faaLibTable');
+            const summary = document.getElementById('faaLibSummary');
+            if (!table) return;
+
+            const list = faaLibSortedForms();
+
+            // Summary across every saved form (not just the filtered ones), so
+            // the figures do not jump about while searching.
+            if (summary) {
+                let lines = 0, grand = 0;
+                faaForms.forEach(function(f) {
+                    lines += (f.items || []).filter(faaItemHasContent).length;
+                    grand += faaFormTotals(f).total;
+                });
+                summary.innerHTML = '' +
+                    '<div><div class="faa-lib-stat-label">Saved Forms</div><div class="faa-lib-stat-value">' + faaForms.length + '</div></div>' +
+                    '<div><div class="faa-lib-stat-label">Asset Lines</div><div class="faa-lib-stat-value">' + lines + '</div></div>' +
+                    '<div><div class="faa-lib-stat-label">Combined Total</div><div class="faa-lib-stat-value">$' + faaFmtMoney(grand) + '</div></div>' +
+                    '<div><div class="faa-lib-stat-label">Showing</div><div class="faa-lib-stat-value">' + list.length + ' of ' + faaForms.length + '</div></div>' +
+                    '<div class="faa-lib-note">These figures belong to these forms only. Nothing here is counted in the Asset Register, the dashboard asset count or any dashboard total.</div>';
+            }
+
+            if (!list.length) {
+                table.innerHTML = '<tbody><tr><td class="faa-lib-empty">' +
+                    (faaForms.length ? 'No saved form matches that search.' : 'No forms saved yet. Use “New Form” to start one.') +
+                    '</td></tr></tbody>';
+                return;
+            }
+
+            const rows = list.map(function(f) {
+                const t = faaFormTotals(f);
+                const lineCount = (f.items || []).filter(faaItemHasContent).length;
+                const isLive = f.id === faaActiveId;
+                const isSel = f.id === faaLibSelectedId;
+                const heading = [f.orgName, f.formTitle].filter(function(x) { return x && x.trim(); }).join(' — ');
+                const gct = faaGctApplied(f)
+                    ? '<span class="faa-lib-tag on">GCT ' + faaRawGctRate(f) + '%</span>'
+                    : '<span class="faa-lib-tag off">No GCT</span>';
+                const canDelete = faaForms.length > 1;
+                return '' +
+                '<tr class="' + (isSel ? 'selected ' : '') + (isLive ? 'live' : '') + '" onclick="faaLibSelect(\'' + f.id + '\')">' +
+                    '<td>' +
+                        '<div class="faa-lib-name">' + escapeHtml(faaFormTitle(f)) +
+                            (isLive ? '<span class="faa-lib-live">● OPEN IN EDITOR</span>' : '') + '</div>' +
+                        (heading ? '<div class="faa-lib-sub">' + escapeHtml(heading) + '</div>' : '') +
+                    '</td>' +
+                    '<td>' + escapeHtml(faaFmtLongDate(f.acquisitionDate) || '—') + '</td>' +
+                    '<td>' + lineCount + '</td>' +
+                    '<td>' + gct + '</td>' +
+                    '<td class="faa-lib-money">$' + faaFmtMoney(t.subTotal) + '</td>' +
+                    '<td class="faa-lib-money">$' + faaFmtMoney(t.tax) + '</td>' +
+                    '<td class="faa-lib-money"><strong>$' + faaFmtMoney(t.total) + '</strong></td>' +
+                    '<td>' + escapeHtml(faaFmtDateTime(f.createdAt)) + '</td>' +
+                    '<td class="faa-lib-actions">' +
+                        '<button class="faa-lib-btn open" title="Open this form in the editor" onclick="event.stopPropagation(); faaSwitchForm(\'' + f.id + '\'); faaShowView(\'editor\');">Open</button>' +
+                        '<button class="faa-lib-btn print" title="Print this form" onclick="event.stopPropagation(); faaPrintForm(\'' + f.id + '\')">Print</button>' +
+                        '<button class="faa-lib-btn excel" title="Export this form to Excel" onclick="event.stopPropagation(); faaExcelForm(\'' + f.id + '\')">Excel</button>' +
+                        (canDelete ? '<button class="faa-lib-btn del" title="Delete this form" onclick="event.stopPropagation(); faaDeleteForm(\'' + f.id + '\')">Delete</button>' : '') +
+                    '</td>' +
+                '</tr>';
+            }).join('');
+
+            table.innerHTML =
+                '<thead><tr>' +
+                    '<th>Form</th><th>Date of Acquisition</th><th>Lines</th><th>GCT</th>' +
+                    '<th class="faa-lib-money">Sub Total</th><th class="faa-lib-money">Tax</th><th class="faa-lib-money">Total</th>' +
+                    '<th>Created</th><th class="faa-lib-actions">Actions</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody>';
+
+            // Keep the open viewer in step with the data behind it.
+            if (faaLibSelectedId && !faaForms.some(function(f) { return f.id === faaLibSelectedId; })) {
+                faaLibCloseViewer();
+            } else if (faaLibSelectedId) {
+                faaLibRenderViewer();
+            }
+        }
+
+        function faaLibFind(id) {
+            return faaForms.find(function(f) { return f.id === id; }) || null;
+        }
+
+        // Show a saved form exactly as it will print, without opening it for editing.
+        function faaLibSelect(id) {
+            faaLibSelectedId = (faaLibSelectedId === id) ? null : id;
+            if (!faaLibSelectedId) { faaLibCloseViewer(); faaRenderLibrary(); return; }
+            faaRenderLibrary();
+            faaLibRenderViewer();
+            const viewer = document.getElementById('faaLibViewer');
+            if (viewer) viewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function faaLibRenderViewer() {
+            const viewer = document.getElementById('faaLibViewer');
+            const doc = document.getElementById('faaLibDoc');
+            const title = document.getElementById('faaLibViewerTitle');
+            const form = faaLibFind(faaLibSelectedId);
+            if (!viewer || !doc || !form) return;
+            viewer.style.display = '';
+            if (title) title.textContent = faaFormTitle(form);
+            doc.innerHTML = faaDocHtml(form);
+        }
+
+        function faaLibCloseViewer() {
+            faaLibSelectedId = null;
+            const viewer = document.getElementById('faaLibViewer');
+            if (viewer) viewer.style.display = 'none';
+        }
+
+        function faaPrintForm(id) {
+            const form = faaLibFind(id);
+            if (form) faaPrint(form);
+        }
+
+        function faaExcelForm(id) {
+            const form = faaLibFind(id);
+            if (form) faaExportExcel(form);
+        }
+
+        function faaLibOpenSelected() {
+            if (!faaLibSelectedId) return;
+            faaSwitchForm(faaLibSelectedId);
+            faaShowView('editor');
+        }
+
+        function faaLibPrintSelected() { if (faaLibSelectedId) faaPrintForm(faaLibSelectedId); }
+        function faaLibExcelSelected() { if (faaLibSelectedId) faaExcelForm(faaLibSelectedId); }
 
         function faaSwitchForm(id) {
             const target = faaForms.find(function(f) { return f.id === id; });
@@ -21334,7 +21588,7 @@
             faaRenderEditor();
             faaRenderTotals();
             faaRenderPreview();
-            faaRenderFormsList();
+            faaShowView('editor');
 
             setBusy(false);
             faaCloseNewFormModal();
@@ -21405,10 +21659,10 @@
 
         // ---- Live document preview ----------------------------------------
 
-        function faaRenderPreview() {
-            const doc = document.getElementById('faaDoc');
-            if (!doc) return;
-            const d = faaData;
+        // Build the document for ANY form, so the editor's live preview and the
+        // read-only preview on the Saved Forms page render from one place.
+        function faaDocHtml(form) {
+            const d = form || faaData;
             const items = d.items || [];
             const hasContent = items.some(faaItemHasContent);
             // A couple of trailing blank rows keep the classic form look.
@@ -21443,7 +21697,7 @@
                 (d.formTitle ? '<div class="faa-doc-title">' + escapeHtml(d.formTitle) + '</div>' : '');
             const headingBlock = headLines ? '<div class="faa-doc-head">' + headLines + '</div>' : '';
 
-            doc.innerHTML = '' +
+            return '' +
                 '<table class="faa-table">' +
                     '<colgroup>' +
                         '<col class="c-desc"><col class="c-serial"><col class="c-code"><col class="c-loc">' +
@@ -21472,6 +21726,12 @@
                 '</div>';
         }
 
+        function faaRenderPreview() {
+            const doc = document.getElementById('faaDoc');
+            if (!doc) return;
+            doc.innerHTML = faaDocHtml(faaData);
+        }
+
         // ---- Excel export --------------------------------------------------
 
         function faaStyledCell(value, style, numeric) {
@@ -21483,11 +21743,11 @@
             return cell;
         }
 
-        function faaExportExcel() {
+        function faaExportExcel(form) {
             const XL = window.XLSXStyle || window.XLSX;
             if (!XL) { alert('Excel library not available.'); return; }
             const styled = !!window.XLSXStyle;
-            const d = faaData;
+            const d = form || faaData;
             const thin = { style: 'thin', color: { rgb: '000000' } };
             const allThin = { top: thin, bottom: thin, left: thin, right: thin };
             const ws = {};
@@ -21577,15 +21837,15 @@
         // the printable area so nothing runs off the paper, and the heading
         // block + column headings repeated on every sheet (the source Word file
         // repeats its page header the same way).
-        function faaPrint() {
-            const docEl = document.getElementById('faaDoc');
-            if (!docEl) return;
+        function faaPrint(form) {
+            const d = form || faaData;
+            const docHtml = faaDocHtml(d);
             const styleEls = Array.from(document.querySelectorAll('style'))
                 .map(function(s) { return s.innerHTML; }).join('\n');
             const w = window.open('', '_blank', 'width=1200,height=900');
             if (!w) { alert('Please allow pop-ups to print the document.'); return; }
             // The browser offers document.title as the PDF file name.
-            const name = 'Fixed Asset Addition Form - ' + faaFormTitle(faaData);
+            const name = 'Fixed Asset Addition Form - ' + faaFormTitle(d);
             w.document.write('<!DOCTYPE html><html><head><title>' + escapeHtml(name) + '</title>' +
                 '<style>' + styleEls +
                 ' html,body{background:#fff;margin:0;padding:0;} ' +
@@ -21600,7 +21860,7 @@
                 ' tr{page-break-inside:avoid;break-inside:avoid;} ' +
                 ' @page{size:letter landscape;margin:0.5in;} ' +
                 '</style></head><body><div class="faa-preview-wrap"><div class="faa-doc">' +
-                docEl.innerHTML + '</div></div>' +
+                docHtml + '</div></div>' +
                 '<script>window.onload=function(){window.print();};<\/script></body></html>');
             w.document.close();
         }
