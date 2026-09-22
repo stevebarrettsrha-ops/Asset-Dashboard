@@ -10241,7 +10241,7 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- PAGE 18: FIXED ASSET ADDITION FORM (Clarendon Health Services)    -->
+    <!-- PAGE 18: FIXED ASSET ADDITION FORM                                -->
     <!-- Standalone worksheet: its own storage, its own totals. Nothing     -->
     <!-- entered here is ever written to the asset register, the dashboard  -->
     <!-- totals, the monthly breakdown or any other asset data set.         -->
@@ -10283,20 +10283,24 @@
            source Word form (word/document.xml, header1.xml, styles.xml), so
            what is on screen is what comes out of the printer:
 
-             page        Letter landscape, 11in x 8.5in, 1in margins
-             table       14709 twips = 10.2in wide, floated centre, so it
-                         overhangs to a 0.4in gutter each side
+             page        Letter landscape, 11in x 8.5in, 0.5in margins, and
+                         the table is sized to that printable width so the
+                         whole form lands inside the paper. (The source Word
+                         file floats a fixed 10.2in table that overhangs its
+                         margins; column PROPORTIONS are kept exactly, the
+                         overhang is not.)
              body text   Calibri 11pt black (docDefaults sz 22)
              title       Calibri 12pt bold / 12pt bold italic, centred
              grid        0.5pt black on every cell (TableGrid, sz 4)
              headings    NOT bold in the source - plain, centred
-             columns     2454/1381/2900/2487/1104/1380/1243/1760 twips
+             columns     2454/1381/2900/2487/1104/1380/1243/1760 twips,
+                         carried across as percentages of the table width
              rows        heading 841 twips, totals 454 twips
            ---------------------------------------------------------------- */
         .faa-preview-wrap { overflow-x: auto; background: #e9ecef; border-radius: 12px; padding: 24px; }
         @media (max-width: 1100px) { .faa-preview-wrap { padding: 12px; } }
         .faa-doc {
-            width: 10.2in; margin: 0 auto; background: #ffffff; color: #000;
+            width: 10in; max-width: 100%; margin: 0 auto; background: #ffffff; color: #000;
             padding: 0.1in 0 0.45in; box-shadow: 0 4px 18px rgba(0,0,0,0.18);
             font-family: "Calibri", "Carlito", "Segoe UI", Arial, sans-serif;
             font-size: 11pt; line-height: 1.15; box-sizing: border-box;
@@ -10307,7 +10311,8 @@
         .faa-doc-head { text-align: center; padding: 0.06in 0 0.2in; }
         .faa-org { font-size: 12pt; font-weight: 700; }
         .faa-doc-title { font-size: 12pt; font-weight: 700; font-style: italic; margin-top: 0.07in; }
-        .faa-table { width: 10.2in; border-collapse: collapse; table-layout: fixed; }
+        .faa-doc-title:first-child { margin-top: 0; }
+        .faa-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         /* Reset the app-wide th/td rules (uppercase, white text, nowrap, nth-child
            min-widths) so this form matches the printed Word document. */
         .faa-table th, .faa-table td {
@@ -10329,10 +10334,12 @@
         .faa-table td.faa-title-cell { border: none !important; padding: 0 !important; }
         .faa-table td.faa-c, .faa-table th.faa-c { text-align: center !important; }
         .faa-table tbody tr { height: 0.28in; }
-        .faa-table col.c-desc { width: 1.704in; } .faa-table col.c-serial { width: 0.959in; }
-        .faa-table col.c-code { width: 2.014in; } .faa-table col.c-loc { width: 1.727in; }
-        .faa-table col.c-qty { width: 0.767in; } .faa-table col.c-price { width: 0.958in; }
-        .faa-table col.c-gct { width: 0.863in; } .faa-table col.c-ext { width: 1.222in; }
+        /* The source column widths as percentages of the table, so the form
+           keeps the original proportions at whatever width the paper allows. */
+        .faa-table col.c-desc { width: 16.684%; } .faa-table col.c-serial { width: 9.389%; }
+        .faa-table col.c-code { width: 19.716%; } .faa-table col.c-loc { width: 16.908%; }
+        .faa-table col.c-qty { width: 7.505%; } .faa-table col.c-price { width: 9.382%; }
+        .faa-table col.c-gct { width: 8.451%; } .faa-table col.c-ext { width: 11.965%; }
         /* Totals row: bold italic, centred. The five empty cells keep their
            grid lines, exactly as the Word table style draws them. */
         .faa-table tfoot tr { height: 0.315in; }
@@ -10344,8 +10351,8 @@
             white-space: nowrap !important; padding: 0.03in 0.02in !important;
             word-wrap: normal !important; overflow-wrap: normal !important;
         }
-        /* The sign-off sits at the page's 1in margin, 0.6in inside the table edge. */
-        .faa-signoff { margin: 0.28in 0 0; padding: 0 0.6in; font-size: 11pt; }
+        /* The sign-off lines up with the left edge of the table. */
+        .faa-signoff { margin: 0.28in 0 0; padding: 0 0.06in; font-size: 11pt; }
         .faa-signoff .faa-sign-gap { height: 0.22in; }
         .faa-signoff .faa-sign-line { line-height: 1.5; }
         .faa-empty-note { text-align: center; color: var(--text-muted); font-style: italic; }
@@ -10394,7 +10401,7 @@
                 <div class="header-top">
                     <div class="header-left">
                         <h1 class="dashboard-title">Fixed Asset Addition Form</h1>
-                        <div class="dashboard-subtitle">Clarendon Health Services &bull; Live document preview &bull; Standalone worksheet</div>
+                        <div class="dashboard-subtitle">Your own headings &bull; Live document preview &bull; Standalone worksheet</div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <div class="user-info" id="userInfo18"></div>
@@ -10435,13 +10442,14 @@
                     <input type="text" data-faa="title" oninput="faaOnInput(this)" placeholder="e.g. 22.9.2026 - Panasonic Microwave">
                 </div>
                 <div class="faa-field">
-                    <label>Organisation</label>
-                    <input type="text" data-faa="orgName" oninput="faaOnInput(this)" placeholder="CLARENDON HEALTH SERVICES">
+                    <label>Heading Line 1</label>
+                    <input type="text" data-faa="orgName" oninput="faaOnInput(this)" placeholder="Your organisation or department">
                 </div>
                 <div class="faa-field">
-                    <label>Form Title</label>
-                    <input type="text" data-faa="formTitle" oninput="faaOnInput(this)" placeholder="FIX ASSET ADDITION FORM">
+                    <label>Heading Line 2</label>
+                    <input type="text" data-faa="formTitle" oninput="faaOnInput(this)" placeholder="Your form title">
                 </div>
+                <div class="faa-check-note">Both heading lines are yours to write &mdash; they print at the top of every page. A new form starts with whatever you typed last.</div>
                 <div class="faa-field-row">
                     <div class="faa-field">
                         <label>Date of Acquisition</label>
@@ -20857,7 +20865,8 @@
 
         // ==========================================================
         // FIXED ASSET ADDITION FORM (Page 18)
-        // Clarendon Health Services "Fix Asset Addition Form".
+        // Laid out from the "Fix Asset Addition Form" Word template; the
+        // heading lines at the top of the sheet are typed by the user.
         //
         // STANDALONE BY DESIGN: this page keeps its own forms in its own
         // storage keys and computes its own Sub Total / Tax / Total. It never
@@ -20868,6 +20877,7 @@
         // ==========================================================
         const FAA_FORMS_KEY = 'fixedAssetAdditionForms_v1';   // collection of saved forms
         const FAA_ACTIVE_KEY = 'fixedAssetAdditionActiveId_v1'; // id of the form being edited
+        const FAA_HEADINGS_KEY = 'fixedAssetAdditionHeadings_v1'; // the heading lines last typed
         const FAA_DEFAULT_GCT = 15;                            // GCT rate %, editable per form
 
         function faaBlankItem() {
@@ -20878,8 +20888,10 @@
 
         function faaDefaultData() {
             return {
-                orgName: 'CLARENDON HEALTH SERVICES',
-                formTitle: 'FIX ASSET ADDITION FORM',
+                // No organisation or title is built in - the user types their
+                // own heading lines, and a new form reuses the last ones typed.
+                orgName: '',
+                formTitle: '',
                 acquisitionDate: '',
                 preparedBy: '',
                 verifiedBy: '',
@@ -20894,9 +20906,35 @@
             return 'faa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
         }
 
+        // The heading lines are the user's own letterhead, so the last pair they
+        // typed is kept and used to start the next form. Typing over them on any
+        // form updates what the next one starts with.
+        function faaRememberHeadings(d) {
+            if (!d) return;
+            try {
+                localStorage.setItem(FAA_HEADINGS_KEY, JSON.stringify({
+                    orgName: d.orgName || '', formTitle: d.formTitle || ''
+                }));
+            } catch (e) { /* ignore */ }
+        }
+
+        function faaLastHeadings() {
+            try {
+                const raw = localStorage.getItem(FAA_HEADINGS_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        return { orgName: parsed.orgName || '', formTitle: parsed.formTitle || '' };
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return { orgName: '', formTitle: '' };
+        }
+
         function faaNewForm() {
             const now = new Date().toISOString();
-            return Object.assign({ id: faaNewId(), createdAt: now, updatedAt: now, title: '' }, faaDefaultData());
+            return Object.assign({ id: faaNewId(), createdAt: now, updatedAt: now, title: '' },
+                faaDefaultData(), faaLastHeadings());
         }
 
         // Human-friendly label for a form (its own name, else first asset, else created date).
@@ -21108,6 +21146,7 @@
         function faaOnInput(el) {
             const key = el.getAttribute('data-faa');
             faaData[key] = (el.type === 'checkbox') ? el.checked : el.value;
+            if (key === 'orgName' || key === 'formTitle') faaRememberHeadings(faaData);
             faaSave();
             // Switching GCT on or off, or changing the rate, changes every
             // computed figure — refresh the lines and the totals too.
@@ -21168,7 +21207,8 @@
 
         function faaClear() {
             if (!confirm('Clear this form’s asset lines and details? This affects only the current form and cannot be undone.')) return;
-            const fresh = faaDefaultData();
+            // Keep the heading lines: clearing empties the form, not the letterhead.
+            const fresh = Object.assign(faaDefaultData(), faaLastHeadings());
             Object.keys(fresh).forEach(function(k) { faaData[k] = fresh[k]; });
             faaSave();
             faaBindHeaderInputs();
@@ -21394,9 +21434,15 @@
 
             const t = faaFormTotals(d);
 
-            // The title block is the first thead row so that, like the Word
+            // The heading block is the first thead row so that, like the Word
             // page header, it reprints at the top of every sheet. The column
-            // headings follow it and repeat too.
+            // headings follow it and repeat too. A heading line the user left
+            // empty is left out entirely rather than printing a blank gap.
+            const headLines =
+                (d.orgName ? '<div class="faa-org">' + escapeHtml(d.orgName) + '</div>' : '') +
+                (d.formTitle ? '<div class="faa-doc-title">' + escapeHtml(d.formTitle) + '</div>' : '');
+            const headingBlock = headLines ? '<div class="faa-doc-head">' + headLines + '</div>' : '';
+
             doc.innerHTML = '' +
                 '<table class="faa-table">' +
                     '<colgroup>' +
@@ -21404,12 +21450,7 @@
                         '<col class="c-qty"><col class="c-price"><col class="c-gct"><col class="c-ext">' +
                     '</colgroup>' +
                     '<thead>' +
-                        '<tr><td class="faa-title-cell" colspan="8">' +
-                            '<div class="faa-doc-head">' +
-                                '<div class="faa-org">' + escapeHtml(d.orgName || '') + '</div>' +
-                                '<div class="faa-doc-title">' + escapeHtml(d.formTitle || '') + '</div>' +
-                            '</div>' +
-                        '</td></tr>' +
+                        '<tr><td class="faa-title-cell" colspan="8">' + headingBlock + '</td></tr>' +
                         '<tr class="faa-head-row">' +
                             '<th>Asset Description</th><th>Serial/Model<br>#</th><th>Asset Code</th><th>Asset Location</th>' +
                             '<th>Quantity</th><th>Price<br>(Excl. GCT)<br>$</th><th>GCT<br><br>$</th><th>Extended Price<br><br>$</th>' +
@@ -21532,10 +21573,10 @@
 
         // ---- Print / PDF ---------------------------------------------------
 
-        // Print / PDF. The sheet below reproduces the Word form's page setup:
-        // Letter landscape, the 10.2in table centred with the 0.4in gutter it
-        // overhangs to, and the title + column headings repeated on every sheet
-        // (the source repeats its page header the same way).
+        // Print / PDF. Letter landscape with 0.5in margins, the table sized to
+        // the printable area so nothing runs off the paper, and the heading
+        // block + column headings repeated on every sheet (the source Word file
+        // repeats its page header the same way).
         function faaPrint() {
             const docEl = document.getElementById('faaDoc');
             if (!docEl) return;
@@ -21549,12 +21590,15 @@
                 '<style>' + styleEls +
                 ' html,body{background:#fff;margin:0;padding:0;} ' +
                 ' .faa-preview-wrap{background:#fff;padding:0;overflow:visible;} ' +
-                ' .faa-doc{box-shadow:none;margin:0 auto;padding:0;width:10.2in;} ' +
+                // width:100% makes the form fill whatever printable area the
+                // paper and the print dialog's margin setting leave, so it
+                // always lands inside the page instead of overhanging it.
+                ' .faa-doc{box-shadow:none;margin:0 auto;padding:0;width:100%;max-width:none;} ' +
                 // Repeat the title block and the column headings on every sheet,
                 // and never split a line across two pages.
                 ' thead{display:table-header-group;} tfoot{display:table-row-group;} ' +
                 ' tr{page-break-inside:avoid;break-inside:avoid;} ' +
-                ' @page{size:letter landscape;margin:0.5in 0.4in;} ' +
+                ' @page{size:letter landscape;margin:0.5in;} ' +
                 '</style></head><body><div class="faa-preview-wrap"><div class="faa-doc">' +
                 docEl.innerHTML + '</div></div>' +
                 '<script>window.onload=function(){window.print();};<\/script></body></html>');
