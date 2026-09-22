@@ -7136,6 +7136,12 @@
                 <span class="sidebar-nav-text">Asset Deletion</span>
             </button>
 
+            <div class="sidebar-section-label">Forms</div>
+            <button class="sidebar-nav-item" data-page="18" data-tooltip="Fixed Asset Addition Form" onclick="sidebarNavigate(18)">
+                <span class="sidebar-nav-icon">&#x1F4DD;</span>
+                <span class="sidebar-nav-text">Asset Addition Form</span>
+            </button>
+
             <div class="sidebar-section-label">Reference</div>
             <button class="sidebar-nav-item" data-page="13" data-tooltip="Asset Catalog" onclick="sidebarNavigate(13)">
                 <span class="sidebar-nav-icon">&#x1F4E6;</span>
@@ -10234,6 +10240,206 @@
                 style="width: 100%; height: calc(100vh - 60px); border: none; display: block; background: var(--bg-primary);"></iframe>
     </div>
 
+    <!-- ================================================================= -->
+    <!-- PAGE 18: FIXED ASSET ADDITION FORM (Clarendon Health Services)    -->
+    <!-- Standalone worksheet: its own storage, its own totals. Nothing     -->
+    <!-- entered here is ever written to the asset register, the dashboard  -->
+    <!-- totals, the monthly breakdown or any other asset data set.         -->
+    <!-- ================================================================= -->
+    <style>
+        /* Fixed Asset Addition Form builder layout */
+        .faa-layout { display: grid; grid-template-columns: minmax(360px, 440px) 1fr; gap: 24px; align-items: start; padding: 0 4px; }
+        /* The preview page is a fixed 1000px wide (Letter landscape), so stack the
+           editor above it as soon as the two columns can no longer both fit. */
+        @media (max-width: 1600px) { .faa-layout { grid-template-columns: 1fr; } }
+        .faa-editor { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; }
+        .faa-editor h3 { margin: 0 0 14px; color: var(--text-primary); font-size: 1.05rem; }
+        .faa-field { margin-bottom: 12px; }
+        .faa-field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+        .faa-field input, .faa-field textarea, .faa-items-editor input, .faa-items-editor textarea {
+            width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px;
+            background: var(--bg-secondary); color: var(--text-primary); font-size: 0.85rem; font-family: inherit;
+        }
+        .faa-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .faa-items-editor { margin-top: 6px; }
+        .faa-item-card { border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 12px 12px; margin-bottom: 12px; background: var(--bg-secondary); position: relative; }
+        .faa-item-card .faa-item-num { position: absolute; top: -10px; left: 10px; background: #8e44ad; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+        .faa-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+        .faa-item-grid label { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 3px; }
+        .faa-item-full { grid-column: 1 / -1; }
+        .faa-item-remove { position: absolute; top: 8px; right: 8px; background: #e74c3c; color: #fff; border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+        .faa-item-calc { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.74rem; color: var(--text-secondary); }
+        .faa-item-calc strong { color: var(--text-primary); font-size: 0.8rem; }
+        .faa-add-row-btn { width: 100%; padding: 10px; border: 2px dashed var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+        .faa-add-row-btn:hover { border-color: #8e44ad; color: #8e44ad; }
+        .faa-standalone-note { background: rgba(142, 68, 173, 0.10); border: 1px solid rgba(142, 68, 173, 0.35); border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
+        .faa-standalone-note strong { color: #8e44ad; }
+
+        /* Live document preview (mirrors the printed Fixed Asset Addition Form) */
+        .faa-preview-wrap { overflow-x: auto; background: #e9ecef; border-radius: 12px; padding: 24px; }
+        @media (max-width: 1100px) { .faa-preview-wrap { padding: 12px; } }
+        .faa-doc {
+            width: 1000px; min-height: 700px; margin: 0 auto; background: #ffffff; color: #000;
+            padding: 34px 38px; box-shadow: 0 4px 18px rgba(0,0,0,0.18); font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .faa-doc-head { text-align: center; margin-bottom: 18px; }
+        .faa-org { font-size: 18px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .faa-doc-title { font-size: 15px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+        .faa-table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
+        /* Reset the app-wide th/td rules (uppercase, white text, nowrap, nth-child
+           min-widths) so this form matches the printed Word document. */
+        .faa-table th, .faa-table td {
+            border: 1px solid #000 !important; font-size: 11px !important; padding: 5px 6px !important;
+            vertical-align: top !important; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-line !important;
+            color: #000 !important; text-transform: none !important; letter-spacing: 0 !important; min-width: 0 !important;
+            background: #fff !important; font-weight: 400; line-height: 1.35;
+        }
+        .faa-table th { font-weight: 700 !important; text-align: center !important; vertical-align: middle !important; white-space: normal !important; }
+        .faa-table td.faa-c { text-align: center; }
+        .faa-table td.faa-r { text-align: right; }
+        .faa-table tbody tr { height: 30px; }
+        .faa-table col.c-desc { width: 16.7%; } .faa-table col.c-serial { width: 9.4%; } .faa-table col.c-code { width: 19.7%; }
+        .faa-table col.c-loc { width: 16.9%; } .faa-table col.c-qty { width: 7.5%; } .faa-table col.c-price { width: 9.4%; }
+        .faa-table col.c-gct { width: 8.4%; } .faa-table col.c-ext { width: 12.0%; }
+        .faa-table tfoot td { font-weight: 700 !important; font-style: italic; text-align: center !important; }
+        .faa-table tfoot td.faa-blank { border: none !important; }
+        .faa-signoff { margin-top: 28px; font-size: 12px; line-height: 2.2; }
+        .faa-signoff .faa-val { border-bottom: 1px dotted #333; display: inline-block; min-width: 230px; padding: 0 6px; }
+        .faa-empty-note { text-align: center; color: var(--text-muted); font-style: italic; }
+
+        /* ---- Saved forms strip (multiple addition forms) ---- */
+        .faa-forms-panel { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e1e6ef); border-radius: 12px; padding: 14px 18px; margin: 18px 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .faa-forms-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .faa-forms-panel-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary, #2c3e50); }
+        .faa-forms-hint { font-weight: 400; font-size: 0.78rem; color: var(--text-secondary, #7f8c8d); margin-left: 8px; }
+        .faa-newform-btn { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .faa-newform-btn:hover { filter: brightness(1.06); }
+        .faa-forms-list { display: flex; gap: 12px; overflow-x: auto; padding: 12px 2px 4px; }
+        .faa-form-card { position: relative; flex: 0 0 auto; min-width: 190px; max-width: 250px; background: var(--bg-secondary, #f6f8fb); border: 2px solid var(--border-color, #e1e6ef); border-radius: 10px; padding: 12px 30px 12px 14px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+        .faa-form-card:hover { border-color: #9b59b6; box-shadow: 0 3px 10px rgba(155,89,182,0.18); }
+        .faa-form-card.active { border-color: #8e44ad; background: rgba(155,89,182,0.10); box-shadow: 0 3px 12px rgba(142,68,173,0.22); }
+        .faa-form-card-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary, #2c3e50); word-break: break-word; }
+        .faa-form-card-live { color: #8e44ad; font-size: 0.68rem; font-weight: 700; letter-spacing: .4px; }
+        .faa-form-card-meta { margin-top: 5px; font-size: 0.74rem; color: var(--text-secondary, #7f8c8d); }
+        .faa-form-card-del { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none; border-radius: 50%; background: rgba(231,76,60,0.12); color: #e74c3c; font-size: 15px; cursor: pointer; padding: 0; }
+        .faa-form-card-del:hover { background: #e74c3c; color: #fff; }
+
+        /* ---- Totals summary (this form only) ---- */
+        .faa-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 18px 0 4px; }
+        .faa-total-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; }
+        .faa-total-label { font-size: 0.72rem; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text-secondary); }
+        .faa-total-value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-top: 4px; }
+
+        /* ---- New Form warning modal ---- */
+        .faa-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
+        .faa-modal { background: var(--bg-card, #fff); border-radius: 14px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .faa-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; }
+        .faa-modal-head h2 { margin: 0; font-size: 1.1rem; }
+        .faa-modal-close { background: none; border: none; color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+        .faa-modal-body { padding: 18px 20px; color: var(--text-primary, #2c3e50); font-size: 0.92rem; }
+        .faa-modal-body p { margin: 0 0 10px; }
+        .faa-modal-note { font-size: 0.82rem; color: var(--text-secondary, #7f8c8d); }
+        .faa-modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 0 20px 18px; }
+        .faa-modal-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+        .faa-modal-btn.cancel { background: var(--bg-secondary, #ecf0f1); color: var(--text-primary, #2c3e50); }
+        .faa-modal-btn.save { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; }
+        .faa-modal-btn:disabled { opacity: .6; cursor: default; }
+    </style>
+    <div class="page" id="page18">
+        <div class="header" style="background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%);">
+            <div class="header-content">
+                <div class="header-top">
+                    <div class="header-left">
+                        <h1 class="dashboard-title">Fixed Asset Addition Form</h1>
+                        <div class="dashboard-subtitle">Clarendon Health Services &bull; Live document preview &bull; Standalone worksheet</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="user-info" id="userInfo18"></div>
+                    </div>
+                </div>
+
+                <div class="page-action-bar">
+                    <button class="btn monthly-view-btn" onclick="sidebarNavigate(1)" style="background: linear-gradient(135deg, #7f8c8d, #95a5a6);">&#8592; Back to Dashboard</button>
+                    <button class="btn monthly-view-btn" onclick="faaNewFormRequest()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">&#128196; New Form</button>
+                    <button class="btn monthly-view-btn" onclick="faaExportExcel()" style="background: linear-gradient(135deg, #27ae60, #219a52);">&#128229; Export Excel</button>
+                    <button class="btn monthly-view-btn" onclick="faaPrint()" style="background: linear-gradient(135deg, #2980b9, #3498db);">&#128424;&#65039; Print / PDF</button>
+                    <button class="btn monthly-view-btn" onclick="faaClear()" style="background: linear-gradient(135deg, #e67e22, #d35400);">&#128260; Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved forms strip: every generated form stays live and selectable -->
+        <div class="faa-forms-panel no-print">
+            <div class="faa-forms-panel-head">
+                <h3>&#128193; Saved Addition Forms <span class="faa-forms-hint">Click a form to open it. Use &ldquo;New Form&rdquo; to start a clean one.</span></h3>
+                <button class="faa-newform-btn" onclick="faaNewFormRequest()">&#128196; New Form</button>
+            </div>
+            <div class="faa-forms-list" id="faaFormsList"><!-- rendered by faaRenderFormsList() --></div>
+        </div>
+
+        <div class="faa-layout">
+            <!-- Editor -->
+            <div class="faa-editor no-print">
+                <div class="faa-standalone-note">
+                    <strong>Standalone form.</strong> Everything entered on this page is kept with this form only.
+                    It is never added to the Asset Register, the dashboard asset count or any dashboard total &mdash;
+                    the Sub Total, Tax and Total below are this form&rsquo;s own figures.
+                </div>
+
+                <h3>&#128221; Document Details</h3>
+                <div class="faa-field">
+                    <label>Form Name (for the saved forms list)</label>
+                    <input type="text" data-faa="title" oninput="faaOnInput(this)" placeholder="e.g. 22.9.2026 - Panasonic Microwave">
+                </div>
+                <div class="faa-field">
+                    <label>Organisation</label>
+                    <input type="text" data-faa="orgName" oninput="faaOnInput(this)" placeholder="CLARENDON HEALTH SERVICES">
+                </div>
+                <div class="faa-field">
+                    <label>Form Title</label>
+                    <input type="text" data-faa="formTitle" oninput="faaOnInput(this)" placeholder="FIX ASSET ADDITION FORM">
+                </div>
+                <div class="faa-field-row">
+                    <div class="faa-field">
+                        <label>Date of Acquisition</label>
+                        <input type="date" data-faa="acquisitionDate" oninput="faaOnInput(this)">
+                    </div>
+                    <div class="faa-field">
+                        <label>GCT Rate (%)</label>
+                        <input type="number" step="0.01" min="0" data-faa="gctRate" oninput="faaOnInput(this)" placeholder="15">
+                    </div>
+                </div>
+                <div class="faa-field-row">
+                    <div class="faa-field">
+                        <label>Prepared by</label>
+                        <input type="text" data-faa="preparedBy" oninput="faaOnInput(this)" placeholder="Prepared by">
+                    </div>
+                    <div class="faa-field">
+                        <label>Verified by</label>
+                        <input type="text" data-faa="verifiedBy" oninput="faaOnInput(this)" placeholder="Verified by">
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 22px;">&#128230; Assets Added</h3>
+                <div class="faa-items-editor" id="faaItemsEditor"></div>
+                <button class="faa-add-row-btn" onclick="faaAddRow()">&#10133; Add Asset Line</button>
+
+                <div class="faa-totals" id="faaTotals"><!-- rendered by faaRenderTotals() --></div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="faa-preview-wrap">
+                <div class="faa-doc" id="faaDoc"><!-- rendered by faaRenderPreview() --></div>
+            </div>
+        </div>
+
+        <div class="footer no-print">
+            <p>Fixed Asset Management System &copy; <span id="copyrightYear18"></span> &bull; May Pen Hospital</p>
+        </div>
+    </div>
+
     </div>
 
     <!-- New Form (Form 7C) warning modal: save before starting a clean form -->
@@ -10251,6 +10457,25 @@
             <div class="f7c-modal-actions">
                 <button class="f7c-modal-btn cancel" onclick="form7cCloseNewFormModal()">Cancel</button>
                 <button class="f7c-modal-btn save" id="f7cNewFormSaveBtn" onclick="form7cConfirmNewForm()">Save &amp; Start New Form</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Form (Fixed Asset Addition) warning modal: save before starting a clean form -->
+    <div class="faa-modal-overlay" id="faaNewFormModal">
+        <div class="faa-modal">
+            <div class="faa-modal-head">
+                <h2>&#128196; Start a New Addition Form</h2>
+                <button class="faa-modal-close" onclick="faaCloseNewFormModal()">&times;</button>
+            </div>
+            <div class="faa-modal-body">
+                <p><strong>Save your current form before creating a new one.</strong></p>
+                <p>Your current form will be saved and kept in the <em>Saved Addition Forms</em> list (with its creation date) and backed up to the cloud if you are connected to Google Drive. A fresh, empty form will then open for you to fill in.</p>
+                <p class="faa-modal-note">Nothing is discarded &mdash; every form you create stays available and can be reopened at any time. These forms are never added to the asset register or the dashboard totals.</p>
+            </div>
+            <div class="faa-modal-actions">
+                <button class="faa-modal-btn cancel" onclick="faaCloseNewFormModal()">Cancel</button>
+                <button class="faa-modal-btn save" id="faaNewFormSaveBtn" onclick="faaConfirmNewForm()">Save &amp; Start New Form</button>
             </div>
         </div>
     </div>
@@ -10551,7 +10776,7 @@
         // ============================================
         function setDynamicCopyrightYear() {
             const currentYear = new Date().getFullYear();
-            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14', 'copyrightYear15', 'copyrightYear16'];
+            const yearIds = ['copyrightYear', 'copyrightYear2', 'copyrightYear3', 'copyrightYear4', 'copyrightYear5', 'copyrightYear6', 'copyrightYear7', 'copyrightYear8', 'copyrightYear9', 'copyrightYear10', 'copyrightYear11', 'copyrightYear12', 'copyrightYear13', 'copyrightYear14', 'copyrightYear15', 'copyrightYear16', 'copyrightYear18'];
 
             yearIds.forEach(id => {
                 const elem = document.getElementById(id);
@@ -12727,7 +12952,8 @@
                     locationMoves: (window.mphGetLocationMoves ? window.mphGetLocationMoves() : null),
                     localUserSettings: localUserSettings,
                     localUsers: stripPlaintextPasswords(localUsers), // hashes only — never plaintext
-                    form7cForms: form7cCloudPayload() // Boarded Items (Form 7C) saved forms
+                    form7cForms: form7cCloudPayload(), // Boarded Items (Form 7C) saved forms
+                    assetAdditionForms: faaCloudPayload() // Fixed Asset Addition forms (standalone — never merged into the register)
                 }
             };
         }
@@ -13771,6 +13997,13 @@
                 form7cMergeFromCloud(cloudDataObj.form7cForms);
             }
 
+            // Merge Fixed Asset Addition forms from cloud. These are a
+            // standalone worksheet set: merging them never changes the asset
+            // register, the asset count or any dashboard total.
+            if (cloudDataObj.assetAdditionForms && cloudDataObj.assetAdditionForms.length > 0) {
+                faaMergeFromCloud(cloudDataObj.assetAdditionForms);
+            }
+
             // Merge Location Records from cloud — full union down to the item
             // level (shared merge in asset-normalizer.js). Local edits are
             // never overwritten, cloud-only departments/rooms/items are
@@ -14462,6 +14695,7 @@
 
             // Restore Form 7C (Boarded Items) saved forms
             if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
+            if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
 
             // Refresh the UI with restored data
             if (typeof loadData === 'function') loadData();
@@ -14687,6 +14921,7 @@
 
                 // Restore Form 7C (Boarded Items) saved forms
                 if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
+                if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
 
                 // Refresh the UI with restored data
                 if (typeof loadData === 'function') loadData();
@@ -14970,6 +15205,7 @@
 
                 // Restore Form 7C (Boarded Items) saved forms
                 if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
+                if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
 
                 // Refresh the UI with restored data
                 if (typeof loadData === 'function') loadData();
@@ -19883,6 +20119,19 @@
                 generateFiscalYearReport();
             }
 
+            // Handle Fixed Asset Addition Form page (standalone worksheet —
+            // nothing on it feeds the register or the dashboard totals)
+            if (pageNum === 18) {
+                const userInfo18 = document.getElementById('userInfo18');
+                if (userInfo18 && currentUser) {
+                    userInfo18.innerHTML = `
+                        <span>&#x1F464; ${escapeHtml(currentUser.displayName || currentUser.username)}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                    `;
+                }
+                initFixedAssetAdditionPage();
+            }
+
             // Handle Boarded Items List (Form 7C) page
             if (pageNum === 16) {
                 const userInfo16 = document.getElementById('userInfo16');
@@ -20557,6 +20806,699 @@
                 docEl.innerHTML + '</div></div>' +
                 '<script>window.onload=function(){window.print();};<\/script></body></html>');
             w.document.close();
+        }
+
+
+        // ==========================================================
+        // FIXED ASSET ADDITION FORM (Page 18)
+        // Clarendon Health Services "Fix Asset Addition Form".
+        //
+        // STANDALONE BY DESIGN: this page keeps its own forms in its own
+        // storage keys and computes its own Sub Total / Tax / Total. It never
+        // reads from, writes to, or contributes a single figure to the asset
+        // register, the dashboard asset count, the monthly breakdown or any
+        // other dashboard total. Nothing here calls saveAssetsToStorage(),
+        // loadAssetsFromStorage() or any register function.
+        // ==========================================================
+        const FAA_FORMS_KEY = 'fixedAssetAdditionForms_v1';   // collection of saved forms
+        const FAA_ACTIVE_KEY = 'fixedAssetAdditionActiveId_v1'; // id of the form being edited
+        const FAA_DEFAULT_GCT = 15;                            // GCT rate %, editable per form
+
+        function faaBlankItem() {
+            // Quantity defaults to 1 so the extended price is predictable as
+            // soon as a unit price is typed.
+            return { description: '', serial: '', code: '', location: '', quantity: '1', unitPrice: '' };
+        }
+
+        function faaDefaultData() {
+            return {
+                orgName: 'CLARENDON HEALTH SERVICES',
+                formTitle: 'FIX ASSET ADDITION FORM',
+                acquisitionDate: '',
+                preparedBy: '',
+                verifiedBy: '',
+                gctRate: String(FAA_DEFAULT_GCT),
+                items: [faaBlankItem()]
+            };
+        }
+
+        function faaNewId() {
+            return 'faa_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+        }
+
+        function faaNewForm() {
+            const now = new Date().toISOString();
+            return Object.assign({ id: faaNewId(), createdAt: now, updatedAt: now, title: '' }, faaDefaultData());
+        }
+
+        // Human-friendly label for a form (its own name, else first asset, else created date).
+        function faaFormTitle(form) {
+            if (!form) return 'Untitled Form';
+            if (form.title && form.title.trim()) return form.title.trim();
+            const first = (form.items || []).find(function(it) { return it && it.description && it.description.trim(); });
+            if (first) return first.description.trim();
+            return 'Form ' + faaFmtDateTime(form.createdAt);
+        }
+
+        // Backfill a stored object to the full shape (tolerates partial records).
+        function faaNormalizeForm(obj) {
+            const now = new Date().toISOString();
+            const form = Object.assign({ id: faaNewId(), createdAt: now, updatedAt: now, title: '' }, faaDefaultData(), obj || {});
+            if (!form.id) form.id = faaNewId();
+            if (!form.createdAt) form.createdAt = now;
+            if (!form.updatedAt) form.updatedAt = form.createdAt;
+            if (!Array.isArray(form.items) || form.items.length === 0) form.items = [faaBlankItem()];
+            form.items = form.items.map(function(it) { return Object.assign(faaBlankItem(), it || {}); });
+            return form;
+        }
+
+        // The full collection of forms and a pointer to the one being edited.
+        let faaForms = [];
+        let faaActiveId = null;
+        // faaData always references the ACTIVE form object, so the render,
+        // editor and export code can simply read faaData.*
+        let faaData = faaNewForm();
+
+        // ---- Money helpers -------------------------------------------------
+
+        // Parse a user-typed amount ("24,700.00", "$24 700") into a number.
+        function faaNum(v) {
+            if (v === null || v === undefined) return 0;
+            const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        // Format a number the way the printed form does: 24,700.00
+        function faaFmtMoney(n) {
+            const num = isNaN(n) ? 0 : n;
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function faaGctRate(form) {
+            const d = form || faaData;
+            const raw = (d && d.gctRate !== undefined && d.gctRate !== '') ? faaNum(d.gctRate) : FAA_DEFAULT_GCT;
+            return raw < 0 ? 0 : raw;
+        }
+
+        // Per-line figures, mirroring the Word form:
+        //   Price (Excl. GCT) = quantity x unit price
+        //   GCT               = price x rate
+        //   Extended Price    = price + GCT
+        function faaLineFigures(item, form) {
+            const qty = faaNum(item && item.quantity);
+            const unit = faaNum(item && item.unitPrice);
+            const price = qty * unit;
+            const gct = price * (faaGctRate(form) / 100);
+            return { qty: qty, unit: unit, price: price, gct: gct, extended: price + gct };
+        }
+
+        // This form's own totals. Deliberately NOT connected to any dashboard
+        // total — nothing else in the app reads these numbers.
+        function faaFormTotals(form) {
+            const d = form || faaData;
+            let subTotal = 0;
+            (d.items || []).forEach(function(it) { subTotal += faaLineFigures(it, d).price; });
+            const tax = subTotal * (faaGctRate(d) / 100);
+            return { subTotal: subTotal, tax: tax, total: subTotal + tax };
+        }
+
+        // A line counts as "filled in" once any of its fields carries content.
+        function faaItemHasContent(it) {
+            if (!it) return false;
+            return !!((it.description || '').trim() || (it.serial || '').trim() ||
+                      (it.code || '').trim() || (it.location || '').trim() ||
+                      faaNum(it.unitPrice) > 0);
+        }
+
+        // ---- Storage -------------------------------------------------------
+
+        function faaReadForms() {
+            try {
+                const raw = localStorage.getItem(FAA_FORMS_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed.map(faaNormalizeForm);
+                }
+            } catch (e) { console.warn('Asset Addition forms read failed:', e); }
+            // Fallback to the IndexedDB cache if localStorage was cleared
+            try {
+                const cached = (typeof _dbGet === 'function') ? _dbGet(FAA_FORMS_KEY) : null;
+                if (Array.isArray(cached) && cached.length) return cached.map(faaNormalizeForm);
+            } catch (e) { /* ignore */ }
+            return [];
+        }
+
+        function faaLoad() {
+            let forms = faaReadForms();
+            if (!forms.length) forms = [faaNewForm()];
+            faaForms = forms;
+
+            let activeId = null;
+            try { activeId = localStorage.getItem(FAA_ACTIVE_KEY); } catch (e) { /* ignore */ }
+            const active = faaForms.find(function(f) { return f.id === activeId; });
+            faaData = active || faaForms[faaForms.length - 1];
+            faaActiveId = faaData.id;
+        }
+
+        // Persist the whole collection + active pointer, and flag cloud sync.
+        function faaSaveAll() {
+            try { localStorage.setItem(FAA_FORMS_KEY, JSON.stringify(faaForms)); }
+            catch (e) { console.warn('Asset Addition form save failed:', e); }
+            try { localStorage.setItem(FAA_ACTIVE_KEY, faaActiveId || ''); }
+            catch (e) { /* ignore */ }
+            // Mirror into the IndexedDB cache so it survives a localStorage clear.
+            try { if (typeof _dbSet === 'function') _dbSet(FAA_FORMS_KEY, faaForms); } catch (e) { /* ignore */ }
+            // Mark data dirty so the cloud auto-sync backs these forms up too.
+            // (Backup only — the register is not touched.)
+            if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+        }
+
+        function faaSave() {
+            if (faaData) faaData.updatedAt = new Date().toISOString();
+            faaSaveAll();
+        }
+
+        // ---- Page lifecycle ------------------------------------------------
+
+        function initFixedAssetAdditionPage() {
+            faaLoad();
+            faaBindHeaderInputs();
+            faaRenderFormsList();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+        }
+
+        // Push the active form's header values into the editor inputs.
+        function faaBindHeaderInputs() {
+            document.querySelectorAll('#page18 [data-faa]').forEach(function(el) {
+                const key = el.getAttribute('data-faa');
+                el.value = (faaData && faaData[key] !== undefined) ? faaData[key] : '';
+            });
+        }
+
+        function faaOnInput(el) {
+            const key = el.getAttribute('data-faa');
+            faaData[key] = el.value;
+            faaSave();
+            // The GCT rate changes every computed figure, so refresh the lines too.
+            if (key === 'gctRate') faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            if (key === 'title') faaRenderFormsList();
+        }
+
+        function faaItemInput(el) {
+            const i = parseInt(el.getAttribute('data-i'), 10);
+            const f = el.getAttribute('data-field');
+            if (!faaData.items[i]) return;
+            faaData.items[i][f] = el.value;
+            faaSave();
+            faaUpdateLineCalc(i);
+            faaRenderTotals();
+            faaRenderPreview();
+        }
+
+        // Refresh a single line's computed figures without re-rendering the
+        // whole editor (so the caret stays where the user is typing).
+        function faaUpdateLineCalc(i) {
+            const box = document.getElementById('faaCalc' + i);
+            if (!box) return;
+            box.innerHTML = faaLineCalcHtml(faaData.items[i]);
+        }
+
+        function faaLineCalcHtml(item) {
+            const f = faaLineFigures(item, faaData);
+            return '<span>Price (Excl. GCT): <strong>$' + faaFmtMoney(f.price) + '</strong></span>' +
+                   '<span>GCT: <strong>$' + faaFmtMoney(f.gct) + '</strong></span>' +
+                   '<span>Extended: <strong>$' + faaFmtMoney(f.extended) + '</strong></span>';
+        }
+
+        function faaAddRow() {
+            faaData.items.push(faaBlankItem());
+            faaSave();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+        }
+
+        function faaRemoveRow(i) {
+            faaData.items.splice(i, 1);
+            if (faaData.items.length === 0) faaData.items.push(faaBlankItem());
+            faaSave();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+        }
+
+        function faaClear() {
+            if (!confirm('Clear this form’s asset lines and details? This affects only the current form and cannot be undone.')) return;
+            const fresh = faaDefaultData();
+            Object.keys(fresh).forEach(function(k) { faaData[k] = fresh[k]; });
+            faaSave();
+            faaBindHeaderInputs();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+        }
+
+        // ---- Multiple forms: list, switching, creating, deleting ----
+
+        function faaRenderFormsList() {
+            const wrap = document.getElementById('faaFormsList');
+            if (!wrap) return;
+            if (!faaForms.length) { wrap.innerHTML = ''; return; }
+            // Newest first so the most recent work is on top.
+            const ordered = faaForms.slice().sort(function(a, b) {
+                return (b.createdAt || '').localeCompare(a.createdAt || '');
+            });
+            wrap.innerHTML = ordered.map(function(form) {
+                const isActive = form.id === faaActiveId;
+                const itemCount = (form.items || []).filter(faaItemHasContent).length;
+                const canDelete = faaForms.length > 1;
+                const totals = faaFormTotals(form);
+                return '' +
+                '<div class="faa-form-card' + (isActive ? ' active' : '') + '" onclick="faaSwitchForm(\'' + form.id + '\')" title="Open this form">' +
+                    '<div class="faa-form-card-title">' + escapeHtml(faaFormTitle(form)) + (isActive ? ' <span class="faa-form-card-live">● LIVE</span>' : '') + '</div>' +
+                    '<div class="faa-form-card-meta">Created ' + escapeHtml(faaFmtDateTime(form.createdAt)) +
+                        ' &bull; ' + itemCount + ' line' + (itemCount === 1 ? '' : 's') +
+                        '<br>Total $' + faaFmtMoney(totals.total) + '</div>' +
+                    (canDelete ? '<button class="faa-form-card-del" title="Delete this form" onclick="event.stopPropagation(); faaDeleteForm(\'' + form.id + '\')">&times;</button>' : '') +
+                '</div>';
+            }).join('');
+        }
+
+        function faaSwitchForm(id) {
+            const target = faaForms.find(function(f) { return f.id === id; });
+            if (!target || id === faaActiveId) return;
+            faaData = target;
+            faaActiveId = id;
+            try { localStorage.setItem(FAA_ACTIVE_KEY, id); } catch (e) { /* ignore */ }
+            faaBindHeaderInputs();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+        }
+
+        function faaDeleteForm(id) {
+            if (faaForms.length <= 1) {
+                alert('At least one form must remain. Use Clear to empty this form instead.');
+                return;
+            }
+            const target = faaForms.find(function(f) { return f.id === id; });
+            if (!target) return;
+            if (!confirm('Delete "' + faaFormTitle(target) + '"? This cannot be undone.')) return;
+            faaForms = faaForms.filter(function(f) { return f.id !== id; });
+            if (id === faaActiveId) {
+                faaData = faaForms[faaForms.length - 1];
+                faaActiveId = faaData.id;
+                faaBindHeaderInputs();
+                faaRenderEditor();
+                faaRenderTotals();
+                faaRenderPreview();
+            }
+            faaSaveAll();
+            faaRenderFormsList();
+        }
+
+        function faaNewFormRequest() {
+            const modal = document.getElementById('faaNewFormModal');
+            if (modal) { modal.style.display = 'flex'; return; }
+            if (confirm('Save your current form to the cloud before starting a new one?')) {
+                faaConfirmNewForm();
+            }
+        }
+
+        function faaCloseNewFormModal() {
+            const modal = document.getElementById('faaNewFormModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Persist the current form (and push to cloud if connected), THEN
+        // create a fresh blank form and make it active.
+        async function faaConfirmNewForm() {
+            const btn = document.getElementById('faaNewFormSaveBtn');
+            const setBusy = function(busy) {
+                if (!btn) return;
+                btn.disabled = busy;
+                btn.textContent = busy ? 'Saving…' : 'Save & Start New Form';
+            };
+            setBusy(true);
+
+            // Always persist the current work locally first (never lose data).
+            faaSave();
+
+            let cloudOk = true;
+            if (typeof isCloudConnected !== 'undefined' && isCloudConnected &&
+                typeof saveToCloudSilent === 'function') {
+                try {
+                    cloudOk = await saveToCloudSilent();
+                } catch (e) {
+                    cloudOk = false;
+                }
+            }
+
+            if (!cloudOk) {
+                setBusy(false);
+                if (!confirm('Saved on this device, but the cloud backup did not complete ' +
+                    '(you may be offline or not connected to Google Drive). ' +
+                    'Start a new form anyway? Your current form is safe and will sync later.')) {
+                    return;
+                }
+            }
+
+            const form = faaNewForm();
+            faaForms.push(form);
+            faaData = form;
+            faaActiveId = form.id;
+            faaSaveAll();
+
+            faaBindHeaderInputs();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+
+            setBusy(false);
+            faaCloseNewFormModal();
+        }
+
+        // ---- Editor --------------------------------------------------------
+
+        function faaRenderEditor() {
+            const wrap = document.getElementById('faaItemsEditor');
+            if (!wrap) return;
+            wrap.innerHTML = faaData.items.map(function(item, i) {
+                return '' +
+                '<div class="faa-item-card">' +
+                    '<span class="faa-item-num">Line ' + (i + 1) + '</span>' +
+                    '<button class="faa-item-remove" title="Remove line" onclick="faaRemoveRow(' + i + ')">&times;</button>' +
+                    '<div class="faa-item-grid">' +
+                        '<div class="faa-item-full"><label>Asset Description</label>' +
+                            '<textarea rows="2" data-i="' + i + '" data-field="description" oninput="faaItemInput(this)" placeholder="e.g. Panasonic Microwave">' + escapeHtml(item.description || '') + '</textarea></div>' +
+                        '<div class="faa-item-full"><label>Serial / Model #</label>' +
+                            '<textarea rows="2" data-i="' + i + '" data-field="serial" oninput="faaItemInput(this)" placeholder="One per line if the quantity is more than one">' + escapeHtml(item.serial || '') + '</textarea></div>' +
+                        '<div class="faa-item-full"><label>Asset Code</label>' +
+                            '<textarea rows="2" data-i="' + i + '" data-field="code" oninput="faaItemInput(this)" placeholder="e.g. MPH-LAB-180-07-2025 (one per line)">' + escapeHtml(item.code || '') + '</textarea></div>' +
+                        '<div class="faa-item-full"><label>Asset Location</label>' +
+                            '<input type="text" data-i="' + i + '" data-field="location" oninput="faaItemInput(this)" value="' + escapeHtml(item.location || '') + '" placeholder="e.g. Laboratory Department"></div>' +
+                        '<div><label>Quantity</label>' +
+                            '<input type="number" min="0" step="1" data-i="' + i + '" data-field="quantity" oninput="faaItemInput(this)" value="' + escapeHtml(item.quantity || '') + '" placeholder="1"></div>' +
+                        '<div><label>Unit Price (Excl. GCT)</label>' +
+                            '<input type="text" inputmode="decimal" data-i="' + i + '" data-field="unitPrice" oninput="faaItemInput(this)" value="' + escapeHtml(item.unitPrice || '') + '" placeholder="e.g. 24700.00"></div>' +
+                        '<div class="faa-item-calc" id="faaCalc' + i + '">' + faaLineCalcHtml(item) + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        function faaRenderTotals() {
+            const wrap = document.getElementById('faaTotals');
+            if (!wrap) return;
+            const t = faaFormTotals(faaData);
+            wrap.innerHTML = '' +
+                '<div class="faa-total-card"><div class="faa-total-label">Sub Total (Excl. GCT)</div><div class="faa-total-value">$' + faaFmtMoney(t.subTotal) + '</div></div>' +
+                '<div class="faa-total-card"><div class="faa-total-label">Tax (GCT ' + faaGctRate(faaData) + '%)</div><div class="faa-total-value">$' + faaFmtMoney(t.tax) + '</div></div>' +
+                '<div class="faa-total-card"><div class="faa-total-label">Total</div><div class="faa-total-value">$' + faaFmtMoney(t.total) + '</div></div>';
+        }
+
+        // ---- Formatting ----------------------------------------------------
+
+        // 'YYYY-MM-DD' -> 'December 1, 2025' (matches the printed form).
+        function faaFmtLongDate(v) {
+            if (!v) return '';
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+            if (!m) return v;
+            const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthName = months[parseInt(m[2], 10) - 1] || m[2];
+            return monthName + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+        }
+
+        function faaFmtDateTime(iso) {
+            if (!iso) return '';
+            try {
+                const dt = new Date(iso);
+                if (isNaN(dt.getTime())) return String(iso);
+                const pad = function(n) { return (n < 10 ? '0' : '') + n; };
+                return pad(dt.getDate()) + '/' + pad(dt.getMonth() + 1) + '/' + dt.getFullYear() +
+                    ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+            } catch (e) { return String(iso); }
+        }
+
+        // ---- Live document preview ----------------------------------------
+
+        function faaRenderPreview() {
+            const doc = document.getElementById('faaDoc');
+            if (!doc) return;
+            const d = faaData;
+            const items = d.items || [];
+            const hasContent = items.some(faaItemHasContent);
+            // A couple of trailing blank rows keep the classic form look.
+            const totalRows = hasContent ? items.length + 2 : Math.max(items.length, 8);
+
+            let bodyRows = '';
+            for (let i = 0; i < totalRows; i++) {
+                const it = items[i] || faaBlankItem();
+                const filled = !!items[i] && faaItemHasContent(it);
+                const f = faaLineFigures(it, d);
+                bodyRows +=
+                    '<tr>' +
+                        '<td>' + escapeHtml(it.description || '') + '</td>' +
+                        '<td>' + escapeHtml(it.serial || '') + '</td>' +
+                        '<td class="faa-c">' + escapeHtml(it.code || '') + '</td>' +
+                        '<td>' + escapeHtml(it.location || '') + '</td>' +
+                        '<td class="faa-c">' + (filled ? escapeHtml(it.quantity || '') : '') + '</td>' +
+                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.price) : '') + '</td>' +
+                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.gct) : '') + '</td>' +
+                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.extended) : '') + '</td>' +
+                    '</tr>';
+            }
+
+            const t = faaFormTotals(d);
+
+            doc.innerHTML = '' +
+                '<div class="faa-doc-head">' +
+                    '<div class="faa-org">' + escapeHtml(d.orgName || '') + '</div>' +
+                    '<div class="faa-doc-title">' + escapeHtml(d.formTitle || '') + '</div>' +
+                '</div>' +
+                '<table class="faa-table">' +
+                    '<colgroup>' +
+                        '<col class="c-desc"><col class="c-serial"><col class="c-code"><col class="c-loc">' +
+                        '<col class="c-qty"><col class="c-price"><col class="c-gct"><col class="c-ext">' +
+                    '</colgroup>' +
+                    '<thead><tr>' +
+                        '<th>Asset Description</th><th>Serial/Model #</th><th>Asset Code</th><th>Asset Location</th>' +
+                        '<th>Quantity</th><th>Price<br>(Excl. GCT)<br>$</th><th>GCT<br>$</th><th>Extended Price<br>$</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' + bodyRows + '</tbody>' +
+                    '<tfoot><tr>' +
+                        '<td class="faa-blank" colspan="5"></td>' +
+                        '<td>Sub Total<br>$' + faaFmtMoney(t.subTotal) + '</td>' +
+                        '<td>Tax<br>$' + faaFmtMoney(t.tax) + '</td>' +
+                        '<td>Total<br>$' + faaFmtMoney(t.total) + '</td>' +
+                    '</tr></tfoot>' +
+                '</table>' +
+                '<div class="faa-signoff">' +
+                    '<div>Date of Acquisition: <span class="faa-val">' + escapeHtml(faaFmtLongDate(d.acquisitionDate)) + '</span></div>' +
+                    '<div style="margin-top:14px;">Prepared by: <span class="faa-val">' + escapeHtml(d.preparedBy || '') + '</span></div>' +
+                    '<div>Verified by: <span class="faa-val">' + escapeHtml(d.verifiedBy || '') + '</span></div>' +
+                '</div>';
+        }
+
+        // ---- Excel export --------------------------------------------------
+
+        function faaStyledCell(value, style, numeric) {
+            const cell = numeric
+                ? { v: (value === undefined || value === null || value === '') ? '' : value, t: (value === '' ? 's' : 'n') }
+                : { v: (value === undefined || value === null) ? '' : value, t: 's' };
+            if (numeric && cell.t === 'n') cell.z = '#,##0.00';
+            if (style) cell.s = style;
+            return cell;
+        }
+
+        function faaExportExcel() {
+            const XL = window.XLSXStyle || window.XLSX;
+            if (!XL) { alert('Excel library not available.'); return; }
+            const styled = !!window.XLSXStyle;
+            const d = faaData;
+            const thin = { style: 'thin', color: { rgb: '000000' } };
+            const allThin = { top: thin, bottom: thin, left: thin, right: thin };
+            const ws = {};
+            function setCell(addr, value, style, numeric) { ws[addr] = faaStyledCell(value, style, numeric); }
+
+            const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+            // Title block (the Word document's page header)
+            setCell('A1', d.orgName || '', { font: { name: 'Calibri', sz: 16, bold: true }, alignment: { horizontal: 'center' } });
+            setCell('A2', d.formTitle || '', { font: { name: 'Calibri', sz: 13, bold: true }, alignment: { horizontal: 'center' } });
+
+            // Header row (row 4)
+            const headers = ['Asset Description', 'Serial/Model #', 'Asset Code', 'Asset Location',
+                             'Quantity', 'Price (Excl. GCT) $', 'GCT $', 'Extended Price $'];
+            headers.forEach(function(h, i) {
+                setCell(cols[i] + '4', h, {
+                    font: { name: 'Calibri', sz: 11, bold: true },
+                    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                    border: allThin
+                });
+            });
+
+            // Data rows (start row 5) — one row per asset line actually filled in.
+            const items = (d.items || []).filter(faaItemHasContent);
+            const rowCount = Math.max(items.length, 1);
+            for (let r = 0; r < rowCount; r++) {
+                const rowNum = 5 + r;
+                const it = items[r] || faaBlankItem();
+                const filled = !!items[r];
+                const f = faaLineFigures(it, d);
+                const textStyle = { font: { name: 'Calibri', sz: 11 }, alignment: { vertical: 'top', wrapText: true }, border: allThin };
+                const centreStyle = { font: { name: 'Calibri', sz: 11 }, alignment: { horizontal: 'center', vertical: 'top', wrapText: true }, border: allThin };
+                const moneyStyle = { font: { name: 'Calibri', sz: 11 }, alignment: { horizontal: 'right', vertical: 'top' }, border: allThin };
+                setCell('A' + rowNum, it.description || '', textStyle);
+                setCell('B' + rowNum, it.serial || '', centreStyle);
+                setCell('C' + rowNum, it.code || '', centreStyle);
+                setCell('D' + rowNum, it.location || '', textStyle);
+                setCell('E' + rowNum, filled ? faaNum(it.quantity) : '', centreStyle, true);
+                setCell('F' + rowNum, filled ? f.price : '', moneyStyle, true);
+                setCell('G' + rowNum, filled ? f.gct : '', moneyStyle, true);
+                setCell('H' + rowNum, filled ? f.extended : '', moneyStyle, true);
+            }
+
+            // Totals block: a label row then a value row under the Price / GCT /
+            // Extended Price columns, exactly like the Word document's footer row.
+            const t = faaFormTotals(d);
+            const totalRow = 5 + rowCount;
+            const totalLabel = { font: { name: 'Calibri', sz: 11, bold: true, italic: true }, alignment: { horizontal: 'center' }, border: allThin };
+            const totalValue = { font: { name: 'Calibri', sz: 11, bold: true, italic: true }, alignment: { horizontal: 'center' }, border: allThin };
+            setCell('F' + totalRow, 'Sub Total', totalLabel);
+            setCell('G' + totalRow, 'Tax (GCT ' + faaGctRate(d) + '%)', totalLabel);
+            setCell('H' + totalRow, 'Total', totalLabel);
+            setCell('F' + (totalRow + 1), t.subTotal, totalValue, true);
+            setCell('G' + (totalRow + 1), t.tax, totalValue, true);
+            setCell('H' + (totalRow + 1), t.total, totalValue, true);
+
+            // Sign-off block
+            const signRow = totalRow + 4;
+            const signStyle = { font: { name: 'Calibri', sz: 11 } };
+            setCell('A' + signRow, 'Date of Acquisition:  ' + faaFmtLongDate(d.acquisitionDate), signStyle);
+            setCell('A' + (signRow + 2), 'Prepared by: ' + (d.preparedBy || ''), signStyle);
+            setCell('A' + (signRow + 3), 'Verified by: ' + (d.verifiedBy || ''), signStyle);
+
+            const lastRow = signRow + 3;
+            ws['!ref'] = 'A1:H' + lastRow;
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // A1:H1
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }  // A2:H2
+            ];
+            ws['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 26 }, { wch: 26 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
+
+            const wb = XL.utils.book_new();
+            XL.utils.book_append_sheet(wb, ws, 'Asset Addition');
+
+            const stamp = new Date().toISOString().split('T')[0];
+            const safeTitle = faaFormTitle(d).replace(/[\\/:*?"<>|]/g, '-').slice(0, 60);
+            XL.writeFile(wb, 'Fixed Asset Addition - ' + safeTitle + ' ' + stamp + '.xlsx');
+
+            if (!styled) {
+                console.warn('Asset Addition export: xlsx-js-style not loaded — exported with correct layout but without cell borders/fonts.');
+            }
+        }
+
+        // ---- Print / PDF ---------------------------------------------------
+
+        function faaPrint() {
+            const docEl = document.getElementById('faaDoc');
+            if (!docEl) return;
+            const styleEls = Array.from(document.querySelectorAll('style'))
+                .map(function(s) { return s.innerHTML; }).join('\n');
+            const w = window.open('', '_blank', 'width=1200,height=900');
+            if (!w) { alert('Please allow pop-ups to print the document.'); return; }
+            w.document.write('<!DOCTYPE html><html><head><title>Fixed Asset Addition Form</title>' +
+                '<style>' + styleEls +
+                ' body{background:#fff;margin:0;} .faa-preview-wrap{background:#fff;padding:0;} ' +
+                ' .faa-doc{box-shadow:none;margin:0 auto;width:100%;min-height:0;padding:0;} ' +
+                ' @page{size:letter landscape;margin:0.4in;} ' +
+                '</style></head><body><div class="faa-preview-wrap"><div class="faa-doc">' +
+                docEl.innerHTML + '</div></div>' +
+                '<script>window.onload=function(){window.print();};<\/script></body></html>');
+            w.document.close();
+        }
+
+        // ---- Cloud backup (backup only — never merged into the register) ----
+
+        // Returns the saved Addition forms for inclusion in cloud backups.
+        // Reads straight from storage so it is safe to call before the page
+        // has been opened.
+        function faaCloudPayload() {
+            try {
+                if (typeof faaForms !== 'undefined' && Array.isArray(faaForms) && faaForms.length) {
+                    return faaForms;
+                }
+                const raw = localStorage.getItem(FAA_FORMS_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed;
+                }
+            } catch (e) { /* ignore */ }
+            return [];
+        }
+
+        // Merge Addition forms from a cloud backup. Union by form id; for a form
+        // present in both, the newer updatedAt wins. Nothing here reaches the
+        // asset register — these forms only ever live in their own storage key.
+        function faaMergeFromCloud(cloudForms) {
+            if (!Array.isArray(cloudForms) || !cloudForms.length) return;
+            let local = [];
+            try {
+                if (typeof faaForms !== 'undefined' && Array.isArray(faaForms) && faaForms.length) {
+                    local = faaForms;
+                } else {
+                    const raw = localStorage.getItem(FAA_FORMS_KEY);
+                    local = raw ? (JSON.parse(raw) || []) : [];
+                }
+            } catch (e) { local = []; }
+
+            const byId = {};
+            local.forEach(function(f) { if (f && f.id) byId[f.id] = f; });
+            cloudForms.forEach(function(cf) {
+                if (!cf || typeof cf !== 'object') return;
+                const norm = faaNormalizeForm(cf);
+                const existing = norm.id ? byId[norm.id] : null;
+                if (!existing) {
+                    byId[norm.id] = norm;
+                } else {
+                    const a = existing.updatedAt || existing.createdAt || '';
+                    const b = norm.updatedAt || norm.createdAt || '';
+                    if (b > a) byId[norm.id] = norm;
+                }
+            });
+
+            const merged = Object.keys(byId).map(function(k) { return byId[k]; });
+            faaForms = merged;
+            try { localStorage.setItem(FAA_FORMS_KEY, JSON.stringify(merged)); } catch (e) { /* ignore */ }
+            try { if (typeof _dbSet === 'function') _dbSet(FAA_FORMS_KEY, merged); } catch (e) { /* ignore */ }
+
+            // Keep the active pointer valid and refresh the live view if showing.
+            if (faaForms.length) {
+                const stillActive = faaForms.find(function(f) { return f.id === faaActiveId; });
+                if (!stillActive) {
+                    faaData = faaForms[faaForms.length - 1];
+                    faaActiveId = faaData.id;
+                }
+            }
+            const page = document.getElementById('page18');
+            if (page && page.classList.contains('active')) {
+                faaBindHeaderInputs();
+                faaRenderEditor();
+                faaRenderTotals();
+                faaRenderPreview();
+                faaRenderFormsList();
+            }
         }
 
         // ============================================
