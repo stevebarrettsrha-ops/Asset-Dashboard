@@ -10415,6 +10415,23 @@
         .faa-lib-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
         .faa-lib-viewer-head h3 { margin: 0; font-size: 1rem; color: var(--text-primary); }
         .faa-lib-viewer-actions { display: flex; gap: 0; flex-wrap: wrap; }
+        .faa-lib-btn.drive { background: #16a085; }
+        .faa-lib-modes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .faa-lib-mode { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 7px; padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        .faa-lib-mode.active { background: #8e44ad; border-color: #8e44ad; color: #fff; }
+        .faa-lib-mode:disabled { opacity: .45; cursor: default; }
+        .faa-lib-drive-note { font-size: 0.76rem; color: var(--text-secondary); }
+        .faa-lib-pdfwrap { background: #e9ecef; border-radius: 12px; padding: 12px; }
+        .faa-lib-pdfwrap iframe { width: 100%; height: 70vh; min-height: 460px; border: none; border-radius: 8px; background: #fff; }
+        .faa-drive-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; border-radius: 9px; padding: 2px 8px; }
+        .faa-drive-pill.saved { background: rgba(22,160,133,0.16); color: #16a085; }
+        .faa-drive-pill.none { background: rgba(127,140,141,0.16); color: #7f8c8d; }
+
+        /* Drive save status under the page action bar */
+        .faa-drive-status { margin: 10px 0 0; padding: 9px 14px; border-radius: 8px; font-size: 0.84rem; font-weight: 600; background: rgba(255,255,255,0.18); color: #fff; }
+        .faa-drive-status.ok { background: rgba(39,174,96,0.9); }
+        .faa-drive-status.error { background: rgba(231,76,60,0.92); }
+        .faa-drive-status.busy { background: rgba(255,255,255,0.22); }
 
         /* ---- "New Form" button, shared by the toolbar and the modal ---- */
         .faa-newform-btn { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
@@ -10459,8 +10476,10 @@
                     <button class="btn monthly-view-btn" onclick="faaNewFormRequest()" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">&#128196; New Form</button>
                     <button class="btn monthly-view-btn" onclick="faaExportExcel()" style="background: linear-gradient(135deg, #27ae60, #219a52);">&#128229; Export Excel</button>
                     <button class="btn monthly-view-btn" onclick="faaPrint()" style="background: linear-gradient(135deg, #2980b9, #3498db);">&#128424;&#65039; Print / PDF</button>
+                    <button class="btn monthly-view-btn" onclick="faaSaveToDrive()" style="background: linear-gradient(135deg, #16a085, #1abc9c);">&#9729;&#65039; Save PDF to Drive</button>
                     <button class="btn monthly-view-btn" onclick="faaClear()" style="background: linear-gradient(135deg, #e67e22, #d35400);">&#128260; Clear</button>
                 </div>
+                <div class="faa-drive-status" id="faaDriveStatus" style="display: none;"></div>
             </div>
         </div>
 
@@ -10504,11 +10523,23 @@
                         <button class="faa-lib-btn open" onclick="faaLibOpenSelected()">&#9998; Open in Editor</button>
                         <button class="faa-lib-btn print" onclick="faaLibPrintSelected()">&#128424;&#65039; Print / PDF</button>
                         <button class="faa-lib-btn excel" onclick="faaLibExcelSelected()">&#128229; Excel</button>
+                        <button class="faa-lib-btn drive" onclick="faaLibSaveSelectedToDrive()">&#9729;&#65039; Save PDF to Drive</button>
                         <button class="faa-lib-btn close" onclick="faaLibCloseViewer()">&times; Close</button>
                     </div>
                 </div>
-                <div class="faa-preview-wrap">
+
+                <!-- Look at the live document, or the PDF actually saved in Drive -->
+                <div class="faa-lib-modes" id="faaLibModes">
+                    <button class="faa-lib-mode active" id="faaLibModeDoc" onclick="faaLibSetMode('doc')">Live document</button>
+                    <button class="faa-lib-mode" id="faaLibModePdf" onclick="faaLibSetMode('pdf')">Saved PDF</button>
+                    <span class="faa-lib-drive-note" id="faaLibDriveNote"></span>
+                </div>
+
+                <div class="faa-preview-wrap" id="faaLibDocWrap">
                     <div class="faa-doc" id="faaLibDoc"><!-- rendered by faaLibSelect() --></div>
+                </div>
+                <div class="faa-lib-pdfwrap" id="faaLibPdfWrap" style="display: none;">
+                    <iframe id="faaLibPdfFrame" title="Saved PDF" referrerpolicy="no-referrer"></iframe>
                 </div>
             </div>
         </div>
@@ -21410,6 +21441,9 @@
                     ? '<span class="faa-lib-tag on">GCT ' + faaRawGctRate(f) + '%</span>'
                     : '<span class="faa-lib-tag off">No GCT</span>';
                 const canDelete = faaForms.length > 1;
+                const pdf = (f.drive && f.drive.fileId)
+                    ? '<span class="faa-drive-pill saved" title="Saved ' + escapeHtml(faaFmtDateTime(f.drive.savedAt)) + '">PDF saved</span>'
+                    : '<span class="faa-drive-pill none">Not saved</span>';
                 return '' +
                 '<tr class="' + (isSel ? 'selected ' : '') + (isLive ? 'live' : '') + '" onclick="faaLibSelect(\'' + f.id + '\')">' +
                     '<td>' +
@@ -21423,10 +21457,14 @@
                     '<td class="faa-lib-money">$' + faaFmtMoney(t.subTotal) + '</td>' +
                     '<td class="faa-lib-money">$' + faaFmtMoney(t.tax) + '</td>' +
                     '<td class="faa-lib-money"><strong>$' + faaFmtMoney(t.total) + '</strong></td>' +
+                    '<td>' + pdf + '</td>' +
                     '<td>' + escapeHtml(faaFmtDateTime(f.createdAt)) + '</td>' +
                     '<td class="faa-lib-actions">' +
                         '<button class="faa-lib-btn open" title="Open this form in the editor" onclick="event.stopPropagation(); faaSwitchForm(\'' + f.id + '\'); faaShowView(\'editor\');">Open</button>' +
-                        '<button class="faa-lib-btn print" title="Print this form" onclick="event.stopPropagation(); faaPrintForm(\'' + f.id + '\')">Print</button>' +
+                        '<button class="faa-lib-btn drive" title="Save this form\'s PDF to Google Drive" onclick="event.stopPropagation(); faaSaveFormToDrive(\'' + f.id + '\')">Save PDF</button>' +
+                        (f.drive && f.drive.fileId
+                            ? '<button class="faa-lib-btn print" title="Open the saved PDF in Google Drive" onclick="event.stopPropagation(); faaOpenDrivePdf(\'' + f.id + '\')">View PDF</button>'
+                            : '') +
                         '<button class="faa-lib-btn excel" title="Export this form to Excel" onclick="event.stopPropagation(); faaExcelForm(\'' + f.id + '\')">Excel</button>' +
                         (canDelete ? '<button class="faa-lib-btn del" title="Delete this form" onclick="event.stopPropagation(); faaDeleteForm(\'' + f.id + '\')">Delete</button>' : '') +
                     '</td>' +
@@ -21437,7 +21475,7 @@
                 '<thead><tr>' +
                     '<th>Form</th><th>Date of Acquisition</th><th>Lines</th><th>GCT</th>' +
                     '<th class="faa-lib-money">Sub Total</th><th class="faa-lib-money">Tax</th><th class="faa-lib-money">Total</th>' +
-                    '<th>Created</th><th class="faa-lib-actions">Actions</th>' +
+                    '<th>Drive PDF</th><th>Created</th><th class="faa-lib-actions">Actions</th>' +
                 '</tr></thead><tbody>' + rows + '</tbody>';
 
             // Keep the open viewer in step with the data behind it.
@@ -21454,12 +21492,23 @@
 
         // Show a saved form exactly as it will print, without opening it for editing.
         function faaLibSelect(id) {
+            if (faaLibSelectedId !== id) faaLibMode = 'doc';
             faaLibSelectedId = (faaLibSelectedId === id) ? null : id;
             if (!faaLibSelectedId) { faaLibCloseViewer(); faaRenderLibrary(); return; }
             faaRenderLibrary();
             faaLibRenderViewer();
             const viewer = document.getElementById('faaLibViewer');
             if (viewer) viewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 'doc' = the form rendered live, 'pdf' = the PDF saved in Drive.
+        let faaLibMode = 'doc';
+
+        function faaLibSetMode(mode) {
+            const form = faaLibFind(faaLibSelectedId);
+            if (mode === 'pdf' && !(form && form.drive && form.drive.fileId)) return;
+            faaLibMode = (mode === 'pdf') ? 'pdf' : 'doc';
+            faaLibRenderViewer();
         }
 
         function faaLibRenderViewer() {
@@ -21470,13 +21519,50 @@
             if (!viewer || !doc || !form) return;
             viewer.style.display = '';
             if (title) title.textContent = faaFormTitle(form);
-            doc.innerHTML = faaDocHtml(form);
+
+            const hasPdf = !!(form.drive && form.drive.fileId);
+            if (!hasPdf) faaLibMode = 'doc';
+
+            const btnDoc = document.getElementById('faaLibModeDoc');
+            const btnPdf = document.getElementById('faaLibModePdf');
+            if (btnDoc) btnDoc.classList.toggle('active', faaLibMode === 'doc');
+            if (btnPdf) {
+                btnPdf.classList.toggle('active', faaLibMode === 'pdf');
+                btnPdf.disabled = !hasPdf;
+                btnPdf.title = hasPdf ? 'Show the PDF saved in Google Drive' : 'No PDF saved to Drive for this form yet';
+            }
+            const note = document.getElementById('faaLibDriveNote');
+            if (note) {
+                note.innerHTML = hasPdf
+                    ? 'Saved to Drive &rarr; ' + escapeHtml(FAA_DRIVE_FOLDER_NAME) + ' / ' + escapeHtml(form.drive.fileName || '') +
+                      ' &bull; ' + escapeHtml(faaFmtDateTime(form.drive.savedAt)) +
+                      ' &bull; <a href="' + escapeHtml(form.drive.webViewLink) + '" target="_blank" rel="noopener">Open in Drive</a>'
+                    : 'No PDF saved to Drive for this form yet.';
+            }
+
+            const docWrap = document.getElementById('faaLibDocWrap');
+            const pdfWrap = document.getElementById('faaLibPdfWrap');
+            const frame = document.getElementById('faaLibPdfFrame');
+            if (faaLibMode === 'pdf' && hasPdf) {
+                if (docWrap) docWrap.style.display = 'none';
+                if (pdfWrap) pdfWrap.style.display = '';
+                const src = 'https://drive.google.com/file/d/' + form.drive.fileId + '/preview';
+                if (frame && frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+            } else {
+                if (pdfWrap) pdfWrap.style.display = 'none';
+                if (docWrap) docWrap.style.display = '';
+                if (frame) frame.removeAttribute('src');
+                doc.innerHTML = faaDocHtml(form);
+            }
         }
 
         function faaLibCloseViewer() {
             faaLibSelectedId = null;
+            faaLibMode = 'doc';
             const viewer = document.getElementById('faaLibViewer');
             if (viewer) viewer.style.display = 'none';
+            const frame = document.getElementById('faaLibPdfFrame');
+            if (frame) frame.removeAttribute('src');
         }
 
         function faaPrintForm(id) {
@@ -21497,6 +21583,7 @@
 
         function faaLibPrintSelected() { if (faaLibSelectedId) faaPrintForm(faaLibSelectedId); }
         function faaLibExcelSelected() { if (faaLibSelectedId) faaExcelForm(faaLibSelectedId); }
+        function faaLibSaveSelectedToDrive() { if (faaLibSelectedId) faaSaveFormToDrive(faaLibSelectedId); }
 
         function faaSwitchForm(id) {
             const target = faaForms.find(function(f) { return f.id === id; });
@@ -21863,6 +21950,280 @@
                 docHtml + '</div></div>' +
                 '<script>window.onload=function(){window.print();};<\/script></body></html>');
             w.document.close();
+        }
+
+        // ---- Save the form to Google Drive as a PDF -------------------------
+        // The PDF lands in a Drive folder of its own, "Asset Addition Form",
+        // created on first save. Each form keeps the id of its own PDF, so
+        // saving again replaces that file rather than piling up copies, and the
+        // Saved Forms page can show the PDF back to the user.
+        const FAA_DRIVE_FOLDER_NAME = 'Asset Addition Form';
+        const FAA_DRIVE_FOLDER_KEY = 'fixedAssetAdditionDriveFolderId_v1';
+        const FAA_PDF_LIBS = [
+            'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        ];
+
+        // Load a script once, on demand — the PDF libraries are only fetched
+        // the first time somebody actually saves to Drive.
+        function faaLoadScript(src) {
+            return new Promise(function(resolve, reject) {
+                const existing = document.querySelector('script[data-faa-lib="' + src + '"]');
+                if (existing) {
+                    if (existing.getAttribute('data-loaded') === '1') return resolve();
+                    existing.addEventListener('load', function() { resolve(); });
+                    existing.addEventListener('error', function() { reject(new Error('Failed to load ' + src)); });
+                    return;
+                }
+                const el = document.createElement('script');
+                el.src = src;
+                el.async = true;
+                el.setAttribute('data-faa-lib', src);
+                el.onload = function() { el.setAttribute('data-loaded', '1'); resolve(); };
+                el.onerror = function() { reject(new Error('Failed to load ' + src)); };
+                document.head.appendChild(el);
+            });
+        }
+
+        async function faaEnsurePdfLibs() {
+            if (!window.html2canvas) await faaLoadScript(FAA_PDF_LIBS[0]);
+            if (!(window.jspdf && window.jspdf.jsPDF)) await faaLoadScript(FAA_PDF_LIBS[1]);
+            if (!window.html2canvas || !(window.jspdf && window.jspdf.jsPDF)) {
+                throw new Error('The PDF libraries could not be loaded. Check your internet connection and try again.');
+            }
+        }
+
+        // Render a form to a PDF blob, Letter landscape with 0.5in margins —
+        // the same page the Print button produces.
+        async function faaMakePdfBlob(form) {
+            await faaEnsurePdfLibs();
+            const d = form || faaData;
+
+            // html2canvas needs the node in the document, so stage it offscreen.
+            const stage = document.createElement('div');
+            stage.style.cssText = 'position:fixed;left:-20000px;top:0;background:#fff;padding:0;margin:0;';
+            const docEl = document.createElement('div');
+            docEl.className = 'faa-doc';
+            docEl.style.cssText = 'width:10in;max-width:none;box-shadow:none;padding:0;margin:0;background:#fff;';
+            docEl.innerHTML = faaDocHtml(d);
+            stage.appendChild(docEl);
+            document.body.appendChild(stage);
+
+            let canvas;
+            try {
+                canvas = await window.html2canvas(docEl, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+            } finally {
+                document.body.removeChild(stage);
+            }
+
+            const jsPDF = window.jspdf.jsPDF;
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+            const margin = 0.5;
+            const pageW = 11, pageH = 8.5;
+            const imgW = pageW - margin * 2;              // 10in of printable width
+            const imgH = imgW * (canvas.height / canvas.width);
+            const maxH = pageH - margin * 2;              // 7.5in of printable height
+
+            if (imgH <= maxH) {
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgW, imgH);
+            } else {
+                // Taller than one sheet: slice the canvas into page-height bands.
+                const bandPx = Math.floor(canvas.width * (maxH / imgW));
+                let y = 0, first = true;
+                while (y < canvas.height) {
+                    const h = Math.min(bandPx, canvas.height - y);
+                    const band = document.createElement('canvas');
+                    band.width = canvas.width;
+                    band.height = h;
+                    const ctx = band.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, band.width, band.height);
+                    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+                    if (!first) pdf.addPage();
+                    pdf.addImage(band.toDataURL('image/png'), 'PNG', margin, margin, imgW, imgW * (h / canvas.width));
+                    first = false;
+                    y += h;
+                }
+            }
+            return pdf.output('blob');
+        }
+
+        // A file name Drive (and Windows) will accept.
+        function faaPdfFileName(form) {
+            const base = faaFormTitle(form).replace(/[\\/:*?"<>|]/g, '-').trim().slice(0, 80) || 'Asset Addition Form';
+            return base + '.pdf';
+        }
+
+        async function faaDriveFetch(url, options) {
+            const res = await fetch(url, Object.assign({}, options, {
+                headers: Object.assign({ 'Authorization': 'Bearer ' + googleAccessToken }, (options || {}).headers || {})
+            }));
+            if (res.status === 401) {
+                throw new Error('Your Google Drive session has expired. Please reconnect to Google Drive and try again.');
+            }
+            return res;
+        }
+
+        // Find the "Asset Addition Form" folder, creating it the first time.
+        // The app's Drive scope is drive.file, so it only ever sees folders and
+        // files this app created — it cannot read the rest of the user's Drive.
+        async function faaDriveFolder() {
+            let cached = null;
+            try { cached = localStorage.getItem(FAA_DRIVE_FOLDER_KEY); } catch (e) { /* ignore */ }
+            if (cached) {
+                // Make sure it still exists and is not in the bin.
+                try {
+                    const check = await faaDriveFetch(
+                        'https://www.googleapis.com/drive/v3/files/' + cached + '?fields=id,trashed');
+                    if (check.ok) {
+                        const info = await check.json();
+                        if (info && info.id && !info.trashed) return info.id;
+                    }
+                } catch (e) { if (/session has expired/.test(e.message)) throw e; }
+            }
+
+            const q = "name='" + FAA_DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+            const listRes = await faaDriveFetch(
+                'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=10');
+            if (listRes.ok) {
+                const data = await listRes.json();
+                if (data.files && data.files.length) {
+                    try { localStorage.setItem(FAA_DRIVE_FOLDER_KEY, data.files[0].id); } catch (e) { /* ignore */ }
+                    return data.files[0].id;
+                }
+            }
+
+            const createRes = await faaDriveFetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: FAA_DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+            });
+            if (!createRes.ok) {
+                throw new Error('Could not create the "' + FAA_DRIVE_FOLDER_NAME + '" folder in Google Drive (' + createRes.status + ').');
+            }
+            const folder = await createRes.json();
+            try { localStorage.setItem(FAA_DRIVE_FOLDER_KEY, folder.id); } catch (e) { /* ignore */ }
+            return folder.id;
+        }
+
+        let faaDriveStatusTimer = null;
+        function faaDriveStatus(message, kind) {
+            const el = document.getElementById('faaDriveStatus');
+            if (!el) { if (kind === 'error') alert(message); return; }
+            el.textContent = message || '';
+            el.className = 'faa-drive-status' + (kind ? ' ' + kind : '');
+            el.style.display = message ? '' : 'none';
+            // A success note clears itself; anything still wrong stays put.
+            if (faaDriveStatusTimer) { clearTimeout(faaDriveStatusTimer); faaDriveStatusTimer = null; }
+            if (kind === 'ok') {
+                faaDriveStatusTimer = setTimeout(function() { faaDriveStatus(''); }, 8000);
+            }
+        }
+
+        let faaDriveBusy = false;
+
+        // Save a form's PDF into the Drive folder. Re-saving a form replaces its
+        // own PDF instead of adding another copy.
+        async function faaSaveToDrive(form) {
+            const d = form || faaData;
+            if (faaDriveBusy) return;
+
+            if (!googleAccessToken) {
+                if (confirm('Saving a PDF to Google Drive needs a Drive connection.\n\nConnect to Google Drive now?')) {
+                    if (typeof connectToGoogleDrive === 'function') connectToGoogleDrive();
+                }
+                return;
+            }
+
+            faaDriveBusy = true;
+            faaDriveStatus('Building the PDF…', 'busy');
+            try {
+                const blob = await faaMakePdfBlob(d);
+
+                faaDriveStatus('Opening the “' + FAA_DRIVE_FOLDER_NAME + '” folder…', 'busy');
+                const folderId = await faaDriveFolder();
+
+                const fileName = faaPdfFileName(d);
+                const existingId = d.drive && d.drive.fileId ? d.drive.fileId : null;
+                faaDriveStatus(existingId ? 'Updating the saved PDF…' : 'Uploading the PDF…', 'busy');
+
+                let res = null;
+                if (existingId) {
+                    // Check the previous PDF is still there and still live. If it
+                    // was deleted or binned (which happens to every PDF inside the
+                    // folder if the folder itself is binned) a fresh one is
+                    // uploaded instead, so a "save" can never land in the bin.
+                    let prev = null;
+                    try {
+                        const look = await faaDriveFetch(
+                            'https://www.googleapis.com/drive/v3/files/' + existingId + '?fields=id,trashed,parents');
+                        if (look.ok) prev = await look.json();
+                    } catch (e) { if (/session has expired/.test(e.message)) throw e; }
+
+                    if (prev && prev.id && !prev.trashed) {
+                        // If the file has drifted out of the folder (or the folder
+                        // was recreated), move it back while replacing its contents.
+                        const parents = prev.parents || [];
+                        let move = '';
+                        if (parents.indexOf(folderId) === -1) {
+                            move = '&addParents=' + encodeURIComponent(folderId);
+                            if (parents.length) move += '&removeParents=' + encodeURIComponent(parents.join(','));
+                        }
+                        const meta = new FormData();
+                        meta.append('metadata', new Blob([JSON.stringify({ name: fileName })], { type: 'application/json' }));
+                        meta.append('file', blob, fileName);
+                        res = await faaDriveFetch(
+                            'https://www.googleapis.com/upload/drive/v3/files/' + existingId +
+                            '?uploadType=multipart&fields=id,name,webViewLink,modifiedTime' + move,
+                            { method: 'PATCH', body: meta });
+                        if (res.status === 404) res = null;
+                    }
+                    if (!res) d.drive = null;
+                }
+                if (!res) {
+                    const meta = new FormData();
+                    meta.append('metadata', new Blob([JSON.stringify({ name: fileName, parents: [folderId], mimeType: 'application/pdf' })], { type: 'application/json' }));
+                    meta.append('file', blob, fileName);
+                    res = await faaDriveFetch(
+                        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,modifiedTime',
+                        { method: 'POST', body: meta });
+                }
+
+                if (!res.ok) throw new Error('Google Drive rejected the upload (' + res.status + ').');
+                const result = await res.json();
+
+                d.drive = {
+                    fileId: result.id,
+                    fileName: result.name || fileName,
+                    webViewLink: result.webViewLink || ('https://drive.google.com/file/d/' + result.id + '/view'),
+                    folderId: folderId,
+                    savedAt: new Date().toISOString()
+                };
+                if (d === faaData) faaSave(); else { d.updatedAt = new Date().toISOString(); faaSaveAll(); }
+
+                faaDriveStatus('Saved to Google Drive → ' + FAA_DRIVE_FOLDER_NAME + ' / ' + d.drive.fileName, 'ok');
+                faaRenderFormsList();
+                if (faaView === 'library') faaRenderLibrary();
+            } catch (err) {
+                faaDriveStatus(err && err.message ? err.message : 'Saving to Google Drive failed.', 'error');
+            } finally {
+                faaDriveBusy = false;
+            }
+        }
+
+        function faaSaveFormToDrive(id) {
+            const form = faaLibFind(id);
+            if (form) faaSaveToDrive(form);
+        }
+
+        // Open a form's saved PDF in Drive, in a new tab.
+        function faaOpenDrivePdf(id) {
+            const form = faaLibFind(id) || faaData;
+            if (form && form.drive && form.drive.webViewLink) {
+                window.open(form.drive.webViewLink, '_blank', 'noopener');
+            } else {
+                alert('This form has no PDF saved to Google Drive yet. Use “Save PDF to Drive” first.');
+            }
         }
 
         // ---- Cloud backup (backup only — never merged into the register) ----
