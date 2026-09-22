@@ -10270,7 +10270,13 @@
         .faa-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
         .faa-item-grid label { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 3px; }
         .faa-item-full { grid-column: 1 / -1; }
-        .faa-item-remove { position: absolute; top: 8px; right: 8px; background: #e74c3c; color: #fff; border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+        .faa-item-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+        .faa-item-remove, .faa-item-dup { border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.85rem; line-height: 1; color: #fff; padding: 0; }
+        .faa-item-remove { background: #e74c3c; }
+        .faa-item-dup { background: #8e44ad; }
+        .faa-item-remove:hover, .faa-item-dup:hover { filter: brightness(1.1); }
+        .faa-dup-btn { width: 100%; padding: 9px; margin-top: 8px; border: 1px dashed var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+        .faa-dup-btn:hover { border-color: #8e44ad; color: #8e44ad; }
         .faa-item-calc { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 0.74rem; color: var(--text-secondary); }
         .faa-item-calc strong { color: var(--text-primary); font-size: 0.8rem; }
         .faa-add-row-btn { width: 100%; padding: 10px; border: 2px dashed var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; font-size: 0.85rem; }
@@ -10614,6 +10620,7 @@
                 <h3 style="margin-top: 22px;">&#128230; Assets Added</h3>
                 <div class="faa-items-editor" id="faaItemsEditor"></div>
                 <button class="faa-add-row-btn" onclick="faaAddRow()">&#10133; Add Asset Line</button>
+                <button class="faa-dup-btn" onclick="faaDuplicateLastRow()" title="Copy the last filled-in line as many times as you need">&#10697; Duplicate last line &times; N</button>
 
                 <div class="faa-totals" id="faaTotals"><!-- rendered by faaRenderTotals() --></div>
             </div>
@@ -21449,6 +21456,49 @@
             faaRenderFormsList();
         }
 
+        // Copy a line for another item of the same description. The serial and
+        // asset code identify one physical asset, so they start blank on the copy
+        // rather than being duplicated onto a second one; everything else carries
+        // over. Ask for more than one and that many copies are inserted.
+        function faaDuplicateRow(i, count) {
+            const src = faaData.items[i];
+            if (!src) return;
+            let n = parseInt(count, 10);
+            if (!(n > 0)) n = 1;
+            n = Math.min(n, 50);
+            const copies = [];
+            for (let c = 0; c < n; c++) {
+                copies.push(Object.assign(faaBlankItem(), src, { serial: '', code: '' }));
+            }
+            faaData.items.splice.apply(faaData.items, [i + 1, 0].concat(copies));
+            faaSave();
+            faaRenderEditor();
+            faaRenderTotals();
+            faaRenderPreview();
+            faaRenderFormsList();
+            // Put the cursor in the new line's asset code, which is what needs typing.
+            setTimeout(function() {
+                const next = document.querySelector('#faaItemsEditor [data-i="' + (i + 1) + '"][data-field="code"]');
+                if (next) { next.focus(); next.scrollIntoView({ block: 'center' }); }
+            }, 0);
+        }
+
+        // Duplicate the last line that has anything on it, asking how many copies.
+        function faaDuplicateLastRow() {
+            let idx = -1;
+            (faaData.items || []).forEach(function(it, i) { if (faaItemHasContent(it)) idx = i; });
+            if (idx === -1) {
+                alert('Fill in a line first, then it can be duplicated.');
+                return;
+            }
+            const answer = prompt('How many more of “' +
+                ((faaData.items[idx].description || '').trim() || 'this line') + '”?', '1');
+            if (answer === null) return;
+            const n = parseInt(answer, 10);
+            if (!(n > 0)) return;
+            faaDuplicateRow(idx, n);
+        }
+
         function faaRemoveRow(i) {
             faaData.items.splice(i, 1);
             if (faaData.items.length === 0) faaData.items.push(faaBlankItem());
@@ -21825,7 +21875,10 @@
                 return '' +
                 '<div class="faa-item-card">' +
                     '<span class="faa-item-num">Line ' + (i + 1) + '</span>' +
-                    '<button class="faa-item-remove" title="Remove line" onclick="faaRemoveRow(' + i + ')">&times;</button>' +
+                    '<div class="faa-item-actions">' +
+                        '<button class="faa-item-dup" title="Duplicate this line — same description, location, quantity and price; serial and asset code left blank" onclick="faaDuplicateRow(' + i + ')">&#10697;</button>' +
+                        '<button class="faa-item-remove" title="Remove line" onclick="faaRemoveRow(' + i + ')">&times;</button>' +
+                    '</div>' +
                     '<div class="faa-item-grid">' +
                         '<div class="faa-item-full"><label>Asset Description</label>' +
                             '<textarea rows="2" data-i="' + i + '" data-field="description" oninput="faaItemInput(this)" placeholder="e.g. Panasonic Microwave">' + escapeHtml(item.description || '') + '</textarea></div>' +
