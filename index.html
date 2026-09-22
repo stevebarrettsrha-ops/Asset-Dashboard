@@ -10278,38 +10278,76 @@
         .faa-standalone-note { background: rgba(142, 68, 173, 0.10); border: 1px solid rgba(142, 68, 173, 0.35); border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
         .faa-standalone-note strong { color: #8e44ad; }
 
-        /* Live document preview (mirrors the printed Fixed Asset Addition Form) */
+        /* ----------------------------------------------------------------
+           Live document preview. Every measurement below is taken from the
+           source Word form (word/document.xml, header1.xml, styles.xml), so
+           what is on screen is what comes out of the printer:
+
+             page        Letter landscape, 11in x 8.5in, 1in margins
+             table       14709 twips = 10.2in wide, floated centre, so it
+                         overhangs to a 0.4in gutter each side
+             body text   Calibri 11pt black (docDefaults sz 22)
+             title       Calibri 12pt bold / 12pt bold italic, centred
+             grid        0.5pt black on every cell (TableGrid, sz 4)
+             headings    NOT bold in the source - plain, centred
+             columns     2454/1381/2900/2487/1104/1380/1243/1760 twips
+             rows        heading 841 twips, totals 454 twips
+           ---------------------------------------------------------------- */
         .faa-preview-wrap { overflow-x: auto; background: #e9ecef; border-radius: 12px; padding: 24px; }
         @media (max-width: 1100px) { .faa-preview-wrap { padding: 12px; } }
         .faa-doc {
-            width: 1000px; min-height: 700px; margin: 0 auto; background: #ffffff; color: #000;
-            padding: 34px 38px; box-shadow: 0 4px 18px rgba(0,0,0,0.18); font-family: "Calibri", "Segoe UI", Arial, sans-serif;
-            box-sizing: border-box;
+            width: 10.2in; margin: 0 auto; background: #ffffff; color: #000;
+            padding: 0.1in 0 0.45in; box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+            font-family: "Calibri", "Carlito", "Segoe UI", Arial, sans-serif;
+            font-size: 11pt; line-height: 1.15; box-sizing: border-box;
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
-        .faa-doc-head { text-align: center; margin-bottom: 18px; }
-        .faa-org { font-size: 18px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-        .faa-doc-title { font-size: 15px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
-        .faa-table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
+        /* The title is a Word page header: centred on the page and repeated on
+           every sheet, which a thead row reproduces when printing. */
+        .faa-doc-head { text-align: center; padding: 0.06in 0 0.2in; }
+        .faa-org { font-size: 12pt; font-weight: 700; }
+        .faa-doc-title { font-size: 12pt; font-weight: 700; font-style: italic; margin-top: 0.07in; }
+        .faa-table { width: 10.2in; border-collapse: collapse; table-layout: fixed; }
         /* Reset the app-wide th/td rules (uppercase, white text, nowrap, nth-child
            min-widths) so this form matches the printed Word document. */
         .faa-table th, .faa-table td {
-            border: 1px solid #000 !important; font-size: 11px !important; padding: 5px 6px !important;
+            border: 0.5pt solid #000 !important; font-size: 11pt !important; padding: 0.03in 0.06in !important;
             vertical-align: top !important; word-wrap: break-word; overflow-wrap: break-word; white-space: pre-line !important;
             color: #000 !important; text-transform: none !important; letter-spacing: 0 !important; min-width: 0 !important;
-            background: #fff !important; font-weight: 400; line-height: 1.35;
+            background: #fff !important; font-weight: 400 !important; font-style: normal; line-height: 1.15;
+            text-align: left;
         }
-        .faa-table th { font-weight: 700 !important; text-align: center !important; vertical-align: middle !important; white-space: normal !important; }
-        .faa-table td.faa-c { text-align: center; }
-        .faa-table td.faa-r { text-align: right; }
-        .faa-table tbody tr { height: 30px; }
-        .faa-table col.c-desc { width: 16.7%; } .faa-table col.c-serial { width: 9.4%; } .faa-table col.c-code { width: 19.7%; }
-        .faa-table col.c-loc { width: 16.9%; } .faa-table col.c-qty { width: 7.5%; } .faa-table col.c-price { width: 9.4%; }
-        .faa-table col.c-gct { width: 8.4%; } .faa-table col.c-ext { width: 12.0%; }
-        .faa-table tfoot td { font-weight: 700 !important; font-style: italic; text-align: center !important; }
-        .faa-table tfoot td.faa-blank { border: none !important; }
-        .faa-signoff { margin-top: 28px; font-size: 12px; line-height: 2.2; }
-        .faa-signoff .faa-val { border-bottom: 1px dotted #333; display: inline-block; min-width: 230px; padding: 0 6px; }
+        /* Column headings are plain (not bold) and centred, as in the source.
+           They wrap between words but are never broken mid-word, so a heading
+           can never come out as "Serial/Mode" + "l". */
+        .faa-table th {
+            text-align: center !important; white-space: normal !important;
+            word-wrap: normal !important; overflow-wrap: normal !important; word-break: normal !important; hyphens: none;
+        }
+        .faa-table tr.faa-head-row th { height: 0.584in; }
+        /* The title row spans the table and carries no grid lines. */
+        .faa-table td.faa-title-cell { border: none !important; padding: 0 !important; }
+        .faa-table td.faa-c, .faa-table th.faa-c { text-align: center !important; }
+        .faa-table tbody tr { height: 0.28in; }
+        .faa-table col.c-desc { width: 1.704in; } .faa-table col.c-serial { width: 0.959in; }
+        .faa-table col.c-code { width: 2.014in; } .faa-table col.c-loc { width: 1.727in; }
+        .faa-table col.c-qty { width: 0.767in; } .faa-table col.c-price { width: 0.958in; }
+        .faa-table col.c-gct { width: 0.863in; } .faa-table col.c-ext { width: 1.222in; }
+        /* Totals row: bold italic, centred. The five empty cells keep their
+           grid lines, exactly as the Word table style draws them. */
+        .faa-table tfoot tr { height: 0.315in; }
+        /* Totals are bold italic and must stay on one line - a wrapped
+           "$415,800.0 / 0" would be unreadable on a signed form - so they get
+           the full cell width and are never broken. */
+        .faa-table tfoot td {
+            font-weight: 700 !important; font-style: italic; text-align: center !important;
+            white-space: nowrap !important; padding: 0.03in 0.02in !important;
+            word-wrap: normal !important; overflow-wrap: normal !important;
+        }
+        /* The sign-off sits at the page's 1in margin, 0.6in inside the table edge. */
+        .faa-signoff { margin: 0.28in 0 0; padding: 0 0.6in; font-size: 11pt; }
+        .faa-signoff .faa-sign-gap { height: 0.22in; }
+        .faa-signoff .faa-sign-line { line-height: 1.5; }
         .faa-empty-note { text-align: center; color: var(--text-muted); font-style: italic; }
 
         /* ---- Saved forms strip (multiple addition forms) ---- */
@@ -21348,40 +21386,48 @@
                         '<td class="faa-c">' + escapeHtml(it.code || '') + '</td>' +
                         '<td>' + escapeHtml(it.location || '') + '</td>' +
                         '<td class="faa-c">' + (filled ? escapeHtml(it.quantity || '') : '') + '</td>' +
-                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.price) : '') + '</td>' +
-                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.gct) : '') + '</td>' +
-                        '<td class="faa-r">' + (filled ? faaFmtMoney(f.extended) : '') + '</td>' +
+                        '<td class="faa-c">' + (filled ? faaFmtMoney(f.price) : '') + '</td>' +
+                        '<td class="faa-c">' + (filled ? faaFmtMoney(f.gct) : '') + '</td>' +
+                        '<td class="faa-c">' + (filled ? faaFmtMoney(f.extended) : '') + '</td>' +
                     '</tr>';
             }
 
             const t = faaFormTotals(d);
 
+            // The title block is the first thead row so that, like the Word
+            // page header, it reprints at the top of every sheet. The column
+            // headings follow it and repeat too.
             doc.innerHTML = '' +
-                '<div class="faa-doc-head">' +
-                    '<div class="faa-org">' + escapeHtml(d.orgName || '') + '</div>' +
-                    '<div class="faa-doc-title">' + escapeHtml(d.formTitle || '') + '</div>' +
-                '</div>' +
                 '<table class="faa-table">' +
                     '<colgroup>' +
                         '<col class="c-desc"><col class="c-serial"><col class="c-code"><col class="c-loc">' +
                         '<col class="c-qty"><col class="c-price"><col class="c-gct"><col class="c-ext">' +
                     '</colgroup>' +
-                    '<thead><tr>' +
-                        '<th>Asset Description</th><th>Serial/Model #</th><th>Asset Code</th><th>Asset Location</th>' +
-                        '<th>Quantity</th><th>Price<br>(Excl. GCT)<br>$</th><th>GCT<br>$</th><th>Extended Price<br>$</th>' +
-                    '</tr></thead>' +
+                    '<thead>' +
+                        '<tr><td class="faa-title-cell" colspan="8">' +
+                            '<div class="faa-doc-head">' +
+                                '<div class="faa-org">' + escapeHtml(d.orgName || '') + '</div>' +
+                                '<div class="faa-doc-title">' + escapeHtml(d.formTitle || '') + '</div>' +
+                            '</div>' +
+                        '</td></tr>' +
+                        '<tr class="faa-head-row">' +
+                            '<th>Asset Description</th><th>Serial/Model<br>#</th><th>Asset Code</th><th>Asset Location</th>' +
+                            '<th>Quantity</th><th>Price<br>(Excl. GCT)<br>$</th><th>GCT<br><br>$</th><th>Extended Price<br><br>$</th>' +
+                        '</tr>' +
+                    '</thead>' +
                     '<tbody>' + bodyRows + '</tbody>' +
                     '<tfoot><tr>' +
-                        '<td class="faa-blank" colspan="5"></td>' +
+                        '<td></td><td></td><td></td><td></td><td></td>' +
                         '<td>Sub Total<br>$' + faaFmtMoney(t.subTotal) + '</td>' +
                         '<td>Tax<br>$' + faaFmtMoney(t.tax) + '</td>' +
                         '<td>Total<br>$' + faaFmtMoney(t.total) + '</td>' +
                     '</tr></tfoot>' +
                 '</table>' +
                 '<div class="faa-signoff">' +
-                    '<div>Date of Acquisition: <span class="faa-val">' + escapeHtml(faaFmtLongDate(d.acquisitionDate)) + '</span></div>' +
-                    '<div style="margin-top:14px;">Prepared by: <span class="faa-val">' + escapeHtml(d.preparedBy || '') + '</span></div>' +
-                    '<div>Verified by: <span class="faa-val">' + escapeHtml(d.verifiedBy || '') + '</span></div>' +
+                    '<div>Date of Acquisition:&nbsp; ' + escapeHtml(faaFmtLongDate(d.acquisitionDate)) + '</div>' +
+                    '<div class="faa-sign-gap"></div>' +
+                    '<div class="faa-sign-line">Prepared by: ' + escapeHtml(d.preparedBy || '') + '</div>' +
+                    '<div class="faa-sign-line">Verified by: ' + escapeHtml(d.verifiedBy || '') + '</div>' +
                 '</div>';
         }
 
@@ -21486,6 +21532,10 @@
 
         // ---- Print / PDF ---------------------------------------------------
 
+        // Print / PDF. The sheet below reproduces the Word form's page setup:
+        // Letter landscape, the 10.2in table centred with the 0.4in gutter it
+        // overhangs to, and the title + column headings repeated on every sheet
+        // (the source repeats its page header the same way).
         function faaPrint() {
             const docEl = document.getElementById('faaDoc');
             if (!docEl) return;
@@ -21493,11 +21543,18 @@
                 .map(function(s) { return s.innerHTML; }).join('\n');
             const w = window.open('', '_blank', 'width=1200,height=900');
             if (!w) { alert('Please allow pop-ups to print the document.'); return; }
-            w.document.write('<!DOCTYPE html><html><head><title>Fixed Asset Addition Form</title>' +
+            // The browser offers document.title as the PDF file name.
+            const name = 'Fixed Asset Addition Form - ' + faaFormTitle(faaData);
+            w.document.write('<!DOCTYPE html><html><head><title>' + escapeHtml(name) + '</title>' +
                 '<style>' + styleEls +
-                ' body{background:#fff;margin:0;} .faa-preview-wrap{background:#fff;padding:0;} ' +
-                ' .faa-doc{box-shadow:none;margin:0 auto;width:100%;min-height:0;padding:0;} ' +
-                ' @page{size:letter landscape;margin:0.4in;} ' +
+                ' html,body{background:#fff;margin:0;padding:0;} ' +
+                ' .faa-preview-wrap{background:#fff;padding:0;overflow:visible;} ' +
+                ' .faa-doc{box-shadow:none;margin:0 auto;padding:0;width:10.2in;} ' +
+                // Repeat the title block and the column headings on every sheet,
+                // and never split a line across two pages.
+                ' thead{display:table-header-group;} tfoot{display:table-row-group;} ' +
+                ' tr{page-break-inside:avoid;break-inside:avoid;} ' +
+                ' @page{size:letter landscape;margin:0.5in 0.4in;} ' +
                 '</style></head><body><div class="faa-preview-wrap"><div class="faa-doc">' +
                 docEl.innerHTML + '</div></div>' +
                 '<script>window.onload=function(){window.print();};<\/script></body></html>');
