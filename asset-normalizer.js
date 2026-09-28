@@ -197,6 +197,138 @@ window.mphCodeKey = function (code) {
     return [(p.dept || ''), item, seq, (p.year || '')].join('|');
 };
 
+/* ---- Code families: one department's number, however it was written ----
+   The registers spell the same code several ways: MPH/AC/133/01,
+   MPH/133/01/AC and MPH/ADM/AC/133/01 are all Accounts chair 133/01, and the
+   department's own token is ACC. mphCodeKey keeps them apart on purpose — it
+   is the stored identity behind tombstones and record links, and changing it
+   would re-key data already on devices and in the cloud. The family is the
+   looser question "is this number already spent?", asked when a new code is
+   chosen:
+
+     • a known variant of a token maps to it (AC and ADM/AC are Accounts);
+     • ADM in front of, or behind, another department's token is the Admin
+       building prefix (ADM/HR is HR, DNS/ADM is DNS) when what is left is a
+       real department token — otherwise the token is left as it is;
+     • the year is dropped: numbers run on across years (162/02/2026 spends 02).
+
+   A family can be wider than the true identity (ADM/MS is the SMO & DNS
+   office's, not Male Surgical's), and that is the safe direction: at worst a
+   number is skipped; a number is never handed out twice. */
+var FAMILY_TOKEN_ALIASES = { AC: 'ACC', ADMAC: 'ACC', ADMACC: 'ACC' };
+var CANON_TOKENS = {};
+window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) { CANON_TOKENS[d.token] = true; });
+function _familyTokenOf(tok) {
+    if (!tok) return null;
+    tok = String(tok).replace(/[^A-Z&]/gi, '').toUpperCase();
+    if (!tok) return null;
+    if (FAMILY_TOKEN_ALIASES[tok]) return FAMILY_TOKEN_ALIASES[tok];
+    if (CANON_TOKENS[tok]) return tok;
+    var m = tok.match(/^ADM([A-Z&]{2,})$/) || tok.match(/^([A-Z&]{2,})ADM$/);
+    if (m) {
+        var rest = m[1];
+        var viaAlias = TOKEN_ALIASES[rest];
+        if (FAMILY_TOKEN_ALIASES[rest]) return FAMILY_TOKEN_ALIASES[rest];
+        if (CANON_TOKENS[rest]) return rest;
+        if (viaAlias && CANON_TOKENS[viaAlias]) return viaAlias;
+    }
+    return tok;
+}
+window.mphFamilyToken = _familyTokenOf;
+// {token, item, seq, nums} or null. nums: every number the code spends —
+// "02-1" (unit 1 of lot 02) spends 2; a range "41-44" spends 41..44;
+// "01-04-1" (unit 1 of the 01-04 range) spends 1..4.
+// Memoized like mphParseCode (read-only results): a lookup walks every code
+// in the register and on the sheets.
+var _familyCache = new Map();
+window.mphCodeFamily = function (code) {
+    if (code == null) return null;
+    var raw = String(code);
+    if (_familyCache.has(raw)) return _familyCache.get(raw);
+    var f = _mphCodeFamilyUncached(raw);
+    if (_familyCache.size > 50000) _familyCache.clear();
+    _familyCache.set(raw, f);
+    return f;
+};
+function _mphCodeFamilyUncached(code) {
+    // two codes run together in one cell ("MPH/210/01-05/ADM MPH/210/07/ADM")
+    // parse as one garbled number; they say nothing reliable about a series
+    if (/MPH[\s\S]*MPH/i.test(code)) return null;
+    var p = window.mphParseCode(code);
+    if (!p || !p.item) return null;
+    var parts = String(p.seq || '').split('-').map(function (s) { return parseInt(s, 10); })
+        .filter(function (n) { return !isNaN(n); });
+    // "01-04-1" is unit 1 of the 01-04 range: the range is what is spent
+    var nums = parts.slice(0, 1);
+    if (parts.length >= 2 && parts[1] > parts[0]) {
+        nums = [];
+        if (parts[1] - parts[0] <= 200) { for (var n = parts[0]; n <= parts[1]; n++) nums.push(n); }
+        else nums.push(parts[0], parts[1]);
+    }
+    return {
+        token: _familyTokenOf(p.dept),
+        item: String(p.item).replace(/^0+(?=.)/, ''),
+        seq: String(p.seq || '').split('-').map(function (s) { return s.replace(/[^0-9A-Z]/g, '').replace(/^0+(?=.)/, ''); }).join('-'),
+        nums: nums
+    };
+}
+// Same number however it is spelled (year ignored). null for token-less codes.
+window.mphCodeFamilyKey = function (code) {
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token) return null;
+    return [f.token, f.item, f.seq].join('|');
+};
+/* Is this code's number already on file — in the register (codes and
+   aliases), on any room sheet, or boarded — under any spelling?
+   opts.assetId / opts.itemId: the asset or row being edited, which does not
+   count against itself (nor do rows linked to that asset).
+   Returns { code, source: 'register'|'records'|'boarded', asset?, dept?, room? }
+   for the first holder found, or null. */
+window.mphFindCodeOnFile = function (code, assets, records, reservedCodes, opts) {
+    opts = opts || {};
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token || !f.nums.length) return null;
+    var want = {};
+    f.nums.forEach(function (n) { want[n] = true; });
+    function hits(c) {
+        if (!c) return false;
+        var g = window.mphCodeFamily(c);
+        if (!g || g.token !== f.token || g.item !== f.item) return false;
+        for (var i = 0; i < g.nums.length; i++) if (want[g.nums[i]]) return true;
+        return false;
+    }
+    var i, j;
+    for (i = 0; i < (assets || []).length; i++) {
+        var a = assets[i];
+        if (!a || (opts.assetId && a.id === opts.assetId)) continue;
+        var codes = [a.assetCode].concat(a.aliases || []);
+        for (j = 0; j < codes.length; j++) {
+            if (hits(codes[j])) return { code: codes[j], source: 'register', asset: a };
+        }
+    }
+    var depts = (records && records.departments) || [];
+    for (i = 0; i < depts.length; i++) {
+        var d = depts[i]; if (!d) continue;
+        var rooms = d.rooms || [];
+        for (j = 0; j < rooms.length; j++) {
+            var items = (rooms[j] && rooms[j].items) || [];
+            for (var k = 0; k < items.length; k++) {
+                var it = items[k];
+                if (!it || !it.assetCode) continue;
+                if (opts.itemId && it.id === opts.itemId) continue;
+                if (opts.assetId && it.regId === opts.assetId) continue;
+                if (hits(it.assetCode)) {
+                    return { code: it.assetCode, source: 'records', dept: d.name, room: rooms[j].title, item: it };
+                }
+            }
+        }
+    }
+    for (i = 0; i < (reservedCodes || []).length; i++) {
+        if (hits(reservedCodes[i])) return { code: reservedCodes[i], source: 'boarded' };
+    }
+    return null;
+};
+
 /* ---- department list shared source (Location Records is authoritative) ---- */
 window.mphGetLocationRecords = function () {
     try {
@@ -741,28 +873,308 @@ window.mphNextCodeGroupDesc = function (group) {
     }
     return '';
 };
+/* Everything on file in the series a (possibly half-typed) code belongs to —
+   for telling the user, as they type, whether the number is taken and what
+   the series around it looks like. One pass over the same sources as
+   mphComputeNextCodeSeries, matching every spelling of the family.
+     opts.deptName  the department chosen on the form: its token-less codes
+                    count when the department is of this family
+     opts.assetId   the asset being edited (it, and rows linked to it, do not
+                    count against the code)
+     opts.itemId    the room-sheet row being edited (does not count either)
+   Returns null when the code has no family token and item group; else
+   { token, group, desc, typedNums, holders[], members{num: entries[]},
+     count, max, next, nextCode } — an entry is
+   { code, source: 'register'|'records'|'boarded', asset?, dept?, room?, item? }. */
+window.mphDescribeCodeSeries = function (code, assets, records, reservedCodes, opts) {
+    opts = opts || {};
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token) return null;
+    var p0 = window.mphParseCode(code);
+    var want = {};
+    f.nums.forEach(function (n) { want[n] = true; });
+    var deptK = K(opts.deptName);
+    var deptFam = _familyTokenOf(window.mphDeptToken(opts.deptName));
+    var members = {}, holders = [], counted = {};
+    var max = 0, pad = 2;
+    function take(c, ownerDeptName, entry) {
+        var g = window.mphCodeFamily(c);
+        if (!g || g.item !== f.item) return false;
+        var match = g.token ? (g.token === f.token) : (deptFam === f.token && K(ownerDeptName) === deptK);
+        if (!match) return false;
+        var p = window.mphParseCode(c);
+        String(p.seq || '').split('-').forEach(function (sq) {
+            var n = parseInt(sq, 10);
+            if (!isNaN(n)) {
+                if (n > max) max = n;
+                if (/^\d+$/.test(sq)) pad = Math.max(pad, sq.length);
+            }
+        });
+        counted[[g.token || '', g.item, g.seq].join('|')] = true;
+        entry.code = c;
+        g.nums.forEach(function (n) { (members[n] || (members[n] = [])).push(entry); });
+        if (g.nums.some(function (n) { return want[n]; })) holders.push(entry);
+        return true;
+    }
+    (assets || []).forEach(function (a) {
+        if (!a || (opts.assetId && a.id === opts.assetId)) return;
+        [a.assetCode].concat(a.aliases || []).forEach(function (c) {
+            take(c, a.department, { source: 'register', asset: a });
+        });
+    });
+    ((records && records.departments) || []).forEach(function (d) {
+        if (!d) return;
+        (d.rooms || []).forEach(function (r) {
+            (r && r.items || []).forEach(function (it) {
+                if (!it || !it.assetCode) return;
+                if (opts.assetId && it.regId === opts.assetId) return;
+                if (opts.itemId && it.id === opts.itemId) return;
+                take(it.assetCode, d.name, { source: 'records', dept: d.name, room: r.title, item: it });
+            });
+        });
+    });
+    (reservedCodes || []).forEach(function (c) { take(c, opts.deptName, { source: 'boarded' }); });
+    var next = max + 1;
+    var group = String(p0.item);
+    return {
+        token: f.token,
+        group: group,
+        desc: window.mphNextCodeGroupDesc(group),
+        typedNums: f.nums,
+        holders: holders,
+        members: members,
+        count: Object.keys(counted).length,
+        max: max,
+        next: next,
+        nextCode: 'MPH/' + f.token + '/' + group + '/' + String(next).padStart(Math.min(pad, 3), '0')
+    };
+};
+
+/* ---- The live code-check panel, shared by the dashboard's Add/Edit Asset
+   form and the Location Records sheet so both say exactly the same thing ----
+   mphRenderCodeCheck(code, ctx) -> null (show nothing) or { cls, html }.
+     ctx.assets / records / boarded   the sources (as mphDescribeCodeSeries)
+     ctx.deptName     department chosen on the form / of the sheet
+     ctx.deptLabel    how to name it: "the asset's department"
+     ctx.assetId, ctx.itemId          what is being edited (not a holder)
+     ctx.ownCode      the code it has now, when editing
+     ctx.selfLabel    "asset" | "row"
+     ctx.seriesForDept(name)          that department's series (next codes)
+     ctx.useAction    global function name called with a suggested code */
+function _ccEsc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function _ccDeptForFamily(fam, preferred) {
+    if (!fam) return null;
+    var famOf = function (n) { return _familyTokenOf(window.mphDeptToken(n)); };
+    if (preferred && famOf(preferred) === fam) return preferred;
+    for (var i = 0; i < window.MPH_CANONICAL_DEPARTMENTS.length; i++) {
+        if (_familyTokenOf(window.MPH_CANONICAL_DEPARTMENTS[i].token) === fam) return window.MPH_CANONICAL_DEPARTMENTS[i].name;
+    }
+    return null;
+}
+function _ccEntry(e, typed) {
+    var esc = _ccEsc;
+    var spelled = (window.mphCodeKey(e.code) !== window.mphCodeKey(typed)) ? ' <span class="acc-sub">(written differently)</span>' : '';
+    if (e.source === 'register') {
+        var a = e.asset || {};
+        var where = [a.department, a.room].filter(Boolean).join(' / ');
+        return '<code>' + esc(e.code) + '</code>' + spelled + ' — ' + esc(a.description || a.itemType || 'asset') +
+            (where ? ' <span class="acc-sub">· ' + esc(where) + '</span>' : '') +
+            (e.code !== a.assetCode ? ' <span class="acc-sub">· an earlier code of <code>' + esc(a.assetCode) + '</code></span>' : '') +
+            (a.disposed === true ? ' <span class="acc-sub">· disposed</span>' : '');
+    }
+    if (e.source === 'records') {
+        var it = e.item || {};
+        return '<code>' + esc(e.code) + '</code>' + spelled + ' — ' + esc(it.description || it.item || 'item') +
+            ' <span class="acc-sub">· Location Record ' + esc([e.dept, e.room].filter(Boolean).join(' / ')) + '</span>';
+    }
+    return '<code>' + esc(e.code) + '</code>' + spelled + ' — written off by the Board of Survey';
+}
+// one line per physical thing: an asset under its code, an alias and its
+// room row is one holder, not three
+function _ccDedupe(list) {
+    var seen = {}, out = [];
+    list.forEach(function (e) {
+        var id = e.source === 'register' ? 'a:' + ((e.asset && e.asset.id) || e.code)
+            : e.source === 'records' ? ((e.item && e.item.regId) ? 'a:' + e.item.regId : 'r:' + ((e.item && e.item.id) || e.code))
+            : 'b:' + e.code;
+        if (seen[id]) return;
+        seen[id] = true; out.push(e);
+    });
+    return out;
+}
+window.mphRenderCodeCheck = function (code, ctx) {
+    ctx = ctx || {};
+    code = String(code == null ? '' : code).trim();
+    if (!code) return null;
+    var esc = _ccEsc;
+    var self = ctx.selfLabel || 'asset';
+    var useBtn = function (c) {
+        return ctx.useAction ? '<button type="button" class="acc-use" data-code="' + esc(c) + '" onclick="' +
+            esc(ctx.useAction) + '(this.dataset.code)">Use ' + esc(c) + '</button>' : '';
+    };
+    var s = window.mphDescribeCodeSeries(code, ctx.assets, ctx.records, ctx.boarded,
+        { deptName: ctx.deptName, assetId: ctx.assetId || null, itemId: ctx.itemId || null });
+
+    if (!s) {
+        // a department code with no item group yet: offer its series
+        var p = window.mphParseCode(code);
+        var fam = p && p.dept ? _familyTokenOf(p.dept) : null;
+        var dn = fam ? _ccDeptForFamily(fam, ctx.deptName) : null;
+        var series = (dn && ctx.seriesForDept) ? (ctx.seriesForDept(dn) || []).slice(0, 8) : [];
+        if (series.length) {
+            return { cls: 'is-info', html: '<div class="acc-head">' + esc(dn) + ' — ' + series.length + ' busiest series</div>' +
+                '<div class="acc-sub">Pick one to take its next free number, or keep typing the item group.</div>' +
+                '<ul>' + series.map(function (x) {
+                    return '<li>' + esc(x.group) + (x.desc ? ' — ' + esc(x.desc) : '') +
+                        ' <span class="acc-sub">· ' + x.count + ' on file, highest ' + x.max + '</span><br>' + useBtn(x.nextCode) + '</li>';
+                }).join('') + '</ul>' };
+        }
+        if (code.length >= 4) {
+            return { cls: '', html: '<span class="acc-sub">Not a recognised asset code yet — codes read MPH/DEPT/ITEM/NUMBER, e.g. MPH/ACC/133/01.</span>' };
+        }
+        return null;
+    }
+
+    var html = '', cls = 'is-info';
+    var holders = _ccDedupe(s.holders);
+    var typedN = s.typedNums.length ? s.typedNums[0] : null;
+    var ownCode = !!ctx.ownCode && String(ctx.ownCode).trim() === code;
+    if (holders.length) {
+        cls = 'is-taken';
+        var exact = holders.some(function (e) { return window.mphCodeKey(e.code) === window.mphCodeKey(code); });
+        html += '<div class="acc-head">⚠️ ' + (ownCode ? 'This ' + self + '\'s code is also on file elsewhere'
+            : exact ? esc(code) + ' already exists'
+            : 'This number is already on file under another spelling') + '</div>';
+        html += '<ul>' + holders.slice(0, 4).map(function (e) { return '<li>' + _ccEntry(e, code) + '</li>'; }).join('') + '</ul>';
+        if (holders.length > 4) html += '<div class="acc-sub">…and ' + (holders.length - 4) + ' more.</div>';
+    } else if (ownCode) {
+        html += '<div class="acc-head">This ' + self + '\'s current code</div><div class="acc-sub">Nothing else on file carries this number.</div>';
+    } else if (typedN != null) {
+        cls = 'is-free';
+        html += '<div class="acc-head">✓ ' + esc(code) + ' is not on file</div>';
+        if (typedN > s.next) {
+            html += '<div class="acc-note">It skips ahead: the series runs to ' + s.max + ', so ' + s.next +
+                (typedN - 1 > s.next ? '–' + (typedN - 1) : '') + ' would be left unused.</div>';
+        } else if (typedN < s.max) {
+            html += '<div class="acc-note">It fills a gap: numbers in this series already run to ' + s.max + '.</div>';
+        }
+    }
+
+    // the series this code belongs to (no number typed yet: it is the whole panel)
+    html += '<div class="acc-series' + (html ? '' : ' is-first') + '">';
+    if (s.count) {
+        html += '<div><strong>Series MPH/' + esc(s.token) + '/' + esc(s.group) + '</strong>' + (s.desc ? ' — ' + esc(s.desc) : '') +
+            ' <span class="acc-sub">· ' + s.count + ' on file, highest ' + s.max + ', next free <code>' + esc(s.nextCode) + '</code></span></div>';
+        var nums = Object.keys(s.members).map(Number).sort(function (a, b) { return a - b; });
+        var near = (typedN != null
+            ? nums.slice().sort(function (a, b) { return Math.abs(a - typedN) - Math.abs(b - typedN) || a - b; })
+            : nums.slice().reverse()).slice(0, 5).sort(function (a, b) { return a - b; });
+        if (near.length) {
+            html += '<div class="acc-sub acc-near-label">' + (typedN != null ? 'Nearest numbers on file:' : 'Latest numbers on file:') + '</div><ul>' +
+                near.map(function (n) {
+                    var e = _ccDedupe(s.members[n])[0];
+                    var spellings = {};
+                    s.members[n].forEach(function (x) { spellings[x.code] = true; });
+                    var more = Object.keys(spellings).length - 1;
+                    return '<li><span class="acc-num' + (s.typedNums.indexOf(n) >= 0 ? ' is-typed' : '') + '">' + String(n).padStart(2, '0') + '</span> ' +
+                        _ccEntry(e, e.code) + (more > 0 ? ' <span class="acc-sub">(+' + more + ' other spelling' + (more === 1 ? '' : 's') + ')</span>' : '') + '</li>';
+                }).join('') + '</ul>';
+        }
+    } else {
+        html += '<div><strong>New series MPH/' + esc(s.token) + '/' + esc(s.group) + '</strong>' + (s.desc ? ' — ' + esc(s.desc) : '') +
+            ' <span class="acc-sub">· nothing on file yet</span></div>';
+    }
+    if (s.nextCode !== code && !ownCode) html += useBtn(s.nextCode);
+    html += '</div>';
+
+    // the code's department and the form's / sheet's department disagree
+    var deptFam = ctx.deptName ? _familyTokenOf(window.mphDeptToken(ctx.deptName)) : null;
+    if (deptFam && deptFam !== s.token) {
+        var codeDept = _ccDeptForFamily(s.token);
+        html += '<div class="acc-note">This is ' + (codeDept ? 'a ' + esc(codeDept) : 'an ' + esc(s.token)) + ' code (' + esc(s.token) +
+            '), but ' + esc(ctx.deptLabel || "the asset's department") + ' is ' + esc(ctx.deptName) + ' (' + esc(deptFam) + ').</div>';
+    }
+    return { cls: cls, html: html };
+};
+// The panel's look, injected once so both pages share it. Colours come from
+// each page's theme variables (with fallbacks), so dark mode follows along.
+window.mphEnsureCodeCheckStyles = function () {
+    if (document.getElementById('mph-code-check-css')) return;
+    var css = [
+        '.asset-code-check { padding: 8px 10px; border-radius: 8px; font-size: 0.78rem; line-height: 1.45;',
+        '  border: 1px solid var(--border-color, #e0e0e0); background: var(--bg-secondary, var(--bg-primary, #f5f7fa));',
+        '  color: var(--text-primary, #2C3E50); overflow-wrap: anywhere; min-width: 0; text-align: left; }',
+        '.asset-code-check.is-taken { border-color: #e74c3c; background: rgba(231, 76, 60, 0.10); }',
+        '.asset-code-check.is-free { border-color: #27ae60; background: rgba(39, 174, 96, 0.10); }',
+        '.asset-code-check.is-info { border-color: #3498db; background: rgba(52, 152, 219, 0.10); }',
+        '.asset-code-check .acc-head { font-weight: 700; margin-bottom: 2px; }',
+        '.asset-code-check.is-taken .acc-head { color: #e74c3c; }',
+        '.asset-code-check.is-free .acc-head { color: #27ae60; }',
+        '.asset-code-check .acc-note { color: #e67e22; margin-top: 4px; }',
+        '.asset-code-check .acc-sub { color: var(--text-secondary, #7f8c8d); }',
+        '.asset-code-check .acc-near-label { margin-top: 3px; }',
+        '.asset-code-check ul { margin: 3px 0 0; padding-left: 16px; }',
+        '.asset-code-check li { margin: 1px 0; }',
+        '.asset-code-check code { font-family: monospace; font-size: 0.78rem; font-weight: 600; }',
+        '.asset-code-check .acc-series { margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--border-color, #e0e0e0); }',
+        '.asset-code-check .acc-series.is-first { margin-top: 0; padding-top: 0; border-top: 0; }',
+        '.asset-code-check .acc-use { display: inline-block; margin: 4px 6px 0 0; padding: 3px 9px; border-radius: 12px;',
+        '  border: 1px solid #27ae60; background: transparent; color: #27ae60; font-family: monospace;',
+        '  font-size: 0.76rem; font-weight: 700; cursor: pointer; }',
+        '.asset-code-check .acc-use:hover { background: rgba(39, 174, 96, 0.15); }',
+        '.asset-code-check .acc-num { padding: 1px 7px; border-radius: 10px; font-family: monospace; font-size: 0.74rem;',
+        '  background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e0e0e0); }',
+        '.asset-code-check .acc-num.is-typed { border-color: #e74c3c; color: #e74c3c; font-weight: 700; }',
+        // Location Records: one panel, pinned under the focused code cell
+        // (solid: the tint is layered over the card colour, not over the table)
+        '.asset-code-check.is-floating { position: fixed; z-index: 3000; max-height: 45vh; overflow-y: auto;',
+        '  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); background: var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-taken { background: linear-gradient(rgba(231,76,60,0.10), rgba(231,76,60,0.10)), var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-free { background: linear-gradient(rgba(39,174,96,0.10), rgba(39,174,96,0.10)), var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-info { background: linear-gradient(rgba(52,152,219,0.10), rgba(52,152,219,0.10)), var(--bg-card, #fff); }'
+    ].join('\n');
+    var el = document.createElement('style');
+    el.id = 'mph-code-check-css';
+    el.textContent = css;
+    (document.head || document.documentElement).appendChild(el);
+};
+
 window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedCodes) {
     var token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
-    var tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+    // the series takes in every spelling of the department's token
+    // (MPH/AC/…, MPH/ADM/AC/… and MPH/ACC/… are one Accounts series) — a
+    // variant left out is a number offered again while it is on file
+    var fam = token ? _familyTokenOf(token) : null;
     var deptK = String(deptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
     var groups = {};
-    var seen = {};   // code identities already counted, across every source
+    var seen = {};   // numbers already counted, across every source and spelling
 
-    function feed(code, ownerDeptName) {
+    // Adds the code's numbers to its series. Returns true when the code
+    // belongs to this department's series. `counted` false: raise the
+    // highest number only (another code of an asset already counted).
+    function feed(code, ownerDeptName, counted) {
         if (!code) return false;
-        var p = window.mphParseCode ? window.mphParseCode(code) : null;
-        if (!p || !p.item) return false;
-        var pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
-        // the series is defined by the code's own department token;
-        // unmapped/custom departments match by assignment instead
+        var f = window.mphCodeFamily(code);
+        if (!f) return false;
+        // the series is defined by the code's own department token; a code
+        // with no token counts for the department whose sheet or asset it
+        // is on, and unmapped/custom departments match by assignment only
         var ownerK = String(ownerDeptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
-        var match = tokN ? (pTok === tokN) : (!pTok && ownerK === deptK);
+        var match = f.token ? (fam && f.token === fam) : (ownerK === deptK);
         if (!match) return false;
-        var ck = window.mphCodeKey ? window.mphCodeKey(code) : String(code).toUpperCase();
-        if (ck && seen[ck]) return true;   // same item, another source
-        if (ck) seen[ck] = true;
-        var g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
-        g.count++;
+        var p = window.mphParseCode(code);
+        // grouped by the item number's value (0005 and 5 are one group),
+        // shown as first written
+        var g = groups[f.item] || (groups[f.item] = { group: String(p.item), count: 0, max: 0, pad: 2 });
+        var ck = [f.token || '', f.item, f.seq].join('|');
+        if (counted !== false && !seen[ck]) g.count++;
+        seen[ck] = true;
+        // every number written in the sequence counts towards the highest,
+        // unit suffixes included — reading a part as "only a unit" would
+        // slide a series back below a number already on file
         String(p.seq || '').split('-').forEach(function (sq) {
             var n = parseInt(sq, 10);
             if (!isNaN(n)) {
@@ -775,9 +1187,12 @@ window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedC
 
     (assets || []).forEach(function (a) {
         if (!a) return;
+        // one series entry per asset, but every code it has ever carried
+        // (its aliases) is a spent number
         var codes = [a.assetCode].concat(a.aliases || []);
+        var counted = false;
         for (var i = 0; i < codes.length; i++) {
-            if (feed(codes[i], a.department)) break;   // one series entry per asset
+            if (feed(codes[i], a.department, !counted)) counted = true;
         }
     });
     ((records && records.departments) || []).forEach(function (d) {

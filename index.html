@@ -2130,6 +2130,10 @@
             box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
         }
 
+        /* live Asset Code check: its look is shared (asset-normalizer.js,
+           mphEnsureCodeCheckStyles); here it only takes a full row of the form */
+        #assetCodeCheck { grid-column: 1 / -1; margin-top: -6px; }
+
         .btn-secondary {
             background: var(--text-secondary);
             color: white;
@@ -6744,6 +6748,8 @@
                         <input type="number" id="quantity" required min="1" value="1" oninput="document.getElementById('quantityExpandNote').style.display = this.value > 1 && !currentEditingAsset ? 'block' : 'none'">
                         <small id="quantityExpandNote" style="color: #e67e22; font-size: 0.75rem; display: none;">Qty &gt; 1 will create separate individual assets with suffixed codes</small>
                     </div>
+                    <!-- live check of the Asset Code: is this number on file, and what does its series look like -->
+                    <div id="assetCodeCheck" class="asset-code-check" role="status" aria-live="polite" hidden></div>
                     <div class="form-group">
                         <label for="description">Description *</label>
                         <input type="text" id="description" required placeholder="Asset description">
@@ -13667,7 +13673,7 @@
             const now = new Date().toISOString();
 
             let assets = loadAssetsFromStorage();
-            const stats = { undone: 0, linked: 0, orphans: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0 };
+            const stats = { undone: 0, linked: 0, orphans: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0, duplicates: 0 };
             let assetsChanged = 0, recordsChanged = 0;
 
             /* ---- pass 0: undo what the first version minted ----
@@ -13697,6 +13703,20 @@
 
             const placements = new Map();      // asset.id -> [{dept, room, item, bucket}]
             const seenKeys = new Set();        // every code identity any room records
+            // Before pass 1 starts: which codes some real room records, and
+            // which each room records. A "Room Not Yet Assigned" row is only a
+            // placeholder — it does not make a quantity copy elsewhere stale.
+            const realRowKeys = new Set(), roomRowKeys = new Map();
+            records.departments.forEach(d => (d && d.rooms || []).forEach(r => {
+                if (!r || !Array.isArray(r.items)) return;
+                const ks = new Set();
+                r.items.forEach(it => { const k = it && key(it.assetCode); if (k) ks.add(k); });
+                roomRowKeys.set(r, ks);
+                if (!isBucket(r.title)) ks.forEach(k => realRowKeys.add(k));
+            }));
+            const hasOwnRow = (a, r) => keysOf(a).some(k => realRowKeys.has(k) || (roomRowKeys.get(r) || new Set()).has(k));
+            const qtyOf = a => parseInt(a && a.quantity, 10) || 1;
+            const deletedIds = (typeof deletedAssetIds !== 'undefined' && deletedAssetIds) ? deletedAssetIds : new Set();
 
             /* ---- pass 1: every coded row stands for exactly one asset ---- */
             records.departments.forEach(d => {
@@ -13715,7 +13735,14 @@
                         // row stands for the base code's asset.
                         const bm = String(it.assetCode).trim().match(/^(.*\/\d+)-\d{1,2}$/);
                         const bk = bm ? key(bm[1]) : null;
-                        const rowKeys = (bk && bk !== k) ? [k, bk] : [k];
+                        // ...but only for an asset that really is several
+                        // items, or one no row records under its own code. A
+                        // single desk already listed as MPH/…/2026 is not also
+                        // MPH/…/2026-1 and -2: those are the rows of the
+                        // quantity-expanded assets it replaced.
+                        const base = (bk && bk !== k) ? (byPrimary.get(bk) || byAlias.get(bk) || null) : null;
+                        const baseOk = !!(base && (qtyOf(base) > 1 || !hasOwnRow(base, r)));
+                        const rowKeys = baseOk ? [k, bk] : [k];
                         let a = null;
                         if (it.regId && byId.has(it.regId)) {
                             const cand = byId.get(it.regId);
@@ -13724,6 +13751,19 @@
                         }
                         for (let i = 0; !a && i < rowKeys.length; i++) {
                             a = byPrimary.get(rowKeys[i]) || byAlias.get(rowKeys[i]) || null;
+                        }
+                        if (!a && _isRegisterMirrorRow(it) &&
+                            ((it.regId && deletedIds.has(it.regId)) || (base && !baseOk))) {
+                            // A row the dashboard wrote for an asset, and that
+                            // asset is gone: deleted from the register, or it
+                            // was a quantity copy (…-1, …-2) of an asset that
+                            // is now one item with its own row. The row was
+                            // never survey data, so it goes — by row id, so
+                            // the code can be issued again.
+                            if (window.mphAddLocationTombstone && it.id) window.mphAddLocationTombstone('items', it.id);
+                            if (window.mphForgetLocationMove) window.mphForgetLocationMove(it);
+                            stats.duplicates++; recordsChanged++;
+                            return;
                         }
                         if (!a) {
                             // No register asset carries this code. Whether that
@@ -13878,6 +13918,7 @@
             if (stats.undone) said.push(stats.undone + ' auto-created asset' + (stats.undone === 1 ? '' : 's') + ' removed');
             if (stats.relocated) said.push(stats.relocated + ' re-homed');
             if (stats.placed) said.push(stats.placed + ' placed on room sheets');
+            if (stats.duplicates) said.push(stats.duplicates + ' leftover row' + (stats.duplicates === 1 ? '' : 's') + ' of deleted or re-coded assets removed');
             if (said.length && typeof _assignToast === 'function') {
                 try { _assignToast('🔗 Location Records ⇄ Register: ' + said.join(', ')); } catch (e) {}
             }
@@ -17289,6 +17330,7 @@
             if (hiddenInput) hiddenInput.value = value;
             // picking a plain department clears any previously chosen room
             setAssetRoom('');
+            scheduleAssetCodeCheck(0);
             if (trigger) {
                 trigger.textContent = text;
                 trigger.title = text;
@@ -17365,6 +17407,7 @@
                 });
             }
             // Same as above: opened from the 🔢 button, never over the form.
+            scheduleAssetCodeCheck(0);
         }
 
         /* ============================================================
@@ -17483,6 +17526,7 @@
                 input.focus();
             }
             closeNextCodePopup();
+            scheduleAssetCodeCheck(0);
         }
 
         /* ============================================================
@@ -17605,6 +17649,195 @@
                 return false;
             }
         }
+        /* Rows the dashboard wrote itself. Every room-sheet row made from the
+           register (the Add/Edit form's room, the 📍 assign, the reconcile
+           pass placing an asset) gets an assign_i_ id; survey rows — the seed,
+           rows typed on the Location Records page, imports — never do. A
+           mirror row says nothing the register does not, so it can follow
+           its asset; a survey row is the survey and stays. */
+        function _isRegisterMirrorRow(it) {
+            return !!(it && typeof it.id === 'string' && it.id.indexOf('assign_i_') === 0);
+        }
+        // Save records changed outside the Location Records page and tell it.
+        function _saveLocationRecordsFromRegister(db) {
+            db.lastModified = new Date().toISOString();
+            if (window.mphSaveLocationRecords) window.mphSaveLocationRecords(db);
+            try { localStorage.setItem('hospitalLocationRecordsDirty', '1'); } catch (e) {}
+            if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;
+            if (typeof notifyLocationRecordsFrame === 'function') notifyLocationRecordsFrame();
+        }
+        /* An asset's code was changed in the register. Its room-sheet rows
+           carry the old code; left alone, the next reconcile finds no asset
+           for them (an orphan) and none of them for the asset, so it puts the
+           asset on its department's sheet a second time. The rows follow the
+           code, in place — where they are is a separate question, answered
+           by syncAssetToLocationRecord. */
+        function renameAssetCodeInLocationRecords(asset, oldCode) {
+            try {
+                if (!asset || !window.mphCodeKey) return 0;
+                const oldKey = oldCode ? window.mphCodeKey(oldCode) : null;
+                const newCode = asset.assetCode || '';
+                if (!oldKey || oldKey === window.mphCodeKey(newCode)) return 0;
+                const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || null;
+                if (!db || !Array.isArray(db.departments)) return 0;
+                let n = 0;
+                db.departments.forEach(d => (d && d.rooms || []).forEach(r => (r && r.items || []).forEach(it => {
+                    if (!it || window.mphCodeKey(it.assetCode) !== oldKey) return;
+                    // another asset still holds the old code: its rows are its own
+                    if (it.regId && asset.id && it.regId !== asset.id) return;
+                    it.assetCode = newCode;
+                    if (asset.id) it.regId = asset.id;
+                    n++;
+                })));
+                if (n) {
+                    // deliberately coded: a deletion of that code does not apply
+                    if (window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem({ assetCode: newCode });
+                    _saveLocationRecordsFromRegister(db);
+                }
+                return n;
+            } catch (e) { console.warn('Location record code rename failed:', e); return 0; }
+        }
+        /* Assets were deleted from the register (the dialog promises "ALL
+           views"). The room-sheet rows the dashboard wrote for them go with
+           them; otherwise the row of a deleted MPH/…/2026-1 lingers, and the
+           reconcile reads it as a quantity copy of MPH/…/2026 — the same desk
+           listed three times. Survey rows are not touched: they stay on the
+           sheet, unlinked, for the Reconcile Locations report. */
+        function removeDeletedAssetsFromLocationRecords(deleted) {
+            try {
+                if (!Array.isArray(deleted) || !deleted.length || !window.mphCodeKey) return 0;
+                const db = (window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny()) || null;
+                if (!db || !Array.isArray(db.departments)) return 0;
+                const ids = new Set(deleted.map(a => a && a.id).filter(Boolean));
+                const keys = new Set();
+                deleted.forEach(a => [a && a.assetCode].concat((a && a.aliases) || []).forEach(c => {
+                    const k = c && window.mphCodeKey(c); if (k) keys.add(k);
+                }));
+                // a code another live asset still carries keeps its rows
+                const live = new Set();
+                loadAssetsFromStorage().forEach(a => {
+                    if (!a || ids.has(a.id)) return;
+                    [a.assetCode].concat(a.aliases || []).forEach(c => { const k = c && window.mphCodeKey(c); if (k) live.add(k); });
+                });
+                let n = 0;
+                db.departments.forEach(d => (d && d.rooms || []).forEach(r => {
+                    if (!r || !Array.isArray(r.items)) return;
+                    const keep = r.items.filter(it => {
+                        if (!_isRegisterMirrorRow(it)) return true;
+                        const k = window.mphCodeKey(it.assetCode);
+                        const mine = (it.regId && ids.has(it.regId)) || (k && keys.has(k));
+                        if (!mine || (k && live.has(k))) return true;
+                        // by row id only: the code may be issued again later
+                        if (window.mphAddLocationTombstone) window.mphAddLocationTombstone('items', it.id);
+                        if (window.mphForgetLocationMove) window.mphForgetLocationMove(it);
+                        n++;
+                        return false;
+                    });
+                    if (keep.length !== r.items.length) r.items = keep;
+                }));
+                if (n) _saveLocationRecordsFromRegister(db);
+                return n;
+            } catch (e) { console.warn('Location record cleanup after delete failed:', e); return 0; }
+        }
+        /* Is this code's number already on file under any spelling —
+           MPH/ACC/133/01 against MPH/AC/133/01, MPH/133/01/AC or
+           MPH/ADM/AC/133/01? Searches the register (codes and aliases), every
+           room sheet and the Board of Survey. `except` names the asset being
+           edited, which does not count against itself. */
+        // Every place a code can be on file: the register (stored copy and
+        // the in-memory inventory, one entry per asset), the room sheets and
+        // the Board of Survey.
+        function _assetCodeSources() {
+            const byId = new Map(), noId = [];
+            const add = a => { if (!a) return; if (!a.id) noId.push(a); else if (!byId.has(a.id)) byId.set(a.id, a); };
+            try { (loadAssetsFromStorage() || []).forEach(add); } catch (e) {}
+            if (typeof allAssetsData !== 'undefined' && Array.isArray(allAssetsData)) allAssetsData.forEach(add);
+            let records = null;
+            try { records = window.mphGetLocationRecordsAny && window.mphGetLocationRecordsAny(); } catch (e) {}
+            let boarded = [];
+            try { boarded = (_dbGet(DISPOSAL_STORAGE_KEY) || []).map(r => r.assetCode).filter(Boolean); } catch (e) {}
+            return { assets: [...byId.values()].concat(noId), records, boarded };
+        }
+        function findAssetCodeOnFile(code, except) {
+            if (!code || !window.mphFindCodeOnFile) return null;
+            const src = _assetCodeSources();
+            return window.mphFindCodeOnFile(code, src.assets, src.records, src.boarded, { assetId: except || null });
+        }
+        function describeCodeOnFile(hit) {
+            if (!hit) return '';
+            if (hit.source === 'register') {
+                const a = hit.asset || {};
+                return hit.code + ' — ' + (a.description || a.itemType || 'asset') +
+                    (a.department ? ' (' + a.department + (a.room ? ' / ' + a.room : '') + ')' : '') +
+                    (hit.code !== a.assetCode ? ', an earlier code of ' + a.assetCode : '');
+            }
+            if (hit.source === 'records') {
+                const it = hit.item || {};
+                return hit.code + ' — ' + (it.description || it.item || 'item') + ' on the Location Record ' +
+                    (hit.dept || '') + (hit.room ? ' / ' + hit.room : '');
+            }
+            return hit.code + ' — boarded by the Board of Survey';
+        }
+
+        /* ============================================================
+           Live Asset Code check (Add/Edit Asset form). As a code is typed
+           the panel under the field says whether that number is already on
+           file — under ANY spelling (MPH/ACC/133/08 is MPH/ADMAC/133/08) —
+           and what its series looks like: how many are on file, the
+           highest number, the next free code and the numbers either side.
+           A bare department code (MPH/ACC) lists that department's series.
+           Saving still asks before a taken number is used.
+        ============================================================ */
+        let _assetCodeCheckTimer = null;
+        let _assetCodeCheckBound = false;
+        function bindAssetCodeCheck() {
+            if (_assetCodeCheckBound) return;
+            const input = document.getElementById('assetCode');
+            if (!input) return;
+            _assetCodeCheckBound = true;
+            if (window.mphEnsureCodeCheckStyles) window.mphEnsureCodeCheckStyles();
+            input.addEventListener('input', () => scheduleAssetCodeCheck());
+        }
+        function scheduleAssetCodeCheck(delay) {
+            clearTimeout(_assetCodeCheckTimer);
+            _assetCodeCheckTimer = setTimeout(updateAssetCodeCheck, delay == null ? 220 : delay);
+        }
+        function useSuggestedAssetCode(code) {
+            const input = document.getElementById('assetCode');
+            if (!input) return;
+            input.value = code;
+            input.focus();
+            updateAssetCodeCheck();
+        }
+        // The panel itself is drawn by mphRenderCodeCheck (asset-normalizer.js),
+        // the same one the Location Records sheet uses.
+        function updateAssetCodeCheck() {
+            const box = document.getElementById('assetCodeCheck');
+            const input = document.getElementById('assetCode');
+            if (!box || !input) return;
+            const editing = (typeof currentEditingAsset !== 'undefined' && currentEditingAsset) ? currentEditingAsset : null;
+            let out = null;
+            try {
+                if (window.mphRenderCodeCheck) {
+                    const src = _assetCodeSources();
+                    out = window.mphRenderCodeCheck(input.value, {
+                        assets: src.assets, records: src.records, boarded: src.boarded,
+                        deptName: (document.getElementById('department') || {}).value || '',
+                        deptLabel: "the asset's department",
+                        assetId: editing ? editing.id : null,
+                        ownCode: editing ? editing.assetCode : null,
+                        selfLabel: 'asset',
+                        seriesForDept: computeNextCodeSeries,
+                        useAction: 'useSuggestedAssetCode'
+                    });
+                }
+            } catch (e) { console.warn('Asset code check failed:', e); out = null; }
+            if (!out) { box.hidden = true; box.innerHTML = ''; return; }
+            box.className = 'asset-code-check ' + out.cls;
+            box.innerHTML = out.html;
+            box.hidden = false;
+        }
+
         // Called by the embedded Location Records page when a user moves an
         // item into a room there: re-home the matching register asset so the
         // main inventory and the room records stay in step. Matches by code
@@ -18392,6 +18625,10 @@
                 populateAssetDeptDropdown('');
             }
 
+            // Live "is this code on file?" panel under the Asset Code field
+            bindAssetCodeCheck();
+            scheduleAssetCodeCheck(0);
+
             // Reset auto-categorization flag
             const categorySelect = document.getElementById('category');
             if (categorySelect) {
@@ -18535,6 +18772,22 @@
                 comment: document.getElementById('assetComment').value.trim()
             };
 
+            // A number already on file under another spelling is the same code
+            // (MPH/AC/133/01, MPH/133/01/AC and MPH/ADM/AC/133/01 are one
+            // number). Say so before a second asset takes it.
+            const codeChanged = !currentEditingAsset ||
+                String(currentEditingAsset.assetCode || '').trim() !== assetData.assetCode;
+            if (assetData.assetCode && codeChanged) {
+                const hit = findAssetCodeOnFile(assetData.assetCode, currentEditingAsset ? currentEditingAsset.id : null);
+                if (hit && !confirm('⚠️ ' + assetData.assetCode + ' is already on file:\n\n  ' + describeCodeOnFile(hit) +
+                        '\n\nThe same number written another way is the same asset code. Use 🔢 Next Code for the next free number.' +
+                        '\n\nSave with this code anyway?')) {
+                    const codeInput = document.getElementById('assetCode');
+                    if (codeInput) codeInput.focus();
+                    return;
+                }
+            }
+
             let assets = loadAssetsFromStorage();
             let savedFeedback = '';
 
@@ -18569,6 +18822,10 @@
                     assets[index] = Object.assign({}, assets[index], assetData);
                     addAuditEntry(assetData.assetCode, 'Updated', assetData.department, 'Asset details updated');
 
+                    // A new code: the asset's room-sheet rows take it too, or
+                    // the old-code row stays behind and the asset is listed twice
+                    if (codeChanged) renameAssetCodeInLocationRecords(assets[index], currentEditingAsset.assetCode);
+
                     // Sync changes to Board of Survey disposal records
                     syncMainAssetToDisposals(assetData, currentEditingAsset);
 
@@ -18585,6 +18842,10 @@
             } else {
                 // Add new asset(s) — expand by quantity if qty > 1
                 const qty = assetData.quantity || 1;
+                // Entering an asset under a code is a deliberate placement: a
+                // row deleted from the sheets under that code earlier must not
+                // keep the new asset off its room sheet.
+                const _liftTomb = code => { if (code && window.mphUntombstoneLocationItem) window.mphUntombstoneLocationItem({ assetCode: code }); };
                 if (qty > 1) {
                     const baseCode = assetData.assetCode;
                     const padLen = String(qty).length;
@@ -18596,6 +18857,7 @@
                         expandedAsset.totalPrice = assetData.unitPrice;
                         // Recalculate salvage for individual unit cost
                         expandedAsset.salvageValue = calcSalvageValue(assetData.unitPrice, assetData.category || '');
+                        _liftTomb(expandedAsset.assetCode);
                         assets.push(expandedAsset);
                         addAuditEntry(expandedAsset.assetCode, 'Asset Created', expandedAsset.department, 'New asset added to inventory (expanded from qty ' + qty + ')');
                         if (expandedAsset.room) syncAssetToLocationRecord(expandedAsset, expandedAsset.department, expandedAsset.room);
@@ -18603,6 +18865,7 @@
                     savedFeedback = `✅ ${qty} individual assets created! (${baseCode}-01 through ${baseCode}-${String(qty).padStart(padLen, '0')})`;
                 } else {
                     assetData.quantity = 1;
+                    _liftTomb(assetData.assetCode);
                     assets.push(assetData);
                     addAuditEntry(assetData.assetCode, 'Asset Created', assetData.department, 'New asset added to inventory');
                     if (assetData.room) syncAssetToLocationRecord(assetData, assetData.department, assetData.room);
@@ -19684,6 +19947,8 @@
 
             // Remove matching disposal records from Board of Survey
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+            // and the room-sheet row the dashboard wrote for it
+            removeDeletedAssetsFromLocationRecords([asset]);
 
             addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Dashboard');
 
@@ -19721,6 +19986,7 @@
                 removeDisposalRecordsForAsset(asset.assetCode, asset.id);
                 addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Dashboard (bulk delete)');
             });
+            removeDeletedAssetsFromLocationRecords(assetsToDelete);
 
             refreshAllViews();
             alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
@@ -32922,6 +33188,8 @@
 
             // Remove matching disposal records
             removeDisposalRecordsForAsset(asset.assetCode, asset.id);
+            // and the room-sheet row the dashboard wrote for it
+            removeDeletedAssetsFromLocationRecords([asset]);
 
             addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Asset Register');
 
@@ -32993,6 +33261,7 @@
                 removeDisposalRecordsForAsset(asset.assetCode, asset.id);
                 addAuditEntry(asset.assetCode, 'Asset Deleted', asset.department, 'Asset deleted from Asset Register (bulk delete)');
             });
+            removeDeletedAssetsFromLocationRecords(assetsToDelete);
 
             refreshAllViews();
             alert(`${assetsToDelete.length} asset(s) deleted successfully.`);
