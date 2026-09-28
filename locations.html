@@ -1213,7 +1213,7 @@
             <td class="col-num" data-label="#">${i + 1}${it.disposed ? '<span class="bos-badge" title="Written off at Board of Survey">BOS</span>' : ''}</td>
             <td data-label="Item"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','item',this.value)" oninput="autoGrow(this)" placeholder="Item">${esc(it.item||'')}</textarea></td>
             <td data-label="Description/Make"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','description',this.value)" oninput="autoGrow(this)" placeholder="Description / Make">${esc(it.description||'')}</textarea></td>
-            <td data-label="Asset Code"><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this)" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
+            <td data-label="Asset Code"><div class="assetcode-cell"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','assetCode',this.value)" oninput="autoGrow(this); codeCheckInput(this,'${it.id}')" onfocus="codeCheckFocus(this,'${it.id}')" onblur="codeCheckBlur()" placeholder="Asset Code">${esc(it.assetCode||'')}</textarea><button type="button" class="assetcode-lookup" title="Assign the next code in this item's series for the department" onclick="assignNextSeriesCode('${it.id}')">🔢</button><button type="button" class="assetcode-lookup" title="Look up a standard asset code" onclick="openLocAssetCodePicker('${it.id}')">🔍</button></div></td>
             <td data-label="Remarks"><textarea class="cell-input" rows="1" onchange="updateItem('${it.id}','remarks',this.value)" oninput="autoGrow(this)" placeholder="Remarks">${esc(it.remarks||'')}</textarea></td>
             <td class="col-act" data-label="Actions" style="white-space:nowrap;">
                 <button class="row-move" title="Move this item to another room or department" onclick="openMoveItemModal('${it.id}')">➡️</button>
@@ -1524,6 +1524,8 @@
         const r = getRoom(d, selectedRoomId);
         const it = r.items.find(x => x.id === id); if (!it) return;
         const before = it[field];
+        // unchanged (the panel's Use button already saved it) — nothing to send
+        if (field === 'assetCode' && before === val) return;
         it[field] = val;
         if (field === 'assetCode') {
             // Typing a code here is a deliberate placement: lift any deletion
@@ -1639,6 +1641,113 @@
             return;
         }
         applySeriesCode(id, chosen.nextCode);
+    }
+    /* Live code check — the same panel as the dashboard's Add/Edit Asset form
+       (drawn by mphRenderCodeCheck in asset-normalizer.js). One panel, pinned
+       under whichever Asset Code cell has the focus: while a code is typed it
+       says whether that number is already on file under any spelling, and
+       shows its series — how many are on file, the highest, the next free
+       code (Use puts it on the row) and the numbers nearest the typed one. */
+    let _ccEl = null, _ccTa = null, _ccItemId = null, _ccTimer = null, _ccSrc = null;
+    function codeCheckEl() {
+        if (_ccEl) return _ccEl;
+        if (window.mphEnsureCodeCheckStyles) window.mphEnsureCodeCheckStyles();
+        _ccEl = document.createElement('div');
+        _ccEl.className = 'asset-code-check is-floating';
+        _ccEl.setAttribute('role', 'status');
+        _ccEl.setAttribute('aria-live', 'polite');
+        _ccEl.hidden = true;
+        // clicking in the panel must not take the focus from the cell (that
+        // would close the panel before its Use button gets the click)
+        _ccEl.addEventListener('mousedown', e => e.preventDefault());
+        document.body.appendChild(_ccEl);
+        window.addEventListener('scroll', positionCodeCheck, true);
+        window.addEventListener('resize', positionCodeCheck);
+        return _ccEl;
+    }
+    function codeCheckFocus(ta, id) {
+        _ccTa = ta; _ccItemId = id;
+        // the register and the write-offs do not change while a cell is being
+        // typed in — read them once per focus, not per keystroke
+        _ccSrc = { assets: registerAssets(), boarded: boardedCodes() };
+        renderCodeCheck();
+    }
+    function codeCheckInput(ta, id) {
+        if (_ccTa !== ta || !_ccSrc) { codeCheckFocus(ta, id); return; }
+        clearTimeout(_ccTimer);
+        _ccTimer = setTimeout(renderCodeCheck, 220);
+    }
+    function codeCheckBlur() {
+        setTimeout(() => { if (!_ccTa || document.activeElement !== _ccTa) hideCodeCheck(); }, 150);
+    }
+    function hideCodeCheck() {
+        clearTimeout(_ccTimer);
+        if (_ccEl) { _ccEl.hidden = true; _ccEl.innerHTML = ''; }
+        _ccTa = null; _ccItemId = null; _ccSrc = null;
+    }
+    function renderCodeCheck() {
+        if (!_ccTa || !document.body.contains(_ccTa) || !window.mphRenderCodeCheck) { hideCodeCheck(); return; }
+        const d = getDept(selectedDeptId);
+        const r = d ? getRoom(d, selectedRoomId) : null;
+        const it = r ? (r.items || []).find(x => x.id === _ccItemId) : null;
+        const src = _ccSrc || { assets: registerAssets(), boarded: boardedCodes() };
+        let out = null;
+        try {
+            out = window.mphRenderCodeCheck(_ccTa.value, {
+                assets: src.assets, records: db, boarded: src.boarded,
+                deptName: d ? d.name : '',
+                deptLabel: "this Location Record's department",
+                assetId: it ? (it.regId || null) : null,
+                itemId: _ccItemId,
+                ownCode: it ? it.assetCode : null,
+                selfLabel: 'row',
+                seriesForDept: n => window.mphComputeNextCodeSeries(n, src.assets, db, src.boarded),
+                useAction: 'useCodeCheckSuggestion'
+            });
+        } catch (e) { console.warn('Code check failed:', e); out = null; }
+        const el = codeCheckEl();
+        if (!out) { el.hidden = true; el.innerHTML = ''; return; }
+        const changed = el.innerHTML !== out.html;
+        el.className = 'asset-code-check is-floating ' + out.cls;
+        if (changed) { el.innerHTML = out.html; el.scrollTop = 0; }   // new content reads from its heading
+        el.hidden = false;
+        positionCodeCheck();
+    }
+    function positionCodeCheck() {
+        if (!_ccEl || _ccEl.hidden || !_ccTa) return;
+        const anchor = _ccTa.closest('.assetcode-cell') || _ccTa;
+        const rc = anchor.getBoundingClientRect();
+        const vw = window.innerWidth, vh = window.innerHeight;
+        // the sticky page header covers the top of the view: the panel stays
+        // below it, and a cell scrolled up under it has no panel
+        const hdr = document.querySelector('.app-header');
+        const hb = hdr ? hdr.getBoundingClientRect() : null;
+        const topLimit = (hb && hb.bottom > 0 && getComputedStyle(hdr).position !== 'static') ? hb.bottom : 0;
+        if (rc.bottom < topLimit + 4 || rc.top > vh) { _ccEl.style.visibility = 'hidden'; return; }
+        _ccEl.style.visibility = '';
+        const width = Math.min(520, vw - 16);
+        _ccEl.style.width = width + 'px';
+        _ccEl.style.left = Math.max(8, Math.min(rc.left, vw - width - 8)) + 'px';
+        const below = vh - rc.bottom - 12, above = rc.top - topLimit - 12;
+        if (below < 170 && above > below) {
+            // no room under the cell: open upwards
+            _ccEl.style.top = 'auto';
+            _ccEl.style.bottom = (vh - rc.top + 4) + 'px';
+            _ccEl.style.maxHeight = Math.max(120, Math.min(above, vh * 0.45)) + 'px';
+        } else {
+            _ccEl.style.bottom = 'auto';
+            _ccEl.style.top = (rc.bottom + 4) + 'px';
+            _ccEl.style.maxHeight = Math.max(120, Math.min(below, vh * 0.45)) + 'px';
+        }
+    }
+    // "Use MPH/…" in the panel: the code goes on the row, saved like a typed one
+    function useCodeCheckSuggestion(code) {
+        if (!_ccTa || !_ccItemId) return;
+        _ccTa.value = code;
+        autoGrow(_ccTa);
+        updateItem(_ccItemId, 'assetCode', code);
+        _ccTa.focus();
+        renderCodeCheck();
     }
     /* The number just given to a row is already on file under some
        spelling — MPH/AC/133/01, MPH/133/01/AC and MPH/ADM/AC/133/01 are one

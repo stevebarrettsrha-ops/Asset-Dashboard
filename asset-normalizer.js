@@ -881,6 +881,7 @@ window.mphNextCodeGroupDesc = function (group) {
                     count when the department is of this family
      opts.assetId   the asset being edited (it, and rows linked to it, do not
                     count against the code)
+     opts.itemId    the room-sheet row being edited (does not count either)
    Returns null when the code has no family token and item group; else
    { token, group, desc, typedNums, holders[], members{num: entries[]},
      count, max, next, nextCode } — an entry is
@@ -927,6 +928,7 @@ window.mphDescribeCodeSeries = function (code, assets, records, reservedCodes, o
             (r && r.items || []).forEach(function (it) {
                 if (!it || !it.assetCode) return;
                 if (opts.assetId && it.regId === opts.assetId) return;
+                if (opts.itemId && it.id === opts.itemId) return;
                 take(it.assetCode, d.name, { source: 'records', dept: d.name, room: r.title, item: it });
             });
         });
@@ -946,6 +948,198 @@ window.mphDescribeCodeSeries = function (code, assets, records, reservedCodes, o
         next: next,
         nextCode: 'MPH/' + f.token + '/' + group + '/' + String(next).padStart(Math.min(pad, 3), '0')
     };
+};
+
+/* ---- The live code-check panel, shared by the dashboard's Add/Edit Asset
+   form and the Location Records sheet so both say exactly the same thing ----
+   mphRenderCodeCheck(code, ctx) -> null (show nothing) or { cls, html }.
+     ctx.assets / records / boarded   the sources (as mphDescribeCodeSeries)
+     ctx.deptName     department chosen on the form / of the sheet
+     ctx.deptLabel    how to name it: "the asset's department"
+     ctx.assetId, ctx.itemId          what is being edited (not a holder)
+     ctx.ownCode      the code it has now, when editing
+     ctx.selfLabel    "asset" | "row"
+     ctx.seriesForDept(name)          that department's series (next codes)
+     ctx.useAction    global function name called with a suggested code */
+function _ccEsc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function _ccDeptForFamily(fam, preferred) {
+    if (!fam) return null;
+    var famOf = function (n) { return _familyTokenOf(window.mphDeptToken(n)); };
+    if (preferred && famOf(preferred) === fam) return preferred;
+    for (var i = 0; i < window.MPH_CANONICAL_DEPARTMENTS.length; i++) {
+        if (_familyTokenOf(window.MPH_CANONICAL_DEPARTMENTS[i].token) === fam) return window.MPH_CANONICAL_DEPARTMENTS[i].name;
+    }
+    return null;
+}
+function _ccEntry(e, typed) {
+    var esc = _ccEsc;
+    var spelled = (window.mphCodeKey(e.code) !== window.mphCodeKey(typed)) ? ' <span class="acc-sub">(written differently)</span>' : '';
+    if (e.source === 'register') {
+        var a = e.asset || {};
+        var where = [a.department, a.room].filter(Boolean).join(' / ');
+        return '<code>' + esc(e.code) + '</code>' + spelled + ' — ' + esc(a.description || a.itemType || 'asset') +
+            (where ? ' <span class="acc-sub">· ' + esc(where) + '</span>' : '') +
+            (e.code !== a.assetCode ? ' <span class="acc-sub">· an earlier code of <code>' + esc(a.assetCode) + '</code></span>' : '') +
+            (a.disposed === true ? ' <span class="acc-sub">· disposed</span>' : '');
+    }
+    if (e.source === 'records') {
+        var it = e.item || {};
+        return '<code>' + esc(e.code) + '</code>' + spelled + ' — ' + esc(it.description || it.item || 'item') +
+            ' <span class="acc-sub">· Location Record ' + esc([e.dept, e.room].filter(Boolean).join(' / ')) + '</span>';
+    }
+    return '<code>' + esc(e.code) + '</code>' + spelled + ' — written off by the Board of Survey';
+}
+// one line per physical thing: an asset under its code, an alias and its
+// room row is one holder, not three
+function _ccDedupe(list) {
+    var seen = {}, out = [];
+    list.forEach(function (e) {
+        var id = e.source === 'register' ? 'a:' + ((e.asset && e.asset.id) || e.code)
+            : e.source === 'records' ? ((e.item && e.item.regId) ? 'a:' + e.item.regId : 'r:' + ((e.item && e.item.id) || e.code))
+            : 'b:' + e.code;
+        if (seen[id]) return;
+        seen[id] = true; out.push(e);
+    });
+    return out;
+}
+window.mphRenderCodeCheck = function (code, ctx) {
+    ctx = ctx || {};
+    code = String(code == null ? '' : code).trim();
+    if (!code) return null;
+    var esc = _ccEsc;
+    var self = ctx.selfLabel || 'asset';
+    var useBtn = function (c) {
+        return ctx.useAction ? '<button type="button" class="acc-use" data-code="' + esc(c) + '" onclick="' +
+            esc(ctx.useAction) + '(this.dataset.code)">Use ' + esc(c) + '</button>' : '';
+    };
+    var s = window.mphDescribeCodeSeries(code, ctx.assets, ctx.records, ctx.boarded,
+        { deptName: ctx.deptName, assetId: ctx.assetId || null, itemId: ctx.itemId || null });
+
+    if (!s) {
+        // a department code with no item group yet: offer its series
+        var p = window.mphParseCode(code);
+        var fam = p && p.dept ? _familyTokenOf(p.dept) : null;
+        var dn = fam ? _ccDeptForFamily(fam, ctx.deptName) : null;
+        var series = (dn && ctx.seriesForDept) ? (ctx.seriesForDept(dn) || []).slice(0, 8) : [];
+        if (series.length) {
+            return { cls: 'is-info', html: '<div class="acc-head">' + esc(dn) + ' — ' + series.length + ' busiest series</div>' +
+                '<div class="acc-sub">Pick one to take its next free number, or keep typing the item group.</div>' +
+                '<ul>' + series.map(function (x) {
+                    return '<li>' + esc(x.group) + (x.desc ? ' — ' + esc(x.desc) : '') +
+                        ' <span class="acc-sub">· ' + x.count + ' on file, highest ' + x.max + '</span><br>' + useBtn(x.nextCode) + '</li>';
+                }).join('') + '</ul>' };
+        }
+        if (code.length >= 4) {
+            return { cls: '', html: '<span class="acc-sub">Not a recognised asset code yet — codes read MPH/DEPT/ITEM/NUMBER, e.g. MPH/ACC/133/01.</span>' };
+        }
+        return null;
+    }
+
+    var html = '', cls = 'is-info';
+    var holders = _ccDedupe(s.holders);
+    var typedN = s.typedNums.length ? s.typedNums[0] : null;
+    var ownCode = !!ctx.ownCode && String(ctx.ownCode).trim() === code;
+    if (holders.length) {
+        cls = 'is-taken';
+        var exact = holders.some(function (e) { return window.mphCodeKey(e.code) === window.mphCodeKey(code); });
+        html += '<div class="acc-head">⚠️ ' + (ownCode ? 'This ' + self + '\'s code is also on file elsewhere'
+            : exact ? esc(code) + ' already exists'
+            : 'This number is already on file under another spelling') + '</div>';
+        html += '<ul>' + holders.slice(0, 4).map(function (e) { return '<li>' + _ccEntry(e, code) + '</li>'; }).join('') + '</ul>';
+        if (holders.length > 4) html += '<div class="acc-sub">…and ' + (holders.length - 4) + ' more.</div>';
+    } else if (ownCode) {
+        html += '<div class="acc-head">This ' + self + '\'s current code</div><div class="acc-sub">Nothing else on file carries this number.</div>';
+    } else if (typedN != null) {
+        cls = 'is-free';
+        html += '<div class="acc-head">✓ ' + esc(code) + ' is not on file</div>';
+        if (typedN > s.next) {
+            html += '<div class="acc-note">It skips ahead: the series runs to ' + s.max + ', so ' + s.next +
+                (typedN - 1 > s.next ? '–' + (typedN - 1) : '') + ' would be left unused.</div>';
+        } else if (typedN < s.max) {
+            html += '<div class="acc-note">It fills a gap: numbers in this series already run to ' + s.max + '.</div>';
+        }
+    }
+
+    // the series this code belongs to (no number typed yet: it is the whole panel)
+    html += '<div class="acc-series' + (html ? '' : ' is-first') + '">';
+    if (s.count) {
+        html += '<div><strong>Series MPH/' + esc(s.token) + '/' + esc(s.group) + '</strong>' + (s.desc ? ' — ' + esc(s.desc) : '') +
+            ' <span class="acc-sub">· ' + s.count + ' on file, highest ' + s.max + ', next free <code>' + esc(s.nextCode) + '</code></span></div>';
+        var nums = Object.keys(s.members).map(Number).sort(function (a, b) { return a - b; });
+        var near = (typedN != null
+            ? nums.slice().sort(function (a, b) { return Math.abs(a - typedN) - Math.abs(b - typedN) || a - b; })
+            : nums.slice().reverse()).slice(0, 5).sort(function (a, b) { return a - b; });
+        if (near.length) {
+            html += '<div class="acc-sub acc-near-label">' + (typedN != null ? 'Nearest numbers on file:' : 'Latest numbers on file:') + '</div><ul>' +
+                near.map(function (n) {
+                    var e = _ccDedupe(s.members[n])[0];
+                    var spellings = {};
+                    s.members[n].forEach(function (x) { spellings[x.code] = true; });
+                    var more = Object.keys(spellings).length - 1;
+                    return '<li><span class="acc-num' + (s.typedNums.indexOf(n) >= 0 ? ' is-typed' : '') + '">' + String(n).padStart(2, '0') + '</span> ' +
+                        _ccEntry(e, e.code) + (more > 0 ? ' <span class="acc-sub">(+' + more + ' other spelling' + (more === 1 ? '' : 's') + ')</span>' : '') + '</li>';
+                }).join('') + '</ul>';
+        }
+    } else {
+        html += '<div><strong>New series MPH/' + esc(s.token) + '/' + esc(s.group) + '</strong>' + (s.desc ? ' — ' + esc(s.desc) : '') +
+            ' <span class="acc-sub">· nothing on file yet</span></div>';
+    }
+    if (s.nextCode !== code && !ownCode) html += useBtn(s.nextCode);
+    html += '</div>';
+
+    // the code's department and the form's / sheet's department disagree
+    var deptFam = ctx.deptName ? _familyTokenOf(window.mphDeptToken(ctx.deptName)) : null;
+    if (deptFam && deptFam !== s.token) {
+        var codeDept = _ccDeptForFamily(s.token);
+        html += '<div class="acc-note">This is ' + (codeDept ? 'a ' + esc(codeDept) : 'an ' + esc(s.token)) + ' code (' + esc(s.token) +
+            '), but ' + esc(ctx.deptLabel || "the asset's department") + ' is ' + esc(ctx.deptName) + ' (' + esc(deptFam) + ').</div>';
+    }
+    return { cls: cls, html: html };
+};
+// The panel's look, injected once so both pages share it. Colours come from
+// each page's theme variables (with fallbacks), so dark mode follows along.
+window.mphEnsureCodeCheckStyles = function () {
+    if (document.getElementById('mph-code-check-css')) return;
+    var css = [
+        '.asset-code-check { padding: 8px 10px; border-radius: 8px; font-size: 0.78rem; line-height: 1.45;',
+        '  border: 1px solid var(--border-color, #e0e0e0); background: var(--bg-secondary, var(--bg-primary, #f5f7fa));',
+        '  color: var(--text-primary, #2C3E50); overflow-wrap: anywhere; min-width: 0; text-align: left; }',
+        '.asset-code-check.is-taken { border-color: #e74c3c; background: rgba(231, 76, 60, 0.10); }',
+        '.asset-code-check.is-free { border-color: #27ae60; background: rgba(39, 174, 96, 0.10); }',
+        '.asset-code-check.is-info { border-color: #3498db; background: rgba(52, 152, 219, 0.10); }',
+        '.asset-code-check .acc-head { font-weight: 700; margin-bottom: 2px; }',
+        '.asset-code-check.is-taken .acc-head { color: #e74c3c; }',
+        '.asset-code-check.is-free .acc-head { color: #27ae60; }',
+        '.asset-code-check .acc-note { color: #e67e22; margin-top: 4px; }',
+        '.asset-code-check .acc-sub { color: var(--text-secondary, #7f8c8d); }',
+        '.asset-code-check .acc-near-label { margin-top: 3px; }',
+        '.asset-code-check ul { margin: 3px 0 0; padding-left: 16px; }',
+        '.asset-code-check li { margin: 1px 0; }',
+        '.asset-code-check code { font-family: monospace; font-size: 0.78rem; font-weight: 600; }',
+        '.asset-code-check .acc-series { margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--border-color, #e0e0e0); }',
+        '.asset-code-check .acc-series.is-first { margin-top: 0; padding-top: 0; border-top: 0; }',
+        '.asset-code-check .acc-use { display: inline-block; margin: 4px 6px 0 0; padding: 3px 9px; border-radius: 12px;',
+        '  border: 1px solid #27ae60; background: transparent; color: #27ae60; font-family: monospace;',
+        '  font-size: 0.76rem; font-weight: 700; cursor: pointer; }',
+        '.asset-code-check .acc-use:hover { background: rgba(39, 174, 96, 0.15); }',
+        '.asset-code-check .acc-num { padding: 1px 7px; border-radius: 10px; font-family: monospace; font-size: 0.74rem;',
+        '  background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e0e0e0); }',
+        '.asset-code-check .acc-num.is-typed { border-color: #e74c3c; color: #e74c3c; font-weight: 700; }',
+        // Location Records: one panel, pinned under the focused code cell
+        // (solid: the tint is layered over the card colour, not over the table)
+        '.asset-code-check.is-floating { position: fixed; z-index: 3000; max-height: 45vh; overflow-y: auto;',
+        '  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); background: var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-taken { background: linear-gradient(rgba(231,76,60,0.10), rgba(231,76,60,0.10)), var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-free { background: linear-gradient(rgba(39,174,96,0.10), rgba(39,174,96,0.10)), var(--bg-card, #fff); }',
+        '.asset-code-check.is-floating.is-info { background: linear-gradient(rgba(52,152,219,0.10), rgba(52,152,219,0.10)), var(--bg-card, #fff); }'
+    ].join('\n');
+    var el = document.createElement('style');
+    el.id = 'mph-code-check-css';
+    el.textContent = css;
+    (document.head || document.documentElement).appendChild(el);
 };
 
 window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedCodes) {
