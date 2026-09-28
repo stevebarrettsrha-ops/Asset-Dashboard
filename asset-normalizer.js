@@ -197,6 +197,138 @@ window.mphCodeKey = function (code) {
     return [(p.dept || ''), item, seq, (p.year || '')].join('|');
 };
 
+/* ---- Code families: one department's number, however it was written ----
+   The registers spell the same code several ways: MPH/AC/133/01,
+   MPH/133/01/AC and MPH/ADM/AC/133/01 are all Accounts chair 133/01, and the
+   department's own token is ACC. mphCodeKey keeps them apart on purpose — it
+   is the stored identity behind tombstones and record links, and changing it
+   would re-key data already on devices and in the cloud. The family is the
+   looser question "is this number already spent?", asked when a new code is
+   chosen:
+
+     • a known variant of a token maps to it (AC and ADM/AC are Accounts);
+     • ADM in front of, or behind, another department's token is the Admin
+       building prefix (ADM/HR is HR, DNS/ADM is DNS) when what is left is a
+       real department token — otherwise the token is left as it is;
+     • the year is dropped: numbers run on across years (162/02/2026 spends 02).
+
+   A family can be wider than the true identity (ADM/MS is the SMO & DNS
+   office's, not Male Surgical's), and that is the safe direction: at worst a
+   number is skipped; a number is never handed out twice. */
+var FAMILY_TOKEN_ALIASES = { AC: 'ACC', ADMAC: 'ACC', ADMACC: 'ACC' };
+var CANON_TOKENS = {};
+window.MPH_CANONICAL_DEPARTMENTS.forEach(function (d) { CANON_TOKENS[d.token] = true; });
+function _familyTokenOf(tok) {
+    if (!tok) return null;
+    tok = String(tok).replace(/[^A-Z&]/gi, '').toUpperCase();
+    if (!tok) return null;
+    if (FAMILY_TOKEN_ALIASES[tok]) return FAMILY_TOKEN_ALIASES[tok];
+    if (CANON_TOKENS[tok]) return tok;
+    var m = tok.match(/^ADM([A-Z&]{2,})$/) || tok.match(/^([A-Z&]{2,})ADM$/);
+    if (m) {
+        var rest = m[1];
+        var viaAlias = TOKEN_ALIASES[rest];
+        if (FAMILY_TOKEN_ALIASES[rest]) return FAMILY_TOKEN_ALIASES[rest];
+        if (CANON_TOKENS[rest]) return rest;
+        if (viaAlias && CANON_TOKENS[viaAlias]) return viaAlias;
+    }
+    return tok;
+}
+window.mphFamilyToken = _familyTokenOf;
+// {token, item, seq, nums} or null. nums: every number the code spends —
+// "02-1" (unit 1 of lot 02) spends 2; a range "41-44" spends 41..44;
+// "01-04-1" (unit 1 of the 01-04 range) spends 1..4.
+// Memoized like mphParseCode (read-only results): a lookup walks every code
+// in the register and on the sheets.
+var _familyCache = new Map();
+window.mphCodeFamily = function (code) {
+    if (code == null) return null;
+    var raw = String(code);
+    if (_familyCache.has(raw)) return _familyCache.get(raw);
+    var f = _mphCodeFamilyUncached(raw);
+    if (_familyCache.size > 50000) _familyCache.clear();
+    _familyCache.set(raw, f);
+    return f;
+};
+function _mphCodeFamilyUncached(code) {
+    // two codes run together in one cell ("MPH/210/01-05/ADM MPH/210/07/ADM")
+    // parse as one garbled number; they say nothing reliable about a series
+    if (/MPH[\s\S]*MPH/i.test(code)) return null;
+    var p = window.mphParseCode(code);
+    if (!p || !p.item) return null;
+    var parts = String(p.seq || '').split('-').map(function (s) { return parseInt(s, 10); })
+        .filter(function (n) { return !isNaN(n); });
+    // "01-04-1" is unit 1 of the 01-04 range: the range is what is spent
+    var nums = parts.slice(0, 1);
+    if (parts.length >= 2 && parts[1] > parts[0]) {
+        nums = [];
+        if (parts[1] - parts[0] <= 200) { for (var n = parts[0]; n <= parts[1]; n++) nums.push(n); }
+        else nums.push(parts[0], parts[1]);
+    }
+    return {
+        token: _familyTokenOf(p.dept),
+        item: String(p.item).replace(/^0+(?=.)/, ''),
+        seq: String(p.seq || '').split('-').map(function (s) { return s.replace(/[^0-9A-Z]/g, '').replace(/^0+(?=.)/, ''); }).join('-'),
+        nums: nums
+    };
+}
+// Same number however it is spelled (year ignored). null for token-less codes.
+window.mphCodeFamilyKey = function (code) {
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token) return null;
+    return [f.token, f.item, f.seq].join('|');
+};
+/* Is this code's number already on file — in the register (codes and
+   aliases), on any room sheet, or boarded — under any spelling?
+   opts.assetId / opts.itemId: the asset or row being edited, which does not
+   count against itself (nor do rows linked to that asset).
+   Returns { code, source: 'register'|'records'|'boarded', asset?, dept?, room? }
+   for the first holder found, or null. */
+window.mphFindCodeOnFile = function (code, assets, records, reservedCodes, opts) {
+    opts = opts || {};
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token || !f.nums.length) return null;
+    var want = {};
+    f.nums.forEach(function (n) { want[n] = true; });
+    function hits(c) {
+        if (!c) return false;
+        var g = window.mphCodeFamily(c);
+        if (!g || g.token !== f.token || g.item !== f.item) return false;
+        for (var i = 0; i < g.nums.length; i++) if (want[g.nums[i]]) return true;
+        return false;
+    }
+    var i, j;
+    for (i = 0; i < (assets || []).length; i++) {
+        var a = assets[i];
+        if (!a || (opts.assetId && a.id === opts.assetId)) continue;
+        var codes = [a.assetCode].concat(a.aliases || []);
+        for (j = 0; j < codes.length; j++) {
+            if (hits(codes[j])) return { code: codes[j], source: 'register', asset: a };
+        }
+    }
+    var depts = (records && records.departments) || [];
+    for (i = 0; i < depts.length; i++) {
+        var d = depts[i]; if (!d) continue;
+        var rooms = d.rooms || [];
+        for (j = 0; j < rooms.length; j++) {
+            var items = (rooms[j] && rooms[j].items) || [];
+            for (var k = 0; k < items.length; k++) {
+                var it = items[k];
+                if (!it || !it.assetCode) continue;
+                if (opts.itemId && it.id === opts.itemId) continue;
+                if (opts.assetId && it.regId === opts.assetId) continue;
+                if (hits(it.assetCode)) {
+                    return { code: it.assetCode, source: 'records', dept: d.name, room: rooms[j].title, item: it };
+                }
+            }
+        }
+    }
+    for (i = 0; i < (reservedCodes || []).length; i++) {
+        if (hits(reservedCodes[i])) return { code: reservedCodes[i], source: 'boarded' };
+    }
+    return null;
+};
+
 /* ---- department list shared source (Location Records is authoritative) ---- */
 window.mphGetLocationRecords = function () {
     try {
@@ -743,26 +875,37 @@ window.mphNextCodeGroupDesc = function (group) {
 };
 window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedCodes) {
     var token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
-    var tokN = token ? token.replace(/[^A-Z&]/gi, '').toUpperCase() : null;
+    // the series takes in every spelling of the department's token
+    // (MPH/AC/…, MPH/ADM/AC/… and MPH/ACC/… are one Accounts series) — a
+    // variant left out is a number offered again while it is on file
+    var fam = token ? _familyTokenOf(token) : null;
     var deptK = String(deptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
     var groups = {};
-    var seen = {};   // code identities already counted, across every source
+    var seen = {};   // numbers already counted, across every source and spelling
 
-    function feed(code, ownerDeptName) {
+    // Adds the code's numbers to its series. Returns true when the code
+    // belongs to this department's series. `counted` false: raise the
+    // highest number only (another code of an asset already counted).
+    function feed(code, ownerDeptName, counted) {
         if (!code) return false;
-        var p = window.mphParseCode ? window.mphParseCode(code) : null;
-        if (!p || !p.item) return false;
-        var pTok = p.dept ? String(p.dept).replace(/[^A-Z&]/gi, '').toUpperCase() : null;
-        // the series is defined by the code's own department token;
-        // unmapped/custom departments match by assignment instead
+        var f = window.mphCodeFamily(code);
+        if (!f) return false;
+        // the series is defined by the code's own department token; a code
+        // with no token counts for the department whose sheet or asset it
+        // is on, and unmapped/custom departments match by assignment only
         var ownerK = String(ownerDeptName || '').replace(/\s+/g, ' ').trim().toLowerCase();
-        var match = tokN ? (pTok === tokN) : (!pTok && ownerK === deptK);
+        var match = f.token ? (fam && f.token === fam) : (ownerK === deptK);
         if (!match) return false;
-        var ck = window.mphCodeKey ? window.mphCodeKey(code) : String(code).toUpperCase();
-        if (ck && seen[ck]) return true;   // same item, another source
-        if (ck) seen[ck] = true;
-        var g = groups[p.item] || (groups[p.item] = { group: p.item, count: 0, max: 0, pad: 2 });
-        g.count++;
+        var p = window.mphParseCode(code);
+        // grouped by the item number's value (0005 and 5 are one group),
+        // shown as first written
+        var g = groups[f.item] || (groups[f.item] = { group: String(p.item), count: 0, max: 0, pad: 2 });
+        var ck = [f.token || '', f.item, f.seq].join('|');
+        if (counted !== false && !seen[ck]) g.count++;
+        seen[ck] = true;
+        // every number written in the sequence counts towards the highest,
+        // unit suffixes included — reading a part as "only a unit" would
+        // slide a series back below a number already on file
         String(p.seq || '').split('-').forEach(function (sq) {
             var n = parseInt(sq, 10);
             if (!isNaN(n)) {
@@ -775,9 +918,12 @@ window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedC
 
     (assets || []).forEach(function (a) {
         if (!a) return;
+        // one series entry per asset, but every code it has ever carried
+        // (its aliases) is a spent number
         var codes = [a.assetCode].concat(a.aliases || []);
+        var counted = false;
         for (var i = 0; i < codes.length; i++) {
-            if (feed(codes[i], a.department)) break;   // one series entry per asset
+            if (feed(codes[i], a.department, !counted)) counted = true;
         }
     });
     ((records && records.departments) || []).forEach(function (d) {
