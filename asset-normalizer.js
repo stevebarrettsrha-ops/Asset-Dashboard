@@ -873,6 +873,81 @@ window.mphNextCodeGroupDesc = function (group) {
     }
     return '';
 };
+/* Everything on file in the series a (possibly half-typed) code belongs to —
+   for telling the user, as they type, whether the number is taken and what
+   the series around it looks like. One pass over the same sources as
+   mphComputeNextCodeSeries, matching every spelling of the family.
+     opts.deptName  the department chosen on the form: its token-less codes
+                    count when the department is of this family
+     opts.assetId   the asset being edited (it, and rows linked to it, do not
+                    count against the code)
+   Returns null when the code has no family token and item group; else
+   { token, group, desc, typedNums, holders[], members{num: entries[]},
+     count, max, next, nextCode } — an entry is
+   { code, source: 'register'|'records'|'boarded', asset?, dept?, room?, item? }. */
+window.mphDescribeCodeSeries = function (code, assets, records, reservedCodes, opts) {
+    opts = opts || {};
+    var f = window.mphCodeFamily(code);
+    if (!f || !f.token) return null;
+    var p0 = window.mphParseCode(code);
+    var want = {};
+    f.nums.forEach(function (n) { want[n] = true; });
+    var deptK = K(opts.deptName);
+    var deptFam = _familyTokenOf(window.mphDeptToken(opts.deptName));
+    var members = {}, holders = [], counted = {};
+    var max = 0, pad = 2;
+    function take(c, ownerDeptName, entry) {
+        var g = window.mphCodeFamily(c);
+        if (!g || g.item !== f.item) return false;
+        var match = g.token ? (g.token === f.token) : (deptFam === f.token && K(ownerDeptName) === deptK);
+        if (!match) return false;
+        var p = window.mphParseCode(c);
+        String(p.seq || '').split('-').forEach(function (sq) {
+            var n = parseInt(sq, 10);
+            if (!isNaN(n)) {
+                if (n > max) max = n;
+                if (/^\d+$/.test(sq)) pad = Math.max(pad, sq.length);
+            }
+        });
+        counted[[g.token || '', g.item, g.seq].join('|')] = true;
+        entry.code = c;
+        g.nums.forEach(function (n) { (members[n] || (members[n] = [])).push(entry); });
+        if (g.nums.some(function (n) { return want[n]; })) holders.push(entry);
+        return true;
+    }
+    (assets || []).forEach(function (a) {
+        if (!a || (opts.assetId && a.id === opts.assetId)) return;
+        [a.assetCode].concat(a.aliases || []).forEach(function (c) {
+            take(c, a.department, { source: 'register', asset: a });
+        });
+    });
+    ((records && records.departments) || []).forEach(function (d) {
+        if (!d) return;
+        (d.rooms || []).forEach(function (r) {
+            (r && r.items || []).forEach(function (it) {
+                if (!it || !it.assetCode) return;
+                if (opts.assetId && it.regId === opts.assetId) return;
+                take(it.assetCode, d.name, { source: 'records', dept: d.name, room: r.title, item: it });
+            });
+        });
+    });
+    (reservedCodes || []).forEach(function (c) { take(c, opts.deptName, { source: 'boarded' }); });
+    var next = max + 1;
+    var group = String(p0.item);
+    return {
+        token: f.token,
+        group: group,
+        desc: window.mphNextCodeGroupDesc(group),
+        typedNums: f.nums,
+        holders: holders,
+        members: members,
+        count: Object.keys(counted).length,
+        max: max,
+        next: next,
+        nextCode: 'MPH/' + f.token + '/' + group + '/' + String(next).padStart(Math.min(pad, 3), '0')
+    };
+};
+
 window.mphComputeNextCodeSeries = function (deptName, assets, records, reservedCodes) {
     var token = (window.mphDeptToken && window.mphDeptToken(deptName)) || null;
     // the series takes in every spelling of the department's token
