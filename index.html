@@ -6744,6 +6744,11 @@
                         <input type="date" id="dateIn" required>
                     </div>
                     <div class="form-group">
+                        <label for="dateOut">Date Out <span style="font-weight: normal; font-size: 0.8em; color: var(--text-secondary);">(assigned to department)</span></label>
+                        <input type="date" id="dateOut">
+                        <small style="color: var(--text-secondary); font-size: 0.75rem;">Leave blank if not yet assigned — set it here or with 📍 Assign later.</small>
+                    </div>
+                    <div class="form-group">
                         <label for="quantity">Quantity *</label>
                         <input type="number" id="quantity" required min="1" value="1" oninput="document.getElementById('quantityExpandNote').style.display = this.value > 1 && !currentEditingAsset ? 'block' : 'none'">
                         <small id="quantityExpandNote" style="color: #e67e22; font-size: 0.75rem; display: none;">Qty &gt; 1 will create separate individual assets with suffixed codes</small>
@@ -8802,6 +8807,7 @@
                                 <th style="width: 40px;"><input type="checkbox" id="registerSelectAll" onchange="toggleSelectAllRegister(this)" style="width: 18px; height: 18px; cursor: pointer;"></th>
                                 <th>Asset Code</th>
                                 <th>Date In</th>
+                                <th>Date Out</th>
                                 <th>Description</th>
                                 <th>Department</th>
                                 <th>Category</th>
@@ -8824,7 +8830,7 @@
                         </thead>
                         <tbody id="registerTableBody">
                             <tr>
-                                <td colspan="16" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <td colspan="17" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                                     Loading all assets...
                                 </td>
                             </tr>
@@ -10792,6 +10798,11 @@
             </div>
             <div class="asset-code-modal-body">
                 <p id="assignRoomAsset" style="font-size: 0.82rem; font-weight: 600; margin: 0 0 10px;"></p>
+                <label for="assignDateOut" style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; margin: 0 0 10px;">
+                    <span style="font-weight: 600; white-space: nowrap;">Date Out *</span>
+                    <input type="date" id="assignDateOut" style="flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color, #ddd);">
+                </label>
+                <p style="font-size: 0.75rem; color: var(--text-secondary, #7078a0); margin: -6px 0 10px;">The day the asset went out to the department — recorded as its Date Out.</p>
                 <input type="text" id="assignRoomSearch" class="asset-code-search-box" placeholder="Search departments and rooms..." oninput="renderAssignRoomList()" style="width: 100%; margin-bottom: 10px;">
                 <p style="font-size: 0.78rem; color: var(--text-secondary, #7078a0); margin: 0 0 10px;">Pick a room to place this item in — it is added to that room's Location Record (and removed from any other room that listed it).</p>
                 <div id="assignRoomList" style="max-height: 52vh; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px;"></div>
@@ -12117,6 +12128,7 @@
             const fields = [
                 { key: 'assetCode', label: 'Asset Code' },
                 { key: 'dateIn', label: 'Date In' },
+                { key: 'dateOut', label: 'Date Out' },
                 { key: 'description', label: 'Description' },
                 { key: 'department', label: 'Department' },
                 { key: 'category', label: 'Category' },
@@ -12199,7 +12211,7 @@
 
             const mergedAsset = { ...asset1 };
 
-            const fields = ['assetCode', 'dateIn', 'description', 'department', 'category',
+            const fields = ['assetCode', 'dateIn', 'dateOut', 'description', 'department', 'category',
                            'supplier', 'source', 'serialModel', 'itemType', 'month'];
 
             fields.forEach(field => {
@@ -17882,10 +17894,18 @@
                 (asset.department ? '  ·  currently: ' + asset.department + (asset.room ? ' › ' + asset.room : '') : '  ·  no department yet');
             const search = document.getElementById('assignRoomSearch');
             if (search) search.value = '';
+            // a (re-)assignment happens today unless the user says otherwise
+            const dateOut = document.getElementById('assignDateOut');
+            if (dateOut) dateOut.value = _todayInputDate();
             renderAssignRoomList();
             const modal = document.getElementById('assignRoomModal');
             if (modal) modal.style.display = 'flex';
             if (search) setTimeout(() => search.focus(), 50);
+        }
+        // Today as YYYY-MM-DD in local time (toISOString would give the UTC day)
+        function _todayInputDate() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
         function closeAssignRoomModal() {
             const modal = document.getElementById('assignRoomModal');
@@ -17956,16 +17976,30 @@
         function assignRoomChoose(deptName, roomTitle) {
             const asset = allAssetsData.find(a => a.id === _assignRoomAssetId);
             if (!asset) { closeAssignRoomModal(); return; }
+            const dateOutInput = document.getElementById('assignDateOut');
+            const dateOutVal = dateOutInput ? dateOutInput.value : '';
+            if (!dateOutVal) {
+                alert('⚠️ Please enter the Date Out — the day the asset went out to the department.');
+                if (dateOutInput) dateOutInput.focus();
+                return;
+            }
+            const dateInVal = formatDateForInput(asset.dateIn);
+            if (dateInVal && dateOutVal < dateInVal) {
+                alert('⚠️ Date Out (' + formatDateForDisplay(dateOutVal) + ') is before this asset\'s Date In (' + normalizeDateToDisplay(asset.dateIn) + ').');
+                if (dateOutInput) dateOutInput.focus();
+                return;
+            }
             const cameFrom = { dept: asset.department, room: asset.room || '' };
             asset.department = deptName;
             asset.room = roomTitle || '';
+            asset.dateOut = formatDateForDisplay(dateOutVal);
             asset.locationUpdatedAt = new Date().toISOString();
             // explicit (re-)placement by the user lifts any deletion tombstone
             if (window.mphUntombstoneLocationItem) {
                 window.mphUntombstoneLocationItem({ assetCode: asset.assetCode });
             }
             saveAssetsToStorage(allAssetsData);
-            addAuditEntry(asset.assetCode, 'Assigned to Room', deptName, roomTitle ? ('Assigned to ' + deptName + ' › ' + roomTitle) : ('Assigned to ' + deptName));
+            addAuditEntry(asset.assetCode, 'Assigned to Room', deptName, (roomTitle ? ('Assigned to ' + deptName + ' › ' + roomTitle) : ('Assigned to ' + deptName)) + ' — Date Out ' + asset.dateOut);
             syncAssetToLocationRecord(asset, deptName, roomTitle, cameFrom);
             closeAssignRoomModal();
             if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
@@ -18212,6 +18246,9 @@
                         }
                         if (asset.dateIn) {
                             asset.dateIn = normalizeDateToDisplay(asset.dateIn);
+                        }
+                        if (asset.dateOut) {
+                            asset.dateOut = normalizeDateToDisplay(asset.dateOut);
                         }
                         // Survey-created assets once had their Date In stamped
                         // with the day their room row was coded; that date was
@@ -18594,6 +18631,7 @@
                 // Populate form
                 document.getElementById('assetCode').value = asset.assetCode;
                 document.getElementById('dateIn').value = asset.dateIn ? formatDateForInput(asset.dateIn) : '';
+                document.getElementById('dateOut').value = asset.dateOut ? formatDateForInput(asset.dateOut) : '';
                 document.getElementById('quantity').value = asset.quantity || 1;
                 document.getElementById('description').value = asset.description;
                 document.getElementById('supplier').value = asset.supplier;
@@ -18754,6 +18792,7 @@
                 id: currentEditingAsset ? currentEditingAsset.id : generateAssetId(),
                 assetCode: document.getElementById('assetCode').value.trim(),
                 dateIn: formatDateForDisplay(document.getElementById('dateIn').value),
+                dateOut: formatDateForDisplay(document.getElementById('dateOut').value),
                 quantity: parseInt(document.getElementById('quantity').value) || 1,
                 description: document.getElementById('description').value.trim(),
                 supplier: document.getElementById('supplier').value.trim(),
@@ -18771,6 +18810,16 @@
                 depreciationMethod: document.getElementById('assetDepreciationMethod').value || 'straight',
                 comment: document.getElementById('assetComment').value.trim()
             };
+
+            // Date Out is the day the asset went out to its department, so it
+            // cannot come before the day it came in.
+            const dateInVal = document.getElementById('dateIn').value;
+            const dateOutVal = document.getElementById('dateOut').value;
+            if (dateInVal && dateOutVal && dateOutVal < dateInVal) {
+                alert('⚠️ Date Out (' + assetData.dateOut + ') is before Date In (' + assetData.dateIn + ').\n\nThe asset cannot be assigned to a department before it was received.');
+                document.getElementById('dateOut').focus();
+                return;
+            }
 
             // A number already on file under another spelling is the same code
             // (MPH/AC/133/01, MPH/133/01/AC and MPH/ADM/AC/133/01 are one
@@ -20018,6 +20067,7 @@
                 return {
                     'Asset Code': asset.assetCode,
                     'Date In': normalizeDateToDisplay(asset.dateIn),
+                    'Date Out': normalizeDateToDisplay(asset.dateOut) || '',
                     'Quantity': asset.quantity,
                     'Description': asset.description,
                     'Supplier/Donor': asset.supplier,
@@ -25349,6 +25399,10 @@
                         <div class="asset-info-label">Date Acquired</div>
                         <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateIn))}</div>
                     </div>
+                    <div class="asset-info-item">
+                        <div class="asset-info-label">Date Out (Assigned)</div>
+                        <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateOut) || 'Not yet assigned')}</div>
+                    </div>
                     <div class="asset-info-item full-width">
                         <div class="asset-info-label">Total Value</div>
                         <div class="asset-info-value highlight">JMD ${formatCurrency(asset.totalPrice)}</div>
@@ -25438,6 +25492,10 @@
                         <div class="asset-info-item">
                             <div class="asset-info-label">Date Acquired</div>
                             <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateIn))}</div>
+                        </div>
+                        <div class="asset-info-item">
+                            <div class="asset-info-label">Date Out (Assigned)</div>
+                            <div class="asset-info-value">${escapeHtml(normalizeDateToDisplay(asset.dateOut) || 'Not yet assigned')}</div>
                         </div>
                         <div class="asset-info-item">
                             <div class="asset-info-label">Quantity</div>
@@ -27295,6 +27353,7 @@
                             <th style="width: 40px;">Select</th>
                             <th>Asset Code</th>
                             <th>Date In</th>
+                            <th>Date Out</th>
                             <th>Description</th>
                             <th>Department</th>
                             <th>Category</th>
@@ -27326,6 +27385,7 @@
                         </td>
                         <td><span class="asset-code">${escapeHtml(item.assetCode)}</span></td>
                         <td>${escapeHtml(normalizeDateToDisplay(item.dateIn))}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(item.dateOut) || '—')}</td>
                         <td>${escapeHtml(item.description)}</td>
                         <td>${escapeHtml(item.department || 'N/A')}</td>
                         <td>${categoryBadge}</td>
@@ -27453,6 +27513,7 @@
                     <tr>
                         <td style="white-space: nowrap;">${escapeHtml(item.assetCode)}</td>
                         <td>${escapeHtml(normalizeDateToDisplay(item.dateIn))}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(item.dateOut) || '—')}</td>
                         <td>${escapeHtml(item.description)}</td>
                         <td>${escapeHtml(item.department || 'N/A')}</td>
                         <td>${escapeHtml(item.itemType)}</td>
@@ -27639,6 +27700,7 @@
                             <tr>
                                 <th>Asset Code</th>
                                 <th>Date In</th>
+                                <th>Date Out</th>
                                 <th>Description</th>
                                 <th>Department</th>
                                 <th>Item Type</th>
@@ -27989,7 +28051,7 @@
             }
             
             const wb = XLSX.utils.book_new();
-            const headers = ['Asset Code', 'Date In', 'Description', 'Category', 'Supplier/Donor',
+            const headers = ['Asset Code', 'Date In', 'Date Out', 'Description', 'Category', 'Supplier/Donor',
                            'Source', 'Serial/Model', 'Quantity', 'Total Price (JMD)', 'Month',
                            'Annual Depr. (JMD)', 'Monthly Depr. (JMD)', 'Book Value (JMD)', 'Comment'];
             const rows = filteredData.map(item => {
@@ -27997,6 +28059,7 @@
                 return [
                     item.assetCode,
                     item.dateIn,
+                    normalizeDateToDisplay(item.dateOut) || '',
                     item.description,
                     item.category,
                     item.supplier,
@@ -28048,6 +28111,11 @@
                 label: 'Date In',
                 required: true,
                 aliases: ['date in', 'datein', 'date_in', 'purchase date', 'purchasedate', 'acquisition date', 'date acquired', 'date', 'received date', 'entry date']
+            },
+            dateOut: {
+                label: 'Date Out',
+                required: false,
+                aliases: ['date out', 'dateout', 'date_out', 'date assigned', 'assigned date', 'assignment date', 'date issued', 'issue date', 'issued date']
             },
             supplier: {
                 label: 'Supplier',
@@ -28842,6 +28910,7 @@
                     rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
                     rowData.parsed.description = String(getValue('description') || '').trim();
                     rowData.parsed.dateIn = parseImportDate(getValue('dateIn'));
+                    rowData.parsed.dateOut = parseImportDate(getValue('dateOut'));
                     rowData.parsed.supplier = String(getValue('supplier') || '').trim();
                     rowData.parsed.department = String(getValue('department') || '').trim();
                     rowData.parsed.source = normalizeSource(getValue('source'));
@@ -29074,6 +29143,7 @@
                                 assetCode: assetCode,
                                 description: row.parsed.description,
                                 dateIn: row.parsed.dateIn,
+                                dateOut: row.parsed.dateOut || '',
                                 supplier: row.parsed.supplier || '',
                                 department: row.parsed.department,
                                 source: row.parsed.source,
@@ -29746,6 +29816,8 @@
 
                 for (const [fieldKey, fieldDef] of Object.entries(importFieldDefinitions)) {
                     if (gdriveImportState.columnMapping[fieldKey] !== undefined) continue;
+                    // "Date Out" contains "date" — keep it off the Date In field
+                    if (fieldKey === 'dateIn' && /\bout\b|assign|issue/.test(normalizedHeader)) continue;
 
                     const matchFound = fieldDef.aliases.some(alias => {
                         return normalizedHeader === alias ||
@@ -29897,6 +29969,7 @@
                         rowData.parsed.assetCode = String(getValue('assetCode') || '').trim();
                         rowData.parsed.description = String(getValue('description') || '').trim();
                         rowData.parsed.dateIn = parseExcelDate(getValue('dateIn'));
+                        rowData.parsed.dateOut = parseExcelDate(getValue('dateOut'));
                         rowData.parsed.supplier = String(getValue('supplier') || '').trim();
                         rowData.parsed.department = String(getValue('department') || '').trim();
                         rowData.parsed.source = String(getValue('source') || '').trim();
@@ -30130,6 +30203,7 @@
                                 assetCode: assetCode,
                                 description: row.parsed.description,
                                 dateIn: row.parsed.dateIn,
+                                dateOut: row.parsed.dateOut || '',
                                 supplier: row.parsed.supplier,
                                 department: row.parsed.department,
                                 source: row.parsed.source,
@@ -33047,7 +33121,7 @@
             if (filteredRegisterData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="16" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <td colspan="17" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                             No assets found matching your criteria.
                         </td>
                     </tr>
@@ -33114,6 +33188,7 @@
                             </td>
                             <td>${assetCodeDisplay}</td>
                             <td>${escapeHtml(normalizeDateToDisplay(asset.dateIn) || 'N/A')}</td>
+                            <td>${escapeHtml(normalizeDateToDisplay(asset.dateOut) || '—')}</td>
                             <td>${escapeHtml(asset.description || 'N/A')}</td>
                             <td>${escapeHtml(asset.department || 'N/A')}${asset.room ? `<div style="font-size:0.78em; color:var(--text-secondary); white-space:nowrap;" title="Room on the Location Record">📍 ${escapeHtml(asset.room)}</div>` : ''}</td>
                             <td>${categoryBadge}</td>
@@ -33597,6 +33672,7 @@
                             assetCode: newCode,
                             description: source.description || '',
                             dateIn: source.dateIn || '',
+                            dateOut: source.dateOut || '',
                             supplier: source.supplier || '',
                             department: source.department || '',
                             source: source.source || '',
@@ -34445,7 +34521,7 @@
             }
 
             const wb = XLSX.utils.book_new();
-            const headers = ['Asset Code', 'Date In', 'Description', 'Department', 'Category',
+            const headers = ['Asset Code', 'Date In', 'Date Out', 'Description', 'Department', 'Category',
                            'Supplier/Donor', 'Source', 'Serial/Model', 'Quantity', 'Unit Price (JMD)', 'Total Price (JMD)', 'Month',
                            'Useful Life (Yrs)', 'Salvage Value (JMD)', 'Depr. Method', 'Annual Depr. (JMD)', 'Monthly Depr. (JMD)', 'Book Value (JMD)', 'Comment'];
             const rows = filteredRegisterData.map(asset => {
@@ -34453,6 +34529,7 @@
                 return [
                     asset.assetCode,
                     normalizeDateToDisplay(asset.dateIn) || '',
+                    normalizeDateToDisplay(asset.dateOut) || '',
                     asset.description || '',
                     asset.department || '',
                     asset.category || '',
@@ -34512,6 +34589,7 @@
                         <td>${index + 1}</td>
                         <td class="${isDisposed ? 'disposed-asset-code' : ''}">${escapeHtml(asset.assetCode)}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
                         <td>${normalizeDateToDisplay(asset.dateIn) || 'N/A'}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(asset.dateOut) || '—')}</td>
                         <td>${escapeHtml(asset.description || 'N/A')}</td>
                         <td>${escapeHtml(asset.department || 'N/A')}</td>
                         <td>${escapeHtml(asset.category || 'N/A')}</td>
@@ -34704,6 +34782,7 @@
                                 <th>#</th>
                                 <th>Asset Code</th>
                                 <th>Date In</th>
+                                <th>Date Out</th>
                                 <th>Description</th>
                                 <th>Department</th>
                                 <th>Category</th>
@@ -35700,6 +35779,7 @@
                         <td>${i + 1}</td>
                         <td class="${isDisposed ? 'disposed-asset-code' : ''}">${escapeHtml(asset.assetCode)}${isDisposed ? '<span class="disposed-tag">DISPOSED</span>' : ''}</td>
                         <td>${normalizeDateToDisplay(asset.dateIn) || 'N/A'}</td>
+                        <td>${escapeHtml(normalizeDateToDisplay(asset.dateOut) || '—')}</td>
                         <td>${escapeHtml(asset.description || 'N/A')}</td>
                         <td>${escapeHtml(asset.department || 'N/A')}</td>
                         <td>${escapeHtml(asset.supplier || 'N/A')}</td>
@@ -35729,6 +35809,7 @@
                                     <th>#</th>
                                     <th>Asset Code</th>
                                     <th>Date In</th>
+                                    <th>Date Out</th>
                                     <th>Description</th>
                                     <th>Department</th>
                                     <th>Supplier/Donor</th>
