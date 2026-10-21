@@ -13384,6 +13384,7 @@
                 assets.forEach(indexAsset);
                 const records = getLocationRecords();
                 const removed = new Set();
+                const mergedInto = new Map();   // asset id -> code of the asset it was merged into
                 const added = [];
                 const linked = [];          // { itemId, assetId } to write back
                 let changed = 0, deleted = 0;
@@ -13462,6 +13463,57 @@
                         return;
                     }
 
+                    if (op.op === 'merge') {
+                        // Rows merged on a sheet: they were one item all along.
+                        // The kept row's asset absorbs the assets the other
+                        // rows stood for — their codes become its aliases (a
+                        // search for any of them still finds it), its blank
+                        // details are filled from theirs, and the duplicates
+                        // leave the register.
+                        const one = (regId, code) => {
+                            if (regId && byId.has(regId) && !removed.has(regId)) return byId.get(regId);
+                            const k = window.mphCodeKey(code);
+                            const x = k ? byKey.get(k) : null;
+                            return (x && !removed.has(x.id)) ? x : null;
+                        };
+                        let keepA = one(op.regId, op.code);
+                        const dropAs = [];
+                        (op.drops || []).forEach(dr => {
+                            const b = dr && one(dr.regId, dr.code);
+                            if (b && b !== keepA && dropAs.indexOf(b) < 0) dropAs.push(b);
+                        });
+                        if (!keepA) {
+                            if (!dropAs.length) return;
+                            // the kept row's code is new to the register: the
+                            // first absorbed asset carries it from now on
+                            keepA = dropAs.shift();
+                            const next = String(op.code || '').trim();
+                            if (next && window.mphCodeKey(next) !== window.mphCodeKey(keepA.assetCode)) {
+                                if (keepA.assetCode) keepA.aliases = (keepA.aliases || []).concat([keepA.assetCode]);
+                                keepA.assetCode = next;
+                                const nk = window.mphCodeKey(next);
+                                if (nk) byKey.set(nk, keepA);
+                            }
+                            changed++;
+                        }
+                        if (op.itemId) linked.push({ itemId: op.itemId, assetId: keepA.id });
+                        const blank = v => v == null || v === '' || (typeof v === 'number' && !(v > 0));
+                        dropAs.forEach(b => {
+                            const codes = [b.assetCode].concat(b.aliases || []).filter(Boolean);
+                            const al = (keepA.aliases || []).concat(codes);
+                            keepA.aliases = al.filter((c, i) => al.indexOf(c) === i && c !== keepA.assetCode);
+                            ['description', 'itemType', 'serialModel', 'supplier', 'category', 'source', 'dateIn', 'month',
+                             'dateOut', 'room', 'unitPrice', 'totalPrice', 'usefulLife', 'salvageValue', 'comment']
+                                .forEach(f => { if (blank(keepA[f]) && !blank(b[f])) keepA[f] = b[f]; });
+                            codes.forEach(c => { const k = window.mphCodeKey(c); if (k) byKey.set(k, keepA); });
+                            removed.add(b.id);
+                            mergedInto.set(b.id, keepA.assetCode);
+                            deleted++;
+                        });
+                        if (dropAs.length) changed++;
+                        return;
+                    }
+
                     const a = resolve(op);
                     if (!a || removed.has(a.id)) return;
                     // first time this row and this asset were paired
@@ -13532,6 +13584,16 @@
                     if (typeof trackDeletedAssetIds === 'function') trackDeletedAssetIds([...removed]);
                     assets.forEach(a => {
                         if (!removed.has(a.id)) return;
+                        if (mergedInto.has(a.id)) {
+                            try {
+                                if (typeof addAuditEntry === 'function') {
+                                    addAuditEntry(a.assetCode, 'Merged', a.department,
+                                        'Merged into ' + mergedInto.get(a.id) + ' on the Location Records (same item); ' +
+                                        a.assetCode + ' is kept on it as an alias');
+                                }
+                            } catch (e) { /* keep going */ }
+                            return;
+                        }
                         try {
                             if (typeof removeDisposalRecordsForAsset === 'function') {
                                 removeDisposalRecordsForAsset(a.assetCode, a.id);
@@ -13681,11 +13743,11 @@
             const KX = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase();
             const BUCKET = window.mphLocationBucketTitle || 'Register Items — Room Not Yet Assigned';
             const isBucket = t => /Room Not Yet Assigned/i.test(String(t || ''));
-            const tombs = window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null;
+            let tombs = window.mphGetLocationTombstones ? window.mphGetLocationTombstones() : null;
             const now = new Date().toISOString();
 
             let assets = loadAssetsFromStorage();
-            const stats = { undone: 0, linked: 0, orphans: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0, duplicates: 0 };
+            const stats = { undone: 0, revived: 0, linked: 0, orphans: 0, bucketCopies: 0, relocated: 0, placed: 0, filled: 0, duplicates: 0 };
             let assetsChanged = 0, recordsChanged = 0;
 
             /* ---- pass 0: undo what the first version minted ----
@@ -13712,6 +13774,35 @@
                 (a.aliases || []).forEach(c => { const ak = key(c); if (ak && !byAlias.has(ak)) byAlias.set(ak, a); });
             };
             assets.forEach(index);
+
+            /* ---- repair: a code deletion that outlived its asset's deletion ----
+               Deleting ONE row used to mark the whole code deleted, so every
+               other room's row of that code was pruned while the register kept
+               the asset (the delete skips codes another room still records) —
+               and the asset could then never be put back on a sheet. A code the
+               register still holds is not deleted: lift the mark (stamped, so it
+               holds on every device), and pass 3 puts the asset back on its
+               room sheet. A delete still waiting in the queue is left alone. */
+            if (tombs && window.mphReviveLocationCodes && window.mphIsCodeKeyTombstoned) {
+                const pending = new Set();
+                try {
+                    (window.mphGetRegisterQueue ? window.mphGetRegisterQueue() : []).forEach(op => {
+                        const k = op && op.op === 'delete' && key(op.code);
+                        if (k) pending.add(k);
+                    });
+                } catch (e) { /* no queue, nothing pending */ }
+                const revive = new Set();
+                assets.forEach(a => {
+                    if (!a || a.disposed === true || a.bosAsset === true) return;
+                    keysOf(a).forEach(k => {
+                        if (!pending.has(k) && window.mphIsCodeKeyTombstoned(k, tombs)) revive.add(k);
+                    });
+                });
+                if (revive.size && window.mphReviveLocationCodes([...revive])) {
+                    stats.revived = revive.size; recordsChanged++;   // so the revival rides the next sync
+                    tombs = window.mphGetLocationTombstones();
+                }
+            }
 
             const placements = new Map();      // asset.id -> [{dept, room, item, bucket}]
             const seenKeys = new Set();        // every code identity any room records
@@ -13928,6 +14019,7 @@
             console.log('Location Records ⇄ register: ' + JSON.stringify(stats));
             const said = [];
             if (stats.undone) said.push(stats.undone + ' auto-created asset' + (stats.undone === 1 ? '' : 's') + ' removed');
+            if (stats.revived) said.push(stats.revived + ' asset code' + (stats.revived === 1 ? '' : 's') + ' wrongly marked deleted restored');
             if (stats.relocated) said.push(stats.relocated + ' re-homed');
             if (stats.placed) said.push(stats.placed + ' placed on room sheets');
             if (stats.duplicates) said.push(stats.duplicates + ' leftover row' + (stats.duplicates === 1 ? '' : 's') + ' of deleted or re-coded assets removed');
@@ -17887,8 +17979,14 @@
         function openAssignRoomModal(assetId) {
             _assignRoomAssetId = assetId;
             _assignExpanded = {};
-            const asset = allAssetsData.find(a => a.id === assetId);
-            if (!asset) return;
+            // The stored register is the source of truth: the Asset Register
+            // page lists every asset in it, while the dashboard's in-memory
+            // list can be a different (or older) copy that lacks this asset.
+            const asset = _findStoredAsset(assetId);
+            if (!asset) {
+                alert('This asset could not be found in the register. Refresh the page and try again.');
+                return;
+            }
             const sub = document.getElementById('assignRoomAsset');
             if (sub) sub.textContent = (asset.assetCode || 'no code') + ' — ' + (asset.description || asset.itemType || '') +
                 (asset.department ? '  ·  currently: ' + asset.department + (asset.room ? ' › ' + asset.room : '') : '  ·  no department yet');
@@ -17973,9 +18071,18 @@
             const title = prompt('New room title for ' + deptName + ':');
             if (title && title.trim()) assignRoomChoose(deptName, title.trim());
         }
+        function _findStoredAsset(assetId) {
+            if (!assetId) return null;
+            return loadAssetsFromStorage().find(a => a && a.id === assetId) || null;
+        }
         function assignRoomChoose(deptName, roomTitle) {
-            const asset = allAssetsData.find(a => a.id === _assignRoomAssetId);
-            if (!asset) { closeAssignRoomModal(); return; }
+            const stored = loadAssetsFromStorage();
+            const asset = stored.find(a => a && a.id === _assignRoomAssetId);
+            if (!asset) {
+                alert('This asset could not be found in the register. Refresh the page and try again.');
+                closeAssignRoomModal();
+                return;
+            }
             const dateOutInput = document.getElementById('assignDateOut');
             const dateOutVal = dateOutInput ? dateOutInput.value : '';
             if (!dateOutVal) {
@@ -17998,11 +18105,23 @@
             if (window.mphUntombstoneLocationItem) {
                 window.mphUntombstoneLocationItem({ assetCode: asset.assetCode });
             }
-            saveAssetsToStorage(allAssetsData);
+            // Save the stored register itself (never the in-memory dashboard
+            // list, which may be a stale copy and would overwrite newer
+            // changes), then let every view read it back.
+            saveAssetsToStorage(stored);
+            allAssetsData = stored;
             addAuditEntry(asset.assetCode, 'Assigned to Room', deptName, (roomTitle ? ('Assigned to ' + deptName + ' › ' + roomTitle) : ('Assigned to ' + deptName)) + ' — Date Out ' + asset.dateOut);
-            syncAssetToLocationRecord(asset, deptName, roomTitle, cameFrom);
+            const placed = syncAssetToLocationRecord(asset, deptName, roomTitle, cameFrom);
             closeAssignRoomModal();
-            if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+            // the register page renders its own copy: reload it so the new
+            // department and room show at once, on the same page
+            if (typeof loadAssetRegister === 'function') { try { loadAssetRegister(true); } catch (e) {} }
+            else if (typeof displayAssetRegister === 'function') { try { displayAssetRegister(); } catch (e) {} }
+            if (!placed) {
+                _assignToast('⚠️ ' + (asset.assetCode || 'Asset') + ' saved to ' + deptName + (roomTitle ? ' › ' + roomTitle : '') +
+                    ', but it could not be added to the Location Records sheet');
+                return;
+            }
             _assignToast('📍 ' + (asset.assetCode || 'Asset') + ' → ' + deptName + (roomTitle ? ' › ' + roomTitle : ''));
         }
 
@@ -18882,6 +19001,11 @@
                     // change with no room still has to be mirrored — otherwise
                     // the records kept showing the asset in the old department.
                     if (assetData.room || movedDept || movedRoom) {
+                        // choosing a room is a deliberate placement: an old
+                        // deletion of this code must not keep it off the sheet
+                        if ((movedDept || movedRoom) && window.mphUntombstoneLocationItem) {
+                            window.mphUntombstoneLocationItem({ assetCode: assets[index].assetCode });
+                        }
                         syncAssetToLocationRecord(assets[index], assetData.department, assetData.room,
                             { dept: currentEditingAsset.department, room: currentEditingAsset.room || '' });
                     }
@@ -32718,6 +32842,13 @@
             const t = String(term).toLowerCase();
             if ((asset.assetCode || '').toLowerCase().includes(t)) return true;
             if ((asset.aliases || []).some(c => String(c || '').toLowerCase().includes(t))) return true;
+            // Codes are written MPH/ACC/405/01, MPH-ACC-405-01 or
+            // "SRHA-MIS-3407 (MPH-ACC-405-01)": compare them with the
+            // separators taken out, so any spelling of a code finds it.
+            const bare = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const bt = bare(t);
+            if (bt.length >= 3 && /\d/.test(bt) &&
+                [asset.assetCode].concat(asset.aliases || []).some(c => bare(c).includes(bt))) return true;
             return ['description', 'supplier', 'department'].some(f =>
                 asset[f] && String(asset[f]).toLowerCase().includes(t));
         }

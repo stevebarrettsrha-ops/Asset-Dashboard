@@ -1101,6 +1101,7 @@
                 <button class="btn btn-ghost" onclick="openPreview('room','${d.id}','${r.id}')">👁️ Preview</button>
                 <button class="btn btn-ghost" onclick="selectDept('${d.id}')">← Back to ${esc(d.name)}</button>
                 <button class="btn btn-ghost" onclick="openRoomModal('${r.id}')">✎ Rename Room</button>
+                <button class="btn btn-ghost" onclick="openMergeModal()" title="Merge rows that are the same asset into one">⧉ Merge Rows</button>
                 <button class="btn btn-danger" onclick="deleteRoom('${r.id}')">🗑 Delete Room</button>
                 <span class="save-hint" id="saveHint" style="margin-left:auto;align-self:center;">All changes save automatically</span>
             </div>
@@ -1400,17 +1401,17 @@
             `This removes the department and all ${d.rooms.length} room record(s), and DELETES from the Asset Register every asset whose code is not recorded in another department. This cannot be undone.`, () => {
             // tombstone the department and everything inside it so cloud
             // syncs and seed refreshes don't bring the deleted data back
+            const goneItems = (d.rooms || []).reduce((acc, r) => acc.concat(r.items || []), []);
+            db.departments = db.departments.filter(x => x.id !== id);
             if (window.mphAddLocationTombstone) {
                 window.mphAddLocationTombstone('departments', String(d.name || '').replace(/\s+/g, ' ').trim().toLowerCase());
                 (d.rooms || []).forEach(r => {
                     window.mphAddLocationTombstone('rooms', r.id);
-                    // by row id AND asset code, so the item can't return under
-                    // a fresh id from a seed, a peer device or a restore
-                    (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
+                    // by row id, and by asset code unless another department
+                    // still records the code (then its rows there must stay)
+                    (r.items || []).forEach(it => window.mphTombstoneLocationItem(it, db));
                 });
             }
-            const goneItems = (d.rooms || []).reduce((acc, r) => acc.concat(r.items || []), []);
-            db.departments = db.departments.filter(x => x.id !== id);
             goneItems.forEach(queueRegisterDelete);   // after the removal — see the guard
             if (selectedDeptId === id) {
                 selectedDeptId = null; selectedRoomId = null;
@@ -1466,12 +1467,13 @@
         const r = getRoom(d, id);
         confirmModal(`Delete “${r.title}”?`,
             `This removes the room record and its ${(r.items||[]).length} item(s), and DELETES from the Asset Register every asset whose code is not recorded in another room. This cannot be undone.`, () => {
-            if (window.mphAddLocationTombstone) {
-                window.mphAddLocationTombstone('rooms', r.id);
-                (r.items || []).forEach(it => window.mphTombstoneLocationItem(it));
-            }
             const goneItems = (r.items || []).slice();
             d.rooms = d.rooms.filter(x => x.id !== id);
+            if (window.mphAddLocationTombstone) {
+                window.mphAddLocationTombstone('rooms', r.id);
+                // a code another room still records keeps its rows there
+                goneItems.forEach(it => window.mphTombstoneLocationItem(it, db));
+            }
             goneItems.forEach(queueRegisterDelete);   // after the removal — see the guard
             if (selectedRoomId === id) selectedRoomId = null;
             save(); render(); toast('Room deleted', 'success');
@@ -1839,15 +1841,231 @@
         // Tombstone by row id AND asset code. An id-only tombstone let the
         // same physical item return under a different id (the seed's, another
         // device's, a restored backup's) on the very next merge.
-        if (window.mphTombstoneLocationItem) window.mphTombstoneLocationItem(it || { id: id });
+        // Removed first, so the tombstone can see whether another room still
+        // records this code: if one does, only this row is deleted, and the
+        // asset's other rows (and the register asset) stay.
+        r.items = r.items.filter(x => x.id !== id);
+        if (window.mphTombstoneLocationItem) window.mphTombstoneLocationItem(it || { id: id }, db);
         else if (window.mphAddLocationTombstone) window.mphAddLocationTombstone('items', id);
         // a deleted item is no longer "placed" anywhere
-        if (it && window.mphForgetLocationMove) window.mphForgetLocationMove(it);
-        r.items = r.items.filter(x => x.id !== id);
+        if (it && window.mphForgetLocationMove && !(window.mphCodeStillInRecords && window.mphCodeStillInRecords(db, it.assetCode))) {
+            window.mphForgetLocationMove(it);
+        }
         queueRegisterDelete(it);
         save(); renderRoom(document.getElementById('content'));
         growAllCells();
         renderDeptList();
+    }
+
+    /* ============================================================
+       Merge rows that are the same asset into one.
+
+       A sheet can list one physical item on several rows: the same code
+       typed twice, a register copy next to the survey row, or the same item
+       entered under two different codes. Merging keeps ONE row (the one
+       already linked to the register, else the first with a code, else the
+       first ticked), fills its blank fields from the others, notes any
+       other code in its Remarks, and removes the rest. Only those rows are
+       deleted — never the code — so the asset stays on every other sheet.
+       When the rows stood for different register assets, the register
+       merges them too (the queue's 'merge' op): the kept asset takes the
+       other codes as aliases, so a search for any of them still finds it.
+    ============================================================ */
+    let _mergeSel = new Set();
+    let _mergeTerm = '';
+    function _mergeKey(it) { return (it && window.mphCodeKey) ? window.mphCodeKey(it.assetCode) : null; }
+    // rows on this sheet that share a code identity, in sheet order
+    function _mergeGroups(r) {
+        const by = new Map();
+        (r.items || []).forEach(it => {
+            const k = _mergeKey(it);
+            if (!k) return;
+            if (!by.has(k)) by.set(k, []);
+            by.get(k).push(it);
+        });
+        return [...by.values()].filter(g => g.length > 1);
+    }
+    function _mergeRowLabel(r, it) {
+        const n = (r.items || []).indexOf(it) + 1;
+        const bits = [it.item, it.description && it.description !== it.item ? it.description : '', it.assetCode]
+            .map(x => String(x || '').trim()).filter(Boolean);
+        return '#' + n + '  ' + (bits.join(' — ') || '(blank row)');
+    }
+    function _mergeKeeper(rows) {
+        return rows.find(x => x.regId) || rows.find(x => String(x.assetCode || '').trim()) || rows[0];
+    }
+    function openMergeModal() {
+        _mergeSel = new Set();
+        _mergeTerm = '';
+        renderMergeModal();
+        openModal();
+    }
+    function renderMergeModal() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        if (!r) { closeModal(); return; }
+        const groups = _mergeGroups(r);
+        let html = `<h3>Merge rows into one</h3>
+            <p class="sub">Rows that are the same asset become one row. The row linked to the Asset Register is kept
+            (else the first with a code); its blank fields are filled from the others and any other code is noted in
+            its Remarks. Other rooms are not touched.</p>`;
+        if (groups.length) {
+            html += `<div style="font-weight:700; font-size:0.8rem; margin:10px 0 6px;">Same asset code on more than one row (${groups.length})</div>
+                <div class="move-modal-list" style="max-height:180px;">`;
+            groups.forEach((g, gi) => {
+                html += `<div class="move-room-row" style="cursor:default; align-items:flex-start;">
+                    <span style="flex:1; font-size:0.8rem;">${g.map(it => esc(_mergeRowLabel(r, it))).join('<br>')}</span>
+                    <button class="btn btn-primary btn-sm" onclick="mergeGroup(${gi})">Merge ${g.length}</button></div>`;
+            });
+            html += `</div>`;
+            if (groups.length > 1) {
+                html += `<div style="text-align:right; margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="mergeAllGroups()">Merge all ${groups.length} groups</button></div>`;
+            }
+        } else {
+            html += `<p class="sub" style="margin-top:6px;">No two rows on this sheet share an asset code.</p>`;
+        }
+        html += `<div style="font-weight:700; font-size:0.8rem; margin:12px 0 6px;">Or tick the rows that are the same item</div>
+            <input type="text" id="mergeSearch" placeholder="Filter rows…" value="${escAttr(_mergeTerm)}" oninput="onMergeSearch(this.value)"
+                   style="width:100%; padding:8px 12px; border:1px solid var(--border-color); border-radius:8px; font-size:0.85rem;">
+            <div class="move-modal-list" id="mergeRowList" style="max-height:240px;"></div>
+            <div id="mergeSummary" class="sub" style="margin-top:8px; font-size:0.78rem;"></div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+                <button class="btn btn-primary" id="mergeSelectedBtn" onclick="mergeSelected()" disabled>Merge selected</button>
+            </div>`;
+        document.getElementById('modalBox').innerHTML = html;
+        paintMergeRows();
+    }
+    function onMergeSearch(v) { _mergeTerm = v || ''; paintMergeRows(); }
+    function paintMergeRows() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const box = document.getElementById('mergeRowList');
+        if (!r || !box) return;
+        const t = _mergeTerm.trim().toLowerCase();
+        const rows = (r.items || []).filter(it => _mergeSel.has(it.id) || !t || itemMatches(it, t));
+        box.innerHTML = rows.map(it => `<label class="move-room-row" style="display:flex; flex-direction:row; align-items:center; gap:10px; text-align:left; cursor:pointer;">
+                <input type="checkbox" data-id="${escAttr(it.id)}" ${_mergeSel.has(it.id) ? 'checked' : ''} onchange="toggleMergeRow(this)"
+                       style="width:auto; height:auto; margin:0; flex:none; display:inline-block;">
+                <span style="flex:1; font-size:0.8rem; font-weight:400;">${esc(_mergeRowLabel(r, it))}</span></label>`).join('')
+            || '<div style="padding:12px; text-align:center; font-size:0.82rem; color:var(--text-secondary,#7078a0);">No rows match.</div>';
+        updateMergeSummary();
+    }
+    function toggleMergeRow(cb) {
+        const id = cb.dataset.id;
+        if (cb.checked) _mergeSel.add(id); else _mergeSel.delete(id);
+        updateMergeSummary();
+    }
+    function updateMergeSummary() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const btn = document.getElementById('mergeSelectedBtn');
+        const sum = document.getElementById('mergeSummary');
+        const rows = r ? (r.items || []).filter(it => _mergeSel.has(it.id)) : [];
+        if (btn) { btn.disabled = rows.length < 2; btn.style.opacity = rows.length < 2 ? '0.5' : ''; btn.textContent = 'Merge selected' + (rows.length ? ' (' + rows.length + ')' : ''); }
+        if (sum) sum.textContent = rows.length >= 2 ? ('Keeps ' + _mergeRowLabel(r, _mergeKeeper(rows))) : 'Tick two or more rows.';
+    }
+    function mergeGroup(gi) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const g = _mergeGroups(r)[gi];
+        if (!g) return;
+        if (!confirm('Merge these ' + g.length + ' rows into one?\n\n' + g.map(it => _mergeRowLabel(r, it)).join('\n'))) return;
+        const n = mergeRows(g.map(it => it.id));
+        afterMerge(n);
+    }
+    function mergeAllGroups() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const groups = _mergeGroups(r);
+        if (!groups.length) return;
+        const rows = groups.reduce((s, g) => s + g.length, 0);
+        if (!confirm('Merge ' + groups.length + ' groups (' + rows + ' rows) so each asset code is on one row?')) return;
+        let n = 0;
+        groups.forEach(g => { n += mergeRows(g.map(it => it.id), true); });
+        if (n) save();   // also tells the dashboard, which applies the register side
+        afterMerge(n);
+    }
+    function mergeSelected() {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        const rows = (r.items || []).filter(it => _mergeSel.has(it.id));
+        if (rows.length < 2) return;
+        const keep = _mergeKeeper(rows);
+        const codes = new Set(rows.map(_mergeKey).filter(Boolean));
+        let msg = 'Merge ' + rows.length + ' rows into one?\n\nKeep: ' + _mergeRowLabel(r, keep) +
+            '\nRemove: ' + rows.filter(x => x !== keep).map(it => _mergeRowLabel(r, it)).join('\n        ');
+        if (codes.size > 1) {
+            msg += '\n\nThese rows carry different asset codes. In the Asset Register they become ONE asset under ' +
+                (keep.assetCode || 'the kept code') + '; the other codes are kept on it as aliases and their duplicate assets are removed.';
+        }
+        if (!confirm(msg)) return;
+        const n = mergeRows(rows.map(it => it.id));
+        _mergeSel = new Set();
+        afterMerge(n);
+    }
+    function afterMerge(n) {
+        if (n) {
+            renderRoom(document.getElementById('content'));
+            growAllCells();
+            renderDeptList();
+            toast(n + ' row' + (n === 1 ? '' : 's') + ' merged', 'success');
+        }
+        renderMergeModal();
+    }
+    // Merge the rows with these ids (all on the open sheet). Returns how many
+    // rows were folded into the kept one. `batch` skips the save, for callers
+    // that merge several groups and save once.
+    function mergeRows(ids, batch) {
+        const d = getDept(selectedDeptId);
+        const r = getRoom(d, selectedRoomId);
+        if (!r) return 0;
+        const want = new Set(ids);
+        const rows = (r.items || []).filter(it => want.has(it.id));
+        if (rows.length < 2) return 0;
+        const keep = _mergeKeeper(rows);
+        const others = rows.filter(x => x !== keep);
+        const blank = v => !String(v == null ? '' : v).trim();
+        const notes = [];
+        const keepKeyBefore = _mergeKey(keep);
+        others.forEach(o => {
+            ['item', 'description', 'assetCode'].forEach(f => { if (blank(keep[f]) && !blank(o[f])) keep[f] = o[f]; });
+            if (!keep.regId && o.regId && (!keepKeyBefore || _mergeKey(o) === _mergeKey(keep))) keep.regId = o.regId;
+        });
+        const keepKey = _mergeKey(keep);
+        const drops = [];
+        others.forEach(o => {
+            const ok = _mergeKey(o);
+            if (ok && ok !== keepKey) notes.push('Also coded ' + String(o.assetCode).trim());
+            if (!blank(o.remarks)) notes.push(String(o.remarks).trim());
+            // another register asset this row stood for: the register merges it in
+            if ((ok && ok !== keepKey) || (o.regId && o.regId !== keep.regId)) {
+                drops.push({ code: o.assetCode || '', regId: o.regId || null });
+            }
+        });
+        const have = String(keep.remarks || '');
+        const add = [...new Set(notes)].filter(nt => have.toLowerCase().indexOf(nt.toLowerCase()) < 0);
+        if (add.length) keep.remarks = [have.trim()].concat(add).filter(Boolean).join('; ');
+        // remove the folded rows — by row id only: the code lives on in `keep`
+        const goneIds = new Set(others.map(o => o.id));
+        r.items = r.items.filter(it => !goneIds.has(it.id));
+        others.forEach(o => {
+            if (window.mphAddLocationTombstone && o.id) window.mphAddLocationTombstone('items', o.id);
+            if (window.mphForgetLocationMove && o.assetCode && _mergeKey(o) !== keepKey &&
+                !(window.mphCodeStillInRecords && window.mphCodeStillInRecords(db, o.assetCode))) {
+                window.mphForgetLocationMove(o);
+            }
+        });
+        if (keep.assetCode && keepKey !== keepKeyBefore && window.mphUntombstoneLocationItem) {
+            window.mphUntombstoneLocationItem(keep);
+        }
+        if (keep.assetCode && (drops.length || keepKey !== keepKeyBefore)) {
+            queueRegisterChange({ op: 'merge', code: keep.assetCode, regId: keep.regId || null, itemId: keep.id,
+                dept: d.name, room: r.title, item: keep.item || '', description: keep.description || keep.item || '',
+                drops: drops });
+        }
+        if (!batch) save();
+        return others.length;
     }
 
     /* ============================================================

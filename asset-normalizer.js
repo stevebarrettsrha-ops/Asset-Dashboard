@@ -494,10 +494,11 @@ window.mphGetLocationTombstones = function () {
     try {
         var t = JSON.parse(localStorage.getItem(LOC_TOMBSTONES_KEY) || 'null');
         if (t && typeof t === 'object') {
-            return { items: t.items || {}, codes: t.codes || {}, rooms: t.rooms || {}, departments: t.departments || {} };
+            return { items: t.items || {}, codes: t.codes || {}, rooms: t.rooms || {},
+                     departments: t.departments || {}, revived: t.revived || {} };
         }
     } catch (e) { /* ignore */ }
-    return { items: {}, codes: {}, rooms: {}, departments: {} };
+    return { items: {}, codes: {}, rooms: {}, departments: {}, revived: {} };
 };
 window.mphSaveLocationTombstones = function (t) {
     try { localStorage.setItem(LOC_TOMBSTONES_KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
@@ -514,16 +515,52 @@ window.mphClearLocationTombstone = function (kind, key) {
     var t = window.mphGetLocationTombstones();
     if (t[kind] && t[kind][key]) { delete t[kind][key]; window.mphSaveLocationTombstones(t); }
 };
-// Tombstone a deleted item by BOTH identities: its row id and, when it has a
-// parseable asset code, that code. Use this everywhere an item is deleted.
-window.mphTombstoneLocationItem = function (it) {
+// Is a code deletion in force? A code is "revived" when someone deliberately
+// places it again (or the register still holds the asset); the later of the
+// two stamps wins, so the answer is the same on every device after a sync.
+function _codeTombInForce(tombs, ck) {
+    var at = ck && tombs && tombs.codes && tombs.codes[ck];
+    if (!at) return false;
+    var back = tombs.revived && tombs.revived[ck];
+    return !(back && back >= at);
+}
+window.mphIsCodeKeyTombstoned = function (ck, tombs) {
+    return _codeTombInForce(tombs || window.mphGetLocationTombstones(), ck);
+};
+window.mphIsCodeTombstoned = function (code, tombs) {
+    tombs = tombs || window.mphGetLocationTombstones();
+    return _codeTombInForce(tombs, window.mphCodeKey(code));
+};
+// Does any row OTHER than `it` record the same code in `db`?
+function _codeHeldByOtherRow(db, it) {
+    var key = it && window.mphCodeKey(it.assetCode);
+    if (!key || !db || !Array.isArray(db.departments)) return false;
+    for (var i = 0; i < db.departments.length; i++) {
+        var rooms = (db.departments[i] && db.departments[i].rooms) || [];
+        for (var j = 0; j < rooms.length; j++) {
+            var items = (rooms[j] && rooms[j].items) || [];
+            for (var k = 0; k < items.length; k++) {
+                var x = items[k];
+                if (!x || x === it || (it.id && x.id === it.id)) continue;
+                if (window.mphCodeKey(x.assetCode) === key) return true;
+            }
+        }
+    }
+    return false;
+}
+// Tombstone a deleted item by its row id and, when it has a parseable asset
+// code, that code. Pass `db` (the records as they stand after the deletion):
+// when another room still records the same code, only this ROW is deleted —
+// a code tombstone there would wipe the other rooms' rows of an asset the
+// register still holds (hundreds of codes sit on more than one sheet).
+window.mphTombstoneLocationItem = function (it, db) {
     if (!it) return;
     var t = window.mphGetLocationTombstones();
     var now = new Date().toISOString();
     var touched = false;
     if (it.id) { t.items[it.id] = now; touched = true; }
     var ck = window.mphCodeKey(it.assetCode);
-    if (ck) { t.codes[ck] = now; touched = true; }
+    if (ck && !(db && _codeHeldByOtherRow(db, it))) { t.codes[ck] = now; touched = true; }
     if (touched) window.mphSaveLocationTombstones(t);
 };
 // Has this item been deliberately deleted (under either identity)?
@@ -531,8 +568,22 @@ window.mphIsItemTombstoned = function (it, tombs) {
     if (!it) return false;
     tombs = tombs || window.mphGetLocationTombstones();
     if (it.id && tombs.items && tombs.items[it.id]) return true;
-    var ck = window.mphCodeKey(it.assetCode);
-    return !!(ck && tombs.codes && tombs.codes[ck]);
+    return _codeTombInForce(tombs, window.mphCodeKey(it.assetCode));
+};
+// Lift a code deletion (stamped, so the revival also holds on devices that
+// still carry the old tombstone). Returns true when it changed anything.
+window.mphReviveLocationCodes = function (keys) {
+    if (!keys || !keys.length) return false;
+    var t = window.mphGetLocationTombstones();
+    var now = new Date().toISOString();
+    var changed = false;
+    keys.forEach(function (ck) {
+        if (!_codeTombInForce(t, ck)) return;
+        t.revived[ck] = now;
+        changed = true;
+    });
+    if (changed) window.mphSaveLocationTombstones(t);
+    return changed;
 };
 // Undo a deletion for an item the user is deliberately (re-)placing.
 window.mphUntombstoneLocationItem = function (it) {
@@ -541,20 +592,25 @@ window.mphUntombstoneLocationItem = function (it) {
     var changed = false;
     if (it.id && t.items[it.id]) { delete t.items[it.id]; changed = true; }
     var ck = window.mphCodeKey(it.assetCode);
-    if (ck && t.codes[ck]) { delete t.codes[ck]; changed = true; }
+    // stamp the revival rather than only deleting the local tombstone: the
+    // cloud copy still carries it and the next merge would bring it back
+    if (ck && _codeTombInForce(t, ck)) { t.revived[ck] = new Date().toISOString(); changed = true; }
     if (changed) window.mphSaveLocationTombstones(t);
     return changed;
 };
-// Union tombstones arriving from the cloud into the local set.
+// Union tombstones arriving from the cloud into the local set. Code
+// deletions and revivals are both timestamped, so for those the newer stamp
+// wins; the rest only ever accumulate.
 window.mphMergeLocationTombstones = function (incoming) {
     if (!incoming || typeof incoming !== 'object') return false;
     var t = window.mphGetLocationTombstones();
     var changed = false;
-    ['items', 'codes', 'rooms', 'departments'].forEach(function (kind) {
+    ['items', 'codes', 'rooms', 'departments', 'revived'].forEach(function (kind) {
         if (!t[kind]) t[kind] = {};
         var src = incoming[kind] || {};
+        var newest = (kind === 'codes' || kind === 'revived');
         Object.keys(src).forEach(function (k) {
-            if (!t[kind][k]) { t[kind][k] = src[k]; changed = true; }
+            if (!t[kind][k] || (newest && src[k] > t[kind][k])) { t[kind][k] = src[k]; changed = true; }
         });
     });
     if (changed) window.mphSaveLocationTombstones(t);
