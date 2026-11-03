@@ -294,8 +294,8 @@ svg.i.lg { width: 22px; height: 22px; }
 .grid.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid.side { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
 .grid.side-l { grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
-@media (max-width: 1180px) { .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.side, .grid.side-l { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .grid.c2, .grid.c3 { grid-template-columns: 1fr; } .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .kpi .val { font-size: 20px; } }
+@media (max-width: 1180px) { .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.side, .grid.side-l { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .grid.c2, .grid.c3 { grid-template-columns: minmax(0, 1fr); } .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .kpi .val { font-size: 20px; } }
 
 /* ---------- KPI tiles ---------- */
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; min-width: 0; }
