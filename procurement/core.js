@@ -194,8 +194,8 @@
   const STORAGE_KEY = 'procurementData';
   const IDB_NAME = 'ProcurementDB';
   const IDB_VERSION = 2;               // v2 adds the "files" store for documents
-  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans'];
-  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN' };
+  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks'];
+  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK' };
   const listeners = {};
   let idbPromise = null;
   let saveTimer = null;

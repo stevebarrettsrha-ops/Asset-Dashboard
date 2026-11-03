@@ -183,7 +183,7 @@
       kv('PO date', esc(util.date(po.date))) + kv('Reference', esc(po.ref)) + kv('Department', esc(po.department)) + kv('Requisitioner', esc(po.requisitioner)) +
       kv('Request #', esc(po.requestNo)) + kv('Method', esc(po.method)) + kv('Category', esc(po.category)) + kv('Type', esc(po.type)) + kv('Tenders received', po.tendersReceived ? esc(po.tendersReceived) : '') +
       kv('Payment terms', esc(po.paymentTerms)) + kv('Deliver to', esc(po.deliveryAddress)) + kv('Instructions', esc(po.instructions)) + kv('Comment', esc(po.comment)) +
-      kv('Source', esc(({ manual: 'Entered manually', comparison: 'Price comparison', 'import:polog': 'Imported from PO Log', 'import:prs': 'Imported from PRS return', legacy: 'Earlier procurement page' })[po.source] || po.source || '')) +
+      kv('Source', po.source === 'book' ? '<a href="#/pobook/' + esc(po.bookId || '') + '">Handwritten in PO Book ' + esc(po.bookNo || '') + '</a>' : esc(({ manual: 'Entered manually', comparison: 'Price comparison', 'import:polog': 'Imported from PO Log', 'import:prs': 'Imported from PRS return', legacy: 'Earlier procurement page' })[po.source] || po.source || '')) +
       kv('Created', esc(util.dateTime(po.createdAt)) + (po.createdBy ? ' by ' + esc(po.createdBy) : '')) +
       '</dl></div></div>' +
       // Linked records
