@@ -18,6 +18,8 @@
     '.po-pv{background:var(--surface-3);padding:12px;max-height:80vh;overflow:auto;border-radius:0 0 var(--radius-lg) var(--radius-lg)}' +
     '.po-pv canvas{display:block;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(16,24,40,.18)}' +
     '.drop-kind{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12.5px;color:var(--text-3)}' +
+    '.grid.side>.stack,.grid.side>div{min-width:0}.po-items{min-width:640px}' +
+    '@media(max-width:760px){.grid.c4.kpi2{grid-template-columns:1fr 1fr;gap:10px}.grid.c4.kpi2 .kpi{padding:12px}.grid.c4.kpi2 .kpi .val{font-size:19px;margin-top:6px}.totals{grid-template-columns:auto 130px}}' +
     '</style>');
 
   const poLabel = p => (p.poNumber ? 'PO ' + p.poNumber : 'Draft PO');
@@ -79,7 +81,7 @@
       actions: '<button class="btn" data-a="csv">' + ui.icon('download', 'sm') + 'Export CSV</button><button class="btn primary" data-a="new">' + ui.icon('plus', 'sm') + 'New purchase order</button>'
     }) +
       (banner ? '<div class="filter-banner">' + ui.icon('filter', 'sm') + '<div style="flex:1">' + banner + '</div><a class="btn sm" href="#/orders">Show all</a></div>' :
-        '<div class="grid c4 mb-3">' +
+        '<div class="grid c4 kpi2 mb-3">' +
         ui.kpi({ label: 'Committed ' + fy, value: util.moneyShort(util.sum(fyPos, p => p.total)), icon: 'wallet', meta: util.int(fyPos.length) + ' purchase orders', title: util.money(util.sum(fyPos, p => p.total)) }) +
         ui.kpi({ label: 'Drafts to issue', value: util.int(drafts.length), icon: 'edit', tone: drafts.length ? 'warn' : '', meta: util.money(util.sum(drafts, p => p.total)) }) +
         ui.kpi({ label: 'Awaiting delivery', value: util.int(awaitingDel.length), icon: 'truck', meta: util.money(util.sum(awaitingDel, p => p.total)) }) +
@@ -146,6 +148,7 @@
     else if (po.status === 'Issued' || po.status === 'Partially Delivered') primary = '<button class="btn primary" data-a="deliver">' + ui.icon('truck', 'sm') + 'Record delivery</button>';
     else if (po.status === 'Delivered' || po.status === 'Invoiced') primary = '<button class="btn primary" data-a="invoice">' + ui.icon('receipt', 'sm') + 'Record invoice</button>';
 
+    ui.setCrumbs(['Purchase Orders', poLabel(po)]);
     el.innerHTML = ui.pageHead({
       back: { label: 'Purchase Orders', href: '#/orders' },
       title: poLabel(po), badge: ui.badge(po.status),
@@ -271,7 +274,7 @@
       ], { ok: 'Issue PO' });
       if (!v) return;
       const taken = poNumberTaken(v.poNumber, po.id);
-      if (taken) { first = false; ui.toast('PO ' + v.poNumber + ' is already used for ' + taken.supplierName + '.', 'error'); continue; }
+      if (taken) { first = false; ui.toast('PO ' + v.poNumber + ' is already used (' + (taken.supplierName || 'another PO') + ').', 'error'); continue; }
       store.upsert('purchaseOrders', { id: po.id, poNumber: v.poNumber.trim(), date: v.date, paymentTerms: v.paymentTerms, status: 'Issued', issuedAt: util.today() });
       domain.refreshOrderStatus(po.id);
       Proc.audit('Issue PO', 'PO ' + v.poNumber + ' — ' + po.supplierName + ' — ' + util.money(po.total), po.id);
@@ -319,6 +322,7 @@
     let gct = util.num(po.gct);
     let gctAuto = false; // true after "15%" is chosen: GCT follows the subtotal
     let dirty = false;
+    ui.setCrumbs(['Purchase Orders', existing ? 'Edit ' + poLabel(existing) : 'New']);
 
     el.innerHTML = ui.pageHead({
       back: existing ? { label: poLabel(existing), href: '#/orders/' + existing.id } : { label: 'Purchase Orders', href: '#/orders' },

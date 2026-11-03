@@ -20,7 +20,8 @@
     '.rp-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--text-2);margin-top:8px}' +
     '.rp-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}' +
     '.rp-fix select,.rp-fix input{height:30px;font-size:12.5px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);padding:0 6px;max-width:220px;width:100%}' +
-    '.rp-fix .missing{border-color:var(--warning);background:var(--warning-bg)}' +
+    '.rp-fix select[data-f=method]{min-width:170px}.rp-fix select[data-f=category]{min-width:200px}.rp-fix .missing{border-color:var(--warning);background:var(--warning-bg)}' +
+    '.rp-k5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}@media (max-width:1180px){.rp-k5{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:640px){.rp-k5{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
     '.rp-tabs{position:sticky;top:var(--topbar-h);z-index:5;background:var(--bg)}' +
     '@media print{.rp-tabs,.rp-noprint{display:none!important}}' +
     '</style>');
@@ -339,7 +340,7 @@
       '<div class="grid c2 mt-3"><div class="card"><div class="card-h"><h3>Top suppliers</h3></div><div class="card-b">' + (bySup.length ? ui.hbars(bySup.slice(0, 10).map(r => ({ label: supLabel(r.key), value: r.v, href: '#/suppliers/' + r.key }))) : '<div class="muted">No data</div>') + '</div></div>' +
       '<div class="card"><div class="card-h"><h3>By category</h3></div><div class="card-b flush">' + table(byCat.slice(0, 12), 'Category') + '</div></div></div>' +
       '<div class="grid c2 mt-3"><div class="card"><div class="card-h"><h3>All suppliers</h3></div><div class="card-b flush">' + table(bySup.slice(0, 25), 'Supplier', supLabel, k => '#/suppliers/' + k) + '</div></div>' +
-      '<div class="card"><div class="card-h"><h3>By department</h3></div><div class="card-b flush">' + table(byDept.slice(0, 15), 'Department') + '</div></div></div>';
+      '<div class="card"><div class="card-h"><h3>By department</h3></div><div class="card-b flush">' + (byDept.length === 1 && byDept[0].key === '(not recorded)' ? ui.empty('building', 'Departments not recorded', 'The PO Log leaves the DEPARTMENT column blank. Purchase orders raised from requisitions in this system carry the department automatically.') : table(byDept.slice(0, 15), 'Department')) + '</div></div></div>';
     bindPeriod(box, st, () => drawSpend(box));
     box.querySelector('#spExport').onclick = () => {
       const s = (rows, label, f) => [[label, 'POs', 'Value', 'Share %']].concat(rows.map(r => [f ? f(r.key) : r.key, r.n, util.round2(r.v), pct(r.v, total)]));
@@ -508,8 +509,8 @@
     box.innerHTML = '<div class="row between mb-2"><div class="rp-period rp-noprint"><select id="plnFy">' + ui.options(fys.map(f => ({ value: f, label: 'Plan FY ' + f })), st.fy) + '</select></div>' +
       '<button class="btn rp-noprint" id="plnExport">' + ui.icon('download', 'sm') + 'Export plan</button></div>' +
       (started ? '' : '<div class="alert mb-2">' + ui.icon('info') + '<div>FY ' + esc(st.fy) + ' starts on ' + util.dateLong(r.start) + '. Actual purchases will be matched against this plan as purchase orders are raised.</div></div>') +
-      '<div class="grid c4">' + ui.kpi({ label: 'Planned value', icon: 'calendar', value: util.moneyShort(total), title: util.money(total), meta: items.length + ' planned procurements' }) +
-      ['Q1', 'Q2', 'Q3', 'Q4'].slice(0, 3).map(q => ui.kpi({ label: q + ' planned', icon: 'clock', value: util.moneyShort(util.sum(qs[q] || [], p => p.estimate)), meta: (qs[q] || []).length + ' items' })).join('') + '</div>' +
+      '<div class="rp-k5">' + ui.kpi({ label: 'Planned value', icon: 'calendar', value: util.moneyShort(total), title: util.money(total), meta: items.length + ' planned procurements' }) +
+      ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ui.kpi({ label: q + ' planned', icon: 'clock', value: util.moneyShort(util.sum(qs[q] || [], p => p.estimate)), meta: (qs[q] || []).length + ' items' })).join('') + '</div>' +
       '<div class="card mt-3"><div class="card-h"><div><h3>Plan vs actual by category</h3><div class="sub">“Matched” = purchase orders whose description matches a plan item; “Type total” = all FY purchase orders of that procurement type.</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>Category</th><th class="num">Items</th><th class="num">Planned</th><th class="num">Matched POs</th><th class="num">Type total (FY)</th><th style="width:180px">Progress</th></tr></thead><tbody>' +
       catRows.map(x => '<tr><td class="strong">' + esc(x.c) + '</td><td class="num">' + x.n + '</td><td class="num">' + util.money(x.planned, { noCents: true }) + '</td><td class="num">' + util.money(x.matched, { noCents: true }) + '</td><td class="num">' + util.money(x.typeActual, { noCents: true }) + '</td><td><div class="progress"><div style="width:' + Math.min(100, pct(x.matched, x.planned)) + '%"></div></div><div class="t-sub">' + pct(x.matched, x.planned) + '% of plan matched</div></td></tr>').join('') +
       '</tbody><tfoot><tr><td>Total</td><td class="num">' + items.length + '</td><td class="num">' + util.money(total, { noCents: true }) + '</td><td class="num">' + util.money(util.sum(catRows, x => x.matched), { noCents: true }) + '</td><td></td><td></td></tr></tfoot></table></div></div></div>' +

@@ -408,7 +408,7 @@
       g.blocks.forEach(b => {
         plan.supplierNames.push(b.supplier);
         if (sups.indexOf(b.supplier) < 0) sups.push(b.supplier);
-        b.items.forEach(it => { const id = util.uid('L'); items.push({ id, description: it.description, unit: it.unit, qty: it.qty }); prices[id] = {}; prices[id][b.supplier] = util.round2(it.total / (it.qty || 1)); });
+        b.items.forEach(it => { const id = util.uid('L'); items.push({ id, description: it.description, unit: it.unit, qty: it.qty }); prices[id] = {}; prices[id][b.supplier] = it.total / (it.qty || 1); });
       });
       const gctSup = new Set(g.blocks.filter(b => b.gct > 0).map(b => b.supplier));
       addCreate(plan, 'comparisons', {
@@ -710,6 +710,7 @@
         const entry = { id: res.importId || util.uid('IMP'), at: new Date().toISOString(), user: Proc.auth.userName(), file: s.name.replace(/^[0-9a-f]{8}-/i, ''), type: s.type,
           counts: { purchaseOrders: cr.purchaseOrders.length, invoices: cr.invoices.length, comparisons: cr.comparisons.length, plans: cr.plans.length, suppliers: cr.suppliers.length, updated: res.updated },
           created: cr, before: res.before, undoable: s.type !== 'backup' && (n > 0 || res.updated > 0) };
+        if (n === 0 && !res.updated && s.type !== 'backup') { results.push(entry); continue; }
         logImport(entry);
         Proc.audit('Import', TYPES[s.type].label + ' “' + entry.file + '”: ' + describe(entry.counts), entry.id);
         results.push(entry);

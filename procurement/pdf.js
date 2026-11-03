@@ -29,6 +29,8 @@
     doc.setLineHeightFactor(1.15);
     return doc;
   }
+  /** Shrink the font until text fits maxW (down to minSize), then return the size used. */
+  function fitSize(doc, text, maxW, size, minSize) { let sz = size; doc.setFontSize(sz); while (sz > (minSize || 6) && doc.getTextWidth(text) > maxW) { sz -= 0.25; doc.setFontSize(sz); } return sz; }
   function pageSize(doc) { return { w: doc.internal.pageSize.getWidth(), h: doc.internal.pageSize.getHeight() }; }
 
   /* ------------------------------------------------------------ letterhead */
@@ -471,8 +473,8 @@
       const facts = [['PO No.', po.poNumber || 'DRAFT'], ['Date', util.date(po.date) || util.date(util.today())], ['Reference', po.ref || ''], ['Requisition', po.requestNo || (po.requisitionId ? (store.get('requisitions', po.requisitionId) || {}).number || '' : '')]].filter(f => f[1]);
       let fy = top + 4;
       facts.forEach(([k, v]) => {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, GREY); doc.text(k.toUpperCase(), w - M - 170, fy + 8);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor.apply(doc, INK); doc.text(clean(v), w - M, fy + 8, { align: 'right', maxWidth: 110 });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, GREY); doc.text(k.toUpperCase(), w - M - 230, fy + 8);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); fitSize(doc, clean(v), 170, 10, 7); doc.text(clean(v), w - M, fy + 8, { align: 'right' });
         fy += 14;
       });
       let y = Math.max(top + 34, fy + 6);
@@ -496,7 +498,7 @@
       const sw = (w - M * 2) / strip.length;
       strip.forEach(([k, v], i) => {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY); doc.text(k.toUpperCase(), M + i * sw, y + 8);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, INK); doc.text(doc.splitTextToSize(clean(v), sw - 8)[0], M + i * sw, y + 21);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); fitSize(doc, clean(v), sw - 8, 9, 6.5); doc.text(clean(v), M + i * sw, y + 21);
       });
       y += 34;
       if (po.description) {
@@ -517,7 +519,7 @@
         headStyles: { fillColor: BLUE, textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: [248, 250, 252], textColor: INK, fontStyle: 'bold', halign: 'right' },
         columnStyles: { 0: { cellWidth: 24, halign: 'center' }, 2: { cellWidth: 46 }, 3: { cellWidth: 42, halign: 'right' }, 4: { cellWidth: 80, halign: 'right' }, 5: { cellWidth: 88, halign: 'right' } },
-        didParseCell: data => { if (data.section === 'foot' && data.column.index < 4) data.cell.styles.lineWidth = 0; }
+        didParseCell: data => { if (data.section === 'foot' && data.column.index < 4) { data.cell.styles.lineWidth = 0; data.cell.styles.fillColor = [255, 255, 255]; } }
       });
       y = doc.lastAutoTable.finalY + 14;
       const need = 150;
@@ -559,10 +561,15 @@
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, INK);
       doc.text(clean(cmp.subject || ''), M, top + 31);
       const facts = [['Reference', cmp.ref], ['Date', util.date(cmp.date)], ['Method', cmp.method], ['Invited', String(cmp.invited || sups.length)], ['Bids received', String(r.bidsReceived)], ['Closing date', util.date(cmp.closingDate)], ['Requisition', cmp.requisitionId ? (store.get('requisitions', cmp.requisitionId) || {}).number : '']].filter(f => f[1]);
-      const fw = (w - M * 2) / Math.min(facts.length, 7);
+      // Column widths follow content so long references never collide.
+      const natural = facts.map(([k, v]) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(9); const a = doc.getTextWidth(clean(v)); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); return Math.max(a, doc.getTextWidth(k.toUpperCase())) + 18; });
+      const avail = w - M * 2, sumN = natural.reduce((x, y) => x + y, 0);
+      const widths = natural.map(n => (sumN <= avail ? n + (avail - sumN) / natural.length : n * avail / sumN));
+      let fx = M;
       facts.forEach(([k, v], i) => {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY); doc.text(k.toUpperCase(), M + i * fw, top + 50);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, INK); doc.text(doc.splitTextToSize(clean(v), fw - 8)[0], M + i * fw, top + 63);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY); doc.text(k.toUpperCase(), fx, top + 50);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); fitSize(doc, clean(v), widths[i] - 10, 9, 6.5); doc.text(clean(v), fx, top + 63);
+        fx += widths[i];
       });
       const head = ['#', 'Item', 'Unit', 'Qty'].concat(sups.map(s => clean(s.name || domain.supplierName(s.supplierId)) + (s.compliant === false ? ' (non-compliant)' : '') + (s.gct ? ' +GCT' : '')));
       const body = r.lines.map((l, i) => [String(i + 1), clean(l.item.description), clean(l.item.unit || ''), util.int(l.qty)].concat(sups.map(s => { const q = l.quotes[s.supplierId]; return q ? util.money(q.unit).replace('$', '') + (l.awardSid === s.supplierId ? ' *' : '') : '-'; })));
@@ -590,8 +597,9 @@
       doc.text('Unit prices in JMD. Shaded = lowest compliant price for the line (GCT-inclusive comparison).  * = recommended award.', M, y + 8);
       y += 22;
       if (r.awards.length) {
+        if (y + (r.awards.length + 2) * 19 > h - 84) { doc.addPage(); y = top + 6; }
         doc.autoTable({
-          startY: y, margin: { left: M, right: M, top: top, bottom: 84 }, theme: 'grid',
+          startY: y, showFoot: 'lastPage', rowPageBreak: 'avoid', margin: { left: M, right: M, top: top, bottom: 84 }, theme: 'grid',
           head: [['Recommended award', 'Lines', 'Subtotal', 'GCT', 'Total']],
           body: r.awards.map(a => [clean(a.name), String(a.items.length), money(a.subtotal), money(a.gct), money(a.total)]),
           foot: [['Total recommended', String(util.sum(r.awards, a => a.items.length)), money(util.sum(r.awards, a => a.subtotal)), money(util.sum(r.awards, a => a.gct)), money(r.awardTotal)]],

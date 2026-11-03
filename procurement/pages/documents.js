@@ -15,7 +15,7 @@
     '.dc-cell .nm{font-weight:600;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.dc-cloud-ok{color:var(--success)}.dc-cloud-no{color:var(--text-3);opacity:.6}' +
     '.dc-focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--focus)}' +
-    '.table tr.hl td{background:var(--primary-50)!important}' +
+    '.table tr.dc-hl td{background:var(--primary-50)!important}' +
     '</style>');
 
   function linksHtml(d) {
@@ -66,6 +66,11 @@
     });
   }
 
+  async function removeDoc(d) {
+    if (!(await ui.confirm('Delete <b>' + esc(d.name) + '</b>? The file is removed from this computer' + (d.driveFileId ? ' (the Drive copy stays in the Procurement Documents folder)' : '') + '.', { danger: true, ok: 'Delete' }))) return;
+    await files.remove(d.id); Proc.audit('Delete Document', d.name, d.id); ui.toast('Document deleted'); router.refresh();
+  }
+
   function render(el) {
     const q = router.parse().query;
     const docs = store.list('documents').sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
@@ -111,12 +116,11 @@
         { key: 'month', label: 'Any month', options: months.map(m => ({ value: m, label: util.monthLabel(m) })), test: (d, v) => util.monthKey(d.date) === v }
       ],
       columns: [
-        { key: 'title', label: 'Document', render: d => '<div class="dc-cell">' + ui.fileIcon(d) + '<div style="min-width:0"><div class="nm" title="' + esc(d.name) + '">' + esc(d.title || d.name) + '</div><div class="t-sub truncate" style="max-width:300px">' + esc(d.kind || 'Other') + ' · ' + util.date(d.date) + ' · ' + util.fileSize(d.size) + '</div></div></div>' },
+        { key: 'title', label: 'Document', render: d => '<div class="dc-cell">' + ui.fileIcon(d) + '<div style="min-width:0"><div class="nm" title="' + esc(d.name) + '">' + esc(d.title || d.name) + '</div><div class="t-sub truncate" style="max-width:360px">' + esc(d.kind || 'Other') + ' · ' + util.date(d.date) + (d.amount ? ' · ' + util.money(d.amount) : '') + ' · ' + util.fileSize(d.size) + '</div></div></div>' },
         { key: 'supplier', label: 'Supplier', sort: d => domain.supplierName(d.supplierId), render: d => d.supplierId ? '<a class="dc-sup" title="' + esc(domain.supplierName(d.supplierId)) + '" href="#/suppliers/' + d.supplierId + '/documents">' + esc(domain.supplierName(d.supplierId, '—')) + '</a>' : '<span class="muted">—</span>' },
         { key: 'ref', label: 'Reference / linked to', render: d => '<div class="small nowrap">' + [d.ref ? '<span class="mono">' + esc(d.ref) + '</span>' : '', linksHtml(d).replace(/<br>/g, ' · ')].filter(Boolean).join(' · ') + '</div>' },
-        { key: 'amount', label: 'Amount', cls: 'num', render: d => d.amount ? util.money(d.amount) : '' },
         { key: 'drive', label: '', sort: d => (d.driveFileId ? 1 : 0), render: d => '<span title="' + (d.driveFileId ? 'Copied to Google Drive' : 'Only on this computer') + '" class="' + (d.driveFileId ? 'dc-cloud-ok' : 'dc-cloud-no') + '">' + ui.icon('cloud', 'sm') + '</span>' },
-        { key: 'actions', label: '', sort: false, cls: 'actions', render: d => '<button class="btn xs ghost icon" data-a="open" data-id="' + d.id + '" title="Open">' + ui.icon('eye', 'sm') + '</button><button class="btn xs ghost icon" data-a="download" data-id="' + d.id + '" title="Download">' + ui.icon('download', 'sm') + '</button><button class="btn xs ghost icon" data-a="edit" data-id="' + d.id + '" title="Edit details / re-link">' + ui.icon('edit', 'sm') + '</button><button class="btn xs ghost icon danger" data-a="delete" data-id="' + d.id + '" title="Delete">' + ui.icon('trash', 'sm') + '</button>' }
+        { key: 'actions', label: '', sort: false, cls: 'actions', render: d => '<button class="btn xs ghost icon" data-a="open" data-id="' + d.id + '" title="Open">' + ui.icon('eye', 'sm') + '</button><button class="btn xs ghost icon" data-a="download" data-id="' + d.id + '" title="Download">' + ui.icon('download', 'sm') + '</button><button class="btn xs ghost icon" data-a="more" data-id="' + d.id + '" title="More">' + ui.icon('more', 'sm') + '</button>' }
       ],
       onRow: d => files.open(d.id),
       bind: tbody => tbody.querySelectorAll('[data-a]').forEach(b => b.onclick = async e => {
@@ -124,10 +128,12 @@
         const d = store.get('documents', b.dataset.id); if (!d) return;
         if (b.dataset.a === 'open') files.open(d.id);
         if (b.dataset.a === 'download') files.download(d.id);
-        if (b.dataset.a === 'edit') editDoc(d, () => router.refresh());
-        if (b.dataset.a === 'delete' && await ui.confirm('Delete <b>' + esc(d.name) + '</b>? The file is removed from this computer' + (d.driveFileId ? ' (the Drive copy stays in the Procurement Documents folder)' : '') + '.', { danger: true, ok: 'Delete' })) {
-          await files.remove(d.id); Proc.audit('Delete Document', d.name, d.id); ui.toast('Document deleted'); router.refresh();
-        }
+        if (b.dataset.a === 'more') ui.menu(b, [
+          { label: 'Edit details / re-link', icon: 'edit', onClick: () => editDoc(d, () => router.refresh()) },
+          d.supplierId ? { label: 'Open supplier file', icon: 'building', onClick: () => router.go('suppliers/' + d.supplierId + '/documents') } : null,
+          { sep: true },
+          { label: 'Delete', icon: 'trash', danger: true, onClick: () => removeDoc(d) }
+        ].filter(Boolean));
       })
     });
   }

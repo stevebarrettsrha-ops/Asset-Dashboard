@@ -27,6 +27,8 @@
     '.save-state .dot{width:7px;height:7px;border-radius:50%;background:var(--success)}.save-state.dirty .dot{background:var(--warning)}' +
     'fieldset.lockable{border:0;min-width:0}fieldset.lockable[disabled] .input,fieldset.lockable[disabled] input,fieldset.lockable[disabled] select,fieldset.lockable[disabled] textarea{background:var(--surface-2);color:var(--text-2)}' +
     'fieldset.lockable[disabled] .btn{display:none}' +
+    '.edit-table{min-width:520px}.memo-grid>*{min-width:0}' +
+    '@media(max-width:760px){.grid.c4.kpi2{grid-template-columns:1fr 1fr;gap:10px}.grid.c4.kpi2 .kpi{padding:12px}.grid.c4.kpi2 .kpi .val{font-size:19px;margin-top:6px}}' +
     '</style>');
 
   const memoTotal = m => util.round2(util.sum(m.awards || [], a => util.num(a.amount)));
@@ -59,7 +61,7 @@
       title: 'Approval Memos', sub: 'Committee and Head of Entity memos, produced as PDFs on the hospital letterhead with the officer’s name.',
       actions: '<button class="btn primary" data-new>' + ui.icon('plus', 'sm') + 'New memo</button>'
     }) +
-      '<div class="grid c4 mb-3">' +
+      '<div class="grid c4 kpi2 mb-3">' +
       ui.kpi({ label: 'Drafts', value: util.int(count('Draft')), icon: 'edit', meta: 'Being prepared' }) +
       ui.kpi({ label: 'Awaiting decision', value: util.int(count('Submitted')), icon: 'clock', tone: 'warn', meta: 'Submitted for approval' }) +
       ui.kpi({ label: 'Approved ' + fy, value: util.moneyShort(util.sum(approvedFy, memoTotal)), icon: 'check', tone: 'ok', meta: approvedFy.length + ' ' + util.plural(approvedFy.length, 'memo') }) +
@@ -130,6 +132,7 @@
     const locked = () => m.status === 'Submitted' || m.status === 'Approved';
 
     function draw() {
+      ui.setCrumbs(['Approval Memos', rec ? (m.ref || memoNo(m)) : 'New']);
       const cmp = m.comparisonId && store.get('comparisons', m.comparisonId);
       const pos = rec ? store.filter('purchaseOrders', p => p.memoId === rec.id) : [];
       el.innerHTML = ui.pageHead({
@@ -319,7 +322,7 @@
       const n = norm();
       // Link names to supplier profiles (creating new profiles where needed).
       store.batch(() => {
-        n.bids.forEach(b => { const s = domain.ensureSupplier(b.supplier, null, { silent: true }); if (s) { b.supplierId = s.id; b.supplier = s.name === b.supplier ? b.supplier : b.supplier; } });
+        n.bids.forEach(b => { const s = domain.ensureSupplier(b.supplier, null, { silent: true }); if (s) b.supplierId = s.id; });
         n.awards.forEach(a => { const s = domain.ensureSupplier(a.supplier, null, { silent: true }); if (s) a.supplierId = s.id; });
       });
       // Keep empty editing rows in the working copy, but store clean data.
