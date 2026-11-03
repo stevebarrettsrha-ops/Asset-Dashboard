@@ -568,6 +568,13 @@
     if (!name) return null;
     const found = domain.findSupplier(name);
     if (found) {
+      // Prefer a normal-case spelling ("Promedical Distribution Ltd.") over an ALL-CAPS one from the PRS.
+      const caps = x => /[A-Z]/.test(x) && x === x.toUpperCase();
+      if (caps(found.name) && !caps(name) && /[a-z]/.test(name)) {
+        const old = found.name;
+        store.upsert('suppliers', { id: found.id, name, aliases: Array.from(new Set((found.aliases || []).concat([old]))) }, { silent: true });
+        store.list('purchaseOrders').forEach(p => { if (p.supplierId === found.id && p.supplierName === old) store.upsert('purchaseOrders', { id: p.id, supplierName: name }, { silent: true }); });
+      }
       if (extra) {
         const patch = {}; let any = false;
         Object.keys(extra).forEach(k => { if (extra[k] && !found[k]) { patch[k] = extra[k]; any = true; } });

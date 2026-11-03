@@ -14,6 +14,9 @@
   'use strict';
   const { util, ui, store, domain, K } = Proc;
   const esc = util.esc;
+  /** Past orders brought in from the PO Log / PRS: anything older than 30 days is
+      treated as already delivered so Receiving and the dashboard only chase recent POs. */
+  function histStatus(date) { return date && date < util.addDays(util.today(), -30) ? 'Delivered' : 'Issued'; }
 
   if (!document.getElementById('css-import')) document.head.insertAdjacentHTML('beforeend', '<style id="css-import">' +
     '.imp-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}' +
@@ -196,7 +199,8 @@
         const po = {
           poNumber: poNo, date, supplierName: supplier, description: desc || 'Purchase order', items: [item], subtotal: total, gct: 0, total,
           requestNo: str(r[col.reqNo]), requestDate: isoFromCell(r[col.reqDate]), dateReceived: isoFromCell(r[col.dateReceived]),
-          requisitioner: str(r[col.requisitioner]), department: str(r[col.department]), comment, status: !poNo ? 'Draft' : invNo ? 'Invoiced' : 'Issued',
+          requisitioner: str(r[col.requisitioner]), department: str(r[col.department]), comment, status: !poNo ? 'Draft' : invNo ? 'Invoiced' : histStatus(date),
+          historic: !!poNo && !invNo && histStatus(date) === 'Delivered',
           source: 'import:polog', logSheet: sn, logRow: rowNo
         };
         if (invNo) po._invoice = { invoiceNumber: invNo, date: isoFromCell(r[col.invDate]) || date, amount: util.num(r[col.invAmt]) || total };
@@ -297,7 +301,7 @@
         const total = p.award || p.estimate;
         const rec = Object.assign({ poNumber: p.poNumber, date, supplierName: p.contractor, description: p.title || p.category || 'Contract ' + p.poNumber,
           items: [{ description: p.title || p.category || 'Contract ' + p.poNumber, unit: 'lot', qty: 1, unitPrice: total, total }], subtotal: total, gct: 0, total,
-          status: 'Issued', source: 'import:prs' }, patch);
+          status: histStatus(date), historic: histStatus(date) === 'Delivered', source: 'import:prs' }, patch);
         addCreate(plan, 'purchaseOrders', rec);
         if (ctx) ctx.pending.set(p.poNumber, rec);
       }
