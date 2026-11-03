@@ -10,6 +10,7 @@
   const esc = util.esc;
 
   if (!document.getElementById('css-dashboard')) document.head.insertAdjacentHTML('beforeend', '<style id="css-dashboard">' +
+    '.db-grid>.card+.card{margin-top:0}' +
     '.db-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}@media (max-width:1320px){.db-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:640px){.db-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.db-kpis .kpi .val{font-size:20px}}' +
     '.db-hello h1{font-size:24px}.db-hello .sub{font-size:14px}' +
     '.db-att{list-style:none}.db-att li{display:flex;gap:12px;align-items:flex-start;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer}' +
@@ -178,14 +179,14 @@
     const acts = (store.db.auditLog || []).filter(a => a.action !== 'Login' && a.action !== 'Logout').slice(0, 7);
 
     el.innerHTML = hello + kpis +
-      '<div class="grid side mt-3"><div class="card"><div class="card-h"><div><h3>Committed spend by month</h3><div class="sub">FY ' + esc(fy) + ' · purchase orders by P.O. date</div></div><a class="small" href="#/reports?tab=spend">Spend analysis</a></div><div class="card-b">' +
+      '<div class="grid side mt-3 db-grid"><div class="card"><div class="card-h"><div><h3>Committed spend by month</h3><div class="sub">FY ' + esc(fy) + ' · purchase orders by P.O. date</div></div><a class="small" href="#/reports?tab=spend">Spend analysis</a></div><div class="card-b">' +
       (fyPos.length ? bars : ui.empty('chart', 'No purchase orders in FY ' + fy + ' yet', '')) + '</div></div>' +
       '<div class="card"><div class="card-h"><h3>Needs your attention</h3>' + (att.length ? '<span class="badge ' + (att.some(a => a.tone === 'danger') ? 'danger' : 'warning') + '">' + att.length + '</span>' : '') + '</div>' +
       (att.length ? '<ul class="db-att">' + att.slice(0, 8).map(a => '<li data-href="' + esc(a.href) + '"><div class="ic ' + a.tone + '">' + ui.icon(a.icon, 'sm') + '</div><div style="min-width:0"><div class="t">' + esc(a.t) + '</div><div class="s">' + esc(a.s || '') + '</div></div><span class="go">' + ui.icon('chevron-right', 'sm') + '</span></li>').join('') + '</ul>'
         : ui.empty('check', 'All caught up', 'Nothing needs your attention right now.')) + '</div></div>' +
       '<div class="card mt-3"><div class="card-h"><div><h3>Procurement pipeline</h3><div class="sub">FY ' + esc(fy) + ' — from requisition to payment</div></div></div><div class="card-b"><div class="db-pipe">' +
       pipe.map(s => '<div class="st" data-href="' + s.href + '"><div class="n">' + util.int(s.n) + '</div><div class="l">' + esc(s.l) + '</div>' + (s.v ? '<div class="v">' + esc(s.v) + '</div>' : '') + '</div>').join('') + '</div></div></div>' +
-      '<div class="grid c3 mt-3"><div class="card"><div class="card-h"><h3>Top suppliers this FY</h3><a class="small" href="#/suppliers">All suppliers</a></div><div class="card-b">' + (top.length ? ui.hbars(top) : '<div class="muted">No purchase orders yet</div>') + '</div></div>' +
+      '<div class="grid c3 mt-3 db-grid"><div class="card"><div class="card-h"><h3>Top suppliers this FY</h3><a class="small" href="#/suppliers">All suppliers</a></div><div class="card-b">' + (top.length ? ui.hbars(top) : '<div class="muted">No purchase orders yet</div>') + '</div></div>' +
       '<div class="card"><div class="card-h"><h3>Recent activity</h3><a class="small" href="#/audit">Audit log</a></div>' +
       (acts.length ? '<ul class="db-act">' + acts.map(a => '<li><div><div class="ln" title="' + esc(a.details || '') + '"><span class="a">' + esc(a.action) + '</span> <span class="muted">' + esc(String(a.details || '')) + '</span></div><div class="small muted">' + esc(a.user || '') + '</div></div><span class="w">' + esc(util.ago(a.timestamp)) + '</span></li>').join('') + '</ul>'
         : ui.empty('history', 'No activity yet', '')) + '</div>' +

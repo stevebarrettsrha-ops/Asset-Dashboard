@@ -22,6 +22,7 @@
     '.rp-fix select,.rp-fix input{height:30px;font-size:12.5px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);padding:0 6px;max-width:220px;width:100%}' +
     '.rp-fix select[data-f=method]{min-width:170px}.rp-fix select[data-f=category]{min-width:200px}.rp-fix .missing{border-color:var(--warning);background:var(--warning-bg)}' +
     '.rp-k5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}@media (max-width:1180px){.rp-k5{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:640px){.rp-k5{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+    '#rpBody .grid>.card+.card{margin-top:0}#rpBody td .t-sub{white-space:nowrap}' +
     '.rp-tabs{position:sticky;top:var(--topbar-h);z-index:5;background:var(--bg)}' +
     '@media print{.rp-tabs,.rp-noprint{display:none!important}}' +
     '</style>');
@@ -252,7 +253,7 @@
       empty: ui.empty('receipt', 'No transactions under $500,000', ''),
       columns: [
         { key: '_n', label: 'No.', cls: 'num', width: '60px' },
-        { key: 'date', label: 'Date', render: r => util.date(r.date) },
+        { key: 'date', label: 'Date', render: r => '<span class="nowrap">' + util.date(r.date) + '</span>' },
         { key: 'poNumber', label: 'PO #', render: r => '<a href="#/orders/' + r.id + '">' + esc(r.poNumber || '—') + '</a>' },
         { key: 'supplier', label: 'Supplier', sort: r => supName(r), render: r => esc(supName(r)) + ((supplierOf(r) || {}).msme ? ' <span class="chip">MSME</span>' : '') },
         { key: 'total', label: 'Value', cls: 'num', render: r => util.money(r.total) }
@@ -298,7 +299,7 @@
     });
     ui.table(box.querySelector('#plRows'), {
       rows: pos, pageSize: 25, initialSort: { key: 'date', dir: -1 }, search: p => [p.poNumber, supName(p), p.description, p.department].join(' '), onRow: p => Proc.router.go('orders/' + p.id),
-      columns: [{ key: 'date', label: 'P.O. date', render: p => util.date(p.date) }, { key: 'poNumber', label: 'P.O. #', render: p => '<span class="strong">' + esc(p.poNumber || '—') + '</span>' },
+      columns: [{ key: 'date', label: 'P.O. date', render: p => '<span class="nowrap">' + util.date(p.date) + '</span>' }, { key: 'poNumber', label: 'P.O. #', render: p => '<span class="strong">' + esc(p.poNumber || '—') + '</span>' },
         { key: 'description', label: 'Item description', render: p => '<div class="truncate" style="max-width:420px" title="' + esc(p.description) + '">' + esc(p.description) + '</div>' },
         { key: 'supplier', label: 'Supplier', sort: p => supName(p), render: p => esc(supName(p)) }, { key: 'total', label: 'P.O. $', cls: 'num', render: p => util.money(p.total) }, { key: 'status', label: 'Status', render: p => ui.badge(p.status) }]
     });
@@ -383,7 +384,7 @@
     ui.table(box.querySelector('#apMemos'), {
       rows: memos, pageSize: 15, initialSort: { key: 'date', dir: -1 }, search: m => [m.ref, m.subject].join(' '), onRow: m => Proc.router.go('memos/' + m.id),
       empty: ui.empty('stamp', 'No approval memos yet', 'Memos prepared from price comparisons appear here.'),
-      columns: [{ key: 'date', label: 'Date', render: m => util.date(m.date) }, { key: 'ref', label: 'Reference', render: m => '<div class="t-title">' + esc(m.ref || '—') + '</div><div class="t-sub">' + esc(m.subject || '') + '</div>' },
+      columns: [{ key: 'date', label: 'Date', render: m => '<span class="nowrap">' + util.date(m.date) + '</span>' }, { key: 'ref', label: 'Reference', render: m => '<div class="t-title">' + esc(m.ref || '—') + '</div><div class="t-sub">' + esc(m.subject || '') + '</div>' },
         { key: 'amt', label: 'Recommended', cls: 'num', sort: m => util.sum(m.awards || [], a => a.amount), render: m => util.money(util.sum(m.awards || [], a => a.amount)) },
         { key: 'level', label: 'Approval level', sort: false, render: m => esc(domain.approvalRoute(util.sum(m.awards || [], a => a.amount), m.awards).level) },
         { key: 'status', label: 'Status', render: m => ui.badge(m.status) },
