@@ -38283,5 +38283,39 @@
         }
 
     </script>
+    <script>
+        // Single sign-on: someone already signed in on the hospital portal with
+        // access to the Fixed Asset Register goes straight in (the dashboard's own
+        // sign-in gates — forced password change and the cloud sync — still run).
+        (function () {
+            function portalSession() {
+                try { var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null'); return p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0 ? p : null; }
+                catch (e) { return null; }
+            }
+            function portalSignIn() {
+                var p = portalSession();
+                if (!p || currentUser) return;
+                var page = document.getElementById('loginPage');
+                if (!page || page.style.display === 'none') return;
+                var local = null;
+                try { local = (JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]')).find(function (u) { return String(u.username).toLowerCase() === p.username; }) || null; } catch (e) {}
+                var admin = p.role === 'admin' || p.role === 'assets';
+                var user = Object.assign({ username: p.username, displayName: p.displayName, role: admin ? 'Administrator' : 'User', email: p.email || '', permissions: { canExport: true, canRefresh: true } }, local || {},
+                    { source: 'local', viaPortal: true, displayName: p.displayName || (local && local.displayName) || p.username });
+                var tfa = getUserTwoFASettings(p.username);
+                if (tfa && tfa.twoFactorEnabled) return; // keep the two-step login for 2FA users
+                user.twoFactorEnabled = false; user.twoFactorSecret = (tfa && tfa.twoFactorSecret) || null; user.backupCodes = (tfa && tfa.backupCodes) || null;
+                completeLogin(user);
+            }
+            var origLogout = handleLogout;
+            handleLogout = function () {
+                var via = currentUser && currentUser.viaPortal;
+                origLogout();
+                if (!currentUser) { try { sessionStorage.removeItem('mphPortalSession'); } catch (e) {} if (via) window.location.href = 'portal.html'; }
+            };
+            function later() { setTimeout(portalSignIn, 700); }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', later); else later();
+        })();
+    </script>
 </body>
 </html>

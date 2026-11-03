@@ -1210,7 +1210,9 @@
         if (c) match = { username: String(c.username).trim(), displayName: c.displayName || c.username, role: c.role || 'user', email: c.email || '' };
       }
       if (!match) {
-        const p = auth.portalUsers().find(u => u.username === user.toLowerCase() && u.password === password);
+        // Accounts made on the portal are stored as SHA-256 hashes (same salt as the asset dashboard).
+        const hashed = await auth.hash(password);
+        const p = auth.portalUsers().find(u => String(u.username).toLowerCase() === user.toLowerCase() && (u.passwordHash ? u.passwordHash === hashed : u.password === password));
         if (p) match = { username: p.username, displayName: p.displayName || p.username, role: p.role || 'procurement_officer', email: '' };
       }
       if (!match && user.toLowerCase() === 'procurement' && password === '123') match = { username: 'procurement', displayName: 'Procurement Officer', role: 'procurement_officer', email: '' };
@@ -1220,8 +1222,31 @@
       Proc.audit('Login', 'Signed in: ' + match.displayName);
       return match;
     },
-    restore() { try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) auth.user = s; } catch (e) { /* ignore */ } return auth.user; },
-    logout() { Proc.audit('Logout', 'Signed out: ' + auth.userName()); auth.user = null; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ } location.hash = ''; location.reload(); }
+    async hash(pw) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pw) + 'AssetDashboard_Salt_2024'));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    /** Signed in already: this tab's own session, or the hospital portal's single sign-on session. */
+    restore() {
+      try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) { auth.user = s; return s; } } catch (e) { /* ignore */ }
+      try {
+        const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null');
+        if (p && p.exp > Date.now() && (p.systems || []).indexOf('procurement') >= 0) {
+          auth.user = { username: p.username, displayName: p.displayName, role: p.role === 'admin' ? 'admin' : p.role === 'operations' ? 'operations' : 'procurement_officer', email: p.email || '', viaPortal: true };
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify(auth.user));
+          Proc.audit('Login', 'Signed in through the hospital portal: ' + p.displayName);
+        }
+      } catch (e) { /* ignore */ }
+      return auth.user;
+    },
+    logout() {
+      Proc.audit('Logout', 'Signed out: ' + auth.userName());
+      const viaPortal = auth.user && auth.user.viaPortal;
+      auth.user = null;
+      try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('mphPortalSession'); } catch (e) { /* ignore */ }
+      if (viaPortal) { location.href = 'portal.html'; return; }
+      location.hash = ''; location.reload();
+    }
   };
   function domainOfficerName() { const p = auth.user && store.db.settings.officers[auth.user.username]; return p && p.name; }
 

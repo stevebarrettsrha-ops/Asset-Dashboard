@@ -1869,6 +1869,11 @@
         // ============================================
         // PORTAL USERS
         // ============================================
+        async function portalHash(pw) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pw) + 'AssetDashboard_Salt_2024'));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         function getPortalUsers(dashboard) {
             try {
                 const stored = localStorage.getItem('portalUserAccounts');
@@ -1948,7 +1953,9 @@
 
             // Check portal-configured users first
             const portalUsers = getPortalUsers('stores');
-            const portalMatch = portalUsers.find(u => u.username === user && u.password === pass);
+            // Portal accounts are stored as SHA-256 hashes (same salt as the asset dashboard).
+            const hashedPass = await portalHash(pass);
+            const portalMatch = portalUsers.find(u => String(u.username).toLowerCase() === user && (u.passwordHash ? u.passwordHash === hashedPass : u.password === pass));
             if (portalMatch) {
                 loginSuccess(portalMatch.displayName || portalMatch.username, 'portal');
                 return;
@@ -2026,7 +2033,10 @@
 
         function logout() {
             logActivity('Logout', 'User logged out: ' + (currentUser ? currentUser.displayName : 'Unknown'));
+            const viaPortal = currentUser && currentUser.viaPortal;
             currentUser = null;
+            try { sessionStorage.removeItem('mphPortalSession'); } catch (e) {}
+            if (viaPortal) { window.location.href = 'portal.html'; return; }
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('appContainer').classList.remove('active');
             document.getElementById('loginForm').reset();
@@ -4649,6 +4659,28 @@
                     { firstOption: { value: '', label: 'Select Department' } });
             }
         });
+    </script>
+    <script>
+        // Single sign-on: someone already signed in on the hospital portal with
+        // access to General Stores goes straight in without a second login.
+        (function () {
+            function portalSignIn() {
+                try {
+                    var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null');
+                    if (!p || p.exp < Date.now() || (p.systems || []).indexOf('stores') < 0) return;
+                    if (document.getElementById('appContainer').classList.contains('active')) return;
+                    currentUser = { username: p.username, displayName: p.displayName || p.username, role: p.role === 'admin' ? 'admin' : 'user', email: p.email || '', canExport: true, canRefresh: true, viaPortal: true };
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('appContainer').classList.add('active');
+                    document.getElementById('navUserDisplay').textContent = currentUser.displayName;
+                    logActivity('Login', 'Signed in through the hospital portal: ' + currentUser.displayName);
+                    refreshAll();
+                    if (typeof startStoresAutoSync === 'function') startStoresAutoSync();
+                } catch (e) { console.error('[Stores] portal sign-in failed', e); }
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(portalSignIn, 50); });
+            else setTimeout(portalSignIn, 50);
+        })();
     </script>
 </body>
 </html>
