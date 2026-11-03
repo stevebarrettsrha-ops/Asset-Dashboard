@@ -1,0 +1,1 @@
+/* receiving page — pending */
