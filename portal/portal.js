@@ -128,6 +128,8 @@
           department: '', status: 'active', passwordHash: u.passwordHash || '', _plain: u.passwordHash ? undefined : (u.password ? String(u.password) : undefined), systems: [], createdAt: Date.now(), updatedAt: 0, migrated: true });
       }
       const a = by.get(name);
+      // Keep the permission level each system had (Admin / User / Viewer) so nobody gains rights in the upgrade.
+      if (u.role) { a.legacyRoles = a.legacyRoles || {}; a.legacyRoles[sys] = String(u.role); }
       if (sys === 'assets') { if (a.systems.indexOf('assets') < 0) a.systems.push('assets', 'locations'); }
       else if (a.systems.indexOf(sys) < 0) a.systems.push(sys);
       if (!a.passwordHash && u.passwordHash) a.passwordHash = u.passwordHash;
@@ -144,7 +146,9 @@
     return a;
   }
   /** Old per-dashboard list kept in step so Procurement, Stores and the asset dashboard keep working. */
-  function legacyRoleFor(a, sys) { if (a.role === 'admin') return 'Admin'; if (a.role === 'operations') return 'User'; return ROLES[a.role].systems.indexOf(sys) >= 0 ? 'Admin' : 'User'; }
+  function legacyRoleFor(a, sys) {
+    if (a.legacyRoles && a.legacyRoles[sys]) return a.legacyRoles[sys] === 'Administrator' ? 'Admin' : a.legacyRoles[sys];
+    if (a.role === 'admin') return 'Admin'; if (a.role === 'operations') return 'User'; return ROLES[a.role].systems.indexOf(sys) >= 0 ? 'Admin' : 'User'; }
   function deriveLegacy(list) {
     const out = [];
     list.filter(a => a.status === 'active' && a.passwordHash).forEach(a => {
@@ -159,10 +163,13 @@
       const names = new Set(want.map(a => a.username));
       let out = local.filter(u => !(u.portalManaged && !names.has(String(u.username).toLowerCase())));
       want.forEach(a => {
-        const role = legacyRoleFor(a, 'assets') === 'Admin' ? 'Administrator' : 'User';
+        const lr = legacyRoleFor(a, 'assets');
+        const role = lr === 'Admin' ? 'Administrator' : lr;
         const found = out.find(u => String(u.username).toLowerCase() === a.username);
-        const rec = { username: a.username, passwordHash: a.passwordHash, displayName: a.displayName, role, email: a.email || '', permissions: { canExport: true, canRefresh: true }, portalManaged: true };
-        if (found) { if (found.portalManaged || found.passwordHash !== a.passwordHash) { delete found.password; Object.assign(found, rec); } }
+        const rec = { username: a.username, passwordHash: a.passwordHash, displayName: a.displayName, role, email: a.email || '', permissions: { canExport: lr !== 'Viewer', canRefresh: lr !== 'Viewer' }, portalManaged: true };
+        // The portal account is now the source of truth for this username: mark it managed so
+        // disabling or deleting it here also removes the dashboard's own copy.
+        if (found) { delete found.password; Object.assign(found, rec); }
         else out.push(rec);
       });
       writeJSON(KEYS.assetUsers, out);
@@ -207,11 +214,20 @@
 
   /* ----------------------------------------------------------- session */
   function session() {
-    try { const s = JSON.parse(sessionStorage.getItem(KEYS.session) || 'null'); if (s && s.exp > Date.now()) return s; } catch (e) { /* ignore */ }
+    try {
+      const s = JSON.parse(sessionStorage.getItem(KEYS.session) || 'null');
+      if (s && s.exp > Date.now()) {
+        // The account must still exist, be active and have no pending password change.
+        const a = loadAccounts().find(x => x.username === s.username);
+        if (a && a.status === 'active' && !a.mustChangePassword) return s;
+        endSession();
+      }
+    } catch (e) { /* ignore */ }
     return null;
   }
   function startSession(a, card) {
-    const s = { username: a.username, displayName: a.displayName, email: a.email || '', role: a.role, card, systems: systemsOf(a), at: Date.now(), exp: Date.now() + SESSION_HOURS * 3600e3 };
+    const lr = systemsOf(a).indexOf('assets') >= 0 ? legacyRoleFor(a, 'assets') : '';
+    const s = { username: a.username, displayName: a.displayName, email: a.email || '', role: a.role, card, systems: systemsOf(a), assetRole: lr === 'Admin' ? 'Administrator' : lr, at: Date.now(), exp: Date.now() + SESSION_HOURS * 3600e3 };
     sessionStorage.setItem(KEYS.session, JSON.stringify(s));
     handOverGoogle();
     return s;
@@ -275,13 +291,24 @@
     if (!d) return 0;
     const list = loadAccounts(); const map = new Map(list.map(a => [a.username, a])); const tomb = tombstones(); let changed = 0;
     Object.keys(d.deletedAccounts || {}).forEach(u => { const t = d.deletedAccounts[u]; tomb[u] = Math.max(tomb[u] || 0, t); const a = map.get(u); if (a && (a.updatedAt || 0) <= t) { map.delete(u); changed++; } });
-    const incoming = Array.isArray(d.accounts) ? d.accounts : fromLegacy(d.userAccounts || []);
+    const legacyCloud = !Array.isArray(d.accounts);
+    const incoming = legacyCloud ? fromLegacy(d.userAccounts || []) : d.accounts;
     incoming.forEach(c => {
       if (!c || !c.username) return; const u = String(c.username).toLowerCase(); c.username = u;
       if (tomb[u] && tomb[u] >= (c.updatedAt || 0)) return;
       const m = map.get(u);
-      if (!m) { map.set(u, c); changed++; }
-      else if ((c.updatedAt || 0) > (m.updatedAt || 0)) { map.set(u, Object.assign({}, c)); changed++; }
+      if (!m) { map.set(u, c); changed++; return; }
+      const cu = c.updatedAt || 0, mu = m.updatedAt || 0;
+      if (cu > mu) { map.set(u, Object.assign({}, c)); changed++; return; }
+      // First sync after the upgrade: an account this computer only migrated (never edited since)
+      // takes the shared file's password and permission levels — the cloud copy may hold a reset
+      // made on another computer, and the old portal treated the cloud as authoritative.
+      if (cu === mu && m.migrated && !m.updatedBy) {
+        const hash = c.passwordHash || '', plain = c._plain;
+        if ((hash && hash !== m.passwordHash) || (!hash && plain)) { if (hash) { m.passwordHash = hash; delete m._plain; } else { m._plain = plain; } changed++; }
+        if (c.legacyRoles && JSON.stringify(c.legacyRoles) !== JSON.stringify(m.legacyRoles || {})) { m.legacyRoles = Object.assign({}, m.legacyRoles, c.legacyRoles); changed++; }
+        if (legacyCloud && c.systems && c.systems.length) { const sys = new Set(systemsOf(m).concat(c.systems)); m.systems = Array.from(sys); }
+      }
     });
     writeJSON(KEYS.tomb, tomb);
     if (changed) saveAccounts(Array.from(map.values()), { fromCloud: true });
@@ -297,7 +324,9 @@
     const id = await findFile(); if (!id) return { found: false, changed: 0 };
     const r = await api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media');
     const j = await r.json().catch(() => null);
-    return { found: true, changed: mergeCloud(j && j.data) };
+    const changed = mergeCloud(j && j.data);
+    await upgradeAccounts();
+    return { found: true, changed };
   }
   async function push() {
     const blob = new Blob([JSON.stringify(payload())], { type: 'application/json' });
@@ -416,9 +445,9 @@
         a.lastLogin = Date.now(); a.loginCount = (a.loginCount || 0) + 1;
         saveAccounts(list);
         logSignin({ username: u, role: a.role, card: roleKey, result: 'success', detail: 'Signed in' });
-        const s = startSession(a, roleKey);
-        if (a.mustChangePassword) { setTimeout(() => forceChangePassword(a.username, () => routeHome(s)), 50); return; }
-        routeHome(s);
+        // No session exists until a required password change is done.
+        if (a.mustChangePassword) { setTimeout(() => forceChangePassword(a.username, () => routeHome(startSession(loadAccounts().find(x => x.username === a.username), roleKey))), 50); return; }
+        routeHome(startSession(a, roleKey));
       } }]
     });
   }
@@ -427,7 +456,7 @@
       title: 'Choose a new password', sub: 'Your password must be changed before you continue.', icon: '🔑', iconColor: '#f2a91c', dismissable: false,
       body: '<div class="err-box" data-err hidden></div>' + pwField('p1', 'New password', 'At least 6 characters') + pwField('p2', 'Confirm new password'),
       onOpen: el => bindPwToggles(el),
-      actions: [{ label: 'Sign out', cls: 'ghost', onClick: () => { signOut(); } }, { label: 'Save password', cls: 'gold', onClick: async el => {
+      actions: [{ label: 'Cancel sign-in', cls: 'ghost', onClick: () => { endSession(); renderLanding(); } }, { label: 'Save password', cls: 'gold', onClick: async el => {
         const p1 = el.querySelector('[name=p1]').value, p2 = el.querySelector('[name=p2]').value, err = el.querySelector('[data-err]');
         const fail = m => { err.textContent = m; err.hidden = false; return false; };
         if (p1.length < 6) return fail('Use at least 6 characters.');
@@ -551,7 +580,7 @@
       const r = ROLES[a.role] || ROLES.procurement; const self = a.username === me; const lastAdmin = a.role === 'admin' && a.status === 'active' && activeAdmins <= 1;
       return '<tr data-u="' + esc(a.username) + '"><td><input type="checkbox" data-sel' + (state.selected.has(a.username) ? ' checked' : '') + ' aria-label="Select ' + esc(a.displayName) + '"></td>' +
         '<td><div class="u"><span class="avatar" style="background:' + r.color + '">' + esc(initials(a.displayName)) + '</span><div><div class="n">' + esc(a.displayName) + (self ? ' <span class="muted small">(you)</span>' : '') + '</div><div class="e">' + esc(a.email || '—') + '</div></div></div></td>' +
-        '<td>' + roleBadge(a.role) + (a.systems && a.systems.length ? '<div class="muted small" style="margin-top:4px">' + esc(a.systems.map(s => SYSTEMS[s] ? SYSTEMS[s].label : s).join(', ')) + '</div>' : '') + '</td>' +
+        '<td>' + roleBadge(a.role) + (a.legacyRoles ? Object.keys(a.legacyRoles).filter(k => a.legacyRoles[k] !== 'Admin' && a.legacyRoles[k] !== 'Administrator').map(k => '<div class="muted small" style="margin-top:4px">' + esc((SYSTEMS[k] || { label: k }).label) + ': ' + esc(a.legacyRoles[k]) + '</div>').join('') : '') + (a.systems && a.systems.length ? '<div class="muted small" style="margin-top:4px">' + esc(a.systems.map(s => SYSTEMS[s] ? SYSTEMS[s].label : s).join(', ')) + '</div>' : '') + '</td>' +
         '<td class="mono">' + esc(a.username) + (a.mustChangePassword ? '<div class="muted small">must change password</div>' : '') + '</td><td>' + esc(a.department || '—') + '</td>' +
         '<td class="small nowrap">' + (a.lastLogin ? esc(ago(a.lastLogin)) : '<span class="muted">never</span>') + '</td>' +
         '<td><div class="status"><button class="switch' + (a.status === 'active' ? ' on' : '') + '" data-toggle' + (self || lastAdmin ? ' disabled title="' + (self ? 'You cannot disable your own account' : 'The last active Administrator cannot be disabled') + '"' : '') + ' aria-label="Enable or disable"></button>' +
@@ -668,6 +697,7 @@
           toast('User ' + uname + ' created');
         } else {
           const t = fresh.find(x => x.username === uname); if (!t) return fail('This user no longer exists.');
+          if (t.role !== role) delete t.legacyRoles;
           Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems, mustChangePassword: mustChange });
           touch(t); saveAccounts(fresh);
           logSignin({ username: uname, role, card: '', result: 'admin', detail: 'Edited by ' + me });

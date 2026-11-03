@@ -38299,8 +38299,9 @@
                 if (!page || page.style.display === 'none') return;
                 var local = null;
                 try { local = (JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]')).find(function (u) { return String(u.username).toLowerCase() === p.username; }) || null; } catch (e) {}
-                var admin = p.role === 'admin' || p.role === 'assets';
-                var user = Object.assign({ username: p.username, displayName: p.displayName, role: admin ? 'Administrator' : 'User', email: p.email || '', permissions: { canExport: true, canRefresh: true } }, local || {},
+                // Permission level comes from the portal account (kept from the old portal), never assumed.
+                var role = p.assetRole || 'User';
+                var user = Object.assign({ username: p.username, displayName: p.displayName, role: role, email: p.email || '', permissions: { canExport: role !== 'Viewer', canRefresh: role !== 'Viewer' } }, local || {},
                     { source: 'local', viaPortal: true, displayName: p.displayName || (local && local.displayName) || p.username });
                 var tfa = getUserTwoFASettings(p.username);
                 if (tfa && tfa.twoFactorEnabled) return; // keep the two-step login for 2FA users
