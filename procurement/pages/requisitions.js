@@ -10,7 +10,7 @@
 
   if (!document.getElementById('css-requisitions')) document.head.insertAdjacentHTML('beforeend', '<style id="css-requisitions">' +
     '.line-grid td{padding:4px 6px;vertical-align:top}.line-grid th{padding:8px 6px}' +
-    '.line-grid .input{height:34px}.line-grid .ln{color:var(--text-3);font-size:12px;padding-top:12px;text-align:center;width:28px}' +
+    '.line-grid .input{height:34px}.line-grid input[data-c="0"]{min-width:220px}.line-grid input[data-c="1"]{min-width:84px}.line-grid input[data-c="2"]{min-width:80px}.line-grid input[data-c="3"]{min-width:110px}.line-grid input[data-c="4"]{min-width:150px}.line-grid .ln{color:var(--text-3);font-size:12px;padding-top:12px;text-align:center;width:28px}' +
     '.line-grid td.tot{padding-top:12px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}' +
     '.line-grid .rowbtns{white-space:nowrap;padding-top:6px}' +
     '.req-total{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-top:1px solid var(--border);background:var(--surface-2);flex-wrap:wrap}' +

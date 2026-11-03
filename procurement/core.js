@@ -689,7 +689,7 @@
       a.subtotal = util.round2(a.subtotal); a.gct = a.gctApplies ? util.round2(a.subtotal * rate) : 0; a.total = util.round2(a.subtotal + a.gct); return a;
     }).sort((a, b) => b.total - a.total);
     const awardTotal = util.round2(util.sum(awards, a => a.total));
-    const unawarded = lines.filter(l => !l.awardSid).length;
+    const unawarded = lines.filter(l => !l.awardSid && Object.keys(l.quotes).length).length; // quoted but not awarded
     // Value for money: what the award would have cost at each line's highest compliant price.
     const highest = util.round2(util.sum(lines, l => { const v = Object.entries(l.quotes).filter(([sid]) => bySupplier[sid].compliant).map(([, q]) => q.extInc); return v.length ? Math.max.apply(null, v) : 0; }));
     const awardedInc = util.round2(util.sum(lines, l => (l.awardSid ? l.quotes[l.awardSid].extInc : 0)));
@@ -886,6 +886,7 @@
     el.innerHTML = ui.icon(type === 'success' ? 'check' : type === 'error' ? 'alert' : type === 'warning' ? 'alert' : 'info') + '<div>' + util.esc(msg) + '</div><span class="x">' + ui.icon('x', 'sm') + '</span>';
     el.querySelector('.x').onclick = () => el.remove();
     root.appendChild(el);
+    while (root.children.length > 3) root.firstChild.remove();
     setTimeout(() => el.remove(), ms || (type === 'error' ? 7000 : 4000));
   };
 
@@ -1241,9 +1242,9 @@
       const page = Proc.pages[id] || Proc.pages.dashboard;
       const view = document.getElementById('view');
       if (!page || !view) return;
-      if (router.beforeLeave && router.current && router.current !== id) { const ok = await router.beforeLeave(); if (ok === false) return; }
+      if (router.beforeLeave && router.hash !== location.hash) { const ok = await router.beforeLeave(); if (ok === false) return; }
       router.beforeLeave = null;
-      router.current = page.id; router.params = params;
+      router.current = page.id; router.params = params; router.hash = location.hash;
       document.querySelectorAll('.sb-link').forEach(a => a.classList.toggle('active', a.dataset.page === page.id));
       document.body.classList.remove('sb-open');
       view.innerHTML = '';
