@@ -55,7 +55,7 @@
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = s => (s === null || s === undefined ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const readJSON = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v === null || v === undefined ? d : v; } catch (e) { return d; } };
-  const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.error('[Portal] storage write failed', k, e); } };
+  const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { console.error('[Portal] storage write failed', k, e); try { toast('This computer could not save ' + (k === 'portalAccountsV2' ? 'the user accounts' : 'a setting') + ' — browser storage is full. Free some space and try again.', 'err'); } catch (e2) { /* toast not ready */ } return false; } };
   const uid = () => 'U' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
   async function hashPassword(pw) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pw) + SALT));
@@ -146,6 +146,8 @@
     let a = readJSON(KEYS.accounts, null);
     if (!Array.isArray(a)) {
       const legacy = readJSON(KEYS.legacy, null);
+      // Keep the old list once, exactly as it was, before converting it.
+      try { if (Array.isArray(legacy) && !localStorage.getItem(KEYS.legacy + '_v1_backup')) localStorage.setItem(KEYS.legacy + '_v1_backup', JSON.stringify(legacy)); } catch (e) { /* ignore */ }
       a = fromLegacy(Array.isArray(legacy) ? legacy : [{ username: 'procurement', password: '123', dashboard: 'procurement' }, { username: 'stores', password: '123', dashboard: 'stores' }]);
       writeJSON(KEYS.accounts, a);
     }
@@ -329,7 +331,10 @@
   async function pull() {
     const id = await findFile(); if (!id) return { found: false, changed: 0 };
     const r = await api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media');
-    const j = await r.json().catch(() => null);
+    const text = await r.text();
+    let j = null; try { j = JSON.parse(text); } catch (e) { j = null; }
+    // Never upload over a shared accounts file we could not read.
+    if (!j || typeof j !== 'object') throw new Error('the shared accounts file could not be read, so nothing was uploaded over it');
     const changed = mergeCloud(j && j.data);
     await upgradeAccounts();
     return { found: true, changed };

@@ -276,7 +276,8 @@
     }
     const db = emptyDb();
     const now = Date.now();
-    const stamp = r => Object.assign(r, { createdAt: r.createdAt || new Date(now).toISOString(), updatedAt: now });
+    // updatedAt 1: converted old-format records never win over a real edit when copies are merged (e.g. a stale old page still syncing).
+    const stamp = r => Object.assign(r, { createdAt: r.createdAt || new Date(now).toISOString(), updatedAt: 1 });
     const legacyPOs = Array.isArray(raw.purchaseOrders) ? raw.purchaseOrders : [];
     const usedSupplierIds = new Set(legacyPOs.map(p => p && p.supplier && p.supplier.id).filter(Boolean));
     (raw.suppliers || []).forEach(s => {
@@ -382,85 +383,211 @@
       store.save();
       store.emit('change', { coll: 'settings' });
     },
-    /** Next sequential number for a counter key (req, memo, cmp…). */
+    /** Next sequential number for a counter key (req, memo, cmp, grn…). Shared across open tabs so numbers never repeat. */
     next(counter) {
       const c = store.db.settings.counters;
-      c[counter] = (c[counter] || 0) + 1;
-      store.db.settings.updatedAt = Date.now();
+      let shared = {};
+      try { shared = JSON.parse(localStorage.getItem(COUNTER_KEY) || '{}') || {}; } catch (e) { shared = {}; }
+      c[counter] = Math.max(c[counter] || 0, shared[counter] || 0) + 1;
+      shared[counter] = c[counter];
+      try { localStorage.setItem(COUNTER_KEY, JSON.stringify(shared)); } catch (e) { /* the record still carries the counter */ }
       store.save();
       return c[counter];
     },
     save() {
+      pendingSave = true;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(store.flush, 150);
     },
+    /** Write now. Other tabs' saves are merged in first (in the same transaction), so no tab overwrites another's work. */
     flush() {
       clearTimeout(saveTimer);
-      const db = store.db;
-      const p = idb('kv', 'readwrite', st => st.put(db, STORAGE_KEY)).catch(e => console.error('[Proc] IndexedDB save failed', e));
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
-      catch (e) { // localStorage is only a fast cache; IndexedDB is the durable copy.
-        try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* ignore */ }
-      }
-      store.emit('saved');
-      return p;
+      pendingSave = false;
+      return persist();
     },
     load() {
-      let cached = null;
-      try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) cached = JSON.parse(raw); } catch (e) { cached = null; }
+      let cached = null, rawCache = null;
+      try { rawCache = localStorage.getItem(STORAGE_KEY); if (rawCache) cached = JSON.parse(rawCache); } catch (e) { cached = null; }
+      // Keep the original once, before the old page's data is converted.
+      if (cached && !(cached.schemaVersion >= 2)) { try { if (!localStorage.getItem(STORAGE_KEY + '_v1_backup')) localStorage.setItem(STORAGE_KEY + '_v1_backup', rawCache); } catch (e) { /* IndexedDB copy below */ } }
       store.db = migrate(cached);
-      store.ready = idb('kv', 'readonly', st => st.get(STORAGE_KEY)).then(durable => {
-        if (durable && (!cached || (durable.schemaVersion || 1) >= (cached.schemaVersion || 1))) {
-          const fromIdb = migrate(durable);
-          const newest = latestStamp(fromIdb) >= latestStamp(store.db) ? fromIdb : store.db;
-          store.db = newest;
+      store.ready = idb('kv', 'readonly', st => st.get(STORAGE_KEY)).then(async durable => {
+        if (durable && !(durable.schemaVersion >= 2)) await idb('kv', 'readwrite', st => st.put(durable, STORAGE_KEY + '_v1_backup')).catch(() => {});
+        if (durable) {
+          // Merge the database copy and the browser cache record by record (newest wins) rather than choosing one.
+          const base = migrate(durable);
+          if (cached) mergeInto(base, store.db);
+          store.db = base;
         }
+        lastSeenSavedAt = store.db._savedAt || 0;
         if (store.db.migratedFrom === 1) { delete store.db.migratedFrom; store.db._migratedAt = Date.now(); }
-        store.flush();
+        await store.flush();
         store.emit('change', { coll: '*', action: 'load' });
-      }).catch(e => { console.warn('[Proc] IndexedDB unavailable; using browser cache only', e); });
+      }).catch(e => { console.warn('[Proc] IndexedDB unavailable; using browser cache only', e); idbBroken = true; });
       return store.ready;
     },
     exportJSON() { return JSON.stringify({ version: '2.0', type: 'procurement', exportedAt: new Date().toISOString(), data: store.db }, null, 1); },
-    /** Merge another copy of the data (backup file or Drive). Newest record wins. */
+    /** Merge another copy of the data (backup file or Drive). Newest record wins; deletions travel as tombstones. */
     merge(other) {
-      const incoming = migrate(util.clone(other && other.data ? other.data : other));
-      let changed = 0;
-      COLLECTIONS.forEach(c => {
-        const local = store.db[c];
-        const byId = new Map(local.map(r => [r.id, r]));
-        const tomb = store.db.tombstones[c] || {};
-        (incoming[c] || []).forEach(r => {
-          if (!r || !r.id) return;
-          if (tomb[r.id] && tomb[r.id] >= (r.updatedAt || 0)) return;
-          const mine = byId.get(r.id);
-          if (!mine) { local.push(r); byId.set(r.id, r); changed++; }
-          else if ((r.updatedAt || 0) > (mine.updatedAt || 0)) { Object.keys(mine).forEach(k => delete mine[k]); Object.assign(mine, r); changed++; }
-        });
-        const theirTomb = (incoming.tombstones || {})[c] || {};
-        Object.keys(theirTomb).forEach(id => {
-          const mine = byId.get(id);
-          if (mine && theirTomb[id] >= (mine.updatedAt || 0)) { local.splice(local.indexOf(mine), 1); changed++; }
-          tomb[id] = Math.max(tomb[id] || 0, theirTomb[id]);
-        });
-        store.db.tombstones[c] = tomb;
-      });
-      if ((incoming.settings.updatedAt || 0) > (store.db.settings.updatedAt || 0)) {
-        const officers = Object.assign({}, incoming.settings.officers, store.db.settings.officers);
-        store.db.settings = incoming.settings; store.db.settings.officers = officers; changed++;
-      }
-      ['req', 'po', 'memo', 'cmp', 'grn', 'siv', 'itm', 'cnt', 'rtn', 'adj'].forEach(k => {
-        const a = store.db.settings.counters[k] || 0, b = (incoming.settings.counters || {})[k] || 0;
-        if (b > a) { store.db.settings.counters[k] = b; changed++; }
-      });
-      const seen = new Set(store.db.auditLog.map(a => a.timestamp + '|' + a.action + '|' + a.user));
-      (incoming.auditLog || []).forEach(a => { const k = a.timestamp + '|' + a.action + '|' + a.user; if (!seen.has(k)) { store.db.auditLog.push(a); seen.add(k); changed++; } });
-      store.db.auditLog.sort((x, y) => (y.timestamp > x.timestamp ? 1 : -1));
-      if (store.db.auditLog.length > 3000) store.db.auditLog.length = 3000;
+      const changed = mergeInto(store.db, migrate(util.clone(other && other.data ? other.data : other)));
       if (changed) { store.save(); store.emit('change', { coll: '*', action: 'merge' }); }
       return changed;
+    },
+    /** Daily copies of the data kept on this computer (last 14 days). */
+    snapshots: {
+      async list() { const keys = await idb('kv', 'readonly', st => st.getAllKeys()).catch(() => []); return (keys || []).filter(k => /^snapshot-\d{4}-\d{2}-\d{2}$/.test(k)).map(k => k.slice(9)).sort().reverse(); },
+      get(day) { return idb('kv', 'readonly', st => st.get('snapshot-' + day)); },
+      async restore(day) { const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day); return store.merge(d); },
+      /** Records in the copy that were deleted here since (blocked by a newer deletion mark). */
+      async deleted(day) {
+        const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day);
+        const copy = migrate(util.clone(d)), out = {};
+        COLLECTIONS.forEach(c => {
+          if (c === 'notifications') return;
+          const here = new Set((store.db[c] || []).map(r => r.id)), tomb = (store.db.tombstones || {})[c] || {};
+          const gone = (copy[c] || []).filter(r => r && r.id && !here.has(r.id) && tomb[r.id]);
+          if (gone.length) out[c] = gone;
+        });
+        return out;
+      },
+      /** Bring back records deleted since the copy was made (they are re-saved as new edits so the undelete travels to other computers). */
+      async undelete(day, colls) {
+        const found = await store.snapshots.deleted(day); let n = 0; const now = Date.now();
+        Object.keys(found).forEach(c => {
+          if (colls && colls.indexOf(c) < 0) return;
+          found[c].forEach(r => {
+            if (store.db.tombstones[c]) delete store.db.tombstones[c][r.id];
+            r.updatedAt = now; r.updatedBy = Proc.auth.userName(); delete r._deleted;
+            (store.db[c] = store.db[c] || []).push(r); n++;
+          });
+        });
+        if (n) { store.save(); store.emit('change', { coll: '*', action: 'merge' }); }
+        return n;
+      },
+      async download(day) { const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day); util.download(new Blob([JSON.stringify({ version: '2.0', type: 'procurement', exportedAt: day, data: d })], { type: 'application/json' }), 'procurement-backup-' + day + '.json'); }
     }
   };
+
+  /* ---------------- persistence helpers */
+  const COUNTER_KEY = 'procurementCounters';
+  const TAB_ID = util.uid('TAB');
+  let pendingSave = false, lastSeenSavedAt = 0, idbBroken = false, lastSnapshotDay = '', saveErrorShownAt = 0;
+  let channel = null;
+  try { channel = new BroadcastChannel('procurementData'); } catch (e) { channel = null; }
+
+  /** Merge `incoming` (an already-migrated dataset) into `target`. Returns the number of changes. */
+  function mergeInto(target, incoming) {
+    let changed = 0;
+    target.tombstones = target.tombstones || {};
+    COLLECTIONS.forEach(c => {
+      const local = target[c] = target[c] || [];
+      const byId = new Map(local.map(r => [r.id, r]));
+      const tomb = target.tombstones[c] || {};
+      (incoming[c] || []).forEach(r => {
+        if (!r || !r.id) return;
+        if (tomb[r.id] && tomb[r.id] >= (r.updatedAt || 0)) return;
+        const mine = byId.get(r.id);
+        if (!mine) { local.push(r); byId.set(r.id, r); changed++; }
+        else if ((r.updatedAt || 0) > (mine.updatedAt || 0)) { Object.keys(mine).forEach(k => delete mine[k]); Object.assign(mine, r); changed++; }
+      });
+      const theirTomb = (incoming.tombstones || {})[c] || {};
+      Object.keys(theirTomb).forEach(id => {
+        const mine = byId.get(id);
+        if (mine && theirTomb[id] >= (mine.updatedAt || 0)) { local.splice(local.indexOf(mine), 1); changed++; }
+        tomb[id] = Math.max(tomb[id] || 0, theirTomb[id]);
+      });
+      target.tombstones[c] = tomb;
+    });
+    const inS = incoming.settings || {}, myS = target.settings = target.settings || {};
+    if ((inS.updatedAt || 0) > (myS.updatedAt || 0)) {
+      const officers = Object.assign({}, inS.officers, myS.officers), counters = Object.assign({}, myS.counters);
+      target.settings = Object.assign({}, inS, { officers, counters }); changed++;
+    } else if (inS.officers) {
+      Object.keys(inS.officers).forEach(u => { if (!(myS.officers || {})[u]) { myS.officers = Object.assign({}, myS.officers, { [u]: inS.officers[u] }); changed++; } });
+    }
+    const tc = target.settings.counters = target.settings.counters || {};
+    Object.keys(inS.counters || {}).forEach(k => { if ((inS.counters[k] || 0) > (tc[k] || 0)) { tc[k] = inS.counters[k]; changed++; } });
+    target.auditLog = target.auditLog || [];
+    const seen = new Set(target.auditLog.map(a => a.timestamp + '|' + a.action + '|' + a.user));
+    (incoming.auditLog || []).forEach(a => { const k = a.timestamp + '|' + a.action + '|' + a.user; if (!seen.has(k)) { target.auditLog.push(a); seen.add(k); changed++; } });
+    target.auditLog.sort((x, y) => (y.timestamp > x.timestamp ? 1 : -1));
+    if (target.auditLog.length > 3000) target.auditLog.length = 3000;
+    // Other top-level lists (import history…): keep the union by id.
+    ['importLog'].forEach(k => {
+      if (!Array.isArray(incoming[k])) return;
+      const mine = target[k] = Array.isArray(target[k]) ? target[k] : [];
+      const ids = new Set(mine.map(e => e.id));
+      incoming[k].forEach(e => { if (e && e.id && !ids.has(e.id)) { mine.push(e); changed++; } });
+    });
+    return changed;
+  }
+
+  async function persist() {
+    let idbOk = false;
+    if (!idbBroken) {
+      try {
+        const db = await openIDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('kv', 'readwrite'); const st = tx.objectStore('kv');
+          const g = st.get(STORAGE_KEY);
+          g.onsuccess = () => {
+            const theirs = g.result;
+            // Another tab saved since we last looked: take its records first.
+            if (theirs && theirs._writer !== TAB_ID && (theirs._savedAt || 0) > lastSeenSavedAt) {
+              if (mergeInto(store.db, migrate(theirs))) setTimeout(() => store.emit('change', { coll: '*', action: 'tab-merge' }), 0);
+            }
+            store.db._savedAt = Date.now(); store.db._writer = TAB_ID; lastSeenSavedAt = store.db._savedAt;
+            st.put(store.db, STORAGE_KEY);
+            const day = util.today();
+            if (lastSnapshotDay !== day) { st.put(store.db, 'snapshot-' + day); lastSnapshotDay = day; pruneSnapshots(st); }
+          };
+          tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+        });
+        idbOk = true;
+      } catch (e) { console.error('[Proc] IndexedDB save failed', e); }
+    }
+    let lsOk = false;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store.db)); lsOk = true; }
+    catch (e) {
+      // The browser cache is only a convenience — drop it only when the database copy is safely written.
+      if (idbOk) { try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* ignore */ } }
+    }
+    if (!idbOk && !lsOk) {
+      store.emit('saveError', new Error('This computer could not save the latest changes (browser storage is full or blocked).'));
+      return false;
+    }
+    if (channel) { try { channel.postMessage({ type: 'saved', tab: TAB_ID, at: store.db._savedAt }); } catch (e) { /* ignore */ } }
+    store.emit('saved');
+    return true;
+  }
+  function pruneSnapshots(st) {
+    const r = st.getAllKeys();
+    r.onsuccess = () => { (r.result || []).filter(k => /^snapshot-\d{4}-\d{2}-\d{2}$/.test(k)).sort().reverse().slice(14).forEach(k => st.delete(k)); };
+  }
+  /** Another tab saved: pull its records in. */
+  const pullFromOtherTab = util.debounce(async () => {
+    try {
+      const theirs = await idb('kv', 'readonly', st => st.get(STORAGE_KEY));
+      if (!theirs || theirs._writer === TAB_ID || (theirs._savedAt || 0) <= lastSeenSavedAt) return;
+      const n = mergeInto(store.db, migrate(theirs));
+      lastSeenSavedAt = theirs._savedAt || lastSeenSavedAt;
+      if (n) store.emit('change', { coll: '*', action: 'tab-merge' });
+    } catch (e) { /* next save merges anyway */ }
+  }, 250);
+  if (channel) channel.onmessage = e => { if (e.data && e.data.type === 'saved' && e.data.tab !== TAB_ID) pullFromOtherTab(); };
+  window.addEventListener('storage', e => { if (e.key === STORAGE_KEY) pullFromOtherTab(); });
+  // Never lose the last change when the page is closed, reloaded or hidden.
+  const flushIfPending = () => {
+    if (!pendingSave) return;
+    // The database write is asynchronous and may not finish before the page closes, so write the
+    // browser cache straight away too (it is merged back in on the next load).
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store.db)); } catch (e) { /* full: the database write below still runs */ }
+    store.flush();
+  };
+  window.addEventListener('pagehide', flushIfPending);
+  window.addEventListener('beforeunload', flushIfPending);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushIfPending(); });
+
   function latestStamp(db) {
     let m = (db.settings && db.settings.updatedAt) || 0;
     COLLECTIONS.forEach(c => (db[c] || []).forEach(r => { if ((r.updatedAt || 0) > m) m = r.updatedAt; }));
@@ -1480,6 +1607,48 @@
     return '<div class="route">' + route.steps.map((s, i) => '<div class="route-step ' + (s.warn ? 'warn' : '') + '"><div class="n">' + (i + 1) + '</div><div><div class="t">' + util.esc(s.title) + '</div><div class="d">' + util.esc(s.detail || '') + '</div></div></div>').join('') + '</div>';
   };
 
+  /**
+   * Backups & recovery panel (used on every app's Settings page): daily copies on this computer,
+   * download/merge them back, a full backup file, and documents that exist only on this computer.
+   */
+  ui.backupPanel = async function (el) {
+    const days = await store.snapshots.list();
+    const localDocs = store.list('documents').filter(d => !d.driveFileId);
+    el.innerHTML = '<div class="card"><div class="card-h"><div><h3>Backups &amp; recovery</h3><div class="sub">A copy of all records is kept on this computer once a day (last 14 days)' + (sync.token() ? ', and in Google Drive under “' + GDRIVE.BACKUP_FOLDER + '” (last 60 days)' : '') + '. Restoring fills in what is missing and can bring back records deleted by mistake — nothing newer is overwritten.</div></div>' +
+      '<button class="btn primary" data-full>' + ui.icon('download', 'sm') + 'Download full backup now</button></div>' +
+      '<div class="card-b">' + (days.length ? '<div class="table-wrap"><table class="table compact"><thead><tr><th>Daily copy</th><th></th></tr></thead><tbody>' +
+        days.map(d => '<tr><td>' + util.dateLong(d) + (d === util.today() ? ' <span class="chip">today</span>' : '') + '</td><td class="actions"><button class="btn sm" data-dl="' + d + '">' + ui.icon('download', 'sm') + 'Download</button> <button class="btn sm" data-rs="' + d + '">' + ui.icon('refresh', 'sm') + 'Restore…</button></td></tr>').join('') +
+        '</tbody></table></div>' : '<p class="muted">The first daily copy is made at the next save.</p>') +
+      '<div class="divider"></div>' + (localDocs.length ? '<div class="alert warning">' + ui.icon('alert') + '<div><div class="t">' + localDocs.length + ' ' + util.plural(localDocs.length, 'document is', 'documents are') + ' only on this computer</div>' +
+        (sync.token() ? 'They are being copied to Google Drive a few at a time.' : 'Connect Google Drive (sign in on the Fixed Asset dashboard) so uploaded quotes, POs and invoices are kept off this computer too, or download them.') +
+        ' <button class="btn sm" data-docs style="margin-left:6px">' + ui.icon('download', 'sm') + 'Download them</button></div></div>' : '<div class="alert success">' + ui.icon('check') + '<div>Every uploaded document has a copy in Google Drive.</div></div>') + '</div></div>';
+    el.querySelector('[data-full]').onclick = () => { util.download(new Blob([store.exportJSON()], { type: 'application/json' }), 'procurement-backup-' + util.today() + '.json'); Proc.audit('Export Backup', 'Full backup downloaded'); };
+    el.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => store.snapshots.download(b.dataset.dl).catch(e => ui.toast(e.message, 'error')));
+    el.querySelectorAll('[data-rs]').forEach(b => b.onclick = async () => {
+      const day = b.dataset.rs;
+      let found = {};
+      try { found = await store.snapshots.deleted(day); } catch (e) { return ui.toast(e.message, 'error'); }
+      const kinds = Object.keys(found);
+      const label = c => util.esc(c.replace(/([A-Z])/g, ' $1').replace(/^./, x => x.toUpperCase()));
+      const list = kinds.length ? '<p style="margin-top:10px"><b>Deleted since then</b> — tick what you want back:</p>' + kinds.map(c => '<label class="check" style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" data-undel="' + c + '"> ' + label(c) + ' <span class="chip">' + found[c].length + '</span></label>').join('') : '';
+      ui.modal({
+        title: 'Restore from ' + util.dateLong(day), size: 'sm',
+        body: '<p>Records missing here are added back and older versions are filled in. Nothing changed after that day is overwritten.</p>' + list,
+        actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Restore', kind: 'primary', icon: 'refresh', onClick: async (close, m) => {
+          const picked = Array.from(m.querySelectorAll('[data-undel]:checked')).map(i => i.dataset.undel);
+          const merged = await store.snapshots.restore(day);
+          const back = picked.length ? await store.snapshots.undelete(day, picked) : 0;
+          const n = merged + back;
+          Proc.audit('Restore Backup', 'Daily copy ' + day + ' merged (' + merged + ' changes' + (back ? ', ' + back + ' deleted records brought back: ' + picked.join(', ') : '') + ')');
+          ui.toast(n ? n + ' records brought back' : 'Nothing was missing', n ? 'success' : 'info');
+        } }]
+      });
+    });
+    const dd = el.querySelector('[data-docs]');
+    if (dd) dd.onclick = async () => { for (const d of localDocs) { await files.download(d.id); await new Promise(r => setTimeout(r, 400)); } };
+  };
+  if (APP.id === 'stores') { Proc.storesSettingsHooks = Proc.storesSettingsHooks || []; Proc.storesSettingsHooks.push({ title: 'Backups & recovery', icon: 'cloud', render: el => ui.backupPanel(el) }); }
+
   /* --------------------------------------------------------------- auth */
   const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
   const SESSION_KEY = APP.id === 'procurement' ? 'procSession' : 'procSession-' + APP.id;
@@ -1650,7 +1819,7 @@
   };
 
   /* ---------------------------------------------------------------- sync */
-  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents' };
+  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents', BACKUP_FOLDER: 'Procurement Backups' };
   const sync = Proc.sync = {
     state: 'off', lastSync: null, fileId: null, docsFolderId: null, timer: null, busy: false,
     token() {
@@ -1678,15 +1847,19 @@
       if (!sync.token()) { sync.setState('off'); return; }
       sync.busy = true; sync.setState('busy');
       try {
-        if (!sync.fileId) {
-          const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE_NAME + "' and trashed=false";
-          const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
-          const j = await r.json(); if (j.files && j.files.length) sync.fileId = j.files[0].id;
-        }
-        if (sync.fileId) {
-          const r = await sync.api('https://www.googleapis.com/drive/v3/files/' + sync.fileId + '?alt=media');
-          const cloud = await r.json().catch(() => null);
-          if (cloud) store.merge(cloud);
+        // Every copy of the shared file (normally one; two if computers ever raced to create it) is merged in.
+        const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE_NAME + "' and trashed=false";
+        const lr = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime)');
+        const found = ((await lr.json()).files || []);
+        if (found.length) sync.fileId = found[0].id;
+        for (const f of found) {
+          const r = await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media');
+          const text = await r.text();
+          let cloud = null;
+          try { cloud = JSON.parse(text); } catch (e) { cloud = null; }
+          // Never write over a shared copy we could not read — it may hold other computers' work.
+          if (!cloud || typeof cloud !== 'object') throw new Error('The Google Drive copy could not be read, so nothing was uploaded over it');
+          store.merge(cloud);
         }
         const blob = new Blob([JSON.stringify({ version: '2.0', type: 'procurement', timestamp: new Date().toISOString(), data: store.db })], { type: 'application/json' });
         if (sync.fileId) await sync.api('https://www.googleapis.com/upload/drive/v3/files/' + sync.fileId + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob });
@@ -1697,11 +1870,44 @@
           const r = await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
           sync.fileId = (await r.json()).id;
         }
+        await sync.dailySnapshot(blob).catch(e => console.warn('[Proc sync] daily backup skipped', e.message));
         // Copy any documents that have not reached Drive yet.
         for (const d of store.list('documents').filter(x => !x.driveFileId).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
         sync.lastSync = Date.now(); sync.setState('on');
-      } catch (e) { console.warn('[Proc sync]', e.message); sync.setState(sync.token() ? 'err' : 'off'); }
+      } catch (e) {
+        console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
+        if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the Drive file.', 'error', 15000); }
+      }
       finally { sync.busy = false; }
+    },
+    /** Once a day, keep a dated copy in Drive ("Procurement Backups"), and remove copies older than 60 days. */
+    async dailySnapshot(blob) {
+      const day = util.today();
+      if (localStorage.getItem('procDriveSnapshotDay') === day) return;
+      const folder = await sync.folder(GDRIVE.BACKUP_FOLDER);
+      const name = 'PROCUREMENT_BACKUP_' + day + '.json';
+      const q = "'" + folder + "' in parents and trashed=false";
+      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=200');
+      const list = (await r.json()).files || [];
+      if (!list.some(f => f.name === name)) {
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ name, parents: [folder], mimeType: 'application/json' })], { type: 'application/json' }));
+        form.append('file', blob);
+        await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
+      }
+      const cutoff = util.addDays(day, -60);
+      for (const f of list) { const m = /^PROCUREMENT_BACKUP_(\d{4}-\d{2}-\d{2})\.json$/.exec(f.name); if (m && m[1] < cutoff) await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }).catch(() => {}); }
+      localStorage.setItem('procDriveSnapshotDay', day);
+    },
+    async folder(name) {
+      sync.folders = sync.folders || {};
+      if (sync.folders[name]) return sync.folders[name];
+      const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + name + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
+      const j = await r.json();
+      if (j.files && j.files.length) return (sync.folders[name] = j.files[0].id);
+      const c = await sync.api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [GDRIVE.FOLDER_ID] }) });
+      return (sync.folders[name] = (await c.json()).id);
     },
     async docsFolder() {
       if (sync.docsFolderId) return sync.docsFolderId;
@@ -1783,6 +1989,11 @@
         syncEl.innerHTML = '<span class="sync-dot ' + s + '"></span><span>' + label + (s === 'on' && sync.lastSync ? ' · ' + util.ago(sync.lastSync) : '') + '</span>';
       };
       store.on('sync', showSync); showSync(sync.state);
+      store.on('saveError', e => {
+        syncEl.innerHTML = '<span class="sync-dot err"></span><span>Not saved on this computer — download a backup</span>';
+        if (Date.now() - saveErrorShownAt > 60000) { saveErrorShownAt = Date.now(); ui.toast(e.message + ' Download a backup from Settings → Data now, then free some browser storage.', 'error', 15000); }
+      });
+      store.on('saved', () => { if (/Not saved/.test(syncEl.textContent)) showSync(sync.state); });
       Proc.shell.bindBell();
     },
     /** Notification bell: messages addressed to this app (deliveries, new POs, assets to register…). */
@@ -1823,6 +2034,8 @@
   Proc.boot = async function () {
     store.load();
     await store.ready;
+    // Ask the browser to keep this site's data even when the disk is short of space.
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {}); } catch (e) { /* not supported */ }
     const loginEl = document.getElementById('loginScreen'), appEl = document.getElementById('app');
     const enter = async () => {
       loginEl.hidden = true; appEl.hidden = false;

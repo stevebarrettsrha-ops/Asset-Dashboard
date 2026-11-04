@@ -306,7 +306,8 @@
       '<div class="card"><div class="card-h"><h3>Shared records</h3></div><div class="card-b"><dl class="kv tight"><dt>Google Drive</dt><dd>' + esc(syncLabel) + '</dd><dt>Last sync</dt><dd>' + (Proc.sync.lastSync ? util.ago(Proc.sync.lastSync) : '—') + '</dd>' +
       '<dt>Asset rule</dt><dd>Furniture, machinery, tools and equipment, or a unit price of ' + util.money(util.num(S.assetThreshold || 50000), { noCents: true }) + ' or more (set in General Stores settings)</dd></dl>' +
       (Proc.sync.state === 'off' ? '<div class="alert mt-2">' + ui.icon('info') + '<div>Sign in through the hospital portal (Sync Now) so this computer shares records with Procurement and Stores.</div></div>' : '') +
-      '</div><div class="card-f"><button class="btn" data-sync' + (Proc.sync.state === 'off' ? ' disabled' : '') + '>' + ui.icon('refresh', 'sm') + 'Sync now</button></div></div></div>';
+      '</div><div class="card-f"><button class="btn" data-sync' + (Proc.sync.state === 'off' ? ' disabled' : '') + '>' + ui.icon('refresh', 'sm') + 'Sync now</button></div></div></div><div class="mt-3" id="aiBackup"></div>';
+    ui.backupPanel(el.querySelector('#aiBackup'));
     el.querySelector('[data-save]').onclick = () => {
       const v = ui.formData(el); if (!v.name) return ui.toast('Enter your name.', 'warning');
       const officers = Object.assign({}, store.settings().officers); officers[u.username] = Object.assign({}, officers[u.username], { name: v.name, title: v.title || 'Fixed Asset Officer', phone: v.phone });
