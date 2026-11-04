@@ -892,6 +892,59 @@
     return out;
   };
 
+  /** Stores put goods into stock (GRN by Stores, or put-away of a delivery Procurement recorded). Tells Procurement. */
+  domain.afterStocked = function (delivery, moves) {
+    const po = store.get('purchaseOrders', delivery.poId); if (!po) return;
+    moves = (moves || store.filter('stockMoves', m => m.grnId === delivery.id && m.type === 'Receipt'));
+    if (!moves.length) return;
+    const text = moves.slice(0, 3).map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' → ' + m.location : '')).join('; ') + (moves.length > 3 ? '…' : '');
+    Proc.notify({ to: ['procurement'], type: 'stocked', poId: po.id, title: 'Put into stock — PO ' + po.poNumber + ' · ' + (po.supplierName || ''), body: 'GRN ' + (delivery.grn || '') + ' · ' + text, link: { app: 'procurement', route: '#/orders/' + po.id } });
+  };
+  /** The Fixed Asset Officer registered assets from a PO line. Tells Procurement (and Stores). */
+  domain.afterRegister = function (reg) {
+    const po = store.get('purchaseOrders', reg.poId); if (!po) return;
+    const codes = (reg.assetCodes || []).filter(Boolean);
+    Proc.notify({ to: ['procurement', 'stores'], type: 'asset-registered', poId: po.id, title: util.num(reg.qty) + ' ' + util.plural(util.num(reg.qty), 'asset') + ' registered — PO ' + po.poNumber, body: (reg.description || '') + (codes.length ? ' · ' + codes.slice(0, 4).join(', ') + (codes.length > 4 ? '…' : '') : '') + (reg.department ? ' · ' + reg.department : ''), link: { app: 'procurement', route: '#/orders/' + po.id } });
+  };
+  /**
+   * Everything that has happened to a PO after it was issued, newest last — for Procurement's PO page.
+   * Event: { at (ISO date), kind: 'issued'|'delivered'|'stocked'|'rejected'|'returned'|'registered'|'invoiced'|'paid', title, detail, by, app, link }
+   */
+  domain.poTrail = function (po) {
+    const ev = [];
+    if (po.poNumber && po.status !== 'Draft') ev.push({ at: po.issuedAt || po.date, kind: 'issued', title: 'PO ' + po.poNumber + ' issued', detail: (po.supplierName || '') + ' · ' + util.money(po.total), by: po.createdBy || '' });
+    store.filter('deliveries', d => d.poId === po.id).forEach(d => {
+      const got = (d.items || []).filter(i => util.num(i.qtyReceived) > 0);
+      ev.push({ at: d.date, kind: d.voided ? 'rejected' : 'delivered', title: (d.voided ? 'GRN voided — ' : 'Delivered — ') + (d.grn || 'delivery'), detail: (got.length ? got.map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + i.description).slice(0, 4).join('; ') + (got.length > 4 ? '…' : '') : (d.final ? 'Full delivery' : 'Part delivery')) + (d.rejectedQty ? ' · ' + d.rejectedQty + ' rejected' : '') + (d.condition ? ' · ' + d.condition : ''), by: d.receivedBy || d.createdBy || '', app: d.recordedIn === 'procurement' ? 'Procurement' : 'General Stores', link: d.recordedIn === 'procurement' ? '' : (Proc.APP_URLS.stores + '#/grn/' + d.id) });
+      const moves = store.filter('stockMoves', m => m.grnId === d.id && m.type === 'Receipt');
+      if (moves.length) ev.push({ at: moves[0].date, kind: 'stocked', title: 'Put into stock', detail: moves.map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' (' + m.location + ')' : '')).slice(0, 4).join('; ') + (moves.length > 4 ? '…' : ''), by: moves[0].by || '', app: 'General Stores', link: Proc.APP_URLS.stores + '#/inventory/' + moves[0].itemId });
+      else if (d.recordedIn === 'procurement' && !d.stocked) ev.push({ at: d.date, kind: 'pending', title: 'Waiting for Stores to put away', detail: d.grn || '', by: '', app: 'General Stores' });
+    });
+    store.filter('supplierReturns', r => r.poId === po.id).forEach(r => ev.push({ at: r.date, kind: 'returned', title: 'Returned to supplier — ' + (r.number || ''), detail: (r.items || []).map(i => util.num(i.qty) + ' ' + i.description + (i.reason ? ' (' + i.reason + ')' : '')).join('; ') + ' · ' + (r.status || ''), by: r.createdBy || '', app: 'General Stores' }));
+    store.filter('assetRegistrations', r => r.poId === po.id).forEach(r => ev.push({ at: (r.registeredAt || r.createdAt || '').slice(0, 10), kind: 'registered', title: util.num(r.qty) + ' ' + util.plural(util.num(r.qty), 'asset') + ' registered', detail: (r.description || '') + ((r.assetCodes || []).filter(Boolean).length ? ' · ' + r.assetCodes.filter(Boolean).join(', ') : ' · asset codes to follow') + (r.department ? ' · ' + r.department : ''), by: r.registeredBy || r.createdBy || '', app: 'Fixed Assets', link: Proc.APP_URLS.intake + '#/registered' }));
+    store.filter('invoices', i => i.poId === po.id).forEach(i => {
+      ev.push({ at: i.date, kind: 'invoiced', title: 'Invoice ' + (i.invoiceNumber || ''), detail: util.money(i.total) + ' · ' + (i.status || ''), by: i.createdBy || '' });
+      if (i.status === 'Paid') ev.push({ at: i.paidDate || i.date, kind: 'paid', title: 'Paid — invoice ' + (i.invoiceNumber || ''), detail: util.money(i.paidAmount || i.total) + (i.paymentRef ? ' · ' + i.paymentRef : ''), by: '' });
+    });
+    return ev.filter(e => e.at).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  };
+  /** Per-line status for a PO, for Procurement and Stores: { type, ordered, received, stocked, registered, label } */
+  domain.lineStatus = function (po) {
+    const lines = domain.poLines(po); const got = domain.lineReceived(po);
+    const regs = store.filter('assetRegistrations', r => r.poId === po.id);
+    const dels = store.filter('deliveries', d => d.poId === po.id && !d.voided);
+    return lines.map((l, i) => {
+      const type = domain.classifyLine(l, po), ordered = util.num(l.qty) || 1, received = got[i] || 0;
+      const registered = util.sum(regs.filter(r => r.lineIndex === i), r => r.qty);
+      const stocked = util.sum(dels.filter(d => d.recordedIn !== 'procurement' || d.stocked).map(d => (d.items || []).find(x => x.lineIndex === i)).filter(Boolean), x => x.qtyReceived);
+      let label = 'On order';
+      if (type === 'Service') label = received >= ordered ? 'Completed' : 'Service';
+      else if (received >= ordered) label = type === 'Asset' ? (registered >= received ? 'Registered' : 'Delivered — to register') : (stocked >= received ? 'In stock' : 'Delivered — to put away');
+      else if (received > 0) label = 'Part delivered';
+      return { type, ordered, received, stocked: type === 'Stock' ? stocked : 0, registered, label };
+    });
+  };
+
   /* ---------------- stock ledger */
   domain.stockKey = s => String(s || '').toLowerCase().replace(/^\d+(\.\d+)?\s*(ea|each|pk|pks|pcs|box|boxes|cs|c\/s|case|cases|lbs?|kg|gal|lt|ltr|litres?|rolls?|rms?|reams?|bags?|doz|btl|bottles?)\b\s*[-–:]?\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim();
   domain.findStockItem = function (text) {
