@@ -246,6 +246,7 @@
           saved = store.upsert('purchaseOrders', Object.assign({ id: existing.id }, patch));
         } else {
           saved = store.upsert('purchaseOrders', Object.assign(rec, { status: 'Issued', source: 'book', issuedAt: v.date }));
+          domain.afterIssue(saved);
         }
         domain.refreshOrderStatus(saved.id);
         if (scan) await files.add(scan, { kind: 'Purchase Order', supplierId: saved.supplierId, ref: saved.poNumber, date: saved.date, amount: saved.total, title: 'PO ' + saved.poNumber + ' (book ' + b.bookNo + ')', links: { poId: saved.id } });

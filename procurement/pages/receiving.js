@@ -1,7 +1,7 @@
 /* ==========================================================================
    Receiving — goods received against purchase orders (GRN), partial or final.
    Route: #/receiving  (#/receiving?po=<poId> opens the delivery form)
-   Notifies General Stores via localStorage.storesDeliveryNotifications.
+   Notifies General Stores (put-away queue) and Fixed Assets through shared notifications.
    ========================================================================== */
 (function () {
   'use strict';
@@ -71,20 +71,16 @@
           const missing = ['date', 'grn', 'receivedBy'].filter(k => !f[k]);
           el.querySelectorAll('.field').forEach(x => x.classList.remove('invalid'));
           if (missing.length) { missing.forEach(k => el.querySelector('[name=' + k + ']').closest('.field').classList.add('invalid')); ui.toast('Enter the date, GRN number and who received the goods.', 'warning'); return false; }
-          const lines = items.map((it, i) => ({ line: i, description: it.description, unit: it.unit || '', qtyOrdered: util.num(it.qty), qtyReceived: util.num(el.querySelector('[data-line="' + i + '"]').value) }));
+          const lines = items.map((it, i) => ({ line: i, lineIndex: i, description: it.description, unit: it.unit || '', qtyOrdered: util.num(it.qty), qtyReceived: util.num(el.querySelector('[data-line="' + i + '"]').value) }));
           if (!lines.some(l => l.qtyReceived > 0)) { ui.toast('Enter the quantity received for at least one line.', 'warning'); return false; }
           const over = lines.filter((l, i) => prior[i] + l.qtyReceived > l.qtyOrdered + 1e-9);
           if (over.length && !(await ui.confirm('More than the ordered quantity is being received for ' + over.length + ' ' + util.plural(over.length, 'line') + '. Record anyway?', { ok: 'Record anyway' }))) return false;
-          const del = store.upsert('deliveries', { poId: po.id, supplierId: po.supplierId, date: f.date, grn: f.grn, receivedBy: f.receivedBy, condition: f.condition, notes: f.notes, items: lines, final: !!f.final, partial: !f.final });
+          const del = store.upsert('deliveries', { poId: po.id, supplierId: po.supplierId, date: f.date, grn: f.grn, receivedBy: f.receivedBy, condition: f.condition, notes: f.notes, items: lines, final: !!f.final, partial: !f.final, recordedIn: 'procurement', stocked: false });
           for (const file of picked) await files.add(file, { kind: 'Delivery Note / GRN', supplierId: po.supplierId, ref: f.grn, date: f.date, links: { poId: po.id } });
           // Earlier partial deliveries no longer flag the PO once the final one is in.
           domain.refreshOrderStatus(po.id);
-          try {
-            const key = 'storesDeliveryNotifications';
-            const list = JSON.parse(localStorage.getItem(key) || '[]');
-            list.push({ poId: po.poNumber || po.id, supplierName: po.supplierName || domain.supplierName(po.supplierId), items: po.items || [], deliveryDate: f.date, grn: f.grn, timestamp: new Date().toISOString() });
-            localStorage.setItem(key, JSON.stringify(list));
-          } catch (e) { /* stores notification is best effort */ }
+          // General Stores sees it in its put-away queue; Fixed Assets is told about any asset lines.
+          domain.afterDelivery(del, { by: 'procurement' });
           Proc.audit('Record Delivery', poLabel(po) + ' · GRN ' + f.grn + ' · ' + f.condition + (f.final ? ' · final' : ' · partial') + ' · ' + (po.supplierName || ''), po.id);
           ui.toast('Delivery recorded — General Stores notified');
           if (onDone) setTimeout(() => onDone(del), 30);

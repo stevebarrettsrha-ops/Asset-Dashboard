@@ -15,6 +15,10 @@
 (function () {
   'use strict';
   const Proc = window.Proc = window.Proc || {};
+  /** Which app this page is. procurement.html, stores.html and asset-intake.html share the same records. */
+  const APP = Proc.APP = Object.assign({ id: 'procurement', system: 'procurement', name: 'Procurement', defaultUser: 'procurement', profileWhere: 'memos and purchase orders' }, window.PROC_APP || {});
+  APP.audience = APP.system === 'intake' ? 'assets' : APP.system; // who notifications for this app are addressed to
+  Proc.APP_URLS = { procurement: 'procurement.html', stores: 'stores.html', intake: 'asset-intake.html', assets: 'index.html' };
 
   /* ------------------------------------------------------------------ util */
   const util = Proc.util = {};
@@ -184,7 +188,18 @@
       ]
     },
     officers: {},              // username -> { name: 'Ms. Christine Crawford', title: 'Public Procurement Officer' }
-    counters: { req: 1000, po: 0, memo: 0, cmp: 0 },
+    counters: { req: 1000, po: 0, memo: 0, cmp: 0, grn: 0, siv: 0, itm: 0, cnt: 0, rtn: 0, adj: 0 },
+    /** General Stores and Fixed Asset intake */
+    stores: {
+      storeName: 'General Stores',
+      leadDays: 14,             // expected delivery = PO date + this, unless the PO gives a date
+      assetThreshold: 50000,    // a line at or above this unit price is treated as a fixed asset (unless it is a service)
+      expiryWarnDays: 90,
+      locations: ['Main Store', 'Shelf A', 'Shelf B', 'Shelf C', 'Cold Room', 'Bulk Store'],
+      categories: ['Medical Supplies', 'Laboratory Supplies', 'Cleaning & Sanitation', 'Office & Stationery', 'Kitchen / Dietary', 'Linen & Bedding', 'Maintenance & Electrical', 'Personal Protective Equipment', 'IT Consumables', 'General'],
+      assetKeywords: '',        // extra words that mark a line as an asset (comma separated)
+      serviceKeywords: ''       // extra words that mark a line as a service
+    },
     poPrefix: '',              // official PO numbers are typed in (e.g. 1124590); prefix only for system-generated drafts
     updatedAt: 0
   };
@@ -194,8 +209,10 @@
   const STORAGE_KEY = 'procurementData';
   const IDB_NAME = 'ProcurementDB';
   const IDB_VERSION = 2;               // v2 adds the "files" store for documents
-  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks'];
-  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK' };
+  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks',
+    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications'];
+  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK',
+    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF' };
   const listeners = {};
   let idbPromise = null;
   let saveTimer = null;
@@ -432,7 +449,7 @@
         const officers = Object.assign({}, incoming.settings.officers, store.db.settings.officers);
         store.db.settings = incoming.settings; store.db.settings.officers = officers; changed++;
       }
-      ['req', 'po', 'memo', 'cmp'].forEach(k => {
+      ['req', 'po', 'memo', 'cmp', 'grn', 'siv', 'itm', 'cnt', 'rtn', 'adj'].forEach(k => {
         const a = store.db.settings.counters[k] || 0, b = (incoming.settings.counters || {})[k] || 0;
         if (b > a) { store.db.settings.counters[k] = b; changed++; }
       });
@@ -777,6 +794,199 @@
     return { name: prof.name || (u ? u.displayName : 'Procurement Officer'), title: prof.title || 'Public Procurement Officer', org: store.settings().org.hospital, phone: prof.phone || '', email: prof.email || (u && u.email) || '' };
   };
 
+  /* ========================================================= supply chain
+     Shared by Procurement, General Stores and Fixed Asset intake.
+     A PO line is Stock (consumable, goes into the store), Asset (fixed asset:
+     furniture, machinery, tools, equipment…) or Service (nothing to receive). */
+  const ASSET_WORDS = 'chair|chairs|desk|desks|table|tables|cabinet|cabinets|cupboard|shelving|locker|lockers|bed|beds|bedside|sofa|bench|stool|trolley|trolleys|wheelchair|wheelchairs|stretcher|stretchers|crib|cot|incubator|incubators|resuscitaire|ventilator|ventilators|defibrillator|defibrillators|ecg machine|ctg machine|ctg|abg machine|ultrasound|x-ray|xray|autoclave|steriliser|sterilizer|microscope|centrifuge|analyser|analyzer|machine|machines|equipment|computer|computers|laptop|laptops|desktop|printer|printers|photocopier|scanner|projector|television|camera|cctv|nvr|server|router|ups|generator|refrigerator|fridge|freezer|air condition|air-condition|air conditioning|airconditioning|a/c unit|ac unit|ac units|condensing unit|water cooler|water coolers|wall fan|wall fans|industrial fan|stand fan|ceiling fan|stove|oven|microwave|washing machine|dryer|vehicle|motor vehicle|pump|compressor|drill|grinder|chainsaw|welder|welding machine|ladder|toolkit|tool set|tool box|toolbox|weighing scale|suction|infusion pump|oxygen concentrator|telephone set|two-way radio|mattress|mattresses|filing cabinet|emergency cart|crash cart|medication trolley|hospital bed|railed bed';
+  const SERVICE_WORDS = 'repair|repairs|servicing|service|maintenance|rental|rent|hire|collection|disposal|removal|installation|install|labour|labor|fabrication|renovation|construction|treatment|consultancy|training|transport|courier|uninstall|recommission|leak check|re-install|reinstall|calibration|inspection|cleaning service|pest control|security service';
+  function wordRe(list, extra) {
+    const words = list.split('|').concat(String(extra || '').split(',').map(w => w.trim()).filter(Boolean));
+    return new RegExp('\\b(' + words.map(w => w.replace(/[.*+?^${}()[\]\\/]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|') + ')\\b', 'i');
+  }
+  /** 'Stock' | 'Asset' | 'Service' for one PO line. A line's own itemType (set by an officer) always wins. */
+  domain.classifyLine = function (line, po) {
+    line = line || {};
+    if (line.itemType) return line.itemType;
+    const S = store.settings().stores || {};
+    const d = String(line.description || '') + ' ' + (po && (!po.items || po.items.length <= 1) ? String(po.description || '') : '');
+    if ((po && (po.type === 'Services' || po.type === 'Works')) || wordRe(SERVICE_WORDS, S.serviceKeywords).test(d)) return 'Service';
+    if (wordRe(ASSET_WORDS, S.assetKeywords).test(d)) return 'Asset';
+    if (util.num(line.unitPrice) >= util.num(S.assetThreshold || 50000)) return 'Asset';
+    return 'Stock';
+  };
+  domain.ITEM_TYPES = ['Stock', 'Asset', 'Service'];
+  /** PO lines, with a single fallback line for POs that only have a total. */
+  domain.poLines = function (po) {
+    if (po && po.items && po.items.length) return po.items;
+    return [{ description: (po && po.description) || 'Goods / services as per PO', unit: 'lot', qty: 1, unitPrice: po ? (po.subtotal || po.total || 0) : 0, total: po ? (po.subtotal || po.total || 0) : 0 }];
+  };
+  const DONE_STATUSES = ['Delivered', 'Invoiced', 'Paid', 'Closed'];
+  /** Quantity received so far on each line of a PO (array, same order as poLines). */
+  domain.lineReceived = function (po) {
+    const lines = domain.poLines(po);
+    const got = lines.map(() => 0);
+    const dels = store.filter('deliveries', d => d.poId === po.id && !d.voided);
+    if (!dels.length) {
+      // Imported history / older POs with no delivery records: treat finished POs as fully received.
+      if (DONE_STATUSES.indexOf(po.status) >= 0 || po.historic) return lines.map(l => util.num(l.qty) || 1);
+      return got;
+    }
+    dels.forEach(d => {
+      const items = d.items || [];
+      if (!items.length) { if (d.final || !d.partial) lines.forEach((l, i) => { got[i] = Math.max(got[i], util.num(l.qty) || 1); }); return; }
+      items.forEach(it => {
+        let i = typeof it.lineIndex === 'number' ? it.lineIndex : -1;
+        if (i < 0) i = lines.findIndex((l, j) => String(l.description || '').trim().toLowerCase() === String(it.description || '').trim().toLowerCase() && got[j] < (util.num(l.qty) || 1));
+        if (i < 0) i = lines.findIndex(l => String(l.description || '').trim().toLowerCase() === String(it.description || '').trim().toLowerCase());
+        if (i >= 0) got[i] += util.num(it.qtyReceived !== undefined ? it.qtyReceived : it.qty);
+      });
+    });
+    return got;
+  };
+  /** Expected delivery date for a PO. */
+  domain.expectedDate = function (po) {
+    if (po.expectedDate) return po.expectedDate;
+    return util.addDays(po.issuedAt || po.date || util.today(), util.num((store.settings().stores || {}).leadDays || 14));
+  };
+  /**
+   * Every PO line still to be delivered (issued, not cancelled), with what has arrived.
+   * opts: { type: 'Stock'|'Asset'|'Service'|'' , includeServices: false, poId }
+   * Row: { po, line, index, type, ordered, received, outstanding, expected, overdue, daysLate }
+   */
+  domain.inbound = function (opts) {
+    opts = opts || {};
+    const out = []; const today = util.today();
+    store.list('purchaseOrders').forEach(po => {
+      if (opts.poId && po.id !== opts.poId) return;
+      if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled' || po.historic) return;
+      if (!opts.poId && DONE_STATUSES.indexOf(po.status) >= 0 && !store.find('deliveries', d => d.poId === po.id)) return;
+      const lines = domain.poLines(po); const got = domain.lineReceived(po); const exp = domain.expectedDate(po);
+      lines.forEach((line, i) => {
+        const type = domain.classifyLine(line, po);
+        if (type === 'Service' && !opts.includeServices && opts.type !== 'Service') return;
+        if (opts.type && type !== opts.type) return;
+        const ordered = util.num(line.qty) || 1, received = got[i] || 0, outstanding = Math.max(0, util.round2(ordered - received));
+        if (!outstanding && !opts.includeComplete) return;
+        const daysLate = util.daysBetween(exp, today);
+        out.push({ po, line, index: i, type, ordered, received, outstanding, expected: exp, overdue: outstanding > 0 && daysLate > 0, daysLate: Math.max(0, daysLate || 0) });
+      });
+    });
+    return out;
+  };
+  /** Fixed-asset lines: ordered, received, registered (assetRegistrations). Row adds { registered, toRegister }. */
+  domain.assetLines = function () {
+    const regs = store.list('assetRegistrations');
+    const out = [];
+    store.list('purchaseOrders').forEach(po => {
+      if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled') return;
+      const lines = domain.poLines(po); let got = null;
+      lines.forEach((line, i) => {
+        if (domain.classifyLine(line, po) !== 'Asset') return;
+        got = got || domain.lineReceived(po);
+        const ordered = util.num(line.qty) || 1, received = got[i] || 0;
+        const registered = util.sum(regs.filter(r => r.poId === po.id && r.lineIndex === i), r => r.qty);
+        out.push({ po, line, index: i, ordered, received, registered, outstanding: Math.max(0, ordered - received), toRegister: Math.max(0, received - registered), expected: domain.expectedDate(po) });
+      });
+    });
+    return out;
+  };
+
+  /* ---------------- stock ledger */
+  domain.stockKey = s => String(s || '').toLowerCase().replace(/^\d+(\.\d+)?\s*(ea|each|pk|pks|pcs|box|boxes|cs|c\/s|case|cases|lbs?|kg|gal|lt|ltr|litres?|rolls?|rms?|reams?|bags?|doz|btl|bottles?)\b\s*[-–:]?\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  domain.findStockItem = function (text) {
+    const t = String(text || '').trim(); if (!t) return null;
+    const byCode = store.find('stockItems', i => i.code && i.code.toLowerCase() === t.toLowerCase());
+    if (byCode) return byCode;
+    const k = domain.stockKey(t);
+    return store.find('stockItems', i => domain.stockKey(i.name) === k || (i.aliases || []).some(a => domain.stockKey(a) === k)) || null;
+  };
+  /** Find a stock item by code/name, or create it (code STK-0001…). extra: { unit, category, location, supplierId, reorderLevel… } */
+  domain.ensureStockItem = function (name, extra, opts) {
+    const found = domain.findStockItem(name);
+    if (found) return found;
+    const n = store.next('itm');
+    return store.upsert('stockItems', Object.assign({ code: 'STK-' + String(n).padStart(4, '0'), name: String(name || 'Item').trim(), unit: 'each', category: 'General', location: '',
+      reorderLevel: 0, reorderQty: 0, maxLevel: 0, trackExpiry: false, onHand: 0, avgCost: 0, value: 0, batches: [], status: 'Active' }, extra || {}), opts);
+  };
+  /**
+   * Post one stock movement and update the item (balance, weighted average cost, batches).
+   * move: { itemId, type: 'Receipt'|'Issue'|'Adjustment'|'Return to supplier'|'Transfer'|'Opening'|'Write-off', qty (+ in / − out),
+   *         unitCost, batchNo, expiryDate, date, ref, poId, grnId, issueId, department, supplierId, notes }
+   * Issues consume batches first-expiry-first-out. Throws if stock would go below zero (unless opts.allowNegative).
+   */
+  domain.postStock = function (move, opts) {
+    opts = opts || {};
+    const item = store.get('stockItems', move.itemId);
+    if (!item) throw new Error('Stock item not found');
+    const qty = util.num(move.qty); if (!qty) throw new Error('Quantity is zero');
+    const before = util.num(item.onHand);
+    const after = util.round2(before + qty);
+    if (after < 0 && !opts.allowNegative) throw new Error('Only ' + before + ' ' + (item.unit || '') + ' of ' + item.name + ' in stock');
+    let avg = util.num(item.avgCost);
+    const cost = move.unitCost !== undefined && move.unitCost !== '' ? util.num(move.unitCost) : avg;
+    if (qty > 0 && (move.type === 'Receipt' || move.type === 'Opening' || (move.type === 'Adjustment' && move.unitCost !== undefined))) avg = after > 0 ? util.round2(((Math.max(before, 0) * avg) + qty * cost) / Math.max(after, qty)) : cost;
+    let batches = (item.batches || []).map(b => Object.assign({}, b));
+    const used = [];
+    if (qty > 0 && (move.batchNo || move.expiryDate)) {
+      const b = batches.find(x => (x.batchNo || '') === (move.batchNo || '') && (x.expiryDate || '') === (move.expiryDate || ''));
+      if (b) b.qty = util.round2(b.qty + qty); else batches.push({ batchNo: move.batchNo || '', expiryDate: move.expiryDate || '', qty, receivedDate: move.date || util.today() });
+    } else if (qty < 0 && batches.length) {
+      let need = -qty;
+      const order = batches.filter(b => b.qty > 0).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'));
+      if (move.batchNo) order.sort((a, b) => (a.batchNo === move.batchNo ? -1 : b.batchNo === move.batchNo ? 1 : 0));
+      order.forEach(b => { if (need <= 0) return; const take = Math.min(b.qty, need); b.qty = util.round2(b.qty - take); need = util.round2(need - take); used.push({ batchNo: b.batchNo, expiryDate: b.expiryDate, qty: take }); });
+      batches = batches.filter(b => b.qty > 0);
+    }
+    const rec = store.upsert('stockMoves', Object.assign({ date: util.today(), by: auth.userName() }, move, { itemId: item.id, itemCode: item.code, itemName: item.name, unit: item.unit, qty, unitCost: cost, value: util.round2(qty * cost), balanceAfter: after, batches: used.length ? used : undefined }), { silent: true });
+    const patch = { id: item.id, onHand: after, avgCost: avg, value: util.round2(after * avg), batches };
+    if (qty > 0 && move.type === 'Receipt') { patch.lastReceived = move.date || util.today(); patch.lastCost = cost; if (move.supplierId) patch.supplierIds = Array.from(new Set((item.supplierIds || []).concat([move.supplierId]))); }
+    if (qty < 0 && move.type === 'Issue') patch.lastIssued = move.date || util.today();
+    store.upsert('stockItems', patch, opts.silent ? { silent: true } : undefined);
+    return rec;
+  };
+  domain.stockState = function (item) {
+    const on = util.num(item.onHand);
+    if (on <= 0) return { label: 'Out of stock', tone: 'danger' };
+    if (util.num(item.reorderLevel) && on <= util.num(item.reorderLevel)) return { label: 'Reorder', tone: 'warning' };
+    if (util.num(item.maxLevel) && on > util.num(item.maxLevel)) return { label: 'Overstocked', tone: 'info' };
+    return { label: 'In stock', tone: 'success' };
+  };
+
+  /* ---------------- notifications */
+  /** Proc.notify({ to: ['procurement'|'stores'|'assets'], type, title, body, link: { app: 'procurement'|'stores'|'intake'|'assets', route: '#/…' }, poId }) */
+  Proc.notify = function (n) {
+    return store.upsert('notifications', Object.assign({ to: [], type: 'info', title: '', body: '', link: null, at: Date.now(), from: APP.audience, fromUser: auth.userName(), readBy: {} }, n));
+  };
+  Proc.notifications = {
+    mine() { return store.list('notifications').filter(n => (n.to || []).indexOf(APP.audience) >= 0).sort((a, b) => (b.at || 0) - (a.at || 0)); },
+    unread() { const u = auth.user ? auth.user.username : ''; return Proc.notifications.mine().filter(n => !(n.readBy || {})[u]); },
+    markRead(ids) { const u = auth.user ? auth.user.username : ''; if (!u) return; ids.forEach(id => { const n = store.get('notifications', id); if (n && !(n.readBy || {})[u]) store.upsert('notifications', { id, readBy: Object.assign({}, n.readBy, { [u]: Date.now() }) }, { silent: true }); }); store.save(); store.emit('change', { coll: 'notifications' }); },
+    href(n) { if (!n.link) return ''; const app = n.link.app; const same = app === APP.id || (app === 'intake' && APP.id === 'intake'); return (same ? '' : (Proc.APP_URLS[app] || '')) + (n.link.route || ''); }
+  };
+  /** After a PO is issued: tell Stores what to expect, and Fixed Assets about any assets. */
+  domain.afterIssue = function (po) {
+    if (!po || !po.poNumber) return;
+    const lines = domain.poLines(po); const types = lines.map(l => domain.classifyLine(l, po));
+    const goods = types.filter(t => t !== 'Service').length; const assets = types.filter(t => t === 'Asset').length;
+    const when = util.date(domain.expectedDate(po));
+    if (goods) Proc.notify({ to: ['stores'], type: 'po-issued', poId: po.id, title: 'PO ' + po.poNumber + ' issued — ' + (po.supplierName || ''), body: goods + ' ' + util.plural(goods, 'line') + ' to receive · ' + util.money(po.total) + ' · expected by ' + when, link: { app: 'stores', route: '#/inbound?po=' + po.id } });
+    if (assets) Proc.notify({ to: ['assets'], type: 'asset-ordered', poId: po.id, title: assets + ' fixed ' + util.plural(assets, 'asset') + ' ordered — PO ' + po.poNumber, body: (po.supplierName || '') + ' · expected by ' + when, link: { app: 'intake', route: '#/onorder?po=' + po.id } });
+  };
+  /** After goods arrive (recorded by Stores or Procurement): tell Procurement, and Fixed Assets for asset lines. */
+  domain.afterDelivery = function (delivery, opts) {
+    opts = opts || {};
+    const po = store.get('purchaseOrders', delivery.poId); if (!po) return;
+    const lines = domain.poLines(po); const got = domain.lineReceived(po);
+    const complete = lines.every((l, i) => (got[i] || 0) >= (util.num(l.qty) || 1));
+    const items = (delivery.items || []).filter(i => util.num(i.qtyReceived) > 0);
+    const summary = items.slice(0, 3).map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + i.description).join('; ') + (items.length > 3 ? '…' : '');
+    if (opts.by !== 'procurement') Proc.notify({ to: ['procurement'], type: 'delivered', poId: po.id, title: (complete ? 'Delivered in full' : 'Part delivery') + ' — PO ' + po.poNumber + ' · ' + (po.supplierName || ''), body: 'GRN ' + (delivery.grn || '') + (summary ? ' · ' + summary : '') + (delivery.rejectedQty ? ' · ' + delivery.rejectedQty + ' rejected' : ''), link: { app: 'procurement', route: '#/orders/' + po.id } });
+    else Proc.notify({ to: ['stores'], type: 'put-away', poId: po.id, title: 'Procurement recorded a delivery — PO ' + po.poNumber, body: 'Put the goods into stock: ' + (summary || po.description || ''), link: { app: 'stores', route: '#/inbound?tab=putaway' } });
+    const assetQty = util.sum(items.filter(i => { const l = typeof i.lineIndex === 'number' ? lines[i.lineIndex] : lines.find(x => x.description === i.description); return l && domain.classifyLine(l, po) === 'Asset'; }), i => i.qtyReceived);
+    if (assetQty) Proc.notify({ to: ['assets'], type: 'asset-delivered', poId: po.id, title: assetQty + ' fixed ' + util.plural(assetQty, 'asset') + ' delivered — PO ' + po.poNumber, body: (po.supplierName || '') + ' · tag and register them in the asset register', link: { app: 'intake', route: '#/register?po=' + po.id } });
+  };
+
   /* ------------------------------------------------------------------ ui */
   const ui = Proc.ui = {};
   const ICONS = {
@@ -838,7 +1048,15 @@
     filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
-    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'
+    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/>',
+    layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    'arrow-down-left': '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>',
+    clipboardCheck: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+    barcode: '<path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/>'
   };
   ui.icon = (name, cls) => '<svg class="i ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || ICONS.file) + '</svg>';
   ui.ICONS = ICONS;
@@ -1174,7 +1392,8 @@
 
   /* --------------------------------------------------------------- auth */
   const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
-  const SESSION_KEY = 'procSession';
+  const SESSION_KEY = APP.id === 'procurement' ? 'procSession' : 'procSession-' + APP.id;
+  const canUse = systems => (systems || []).indexOf(APP.system) >= 0 || (APP.system === 'intake' && (systems || []).indexOf('assets') >= 0);
   const auth = Proc.auth = {
     user: null,
     userName() { return auth.user ? (domainOfficerName() || auth.user.displayName) : 'System'; },
@@ -1198,7 +1417,7 @@
       try { return JSON.parse(localStorage.getItem('procCachedCredentials') || 'null'); } catch (e) { return null; }
     },
     portalUsers() {
-      try { const u = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'); return Array.isArray(u) ? u.filter(x => x.dashboard === 'procurement') : []; } catch (e) { return []; }
+      try { const u = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'); return Array.isArray(u) ? u.filter(x => x.dashboard === APP.system || (APP.system === 'intake' && x.dashboard === 'assets')) : []; } catch (e) { return []; }
     },
     async login(username, password, onStatus) {
       const user = String(username || '').trim();
@@ -1215,7 +1434,7 @@
         const p = auth.portalUsers().find(u => String(u.username).toLowerCase() === user.toLowerCase() && (u.passwordHash ? u.passwordHash === hashed : u.password === password));
         if (p) match = { username: p.username, displayName: p.displayName || p.username, role: p.role || 'procurement_officer', email: '' };
       }
-      if (!match && user.toLowerCase() === 'procurement' && password === '123') match = { username: 'procurement', displayName: 'Procurement Officer', role: 'procurement_officer', email: '' };
+      if (!match && APP.defaultUser && user.toLowerCase() === APP.defaultUser && password === '123') match = { username: APP.defaultUser, displayName: APP.name + ' Officer', role: APP.system + '_officer', email: '' };
       if (!match) throw new Error('Invalid username or password');
       auth.user = match;
       try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(match)); } catch (e) { /* ignore */ }
@@ -1231,8 +1450,8 @@
       try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) { auth.user = s; return s; } } catch (e) { /* ignore */ }
       try {
         const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null');
-        if (p && p.exp > Date.now() && (p.systems || []).indexOf('procurement') >= 0) {
-          auth.user = { username: p.username, displayName: p.displayName, role: p.role === 'admin' ? 'admin' : p.role === 'operations' ? 'operations' : 'procurement_officer', email: p.email || '', viaPortal: true };
+        if (p && p.exp > Date.now() && canUse(p.systems)) {
+          auth.user = { username: p.username, displayName: p.displayName, role: p.role === 'admin' ? 'admin' : p.role === 'operations' ? 'operations' : APP.system + '_officer', portalRole: p.role, email: p.email || '', viaPortal: true };
           sessionStorage.setItem(SESSION_KEY, JSON.stringify(auth.user));
           Proc.audit('Login', 'Signed in through the hospital portal: ' + p.displayName);
         }
@@ -1281,7 +1500,7 @@
       document.body.classList.remove('sb-open');
       view.innerHTML = '';
       setCrumbs([page.title].concat(params.length ? [params[0]] : []));
-      document.title = page.title + ' · Procurement · ' + store.settings().org.hospital;
+      document.title = page.title + ' · ' + APP.name + ' · ' + store.settings().org.hospital;
       try { await page.render(view, params); }
       catch (e) { console.error(e); view.innerHTML = '<div class="alert danger">' + ui.icon('alert') + '<div><div class="t">This page could not be displayed</div>' + util.esc(e.message) + '</div></div>'; }
       window.scrollTo(0, 0);
@@ -1474,13 +1693,32 @@
         syncEl.innerHTML = '<span class="sync-dot ' + s + '"></span><span>' + label + (s === 'on' && sync.lastSync ? ' · ' + util.ago(sync.lastSync) : '') + '</span>';
       };
       store.on('sync', showSync); showSync(sync.state);
+      Proc.shell.bindBell();
+    },
+    /** Notification bell: messages addressed to this app (deliveries, new POs, assets to register…). */
+    bindBell() {
+      const btn = document.getElementById('bellBtn'); if (!btn) return;
+      const draw = () => { const n = Proc.notifications.unread().length; btn.innerHTML = ui.icon('bell') + (n ? '<span class="bell-n">' + (n > 99 ? '99+' : n) + '</span>' : ''); btn.title = n ? n + ' unread notifications' : 'Notifications'; };
+      draw(); store.on('change', util.debounce(draw, 300));
+      btn.onclick = () => {
+        const old = document.getElementById('bellPanel'); if (old) { old.remove(); return; }
+        const list = Proc.notifications.mine().slice(0, 30); const u = auth.user ? auth.user.username : '';
+        const panel = document.createElement('div'); panel.id = 'bellPanel'; panel.className = 'bell-panel';
+        panel.innerHTML = '<div class="bell-h"><b>Notifications</b><button class="btn xs ghost" data-all>Mark all read</button></div>' +
+          (list.length ? list.map(n => '<a class="bell-item' + ((n.readBy || {})[u] ? '' : ' unread') + '" data-id="' + n.id + '" href="' + util.esc(Proc.notifications.href(n) || 'javascript:void 0') + '"><div class="t">' + util.esc(n.title) + '</div>' + (n.body ? '<div class="s">' + util.esc(n.body) + '</div>' : '') + '<div class="w">' + util.ago(n.at) + (n.fromUser ? ' · ' + util.esc(n.fromUser) : '') + '</div></a>').join('') : '<div class="empty" style="padding:28px 16px">' + ui.icon('bell', 'lg') + '<p>No notifications yet.</p></div>');
+        document.body.appendChild(panel);
+        const r = btn.getBoundingClientRect(); panel.style.top = (r.bottom + 8) + 'px'; panel.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        panel.querySelector('[data-all]').onclick = e => { e.preventDefault(); Proc.notifications.markRead(list.map(n => n.id)); panel.remove(); draw(); };
+        panel.querySelectorAll('.bell-item').forEach(a => a.addEventListener('click', () => { Proc.notifications.markRead([a.dataset.id]); panel.remove(); draw(); }));
+        setTimeout(() => { const off = e => { if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { panel.remove(); document.removeEventListener('mousedown', off); } }; document.addEventListener('mousedown', off); }, 0);
+      };
     },
     profileDialog(first) {
       const u = auth.user; if (!u) return Promise.resolve();
       const cur = store.settings().officers[u.username] || {};
-      return ui.form(first ? 'Welcome — how should your name appear on memos?' : 'My profile', [
-        { name: 'name', label: 'Name as printed on memos and POs', value: cur.name || (u.displayName !== 'Procurement Officer' ? u.displayName : ''), required: true, placeholder: 'e.g. Ms. Christine Crawford', hint: 'Include your title (Mr./Ms./Mrs.) the way it appears on approval letters.' },
-        { name: 'title', label: 'Job title', value: cur.title || 'Public Procurement Officer', required: true, span: 's6' },
+      return ui.form(first ? 'Welcome — how should your name appear on ' + APP.profileWhere + '?' : 'My profile', [
+        { name: 'name', label: 'Name as printed on ' + APP.profileWhere, value: cur.name || (u.displayName !== 'Procurement Officer' ? u.displayName : ''), required: true, placeholder: 'e.g. Ms. Christine Crawford', hint: 'Include your title (Mr./Ms./Mrs.) the way it appears on approval letters.' },
+        { name: 'title', label: 'Job title', value: cur.title || (APP.defaultTitle || 'Public Procurement Officer'), required: true, span: 's6' },
         { name: 'phone', label: 'Phone / extension', value: cur.phone || '', span: 's6' },
         { name: 'email', label: 'Email', value: cur.email || u.email || '', type: 'email' }
       ], { ok: 'Save profile' }).then(v => {
