@@ -758,7 +758,7 @@
   domain.refreshOrderStatus = function (poId) {
     const po = store.get('purchaseOrders', poId);
     if (!po || po.status === 'Cancelled' || po.status === 'Draft') return po;
-    const dels = store.filter('deliveries', d => d.poId === poId);
+    const dels = store.filter('deliveries', d => d.poId === poId && !d.voided);
     const invs = store.filter('invoices', i => i.poId === poId);
     let status = 'Issued';
     if (dels.length) status = dels.some(d => d.partial) && !dels.some(d => d.final) ? 'Partially Delivered' : 'Delivered';
@@ -798,12 +798,14 @@
      Shared by Procurement, General Stores and Fixed Asset intake.
      A PO line is Stock (consumable, goes into the store), Asset (fixed asset:
      furniture, machinery, tools, equipment…) or Service (nothing to receive). */
-  const ASSET_WORDS = 'chair|chairs|desk|desks|table|tables|cabinet|cabinets|cupboard|shelving|locker|lockers|bed|beds|bedside|sofa|bench|stool|trolley|trolleys|wheelchair|wheelchairs|stretcher|stretchers|crib|cot|incubator|incubators|resuscitaire|ventilator|ventilators|defibrillator|defibrillators|ecg machine|ctg machine|ctg|abg machine|ultrasound|x-ray|xray|autoclave|steriliser|sterilizer|microscope|centrifuge|analyser|analyzer|machine|machines|equipment|computer|computers|laptop|laptops|desktop|printer|printers|photocopier|scanner|projector|television|camera|cctv|nvr|server|router|ups|generator|refrigerator|fridge|freezer|air condition|air-condition|air conditioning|airconditioning|a/c unit|ac unit|ac units|condensing unit|water cooler|water coolers|wall fan|wall fans|industrial fan|stand fan|ceiling fan|stove|oven|microwave|washing machine|dryer|vehicle|motor vehicle|pump|compressor|drill|grinder|chainsaw|welder|welding machine|ladder|toolkit|tool set|tool box|toolbox|weighing scale|suction|infusion pump|oxygen concentrator|telephone set|two-way radio|mattress|mattresses|filing cabinet|emergency cart|crash cart|medication trolley|hospital bed|railed bed';
-  const SERVICE_WORDS = 'repair|repairs|servicing|service|maintenance|rental|rent|hire|collection|disposal|removal|installation|install|labour|labor|fabrication|renovation|construction|treatment|consultancy|training|transport|courier|uninstall|recommission|leak check|re-install|reinstall|calibration|inspection|cleaning service|pest control|security service';
+  const ASSET_WORDS = 'chair|chairs|desk|desks|table|tables|cabinet|cabinets|cupboard|shelving|locker|lockers|bed|beds|bedside|sofa|bench|stool|trolley|trolleys|wheelchair|wheelchairs|stretcher|stretchers|crib|cot|incubator|incubators|resuscitaire|ventilator|ventilators|defibrillator|defibrillators|ecg machine|ctg machine|ctg|abg machine|ultrasound|x-ray machine|autoclave|steriliser|sterilizer|microscope|centrifuge|analyser|analyzer|machine|machines|equipment|computer|computers|laptop|laptops|desktop|printer|printers|photocopier|scanner|projector|television|camera|cctv|nvr|nvrs|dvr|server|router|ups|generator|refrigerator|fridge|freezer|air condition|air-condition|air conditioning|airconditioning|a/c unit|ac unit|ac units|condensing unit|water cooler|water coolers|wall fan|wall fans|industrial fan|stand fan|ceiling fan|stove|oven|microwave|washing machine|dryer|vehicle|motor vehicle|pump|compressor|drill|grinder|chainsaw|welder|welding machine|ladder|toolkit|tool set|tool box|toolbox|weighing scale|suction|infusion pump|oxygen concentrator|telephone set|two-way radio|mattress|mattresses|filing cabinet|emergency cart|crash cart|medication trolley|hospital bed|railed bed';
+  const SERVICE_WORDS = 'repair|repairs|servicing|service|maintenance|rental|rent|hire|collection|disposal|removal|installation|install|labour|labor|fabrication|renovation|construction|treatment|consultancy|training|transport|courier|uninstall|recommission|leak check|re-install|reinstall|calibration|inspection|cleaning service|adjustment|adjustments|adjustemnts|modification|remove and replace|pest control|security service';
   function wordRe(list, extra) {
     const words = list.split('|').concat(String(extra || '').split(',').map(w => w.trim()).filter(Boolean));
     return new RegExp('\\b(' + words.map(w => w.replace(/[.*+?^${}()[\]\\/]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|') + ')\\b', 'i');
   }
+  const STOCK_WORDS = 'milk|food|foods|rice|flour|sugar|oil|juice|water|bread|chicken|meat|fish|vegetable|vegetables|fruit|fruits|grocery|groceries|ground provision|ground provisions|cereal|oats|beans|soup|ketchup|macaroni|powder|soap|detergent|bleach|disinfectant|sanitizer|sanitiser|cleaner|deodorizer|chemical|chemicals|paper|tissue|towel|towels|bed roll|bed rolls|napkin|napkins|cup|cups|plate|plates|spoon|spoons|fork|forks|foil|lunch box|glove|gloves|syringe|syringes|needle|needles|gauze|bandage|bandages|suture|sutures|catheter|catheters|cannula|cannulas|tube|tubes|tubing|swab|swabs|mask|masks|gown|gowns|reagent|reagents|test kit|test kits|strip|strips|cartridge|cartridges|toner|ink|pen|pens|pencils|stationery|envelope|envelopes|folder|folders|battery|batteries|bulb|bulbs|lamp|lamps|oxygen|gas|diesel|fuel|medication|medicine|drug|drugs|tablet|tablets|capsule|capsules|vaccine|vaccines|sundries|supplies|linen|sheets|pillow|pillowcase|uniform|uniforms|log book|logbook|card|cards|form|forms|tape|label|labels|filter|filters|spare part|spare parts|slide|slides|pipette|pipettes|fluid|fluids|calibrant|solution|solutions|scrub|brush|brushes|airway|tips|sponge|sponges|badge|badges|handle|handles|cushion|cushions|hose|hoses|refrigerant|lock|locks|hinge|hinges|caster|casters|wheel|wheels|replacement|refill|refills|electrode|electrodes|cuff|cuffs|diathermy pencil|drape|drapes|container|containers|bag|bags|bin liner|bin liners|calico|fabric|material|cement|paint|plumbing|fitting|fittings|screws|nails|wire|cable';
+  const QTY_ITEM = /\d+(\.\d+)?\s*(ea|each|c\/s|cs|case|cases|gal|gals|lbs?|pk|pks|pack|packs|box|boxes|bx|kg|rolls?|reams?|bags?|doz|btl|bottles?|units?|pcs?|pieces?|tins?|cans?)\b/gi;
   /** 'Stock' | 'Asset' | 'Service' for one PO line. A line's own itemType (set by an officer) always wins. */
   domain.classifyLine = function (line, po) {
     line = line || {};
@@ -811,8 +813,27 @@
     const S = store.settings().stores || {};
     const d = String(line.description || '') + ' ' + (po && (!po.items || po.items.length <= 1) ? String(po.description || '') : '');
     if ((po && (po.type === 'Services' || po.type === 'Works')) || wordRe(SERVICE_WORDS, S.serviceKeywords).test(d)) return 'Service';
-    if (wordRe(ASSET_WORDS, S.assetKeywords).test(d)) return 'Asset';
-    if (util.num(line.unitPrice) >= util.num(S.assetThreshold || 50000)) return 'Asset';
+    const assetRe = wordRe(ASSET_WORDS, S.assetKeywords), stockRe = wordRe(STOCK_WORDS);
+    // Decide by the main noun: "microscope slides" are slides; "battery for ventilator" is a battery;
+    // "bed rolls" are bed rolls (the longer match wins when both start together).
+    const head = text => {
+      const am = text.match(assetRe), sm = text.match(stockRe);
+      if (am && sm) {
+        if (am.index === sm.index) return sm[0].length >= am[0].length ? 'Stock' : 'Asset';
+        const f = am.index < sm.index ? am : sm, g = f === am ? sm : am;
+        const between = text.slice(f.index + f[0].length, g.index);
+        return (/\b(for|of|to suit|compatible with|from)\b/i.test(between) ? f : g) === am ? 'Asset' : 'Stock';
+      }
+      return am ? 'Asset' : sm ? 'Stock' : '';
+    };
+    const many = (d.match(QTY_ITEM) || []).length >= 2 || (d.match(/,/g) || []).length >= 2;
+    // A list of items in one line: judge by the first item, then the whole line.
+    const byWords = (many ? head(d.split(/,\s*/)[0]) : '') || head(d);
+    if (byWords) return byWords;
+    // Price rule only for a single countable item — not a bulk order written as one "lot" line.
+    const unit = String(line.unit || '').toLowerCase();
+    if (!many && ['lot', 'job', 'month', 'case', 'cs', 'c/s', 'box', 'pk', 'gal', 'kg', 'lb', 'lbs', 'ream', 'roll', 'bag', 'doz', 'litre', 'drum'].indexOf(unit) < 0 &&
+        util.num(line.unitPrice) >= util.num(S.assetThreshold || 50000)) return 'Asset';
     return 'Stock';
   };
   domain.ITEM_TYPES = ['Stock', 'Asset', 'Service'];
@@ -880,6 +901,8 @@
     const out = [];
     store.list('purchaseOrders').forEach(po => {
       if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled') return;
+      // History from before this system (no delivery records but already delivered) is not re-registered.
+      if (po.historic || (DONE_STATUSES.indexOf(po.status) >= 0 && !store.find('deliveries', d => d.poId === po.id))) return;
       const lines = domain.poLines(po); let got = null;
       lines.forEach((line, i) => {
         if (domain.classifyLine(line, po) !== 'Asset') return;
@@ -915,9 +938,10 @@
     if (po.poNumber && po.status !== 'Draft') ev.push({ at: po.issuedAt || po.date, kind: 'issued', title: 'PO ' + po.poNumber + ' issued', detail: (po.supplierName || '') + ' · ' + util.money(po.total), by: po.createdBy || '' });
     store.filter('deliveries', d => d.poId === po.id).forEach(d => {
       const got = (d.items || []).filter(i => util.num(i.qtyReceived) > 0);
-      ev.push({ at: d.date, kind: d.voided ? 'rejected' : 'delivered', title: (d.voided ? 'GRN voided — ' : 'Delivered — ') + (d.grn || 'delivery'), detail: (got.length ? got.map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + i.description).slice(0, 4).join('; ') + (got.length > 4 ? '…' : '') : (d.final ? 'Full delivery' : 'Part delivery')) + (d.rejectedQty ? ' · ' + d.rejectedQty + ' rejected' : '') + (d.condition ? ' · ' + d.condition : ''), by: d.receivedBy || d.createdBy || '', app: d.recordedIn === 'procurement' ? 'Procurement' : 'General Stores', link: d.recordedIn === 'procurement' ? '' : (Proc.APP_URLS.stores + '#/grn/' + d.id) });
-      const moves = store.filter('stockMoves', m => m.grnId === d.id && m.type === 'Receipt');
-      if (moves.length) ev.push({ at: moves[0].date, kind: 'stocked', title: 'Put into stock', detail: moves.map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' (' + m.location + ')' : '')).slice(0, 4).join('; ') + (moves.length > 4 ? '…' : ''), by: moves[0].by || '', app: 'General Stores', link: Proc.APP_URLS.stores + '#/inventory/' + moves[0].itemId });
+      ev.push({ at: d.date, kind: d.voided ? 'rejected' : 'delivered', title: (d.voided ? 'GRN voided — ' : 'Delivered — ') + (d.grn || 'delivery'), detail: (got.length ? got.map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + bareName(i.description)).slice(0, 4).join('; ') + (got.length > 4 ? '…' : '') : (d.final ? 'Full delivery' : 'Part delivery')) + (d.rejectedQty ? ' · ' + d.rejectedQty + ' rejected' : '') + (d.condition ? ' · ' + d.condition : ''), by: d.receivedBy || d.createdBy || '', app: d.recordedIn === 'procurement' ? 'Procurement' : 'General Stores', link: d.recordedIn === 'procurement' ? '' : (Proc.APP_URLS.stores + '#/grn/' + d.id) });
+      const moves = d.voided ? [] : store.filter('stockMoves', m => m.grnId === d.id && m.type === 'Receipt');
+      if (d.voided && store.find('stockMoves', m => m.grnId === d.id)) ev.push({ at: d.voidedAt ? String(d.voidedAt).slice(0, 10) : d.date, kind: 'rejected', title: 'Stock reversed — ' + (d.grn || ''), detail: 'GRN voided; its stock receipts were reversed', by: d.voidedBy || '', app: 'General Stores' });
+      else if (moves.length) ev.push({ at: moves[0].date, kind: 'stocked', title: 'Put into stock', detail: moves.map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' (' + m.location + ')' : '')).slice(0, 4).join('; ') + (moves.length > 4 ? '…' : ''), by: moves[0].by || '', app: 'General Stores', link: Proc.APP_URLS.stores + '#/inventory/' + moves[0].itemId });
       else if (d.recordedIn === 'procurement' && !d.stocked) ev.push({ at: d.date, kind: 'pending', title: 'Waiting for Stores to put away', detail: d.grn || '', by: '', app: 'General Stores' });
     });
     store.filter('supplierReturns', r => r.poId === po.id).forEach(r => ev.push({ at: r.date, kind: 'returned', title: 'Returned to supplier — ' + (r.number || ''), detail: (r.items || []).map(i => util.num(i.qty) + ' ' + i.description + (i.reason ? ' (' + i.reason + ')' : '')).join('; ') + ' · ' + (r.status || ''), by: r.createdBy || '', app: 'General Stores' }));
@@ -1028,6 +1052,8 @@
     markRead(ids) { const u = auth.user ? auth.user.username : ''; if (!u) return; ids.forEach(id => { const n = store.get('notifications', id); if (n && !(n.readBy || {})[u]) store.upsert('notifications', { id, readBy: Object.assign({}, n.readBy, { [u]: Date.now() }) }, { silent: true }); }); store.save(); store.emit('change', { coll: 'notifications' }); },
     href(n) { if (!n.link) return ''; const app = n.link.app; const same = app === APP.id || (app === 'intake' && APP.id === 'intake'); return (same ? '' : (Proc.APP_URLS[app] || '')) + (n.link.route || ''); }
   };
+  /** Item name without a leading ordered quantity ("100 box - Gloves" → "Gloves"), for sentences that state their own quantity. */
+  const bareName = t => String(t || '').replace(/^\s*\d+(\.\d+)?\s*[a-z\/.]{0,6}\s*[-–:]\s*/i, '');
   /** After a PO is issued: tell Stores what to expect, and Fixed Assets about any assets. */
   domain.afterIssue = function (po) {
     if (!po || !po.poNumber) return;
@@ -1044,7 +1070,7 @@
     const lines = domain.poLines(po); const got = domain.lineReceived(po);
     const complete = lines.every((l, i) => (got[i] || 0) >= (util.num(l.qty) || 1));
     const items = (delivery.items || []).filter(i => util.num(i.qtyReceived) > 0);
-    const summary = items.slice(0, 3).map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + i.description).join('; ') + (items.length > 3 ? '…' : '');
+    const summary = items.slice(0, 3).map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + bareName(i.description)).join('; ') + (items.length > 3 ? '…' : '');
     if (opts.by !== 'procurement') Proc.notify({ to: ['procurement'], type: 'delivered', poId: po.id, title: (complete ? 'Delivered in full' : 'Part delivery') + ' — PO ' + po.poNumber + ' · ' + (po.supplierName || ''), body: 'GRN ' + (delivery.grn || '') + (summary ? ' · ' + summary : '') + (delivery.rejectedQty ? ' · ' + delivery.rejectedQty + ' rejected' : ''), link: { app: 'procurement', route: '#/orders/' + po.id } });
     else Proc.notify({ to: ['stores'], type: 'put-away', poId: po.id, title: 'Procurement recorded a delivery — PO ' + po.poNumber, body: 'Put the goods into stock: ' + (summary || po.description || ''), link: { app: 'stores', route: '#/inbound?tab=putaway' } });
     const assetQty = util.sum(items.filter(i => { const l = typeof i.lineIndex === 'number' ? lines[i.lineIndex] : lines.find(x => x.description === i.description); return l && domain.classifyLine(l, po) === 'Asset'; }), i => i.qtyReceived);
