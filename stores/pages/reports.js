@@ -8,14 +8,14 @@
   const C = Proc.storesC;
 
   const REPORTS = [
-    { id: 'valuation', label: 'Stock valuation', icon: 'wallet', period: false },
-    { id: 'movement', label: 'Stock movement', icon: 'refresh', period: true },
-    { id: 'consumption', label: 'Consumption by department', icon: 'chart', period: true },
-    { id: 'expiry', label: 'Expiry', icon: 'clock', period: false, days: 90 },
-    { id: 'slow', label: 'Slow / non-moving', icon: 'history', period: false, days: 90 },
-    { id: 'grn', label: 'GRN register', icon: 'truck', period: true },
-    { id: 'suppliers', label: 'Supplier delivery performance', icon: 'award', period: true },
-    { id: 'outstanding', label: 'Outstanding purchase orders', icon: 'cart', period: false }
+    { id: 'valuation', label: 'Valuation', title: 'Stock valuation', icon: 'wallet', period: false },
+    { id: 'movement', label: 'Movements', title: 'Stock movement summary', icon: 'refresh', period: true },
+    { id: 'consumption', label: 'Consumption', title: 'Consumption by department', icon: 'chart', period: true },
+    { id: 'expiry', label: 'Expiry', title: 'Expiry report', icon: 'clock', period: false, days: 90 },
+    { id: 'slow', label: 'Slow-moving', title: 'Slow and non-moving items', icon: 'history', period: false, days: 90 },
+    { id: 'grn', label: 'GRN register', title: 'Goods received register', icon: 'truck', period: true },
+    { id: 'suppliers', label: 'Suppliers', title: 'Supplier delivery performance', icon: 'award', period: true },
+    { id: 'outstanding', label: 'Outstanding POs', title: 'Outstanding purchase orders', icon: 'cart', period: false }
   ];
   const fyStart = () => util.fyRange(util.fiscalYear(util.today())).start;
   const monthStart = d => d.slice(0, 8) + '01';
@@ -148,7 +148,7 @@
     const di = el.querySelector('[data-days]'); if (di) di.onchange = () => { state.days[rep.id] = Math.max(1, util.num(di.value) || rep.days); render(el); };
     const r = build[rep.id](state.from, state.to, days);
     const totalCells = Object.keys(r.totals || {});
-    el.querySelector('#rpHead').innerHTML = '<div class="row between"><div><div class="strong">' + esc(rep.label) + '</div><div class="small muted">' + esc(r.note || '') + '</div></div><div class="row gap-3">' +
+    el.querySelector('#rpHead').innerHTML = '<div class="row between"><div><div class="strong">' + esc(rep.title) + '</div><div class="small muted">' + esc(r.note || '') + '</div></div><div class="row gap-3">' +
       '<div class="right"><div class="small muted">Rows</div><div class="strong">' + util.int(r.rows.length) + '</div></div>' + totalCells.filter(k => r.columns.find(c => c.key === k && c.type === MONEY)).map(k => '<div class="right"><div class="small muted">' + esc(r.columns.find(c => c.key === k).label) + '</div><div class="money-big" style="font-size:20px">' + util.money(r.totals[k]) + '</div></div>').join('') + '</div></div>' +
       (r.chart && r.chart.length ? '<div class="mt-3" style="max-width:720px">' + ui.hbars(r.chart.slice(0, 10)) + '</div>' : '');
     ui.table(el.querySelector('#rpT'), {
@@ -162,8 +162,8 @@
     });
     el.querySelector('[data-x]').onclick = () => {
       const rows = r.rows.map(row => { const o = {}; r.columns.forEach(c => { const v = row[c.key]; o[c.label] = c.type === MONEY || c.type === NUM || c.type === 'pct' ? (v === 9999 ? '' : v) : (c.type === 'date' ? (v || '') : v); }); return o; });
-      C.excel([{ name: rep.label, cols: r.columns.map(c => c.type ? 13 : c.key === 'name' || c.key === 'item' ? 40 : 20), rows }], rep.label + (rep.period ? ' ' + state.from + ' to ' + state.to : ' ' + util.today()) + '.xlsx');
-      Proc.audit('Export Report', rep.label);
+      C.excel([{ name: rep.title, cols: r.columns.map(c => c.type ? 13 : c.key === 'name' || c.key === 'item' ? 40 : 20), rows }], rep.title + (rep.period ? ' ' + state.from + ' to ' + state.to : ' ' + util.today()) + '.xlsx');
+      Proc.audit('Export Report', rep.title);
     };
     el.querySelector('[data-print]').onclick = () => printReport(rep, r);
   }
@@ -177,7 +177,7 @@
     try {
       const land = r.columns.length > 7;
       const doc = kit.newDoc(land ? 'landscape' : 'portrait'); const { w } = kit.pageSize(doc); const M = 36; let y = kit.top;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor.apply(doc, kit.BLUE); doc.text(kit.clean(rep.label.toUpperCase()), M, y + 14);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor.apply(doc, kit.BLUE); doc.text(kit.clean(rep.title.toUpperCase()), M, y + 14);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor.apply(doc, kit.GREY);
       doc.text(kit.clean((C.S().storeName || 'General Stores') + ' · ' + (rep.period ? util.date(state.from) + ' - ' + util.date(state.to) : 'As at ' + util.date(util.today())) + ' · ' + r.rows.length + ' rows'), M, y + 28);
       if (r.note) doc.text(doc.splitTextToSize(kit.clean(r.note), w - M * 2), M, y + 40);
@@ -187,8 +187,8 @@
         headStyles: { fillColor: [234, 241, 247], textColor: kit.INK, fontStyle: 'bold' }, footStyles: { fillColor: [243, 244, 246], textColor: kit.INK, fontStyle: 'bold' },
         columnStyles: r.columns.reduce((o, c, i) => { if (c.type === MONEY || c.type === NUM || c.type === 'pct') o[i] = { halign: 'right' }; return o; }, {}) });
       kit.finish(doc, { side: false });
-      doc.setProperties({ title: rep.label });
-      return kit.deliver(doc, kit.fileSafe(rep.label) + ' ' + (rep.period ? state.from + ' to ' + state.to : util.today()) + '.pdf', 'open');
+      doc.setProperties({ title: rep.title });
+      return kit.deliver(doc, kit.fileSafe(rep.title) + ' ' + (rep.period ? state.from + ' to ' + state.to : util.today()) + '.pdf', 'open');
     } catch (e) { console.error(e); ui.toast('Could not create the report: ' + e.message, 'error'); }
   }
 

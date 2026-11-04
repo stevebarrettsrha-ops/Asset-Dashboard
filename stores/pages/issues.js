@@ -98,7 +98,7 @@
     body.innerHTML = '<div class="alert mb-2">' + ui.icon('info') + '<div>Items at or below their reorder level. Quantities already on order from Procurement are shown so you don\'t double-order. Tick the items, adjust quantities, and send one purchase request to Procurement — it arrives as a requisition with a notification.</div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Below reorder level</h3><div class="sub" id="roSum"></div></div><div class="row"><button class="btn sm" data-x>' + ui.icon('download', 'sm') + 'Excel</button><button class="btn primary" data-send>' + ui.icon('send', 'sm') + 'Send purchase request</button></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th style="width:36px"><input type="checkbox" data-all></th><th>Item</th><th class="num">On hand</th><th class="num">Reorder at</th><th class="num">On order</th><th>Last supplier</th><th class="num">Last cost</th><th class="num" style="width:120px">Order qty</th><th class="num">Est. value</th></tr></thead><tbody>' +
       (rows.length ? rows.map(r => '<tr data-id="' + r.item.id + '"><td><input type="checkbox" data-on' + (pick.get(r.item.id).on ? ' checked' : '') + '></td><td><a class="t-title" href="#/inventory/' + esc(r.item.id) + '">' + esc(r.item.name) + '</a><div class="t-sub">' + esc(r.item.code) + ' · ' + esc(r.item.category || '') + (r.item.lastRequestedAt ? ' · last requested ' + util.date(r.item.lastRequestedAt.slice(0, 10)) : '') + '</div></td>' +
-        '<td class="num ' + (util.num(r.item.onHand) <= 0 ? 'si-short' : '') + '">' + util.int(r.item.onHand) + ' ' + esc(r.item.unit || '') + '</td><td class="num">' + util.int(r.item.reorderLevel) + '</td><td class="num">' + (r.onOrder ? util.int(r.onOrder) + (r.covered ? '<div class="t-sub si-ok">covers it</div>' : '') : '<span class="muted">—</span>') + '</td>' +
+        '<td class="num ' + (r.usable <= 0 ? 'si-short' : '') + '">' + util.int(r.item.onHand) + ' ' + esc(r.item.unit || '') + (r.expired ? '<div class="t-sub si-short">' + util.int(r.expired) + ' expired</div>' : '') + '</td><td class="num">' + util.int(r.item.reorderLevel) + '</td><td class="num">' + (r.onOrder ? util.int(r.onOrder) + (r.covered ? '<div class="t-sub si-ok">covers it</div>' : '') : '<span class="muted">—</span>') + '</td>' +
         '<td>' + esc(r.supplier || '—') + '</td><td class="num">' + (r.cost ? util.money(r.cost) : '—') + '</td><td class="num"><input class="input sm num" type="number" min="0" step="any" data-qty value="' + r.suggest + '" style="width:100px"></td><td class="num" data-val></td></tr>').join('')
         : '<tr><td colspan="9" style="padding:0">' + ui.empty('check', 'Nothing to reorder', 'Set reorder levels on items in Inventory to have them appear here when stock runs low.') + '</td></tr>') +
       '</tbody></table></div></div></div>';
@@ -116,9 +116,9 @@
       const est = util.sum(chosen, r => pick.get(r.item.id).qty * r.cost);
       const v = await ui.form('Send purchase request to Procurement', [
         { name: 'title', label: 'Title', value: (C.S().storeName || 'General Stores') + ' replenishment — ' + util.date(util.today()), required: true },
-        { name: 'priority', label: 'Priority', type: 'select', options: ['Normal', 'Emergency'], value: chosen.some(r => util.num(r.item.onHand) <= 0) ? 'Emergency' : 'Normal', span: 's6' },
+        { name: 'priority', label: 'Priority', type: 'select', options: ['Normal', 'Emergency'], value: chosen.some(r => r.usable <= 0) ? 'Emergency' : 'Normal', span: 's6' },
         { name: 'neededBy', label: 'Needed by', type: 'date', value: util.addDays(util.today(), 14), span: 's6' },
-        { name: 'justification', label: 'Justification', type: 'textarea', rows: 3, value: chosen.length + ' ' + util.plural(chosen.length, 'item is', 'items are') + ' at or below reorder level (' + chosen.filter(r => util.num(r.item.onHand) <= 0).length + ' out of stock). Estimated ' + util.money(est) + ' at last cost.' }
+        { name: 'justification', label: 'Justification', type: 'textarea', rows: 3, value: chosen.length + ' ' + util.plural(chosen.length, 'item is', 'items are') + ' at or below reorder level (' + chosen.filter(r => r.usable <= 0).length + ' out of usable stock). Estimated ' + util.money(est) + ' at last cost.' }
       ], { ok: 'Send to Procurement', size: 'lg' });
       if (!v) return;
       const req = sendRequest(chosen.map(r => ({ item: r.item, qty: pick.get(r.item.id).qty, cost: r.cost })), v);
@@ -231,7 +231,7 @@
     ui.setCrumbs(['Issues & Requisitions', s.number]);
     const step = s.status === 'Requested' ? 0 : s.status === 'Approved' ? 1 : s.status === 'Part issued' ? 1 : s.status === 'Issued' ? 3 : 0;
     const editable = s.status === 'Requested';
-    const issuable = s.status === 'Approved' || s.status === 'Part issued';
+    const issuable = (s.status === 'Approved' || s.status === 'Part issued') && s.lines.some(l => l.itemId);
     const moves = store.filter('stockMoves', m => m.issueId === s.id);
     let primary = '';
     if (editable) primary = '<button class="btn primary" data-a="approve">' + ui.icon('check', 'sm') + 'Approve</button>';
@@ -243,7 +243,7 @@
       (s.rejectReason ? '<div class="alert danger mb-2">' + ui.icon('alert') + '<div><div class="t">' + esc(s.status) + '</div>' + esc(s.rejectReason) + '</div></div>' : '') +
       '<div class="grid side"><div class="card"><div class="card-h"><div><h3>Items</h3>' + (editable ? '<div class="sub">Adjust the approved quantities, then approve.</div>' : '') + '</div></div><div class="card-b flush"><div class="table-wrap"><table class="table si-lines"><thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Requested</th><th class="num">Approved</th><th class="num">Issued</th><th>Batches issued</th></tr></thead><tbody>' +
       s.lines.map((l, i) => { const it = store.get('stockItems', l.itemId) || {}; const outst = util.num(l.qtyApproved !== null && l.qtyApproved !== undefined ? l.qtyApproved : l.qtyRequested) - util.num(l.qtyIssued);
-        return '<tr><td><a class="t-title" href="#/inventory/' + esc(l.itemId) + '">' + esc(l.itemName) + '</a><div class="t-sub">' + esc(l.itemCode || '') + ' · ' + esc(l.unit || '') + '</div></td>' +
+        return '<tr><td>' + (l.itemId ? '<a class="t-title" href="#/inventory/' + esc(l.itemId) + '">' + esc(l.itemName) + '</a>' : '<span class="t-title">' + esc(l.itemName) + '</span>') + '<div class="t-sub">' + esc([l.itemCode, l.unit, l.itemId ? '' : 'not linked to a stock item'].filter(Boolean).join(' · ')) + '</div></td>' +
           '<td class="num ' + (issuable && availability(it).available < outst ? 'si-short' : '') + '">' + util.int(it.onHand) + (availability(it).expiredQty ? '<div class="t-sub si-short">' + util.int(availability(it).expiredQty) + ' expired</div>' : '') + '</td><td class="num">' + util.int(l.qtyRequested) + '</td>' +
           '<td class="num">' + (editable ? '<input class="input sm num" type="number" min="0" step="any" data-appr="' + i + '" value="' + esc(l.qtyRequested) + '" style="width:100px">' : (l.qtyApproved !== null && l.qtyApproved !== undefined ? util.int(l.qtyApproved) : '—')) + '</td>' +
           '<td class="num ' + (util.num(l.qtyIssued) && outst <= 0 ? 'si-ok' : '') + '">' + util.int(l.qtyIssued || 0) + '</td><td class="si-batch">' + ((l.batches || []).length ? l.batches.map(b => esc((b.batchNo || 'no batch') + (b.expiryDate ? ' · exp ' + util.date(b.expiryDate) : '') + ' × ' + b.qty)).join('<br>') : '—') + '</td></tr>'; }).join('') +
@@ -267,7 +267,7 @@
       editable ? { label: 'Reject', icon: 'x', onClick: () => closeReq(s, 'Rejected') } : null,
       editable || issuable ? { label: 'Cancel requisition', icon: 'x', onClick: () => closeReq(s, 'Cancelled') } : null,
       s.status === 'Issued' || s.status === 'Part issued' ? { label: 'Record who received it', icon: 'user', onClick: async () => { const v = await ui.form('Received by department', [{ name: 'receivedBy', label: 'Name of person who collected', value: s.receivedBy || '', required: true }]); if (v) { store.upsert('stockIssues', { id: s.id, receivedBy: v.receivedBy }); router.refresh(); } } } : null,
-      { label: 'Duplicate as new requisition', icon: 'copy', onClick: () => { const c = store.upsert('stockIssues', { number: 'SIV-' + String(store.next('siv')).padStart(4, '0'), date: util.today(), department: s.department, requestedBy: s.requestedBy, priority: s.priority, notes: s.notes, status: 'Requested', lines: s.lines.map(l => ({ itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit, qtyRequested: l.qtyRequested, qtyApproved: null, qtyIssued: 0, batches: [] })) }); router.go('issues/' + c.id); } },
+      s.lines.some(l => l.itemId) ? { label: 'Duplicate as new requisition', icon: 'copy', onClick: () => { const c = store.upsert('stockIssues', { number: 'SIV-' + String(store.next('siv')).padStart(4, '0'), date: util.today(), department: s.department, requestedBy: s.requestedBy, priority: s.priority, notes: s.notes, status: 'Requested', lines: s.lines.filter(l => l.itemId).map(l => ({ itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit, qtyRequested: l.qtyRequested, qtyApproved: null, qtyIssued: 0, batches: [] })) }); router.go('issues/' + c.id); } } : null,
       !moves.length ? { sep: true } : null,
       !moves.length ? { label: 'Delete', icon: 'trash', danger: true, onClick: async () => { if (await ui.confirm('Delete ' + esc(s.number) + '?', { danger: true, ok: 'Delete' })) { store.remove('stockIssues', s.id); Proc.audit('Delete Requisition', s.number, s.id); router.go('issues'); } } } : null
     ].filter(Boolean));
@@ -287,8 +287,8 @@
       const want = Math.max(0, util.num(l.qtyApproved !== null && l.qtyApproved !== undefined ? l.qtyApproved : l.qtyRequested) - util.num(l.qtyIssued));
       const av = availability(it);
       return { i, l, it, want, av, def: Math.min(want, av.available) };
-    }).filter(r => r.want > 0);
-    if (!rows.length) return ui.toast('Everything approved has been issued.', 'info');
+    }).filter(r => r.want > 0 && r.l.itemId);
+    if (!rows.length) return ui.toast(s.lines.some(l => !l.itemId) ? 'Nothing left that can be issued — lines from the old Stores page are not linked to a stock item.' : 'Everything approved has been issued.', 'info');
     const fefo = (r, q) => { const out = []; let need = q; r.av.good.forEach(b => { if (need <= 0) return; const t = Math.min(b.qty, need); out.push((b.batchNo || 'no batch') + (b.expiryDate ? ' (exp ' + util.date(b.expiryDate) + ')' : '') + ' × ' + t); need -= t; }); if (need > 0 && r.av.unbatched) out.push('unbatched × ' + Math.min(need, r.av.unbatched)); return out.join(', ') + (r.av.expiredQty ? (out.length ? ' · ' : '') + r.av.expiredQty + ' expired — not issued' : ''); };
     ui.modal({
       title: 'Issue stock — ' + s.number, size: 'lg', sticky: true,

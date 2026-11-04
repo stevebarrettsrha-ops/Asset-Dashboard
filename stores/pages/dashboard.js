@@ -31,15 +31,18 @@
   /** Items at or below their reorder level, with a suggested order quantity. */
   C.reorderRows = function () {
     const inb = domain.inbound({ type: 'Stock' });
-    return C.items().filter(i => util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).map(i => {
+    const today = util.today();
+    const expiredOf = i => util.sum((i.batches || []).filter(b => b.expiryDate && b.expiryDate < today), b => b.qty);
+    return C.items().filter(i => util.num(i.reorderLevel) > 0 && util.num(i.onHand) - expiredOf(i) <= util.num(i.reorderLevel)).map(i => {
       const onOrder = C.onOrder(i, inb);
-      // Stock position = on hand + already on order. Only order when the position is at or below the reorder level.
-      const position = util.num(i.onHand) + onOrder;
+      const expired = expiredOf(i), usable = Math.max(0, util.num(i.onHand) - expired);
+      // Stock position = usable stock on hand + already on order. Only order when it is at or below the reorder level.
+      const position = usable + onOrder;
       const covered = position > util.num(i.reorderLevel);
       const suggest = covered ? 0 : Math.max(0, Math.ceil(util.num(i.reorderQty) || Math.max(util.num(i.maxLevel) - position, util.num(i.reorderLevel) * 2 - position, 1)));
       const lastSup = (i.supplierIds || []).slice(-1)[0];
-      return { item: i, onOrder, covered, suggest, cost: util.num(i.lastCost) || util.num(i.avgCost), supplier: lastSup ? domain.supplierName(lastSup) : '' };
-    }).sort((a, b) => util.num(a.item.onHand) - util.num(b.item.onHand));
+      return { item: i, onOrder, covered, suggest, expired, usable, cost: util.num(i.lastCost) || util.num(i.avgCost), supplier: lastSup ? domain.supplierName(lastSup) : '' };
+    }).sort((a, b) => a.usable - b.usable);
   };
   C.putAway = () => store.filter('deliveries', d => d.recordedIn === 'procurement' && !d.stocked && !d.voided);
   C.monthKeys = function (n) { const out = []; const d = new Date(); d.setDate(1); for (let i = n - 1; i >= 0; i--) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1); out.push(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0')); } return out; };

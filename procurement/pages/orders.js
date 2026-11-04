@@ -183,15 +183,15 @@
         '<div class="card mb-3"><div class="card-b">' + ui.stepper(STEPS, stepIndex(po.status)) + '</div></div>') +
       '<div class="grid side"><div class="stack">' +
       // Items
-      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Type</th><th>Unit</th><th class="num">Qty</th><th class="num">Received</th><th>Status</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
+      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Type</th><th class="num">Qty</th><th>Receipt</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
       items.map((it, i) => {
         // Stock goes into General Stores, Asset goes to the Fixed Asset Officer, Service has nothing to receive.
         const type = domain.classifyLine(it, po), rec = recv[i] || 0, qty = util.num(it.qty) || 1;
         return '<tr><td class="muted">' + (i + 1) + '</td><td>' + esc(it.description) + '</td>' +
-          '<td><select class="input sm" data-itype="' + i + '" title="Stock goes to General Stores; Asset to the Fixed Asset Officer; Service has nothing to receive" style="width:96px">' + domain.ITEM_TYPES.map(t => '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></td>' +
-          '<td>' + esc(it.unit || '') + '</td><td class="num">' + util.int(it.qty) + '</td>' +
-          '<td class="num nowrap">' + (type === 'Service' ? '<span class="muted">—</span>' : '<span class="' + (rec >= qty ? 'text-success' : rec > 0 ? 'text-warning' : 'muted') + '">' + util.int(rec) + ' of ' + util.int(qty) + '</span>') + '</td>' +
-          '<td>' + (lstat[i] ? ui.badge(lstat[i].label, LINE_TONE[lstat[i].label] || '') + (lstat[i].type === 'Asset' && lstat[i].registered ? '<div class="t-sub">' + util.int(lstat[i].registered) + ' registered</div>' : '') : '<span class="muted">—</span>') + '</td>' +
+          '<td><select class="input sm" data-itype="' + i + '" title="Stock goes to General Stores; Asset to the Fixed Asset Officer; Service has nothing to receive" style="width:88px">' + domain.ITEM_TYPES.map(t => '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></td>' +
+          '<td class="num nowrap">' + util.int(it.qty) + ' <span class="muted">' + esc(it.unit || '') + '</span></td>' +
+          '<td>' + (lstat[i] ? ui.badge(lstat[i].label, LINE_TONE[lstat[i].label] || '') : '<span class="muted">—</span>') +
+          (type !== 'Service' && lstat.length ? '<div class="t-sub nowrap">' + util.int(rec) + ' of ' + util.int(qty) + ' received' + (type === 'Asset' && lstat[i] && lstat[i].registered ? ' · ' + util.int(lstat[i].registered) + ' registered' : '') + '</div>' : '') + '</td>' +
           '<td class="num">' + util.money(it.unitPrice) + '</td><td class="num strong">' + util.money(it.total || util.num(it.qty) * util.num(it.unitPrice)) + '</td></tr>';
       }).join('') +
       '</tbody></table></div><div style="padding:14px 18px;border-top:1px solid var(--border)"><div class="totals"><div class="k">Subtotal</div><div class="v">' + util.money(po.subtotal || util.sum(items, i => i.total)) + '</div><div class="k">GCT</div><div class="v">' + util.money(po.gct) + '</div><div class="k grand">Total</div><div class="v grand">' + util.money(po.total) + '</div></div>' +
@@ -205,7 +205,7 @@
       // Deliveries
       '<div class="card"><div class="card-h"><div><h3>Deliveries</h3><div class="sub">' + (dels.length ? dels.length + ' recorded' : 'Nothing received yet') + '</div></div>' + (['Issued', 'Partially Delivered', 'Delivered'].indexOf(po.status) >= 0 ? '<a class="btn sm" href="#/receiving?po=' + po.id + '">' + ui.icon('plus', 'sm') + 'Record delivery</a>' : '') + '</div>' +
       (dels.length ? '<div class="card-b flush"><table class="table compact"><thead><tr><th>Date</th><th>GRN</th><th>Received by</th><th>Condition</th><th></th></tr></thead><tbody>' +
-        dels.map(d => '<tr><td>' + esc(util.date(d.date)) + '</td><td class="mono">' + esc(d.grn || '—') + '</td><td>' + esc(d.receivedBy || '') + '</td><td>' + esc(d.condition || '') + '</td><td>' + (d.partial ? ui.badge('Partial', 'warning') : ui.badge('Complete', 'success')) + '</td></tr>').join('') + '</tbody></table></div>' : '') + '</div>' +
+        dels.map(d => '<tr><td>' + esc(util.date(d.date)) + '</td><td class="mono">' + esc(d.grn || '—') + '</td><td>' + esc(d.receivedBy || '') + '</td><td>' + esc(d.condition || '') + '</td><td>' + (d.voided ? ui.badge('Voided', 'danger') : d.partial ? ui.badge('Partial', 'warning') : ui.badge('Complete', 'success')) + '</td></tr>').join('') + '</tbody></table></div>' : '') + '</div>' +
       // Invoices
       '<div class="card"><div class="card-h"><div><h3>Invoices &amp; payment</h3><div class="sub">' + (invs.length ? 'Invoiced ' + util.money(invoiced) + ' · paid ' + util.money(paid) + ' · balance ' + util.money(util.num(po.total) - paid) : 'No invoice recorded') + '</div></div>' + (po.status !== 'Draft' && po.status !== 'Cancelled' ? '<a class="btn sm" href="#/invoices?po=' + po.id + '&new=1">' + ui.icon('plus', 'sm') + 'Record invoice</a>' : '') + '</div>' +
       (invs.length ? '<div class="card-b flush"><table class="table compact"><thead><tr><th>Invoice #</th><th>Date</th><th>Due</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>' +
