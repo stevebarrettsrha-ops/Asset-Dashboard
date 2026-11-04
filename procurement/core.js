@@ -1585,7 +1585,7 @@
   function setCrumbs(parts) {
     const el = document.getElementById('crumbs');
     if (!el) return;
-    el.innerHTML = '<a href="#/dashboard">Procurement</a>' + parts.map((p, i) => ui.icon('chevron-right', 'sm') + '<span class="' + (i === parts.length - 1 ? 'cur' : '') + '">' + util.esc(p) + '</span>').join('');
+    el.innerHTML = '<a href="#/dashboard">' + util.esc(APP.name) + '</a>' + parts.map((p, i) => ui.icon('chevron-right', 'sm') + '<span class="' + (i === parts.length - 1 ? 'cur' : '') + '">' + util.esc(p) + '</span>').join('');
   }
   ui.setCrumbs = setCrumbs;
 
@@ -1777,7 +1777,7 @@
       ], { ok: 'Save profile' }).then(v => {
         if (!v) return;
         const officers = Object.assign({}, store.settings().officers); officers[u.username] = v;
-        store.saveSettings({ officers }); Proc.shell.renderTop(); ui.toast('Profile saved — memos will be signed as ' + v.name);
+        store.saveSettings({ officers }); Proc.shell.renderTop(); ui.toast('Profile saved — ' + APP.profileWhere + ' will show ' + v.name);
       });
     }
   };

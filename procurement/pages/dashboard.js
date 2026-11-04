@@ -70,6 +70,10 @@
     });
     // Draft POs waiting for a PO number
     const draftPOs = store.list('purchaseOrders').filter(p => p.status === 'Draft');
+    // Goods that reached the hospital this week (GRNs from Stores or Procurement)
+    const weekAgo = util.addDays(util.today(), -7);
+    const recent = store.list('deliveries').filter(d => !d.voided && d.date && d.date >= weekAgo);
+    if (recent.length) out.push({ tone: 'info', icon: 'truck', t: recent.length + ' ' + util.plural(recent.length, 'delivery', 'deliveries') + ' received this week', s: Array.from(new Set(recent.map(d => (store.get('purchaseOrders', d.poId) || {}).poNumber).filter(Boolean))).slice(0, 4).map(n => 'PO ' + n).join(', '), href: '#/orders', w: 35 });
     if (draftPOs.length) out.push({ tone: 'info', icon: 'cart', t: draftPOs.length + ' draft purchase ' + util.plural(draftPOs.length, 'order') + ' to issue', s: 'Enter the official PO number to issue', href: '#/orders', w: 58 });
     // POs issued > 30 days ago without a delivery
     const cutoff = util.addDays(util.today(), -30);

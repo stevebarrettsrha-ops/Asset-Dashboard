@@ -32,18 +32,19 @@
     procurement: { label: 'Procurement', url: 'procurement.html', icon: '📋', desc: 'Price comparisons, approval memos, purchase orders, PO books, supplier files and the PRS return.' },
     stores: { label: 'General Stores', url: 'stores.html', icon: '📦', desc: 'Receive deliveries, issue stock, stock levels and reorder points.' },
     assets: { label: 'Fixed Asset Register', url: 'index.html', icon: '🏷️', desc: 'The hospital asset register, asset codes, transfers and fiscal-year reports.' },
-    locations: { label: 'Location Records', url: 'locations.html', icon: '📍', desc: 'Room-by-room location records and the asset inventory sheets.' }
+    locations: { label: 'Location Records', url: 'locations.html', icon: '📍', desc: 'Room-by-room location records and the asset inventory sheets.' },
+    intake: { label: 'Assets on Order', url: 'asset-intake.html', icon: '🚚', desc: 'Fixed assets bought by Procurement: on order, delivered by Stores, and waiting to be registered.' }
   };
   const ROLES = {
-    admin: { label: 'Administrator', btn: 'Enter as Admin', short: 'Admin', color: '#f2a91c', dark: true, icon: '🛡️', home: 'console', systems: ['procurement', 'stores', 'assets', 'locations'],
+    admin: { label: 'Administrator', btn: 'Enter as Admin', short: 'Admin', color: '#f2a91c', dark: true, icon: '🛡️', home: 'console', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
       desc: 'Manage user accounts and sync, set the hospital headings, and open every system.' },
     procurement: { label: 'Procurement Officer', btn: 'Enter Procurement', short: 'Procurement', color: '#3b8fdc', icon: '📋', home: 'procurement.html', systems: ['procurement'],
       desc: 'Compare prices, prepare approval memos, raise and track purchase orders, and keep supplier files.' },
     stores: { label: 'Stores Keeper', btn: 'Enter Stores', short: 'Stores', color: '#22a35a', icon: '📦', home: 'stores.html', systems: ['stores'],
       desc: 'Receive deliveries, issue stock to departments, and watch stock levels and reorder points.' },
-    assets: { label: 'Fixed Asset Officer', btn: 'Enter Fixed Assets', short: 'Fixed Assets', color: '#a35bd6', icon: '🏷️', home: 'index.html', systems: ['assets', 'locations'],
+    assets: { label: 'Fixed Asset Officer', btn: 'Enter Fixed Assets', short: 'Fixed Assets', color: '#a35bd6', icon: '🏷️', home: 'index.html', systems: ['assets', 'locations', 'intake'],
       desc: 'Keep the fixed asset register, asset codes, location records, transfers and FY reports.' },
-    operations: { label: 'Operations Manager', btn: 'Enter Operations', short: 'Operations', color: '#14a89a', icon: '📊', home: 'hub', systems: ['procurement', 'stores', 'assets', 'locations'],
+    operations: { label: 'Operations Manager', btn: 'Enter Operations', short: 'Operations', color: '#14a89a', icon: '📊', home: 'hub', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
       desc: 'Oversee procurement, stores and fixed assets, and open any system to review activity.' }
   };
   const ROLE_ORDER = ['admin', 'procurement', 'stores', 'assets', 'operations'];
@@ -114,7 +115,12 @@
 
   /* ---------------------------------------------------------- accounts */
   const legacyDashRole = { procurement: 'procurement', stores: 'stores', assets: 'assets' };
-  function systemsOf(a) { return (a.systems && a.systems.length ? a.systems : (ROLES[a.role] || ROLES.procurement).systems).slice(); }
+  function systemsOf(a) {
+    const list = (a.systems && a.systems.length ? a.systems : (ROLES[a.role] || ROLES.procurement).systems).slice();
+    // Anyone who keeps the Fixed Asset Register also sees the assets Procurement has bought.
+    if (list.indexOf('assets') >= 0 && list.indexOf('intake') < 0) list.push('intake');
+    return list;
+  }
 
   /** Convert the old per-dashboard list ({username, passwordHash, dashboard, role}) to one account per person. */
   function fromLegacy(list) {

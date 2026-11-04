@@ -38318,5 +38318,114 @@
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', later); else later();
         })();
     </script>
+    <script>
+        // ── Assets on Order hand-off (asset-intake.html) ─────────────────────
+        // The Fixed Asset Officer picks a delivered asset on "Assets on Order" →
+        // this fills a new asset here (description, supplier, cost, date in,
+        // serial) to check, code and save. The codes saved are passed back so the
+        // purchase is marked registered there. Isolated and defensive: any
+        // failure leaves the register working exactly as before.
+        (function () {
+            var PREFILL = 'assetIntakePrefill', RESULTS = 'assetIntakeResults';
+            function read() { try { return JSON.parse(sessionStorage.getItem(PREFILL) || 'null'); } catch (e) { return null; } }
+            function el(id) { return document.getElementById(id); }
+            function set(id, v) { var e = el(id); if (!e || v === undefined || v === null) return; e.value = v; try { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); } catch (x) {} }
+            function dashboardShown() { var d = el('dashboardContainer'); return !!(d && d.style.display !== 'none' && typeof currentUser !== 'undefined' && currentUser); }
+            function note(html, ms) {
+                var t = document.createElement('div');
+                t.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:100000;max-width:380px;background:#0f1b2a;color:#f1f5f9;padding:12px 16px;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.35);font:14px/1.45 Inter,system-ui,sans-serif';
+                t.innerHTML = html; document.body.appendChild(t); setTimeout(function () { t.remove(); }, ms || 9000);
+            }
+            var active = null, filled = false;
+            function fill(p) {
+                if (typeof openAssetModal !== 'function') return false;
+                openAssetModal();
+                var qty = Math.max(1, parseInt(p.qty, 10) || 1), unit = Number(p.unitPrice) || 0;
+                set('description', p.description || '');
+                set('supplier', p.supplier || '');
+                set('quantity', qty);
+                set('unitPrice', unit.toFixed(2));
+                set('totalPrice', (unit * qty).toFixed(2));
+                set('source', 'Purchased');
+                if (p.dateIn) {
+                    set('dateIn', p.dateIn);
+                    try { if (typeof getMonthFromDate === 'function' && typeof formatDateForDisplay === 'function') set('month', getMonthFromDate(formatDateForDisplay(p.dateIn))); } catch (x) {}
+                }
+                if (p.serials && p.serials.length) set('serialModel', p.serials[0]);
+                if (p.codes && p.codes.length) set('assetCode', p.codes[0]);
+                set('assetComment', ['PO ' + (p.poNumber || ''), p.grn ? 'GRN ' + p.grn : '', p.serials && p.serials.length > 1 ? 'Serials: ' + p.serials.join(', ') : '', p.notes || ''].filter(Boolean).join(' · '));
+                try {
+                    if (p.department && typeof loadDepartments === 'function' && typeof selectAssetDeptOption === 'function') {
+                        var want = String(p.department).trim().toLowerCase();
+                        var hit = (loadDepartments() || []).find(function (d) { return String(d).trim().toLowerCase() === want; });
+                        if (hit) selectAssetDeptOption(hit, hit);
+                    }
+                } catch (x) {}
+                var form = el('assetForm'), old = el('intakePrefillBanner');
+                if (old) old.remove();
+                if (form) {
+                    var b = document.createElement('div'); b.id = 'intakePrefillBanner';
+                    b.style.cssText = 'margin:0 0 14px;padding:10px 12px;border-radius:8px;background:#eff8ff;border:1px solid #b2ddff;color:#0f1b2a;font-size:13.5px';
+                    b.innerHTML = '<b>Filled from PO ' + String(p.poNumber || '').replace(/</g, '&lt;') + (p.grn ? ' · ' + String(p.grn).replace(/</g, '&lt;') : '') + '</b> — choose the department, check the details, give the asset code and save. ' +
+                        '<a href="asset-intake.html#/register" style="margin-left:6px">Cancel</a>';
+                    form.insertBefore(b, form.firstChild);
+                    b.querySelector('a').onclick = function () { sessionStorage.removeItem(PREFILL); };
+                }
+                return true;
+            }
+            // Wrap saveAsset: when a prefilled asset is saved, send the new codes back to Assets on Order.
+            if (typeof saveAsset === 'function') {
+                var origSave = saveAsset;
+                saveAsset = function (ev) {
+                    var p = read();
+                    var before = null;
+                    if (p && filled && typeof currentEditingAsset !== 'undefined' && !currentEditingAsset) {
+                        try { before = {}; (loadAssetsFromStorage() || []).forEach(function (a) { before[a.id] = 1; }); } catch (x) { before = null; }
+                    }
+                    var r = origSave.apply(this, arguments);
+                    try {
+                        if (before) {
+                            var modal = el('assetModal');
+                            var added = (loadAssetsFromStorage() || []).filter(function (a) { return !before[a.id]; });
+                            if (added.length && (!modal || modal.style.display === 'none')) {
+                                var list = []; try { list = JSON.parse(localStorage.getItem(RESULTS) || '[]'); } catch (x) {}
+                                list.push({ intakeKey: p.intakeKey, poId: p.poId, lineIndex: p.lineIndex, qty: added.length, description: p.description,
+                                    assetCodes: added.map(function (a) { return a.assetCode; }).filter(Boolean), serials: p.serials || [], department: added[0].department || p.department || '',
+                                    location: added[0].room || '', notes: p.notes || '', at: Date.now(), by: p.by || (currentUser && (currentUser.displayName || currentUser.username)) || '' });
+                                localStorage.setItem(RESULTS, JSON.stringify(list));
+                                sessionStorage.removeItem(PREFILL); filled = false;
+                                var banner = el('intakePrefillBanner'); if (banner) banner.remove();
+                                note('✅ ' + added.length + ' asset' + (added.length === 1 ? '' : 's') + ' saved and marked registered for PO ' + String(p.poNumber || '').replace(/</g, '&lt;') + '. <a href="asset-intake.html#/registered" style="color:#7cc4fa;font-weight:600">Back to Assets on Order →</a>');
+                            }
+                        }
+                    } catch (x) { console.warn('[Assets on Order] could not record the registration', x); }
+                    return r;
+                };
+            }
+            // Once signed in and the dashboard is showing, open the prefilled form.
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries++;
+                var p = read();
+                if (!p || tries > 900) { clearInterval(timer); return; }
+                if (!dashboardShown() || filled) return;
+                try { filled = fill(p); } catch (x) { console.warn('[Assets on Order] prefill failed', x); clearInterval(timer); }
+                if (filled) clearInterval(timer);
+            }, 700);
+            // "Assets on Order" link in the sidebar (above Records).
+            function addLink() {
+                var nav = document.querySelector('#sidebar .sidebar-nav'); if (!nav || el('navAssetsOnOrder')) return;
+                var labels = nav.querySelectorAll('.sidebar-section-label'); var records = null;
+                for (var i = 0; i < labels.length; i++) if (/records/i.test(labels[i].textContent)) { records = labels[i]; break; }
+                var btn = document.createElement('button');
+                btn.className = 'sidebar-nav-item'; btn.id = 'navAssetsOnOrder'; btn.setAttribute('data-tooltip', 'Assets on Order');
+                btn.innerHTML = '<span class="sidebar-nav-icon">&#x1F69A;</span><span class="sidebar-nav-text">Assets on Order</span>';
+                btn.onclick = function () { window.location.href = 'asset-intake.html'; };
+                if (records) nav.insertBefore(btn, records); else nav.appendChild(btn);
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addLink); else addLink();
+            window.assetIntakeHandoff = { fill: fill, read: read };
+        })();
+    </script>
 </body>
 </html>
