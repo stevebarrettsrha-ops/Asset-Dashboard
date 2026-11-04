@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fixed Asset Intake · May Pen Hospital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="procurement/app.css">
+  <script>window.PROC_APP = { id: 'intake', system: 'intake', name: 'Fixed Asset Intake', defaultUser: '', profileWhere: 'asset registration records', defaultTitle: 'Fixed Asset Officer' };</script>
+  <!-- Excel import/export, PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <!-- Shared hospital department list (Location Records) -->
+  <script src="asset-normalizer.js"></script>
+</head>
+<body>
+  <!-- ============================ Sign in ============================ -->
+  <section class="login-screen" id="loginScreen">
+    <div class="login-hero">
+      <div class="brandline">
+        <div class="sb-logo" style="width:44px;height:44px;font-size:15px">FA</div>
+        <div>
+          <div style="font-weight:700;font-size:16px">Fixed Asset Intake</div>
+          <small>Southern Regional Health Authority · <span data-hospital>May Pen Hospital</span></small>
+        </div>
+      </div>
+      <div>
+        <h1>Every fixed asset bought — from order to the asset register.</h1>
+        <p>Furniture, machinery, tools and equipment ordered by Procurement, tracked until Stores receives them and you tag and register them.</p>
+        <div class="feature-list">
+          <div><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Assets on order from every issued purchase order</span></div>
+          <div><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Notified when Stores receives an asset</span></div>
+          <div><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>One click to register it in the Fixed Asset Register with the details filled in</span></div>
+          <div><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Nothing purchased slips past the register</span></div>
+        </div>
+      </div>
+      <small>Ministry of Health &amp; Wellness · Government of Jamaica</small>
+    </div>
+    <div class="login-panel">
+      <form class="login-card" id="loginForm" autocomplete="on">
+        <h2>Sign in</h2>
+        <div class="sub">Fixed Assets · <span data-hospital>May Pen Hospital</span></div>
+        <div class="login-error" id="loginError" hidden></div>
+        <div class="field"><label for="lgUser">Username</label><input id="lgUser" name="username" autocomplete="username" required autofocus></div>
+        <div class="field"><label for="lgPass">Password</label><input id="lgPass" name="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn primary" type="submit">Sign in</button>
+        <div class="login-status" id="loginStatus"></div>
+        <div class="login-foot"><a href="portal.html">← Back to the hospital portal</a></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============================ App ============================ -->
+  <div class="app" id="app" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo">FA</div>
+        <div><div class="sb-title">Fixed Asset Intake</div><div class="sb-sub" data-hospital>May Pen Hospital</div></div>
+      </div>
+      <nav class="sb-nav" id="sbNav"></nav>
+      <div class="sb-foot" id="sbSync"></div>
+    </aside>
+    <div class="sb-scrim" id="sbScrim"></div>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="global-search">
+          <svg class="i sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="gsInput" type="search" placeholder="Search items, POs, suppliers, GRNs…" autocomplete="off">
+          <kbd>Ctrl K</kbd>
+          <div class="search-results" id="gsResults" hidden></div>
+        </div>
+        <button class="btn primary" id="newBtn"><svg class="i sm" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>New</button>
+        <button class="icon-btn" id="bellBtn" title="Notifications"></button>
+        <button class="icon-btn" id="themeBtn" title="Light / dark"></button>
+        <div class="user-chip" id="userChip"></div>
+      </header>
+      <main class="view" id="view"></main>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="procurement/assets.js"></script>
+  <script src="procurement/core.js"></script>
+  <script src="procurement/pdf.js"></script>
+  <script src="intake/pages/intake.js"></script>
+  <script>Proc.boot();</script>
+</body>
+</html>

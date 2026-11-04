@@ -140,6 +140,7 @@
     const dels = store.filter('deliveries', d => d.poId === po.id).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const invs = store.filter('invoices', i => i.poId === po.id).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const items = (po.items || []).length ? po.items : [{ description: po.description || '—', unit: '', qty: 1, unitPrice: po.subtotal || po.total, total: po.subtotal || po.total }];
+    const recv = po.poNumber ? domain.lineReceived(po) : [];
     const invoiced = util.sum(invs, i => i.total), paid = util.sum(invs.filter(i => i.status === 'Paid'), i => i.total);
     const S = store.settings();
 
@@ -160,8 +161,16 @@
         '<div class="card mb-3"><div class="card-b">' + ui.stepper(STEPS, stepIndex(po.status)) + '</div></div>') +
       '<div class="grid side"><div class="stack">' +
       // Items
-      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Unit</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
-      items.map((it, i) => '<tr><td class="muted">' + (i + 1) + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.unit || '') + '</td><td class="num">' + util.int(it.qty) + '</td><td class="num">' + util.money(it.unitPrice) + '</td><td class="num strong">' + util.money(it.total || util.num(it.qty) * util.num(it.unitPrice)) + '</td></tr>').join('') +
+      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Type</th><th>Unit</th><th class="num">Qty</th><th class="num">Received</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
+      items.map((it, i) => {
+        // Stock goes into General Stores, Asset goes to the Fixed Asset Officer, Service has nothing to receive.
+        const type = domain.classifyLine(it, po), rec = recv[i] || 0, qty = util.num(it.qty) || 1;
+        return '<tr><td class="muted">' + (i + 1) + '</td><td>' + esc(it.description) + '</td>' +
+          '<td><select class="input sm" data-itype="' + i + '" title="Stock goes to General Stores; Asset to the Fixed Asset Officer; Service has nothing to receive" style="width:96px">' + domain.ITEM_TYPES.map(t => '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></td>' +
+          '<td>' + esc(it.unit || '') + '</td><td class="num">' + util.int(it.qty) + '</td>' +
+          '<td class="num nowrap">' + (type === 'Service' ? '<span class="muted">—</span>' : '<span class="' + (rec >= qty ? 'text-success' : rec > 0 ? 'text-warning' : 'muted') + '">' + util.int(rec) + ' of ' + util.int(qty) + '</span>') + '</td>' +
+          '<td class="num">' + util.money(it.unitPrice) + '</td><td class="num strong">' + util.money(it.total || util.num(it.qty) * util.num(it.unitPrice)) + '</td></tr>';
+      }).join('') +
       '</tbody></table></div><div style="padding:14px 18px;border-top:1px solid var(--border)"><div class="totals"><div class="k">Subtotal</div><div class="v">' + util.money(po.subtotal || util.sum(items, i => i.total)) + '</div><div class="k">GCT</div><div class="v">' + util.money(po.gct) + '</div><div class="k grand">Total</div><div class="v grand">' + util.money(po.total) + '</div></div>' +
       '<div class="words right mt-1">' + esc(domain.amountWords(po.total)) + '</div></div></div></div>' +
       // Deliveries
@@ -216,6 +225,13 @@
     drawDocs();
 
     const pdfOut = output => { if (!(Proc.pdf && Proc.pdf.purchaseOrder)) return ui.toast('PDF engine not loaded.', 'error'); return Proc.pdf.purchaseOrder(po, { output }).catch(e => ui.toast(e.message, 'error')); };
+    el.querySelectorAll('[data-itype]').forEach(sel => sel.onchange = () => {
+      const i = +sel.dataset.itype;
+      const copy = util.clone(items); copy[i] = Object.assign({}, copy[i], { itemType: sel.value });
+      store.upsert('purchaseOrders', { id: po.id, items: copy });
+      Proc.audit('Classify PO Line', poLabel(po) + ' line ' + (i + 1) + ': ' + sel.value, po.id);
+      ui.toast('Line ' + (i + 1) + ' marked as ' + sel.value);
+    });
     el.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
       const a = b.dataset.a;
       if (a === 'pdf') pdfOut('open');
@@ -278,6 +294,7 @@
       store.upsert('purchaseOrders', { id: po.id, poNumber: v.poNumber.trim(), date: v.date, paymentTerms: v.paymentTerms, status: 'Issued', issuedAt: util.today() });
       domain.refreshOrderStatus(po.id);
       Proc.audit('Issue PO', 'PO ' + v.poNumber + ' — ' + po.supplierName + ' — ' + util.money(po.total), po.id);
+      domain.afterIssue(store.get('purchaseOrders', po.id));
       ui.toast('PO ' + v.poNumber + ' issued. Print it, sign it, and upload the signed copy.');
       router.refresh();
       return;
