@@ -15,7 +15,7 @@
 
   const CSS = '.ib-chips{display:flex;gap:4px;flex-wrap:wrap}.ib-late{color:var(--danger);font-weight:600}.ib-sub>td{background:var(--surface-2)!important;padding:0 0 0 24px!important}.ib-sub table td,.ib-sub table th{background:var(--surface-2)!important}' +
     '.ib-sub table{margin:0}.ib-lines td{vertical-align:top}.ib-lines input.input,.ib-lines select.input{height:32px;font-size:13px;padding:0 8px}' +
-    '.ib-lines .w60{width:68px}.ib-lines .w90{width:92px}.ib-lines .w120{width:108px}.ib-lines .w150{width:138px}.ib-lines .w200{min-width:190px}.ib-lines .rej{display:flex;flex-direction:column;gap:4px;align-items:flex-start}' +
+    '.ib-lines .w60{width:64px}.ib-lines .w90{width:84px}.ib-lines .w120{width:98px}.ib-lines .w150{width:130px}.ib-lines .w200{min-width:160px}.ib-lines td,.ib-lines th{padding-left:8px;padding-right:8px}.ib-lines .rej{display:flex;flex-direction:column;gap:4px;align-items:flex-start}' +
     '.ib-res{font-size:11.5px;margin-top:4px;color:var(--text-3)}.ib-res.ok{color:var(--success)}.ib-res.new{color:var(--purple)}' +
     '.ib-asset{font-size:12.5px;color:var(--purple);background:var(--purple-bg);border:1px solid var(--purple-bd);border-radius:8px;padding:8px 10px}' +
     '.ib-svc{font-size:12.5px;color:var(--text-3)}.ib-line-off td{opacity:.55}' +
@@ -102,7 +102,7 @@
           (util.num(l.rej) > 0 ? '<select class="input w120" data-k="reason">' + ui.options(REJECT_REASONS, l.reason || '', 'Reason…') + '</select>' : '') + '</div></td>'
         : '<td data-l="Received" class="num strong">' + util.int(l.qty) + ' ' + esc(l.line.unit || '') + '</td>';
       return '<tr data-row="' + k + '" class="' + (mode === 'grn' && !util.num(l.qty) && !util.num(l.rej) ? 'ib-line-off' : '') + '"><td class="muted" data-l="Line">' + (l.i + 1) + '</td>' +
-        '<td data-l="Item" style="min-width:170px"><div class="strong">' + esc(l.line.description) + '</div><div class="t-sub">' + esc(l.line.unit || '') + (mode === 'grn' ? ' · ordered ' + util.int(l.ordered) + ' · received before ' + util.int(l.before) + ' · <b>outstanding ' + util.int(l.outstanding) + '</b>' : '') + '</div></td>' +
+        '<td data-l="Item" style="min-width:150px"><div class="strong">' + esc(l.line.description) + '</div><div class="t-sub">' + esc(l.line.unit || '') + (mode === 'grn' ? ' · ordered ' + util.int(l.ordered) + ' · received before ' + util.int(l.before) + ' · <b>outstanding ' + util.int(l.outstanding) + '</b>' : '') + '</div></td>' +
         '<td data-l="Type">' + typeCell + '</td>' + qtyCells + stockCells + '</tr>';
     }).join('');
   }

@@ -985,10 +985,21 @@
       const b = batches.find(x => (x.batchNo || '') === (move.batchNo || '') && (x.expiryDate || '') === (move.expiryDate || ''));
       if (b) b.qty = util.round2(b.qty + qty); else batches.push({ batchNo: move.batchNo || '', expiryDate: move.expiryDate || '', qty, receivedDate: move.date || util.today() });
     } else if (qty < 0 && batches.length) {
+      // First-expiry-first-out. Issues and transfers never hand out expired batches (write-offs and
+      // count adjustments may). Stock that is not tracked by batch is used after the dated batches.
       let need = -qty;
-      const order = batches.filter(b => b.qty > 0).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'));
+      const today = util.today();
+      const clearing = move.type === 'Write-off' || move.type === 'Adjustment' || move.type === 'Return to supplier';
+      const usable = b => b.qty > 0 && (clearing || (move.batchNo && b.batchNo === move.batchNo) || !b.expiryDate || b.expiryDate >= today);
+      const unbatched = Math.max(0, util.round2(before - util.sum(batches, b => b.qty)));
+      const order = batches.filter(usable).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'));
       if (move.batchNo) order.sort((a, b) => (a.batchNo === move.batchNo ? -1 : b.batchNo === move.batchNo ? 1 : 0));
       order.forEach(b => { if (need <= 0) return; const take = Math.min(b.qty, need); b.qty = util.round2(b.qty - take); need = util.round2(need - take); used.push({ batchNo: b.batchNo, expiryDate: b.expiryDate, qty: take }); });
+      if (need > 0) need = util.round2(need - Math.min(unbatched, need));
+      if (need > 0 && !opts.allowNegative) {
+        const expired = util.sum(batches.filter(b => b.qty > 0 && b.expiryDate && b.expiryDate < today), b => b.qty);
+        throw new Error('Only ' + util.round2(-qty - need) + ' ' + (item.unit || '') + ' of ' + item.name + ' can be issued' + (expired ? ' — ' + expired + ' more are in expired batches (write them off)' : ''));
+      }
       batches = batches.filter(b => b.qty > 0);
     }
     const rec = store.upsert('stockMoves', Object.assign({ date: util.today(), by: auth.userName() }, move, { itemId: item.id, itemCode: item.code, itemName: item.name, unit: item.unit, qty, unitCost: cost, value: util.round2(qty * cost), balanceAfter: after, batches: used.length ? used : undefined }), { silent: true });
