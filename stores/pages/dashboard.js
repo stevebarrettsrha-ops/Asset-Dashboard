@@ -33,10 +33,12 @@
     const inb = domain.inbound({ type: 'Stock' });
     return C.items().filter(i => util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).map(i => {
       const onOrder = C.onOrder(i, inb);
-      const target = util.num(i.reorderQty) || Math.max(util.num(i.maxLevel) - util.num(i.onHand), util.num(i.reorderLevel) * 2 - util.num(i.onHand), 1);
-      const suggest = Math.max(0, Math.ceil(target - (util.num(i.reorderQty) ? 0 : onOrder)));
+      // Stock position = on hand + already on order. Only order when the position is at or below the reorder level.
+      const position = util.num(i.onHand) + onOrder;
+      const covered = position > util.num(i.reorderLevel);
+      const suggest = covered ? 0 : Math.max(0, Math.ceil(util.num(i.reorderQty) || Math.max(util.num(i.maxLevel) - position, util.num(i.reorderLevel) * 2 - position, 1)));
       const lastSup = (i.supplierIds || []).slice(-1)[0];
-      return { item: i, onOrder, suggest, cost: util.num(i.lastCost) || util.num(i.avgCost), supplier: lastSup ? domain.supplierName(lastSup) : '' };
+      return { item: i, onOrder, covered, suggest, cost: util.num(i.lastCost) || util.num(i.avgCost), supplier: lastSup ? domain.supplierName(lastSup) : '' };
     }).sort((a, b) => util.num(a.item.onHand) - util.num(b.item.onHand));
   };
   C.putAway = () => store.filter('deliveries', d => d.recordedIn === 'procurement' && !d.stocked && !d.voided);
@@ -118,7 +120,7 @@
     }) +
       (fresh ? '<div class="card mb-3">' + ui.empty('box', 'Welcome to General Stores', 'Purchase orders issued by Procurement appear under Expected Deliveries automatically. Receive them with a goods received note and the items are added to Inventory. If you used the old Stores page, import its data under Settings.',
         '<div class="row" style="justify-content:center"><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a><a class="btn" href="#/inventory">' + ui.icon('box', 'sm') + 'Inventory</a><a class="btn" href="#/settings/data">' + ui.icon('upload', 'sm') + 'Import old Stores data</a></div>') + '</div>' : '') +
-      '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">' +
+      '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">' +
       ui.kpi({ label: 'Stock value', icon: 'wallet', value: util.moneyShort(util.sum(items, i => i.value)), title: util.money(util.sum(items, i => i.value)), meta: util.int(items.length) + ' items · ' + util.int(items.filter(i => util.num(i.onHand) > 0).length) + ' in stock', href: '#/inventory' }) +
       ui.kpi({ label: 'Below reorder level', icon: 'alert', tone: low.length ? 'warn' : 'ok', value: util.int(low.length), meta: 'Request a purchase', href: '#/issues?tab=reorder' }) +
       ui.kpi({ label: 'Out of stock', icon: 'box', tone: out.length ? 'bad' : 'ok', value: util.int(out.length), meta: 'Active items with none on hand', href: '#/inventory' }) +

@@ -24,6 +24,25 @@
     const code = t.split(' — ')[0].trim();
     return domain.findStockItem(code) || domain.findStockItem(t);
   }
+  /** What can safely be issued: in-date batches (earliest expiry first) plus unbatched stock. Expired batches are never issued. */
+  function availability(it) {
+    const today = util.today();
+    const batches = (it.batches || []).filter(b => util.num(b.qty) > 0);
+    const good = batches.filter(b => !b.expiryDate || b.expiryDate >= today).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'));
+    const expiredQty = util.sum(batches.filter(b => b.expiryDate && b.expiryDate < today), b => b.qty);
+    const unbatched = Math.max(0, util.round2(util.num(it.onHand) - util.sum(batches, b => b.qty)));
+    // Unbatched stock is only safe to post when no expired batch could be picked first.
+    const free = expiredQty ? 0 : unbatched;
+    return { good, expiredQty, unbatched: free, available: Math.max(0, util.round2(util.sum(good, b => b.qty) + free)) };
+  }
+  /** Post an issue from in-date batches one at a time so an expired batch is never consumed. */
+  function postIssue(it, qty, base) {
+    const av = availability(it); let need = qty; const moves = [];
+    for (const b of av.good) { if (need <= 0) break; const take = Math.min(util.num(b.qty), need); moves.push(domain.postStock(Object.assign({}, base, { itemId: it.id, type: 'Issue', qty: -take, batchNo: b.batchNo }), { silent: true })); need = util.round2(need - take); }
+    if (need > 0 && av.unbatched >= need - 1e-9) { moves.push(domain.postStock(Object.assign({}, base, { itemId: it.id, type: 'Issue', qty: -need }), { silent: true })); need = 0; }
+    if (need > 1e-9) throw new Error('only ' + (qty - need) + ' in-date ' + (it.unit || '') + ' available');
+    return moves;
+  }
   const lineTotal = s => (s.lines || []).length;
   const issuedValue = s => util.sum(store.filter('stockMoves', m => m.issueId === s.id), m => Math.abs(m.value));
 
@@ -79,7 +98,7 @@
     body.innerHTML = '<div class="alert mb-2">' + ui.icon('info') + '<div>Items at or below their reorder level. Quantities already on order from Procurement are shown so you don\'t double-order. Tick the items, adjust quantities, and send one purchase request to Procurement — it arrives as a requisition with a notification.</div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Below reorder level</h3><div class="sub" id="roSum"></div></div><div class="row"><button class="btn sm" data-x>' + ui.icon('download', 'sm') + 'Excel</button><button class="btn primary" data-send>' + ui.icon('send', 'sm') + 'Send purchase request</button></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th style="width:36px"><input type="checkbox" data-all></th><th>Item</th><th class="num">On hand</th><th class="num">Reorder at</th><th class="num">On order</th><th>Last supplier</th><th class="num">Last cost</th><th class="num" style="width:120px">Order qty</th><th class="num">Est. value</th></tr></thead><tbody>' +
       (rows.length ? rows.map(r => '<tr data-id="' + r.item.id + '"><td><input type="checkbox" data-on' + (pick.get(r.item.id).on ? ' checked' : '') + '></td><td><a class="t-title" href="#/inventory/' + esc(r.item.id) + '">' + esc(r.item.name) + '</a><div class="t-sub">' + esc(r.item.code) + ' · ' + esc(r.item.category || '') + (r.item.lastRequestedAt ? ' · last requested ' + util.date(r.item.lastRequestedAt.slice(0, 10)) : '') + '</div></td>' +
-        '<td class="num ' + (util.num(r.item.onHand) <= 0 ? 'si-short' : '') + '">' + util.int(r.item.onHand) + ' ' + esc(r.item.unit || '') + '</td><td class="num">' + util.int(r.item.reorderLevel) + '</td><td class="num">' + (r.onOrder ? util.int(r.onOrder) : '<span class="muted">—</span>') + '</td>' +
+        '<td class="num ' + (util.num(r.item.onHand) <= 0 ? 'si-short' : '') + '">' + util.int(r.item.onHand) + ' ' + esc(r.item.unit || '') + '</td><td class="num">' + util.int(r.item.reorderLevel) + '</td><td class="num">' + (r.onOrder ? util.int(r.onOrder) + (r.covered ? '<div class="t-sub si-ok">covers it</div>' : '') : '<span class="muted">—</span>') + '</td>' +
         '<td>' + esc(r.supplier || '—') + '</td><td class="num">' + (r.cost ? util.money(r.cost) : '—') + '</td><td class="num"><input class="input sm num" type="number" min="0" step="any" data-qty value="' + r.suggest + '" style="width:100px"></td><td class="num" data-val></td></tr>').join('')
         : '<tr><td colspan="9" style="padding:0">' + ui.empty('check', 'Nothing to reorder', 'Set reorder levels on items in Inventory to have them appear here when stock runs low.') + '</td></tr>') +
       '</tbody></table></div></div></div>';
@@ -225,7 +244,7 @@
       '<div class="grid side"><div class="card"><div class="card-h"><div><h3>Items</h3>' + (editable ? '<div class="sub">Adjust the approved quantities, then approve.</div>' : '') + '</div></div><div class="card-b flush"><div class="table-wrap"><table class="table si-lines"><thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Requested</th><th class="num">Approved</th><th class="num">Issued</th><th>Batches issued</th></tr></thead><tbody>' +
       s.lines.map((l, i) => { const it = store.get('stockItems', l.itemId) || {}; const outst = util.num(l.qtyApproved !== null && l.qtyApproved !== undefined ? l.qtyApproved : l.qtyRequested) - util.num(l.qtyIssued);
         return '<tr><td><a class="t-title" href="#/inventory/' + esc(l.itemId) + '">' + esc(l.itemName) + '</a><div class="t-sub">' + esc(l.itemCode || '') + ' · ' + esc(l.unit || '') + '</div></td>' +
-          '<td class="num ' + (issuable && util.num(it.onHand) < outst ? 'si-short' : '') + '">' + util.int(it.onHand) + '</td><td class="num">' + util.int(l.qtyRequested) + '</td>' +
+          '<td class="num ' + (issuable && availability(it).available < outst ? 'si-short' : '') + '">' + util.int(it.onHand) + (availability(it).expiredQty ? '<div class="t-sub si-short">' + util.int(availability(it).expiredQty) + ' expired</div>' : '') + '</td><td class="num">' + util.int(l.qtyRequested) + '</td>' +
           '<td class="num">' + (editable ? '<input class="input sm num" type="number" min="0" step="any" data-appr="' + i + '" value="' + esc(l.qtyRequested) + '" style="width:100px">' : (l.qtyApproved !== null && l.qtyApproved !== undefined ? util.int(l.qtyApproved) : '—')) + '</td>' +
           '<td class="num ' + (util.num(l.qtyIssued) && outst <= 0 ? 'si-ok' : '') + '">' + util.int(l.qtyIssued || 0) + '</td><td class="si-batch">' + ((l.batches || []).length ? l.batches.map(b => esc((b.batchNo || 'no batch') + (b.expiryDate ? ' · exp ' + util.date(b.expiryDate) : '') + ' × ' + b.qty)).join('<br>') : '—') + '</td></tr>'; }).join('') +
       '</tbody></table></div></div></div>' +
@@ -233,7 +252,7 @@
       '<dt>Department</dt><dd>' + esc(s.department || '—') + '</dd><dt>Requested by</dt><dd>' + esc(s.requestedBy || '—') + '</dd><dt>Priority</dt><dd>' + esc(s.priority || 'Normal') + '</dd>' +
       '<dt>Approved by</dt><dd>' + esc(s.approvedBy || '—') + (s.approvedAt ? ' · ' + util.date(s.approvedAt) : '') + '</dd><dt>Issued by</dt><dd>' + esc(s.issuedBy || '—') + (s.issuedAt ? ' · ' + util.date(s.issuedAt) : '') + '</dd>' +
       '<dt>Received by</dt><dd>' + esc(s.receivedBy || '—') + '</dd><dt>Issued value</dt><dd>' + util.money(util.sum(moves, m => Math.abs(m.value))) + '</dd>' + (s.notes ? '<dt>Notes</dt><dd>' + esc(s.notes) + '</dd>' : '') + '</dl></div></div>' +
-      (moves.length ? '<div class="card"><div class="card-h"><h3>Stock movements</h3></div><div class="card-b flush"><table class="table compact"><tbody>' + moves.map(m => '<tr><td>' + util.date(m.date) + '</td><td>' + esc(m.itemName) + '</td><td class="num">' + m.qty + '</td><td class="num">' + util.money(Math.abs(m.value)) + '</td></tr>').join('') + '</tbody></table></div></div>' : '') +
+      (moves.length ? '<div class="card"><div class="card-h"><h3>Stock movements</h3></div><div class="card-b flush"><table class="table compact"><tbody>' + moves.map(m => '<tr><td><div class="t-title">' + esc(m.itemName) + '</div><div class="t-sub">' + util.date(m.date) + (m.batchNo ? ' · batch ' + esc(m.batchNo) : '') + '</div></td><td class="num nowrap">' + m.qty + ' ' + esc(m.unit || '') + '<div class="t-sub">' + util.money(Math.abs(m.value)) + '</div></td></tr>').join('') + '</tbody></table></div></div>' : '') +
       '</div></div>';
     const act = a => el.querySelector('[data-a="' + a + '"]');
     act('print').onclick = () => printSIV(s.id);
@@ -264,20 +283,21 @@
   function issueDialog(id) {
     const s = store.get('stockIssues', id); if (!s) return;
     const rows = s.lines.map((l, i) => {
-      const it = store.get('stockItems', l.itemId) || { onHand: 0 };
+      const it = store.get('stockItems', l.itemId) || { onHand: 0, batches: [] };
       const want = Math.max(0, util.num(l.qtyApproved !== null && l.qtyApproved !== undefined ? l.qtyApproved : l.qtyRequested) - util.num(l.qtyIssued));
-      return { i, l, it, want, def: Math.min(want, Math.max(0, util.num(it.onHand))) };
+      const av = availability(it);
+      return { i, l, it, want, av, def: Math.min(want, av.available) };
     }).filter(r => r.want > 0);
     if (!rows.length) return ui.toast('Everything approved has been issued.', 'info');
-    const fefo = (it, q) => { const out = []; let need = q; (it.batches || []).filter(b => b.qty > 0).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999')).forEach(b => { if (need <= 0) return; const t = Math.min(b.qty, need); out.push((b.batchNo || 'no batch') + (b.expiryDate ? ' (exp ' + util.date(b.expiryDate) + ')' : '') + ' × ' + t); need -= t; }); return out.join(', '); };
+    const fefo = (r, q) => { const out = []; let need = q; r.av.good.forEach(b => { if (need <= 0) return; const t = Math.min(b.qty, need); out.push((b.batchNo || 'no batch') + (b.expiryDate ? ' (exp ' + util.date(b.expiryDate) + ')' : '') + ' × ' + t); need -= t; }); if (need > 0 && r.av.unbatched) out.push('unbatched × ' + Math.min(need, r.av.unbatched)); return out.join(', ') + (r.av.expiredQty ? (out.length ? ' · ' : '') + r.av.expiredQty + ' expired — not issued' : ''); };
     ui.modal({
       title: 'Issue stock — ' + s.number, size: 'lg', sticky: true,
-      body: '<p class="muted small mb-2">Quantities default to what is approved, limited by stock on hand. Batches are taken earliest expiry first.</p><div class="table-wrap"><table class="table compact si-lines"><thead><tr><th>Item</th><th class="num">Outstanding</th><th class="num">On hand</th><th class="num" style="width:120px">Issue now</th><th>Batches (FEFO)</th></tr></thead><tbody>' +
-        rows.map(r => '<tr data-i="' + r.i + '"><td><div class="t-title">' + esc(r.l.itemName) + '</div><div class="t-sub">' + esc(r.l.unit || '') + '</div></td><td class="num">' + util.int(r.want) + '</td><td class="num ' + (util.num(r.it.onHand) < r.want ? 'si-short' : '') + '">' + util.int(r.it.onHand) + '</td>' +
-          '<td class="num"><input class="input sm num" type="number" min="0" step="any" data-q value="' + r.def + '" max="' + Math.min(r.want, Math.max(0, util.num(r.it.onHand))) + '" style="width:100px"></td><td class="si-batch" data-b>' + esc(fefo(r.it, r.def)) + '</td></tr>').join('') + '</tbody></table></div>' +
+      body: '<p class="muted small mb-2">Quantities default to what is approved, limited by stock on hand. Batches are taken earliest expiry first.</p><div class="table-wrap"><table class="table compact si-lines"><thead><tr><th>Item</th><th class="num">Outstanding</th><th class="num">Available</th><th class="num" style="width:120px">Issue now</th><th>Batches (FEFO)</th></tr></thead><tbody>' +
+        rows.map(r => '<tr data-i="' + r.i + '"><td><div class="t-title">' + esc(r.l.itemName) + '</div><div class="t-sub">' + esc(r.l.unit || '') + '</div></td><td class="num">' + util.int(r.want) + '</td><td class="num ' + (r.av.available < r.want ? 'si-short' : '') + '">' + util.int(r.av.available) + (r.av.expiredQty ? '<div class="t-sub si-short">' + util.int(r.av.expiredQty) + ' expired</div>' : '') + '</td>' +
+          '<td class="num"><input class="input sm num" type="number" min="0" step="any" data-q value="' + r.def + '" max="' + Math.min(r.want, r.av.available) + '" style="width:100px"></td><td class="si-batch" data-b>' + esc(fefo(r, r.def)) + '</td></tr>').join('') + '</tbody></table></div>' +
         '<div class="form-grid mt-2"><div class="field s6"><label>Issued by</label><input name="issuedBy" value="' + esc(domain.officer().name) + '"></div><div class="field s6"><label>Received by (department)</label><input name="receivedBy" value="' + esc(s.receivedBy || '') + '" placeholder="Person collecting"></div><div class="field s4"><label>Issue date</label><input type="date" name="date" value="' + util.today() + '"></div></div>' +
-        (rows.some(r => util.num(r.it.onHand) < r.want) ? '<div class="alert warning mt-2">' + ui.icon('alert') + '<div>Some items are short. What is available will be issued and the requisition stays <b>Part issued</b> until the rest arrives.</div></div>' : ''),
-      onOpen: m => m.querySelectorAll('tr[data-i]').forEach(tr => { const r = rows.find(x => x.i === +tr.dataset.i); tr.querySelector('[data-q]').oninput = e => { tr.querySelector('[data-b]').textContent = fefo(r.it, util.num(e.target.value)); }; }),
+        (rows.some(r => r.av.available < r.want) ? '<div class="alert warning mt-2">' + ui.icon('alert') + '<div>Some items are short' + (rows.some(r => r.av.expiredQty) ? ' or only expired stock is left (expired batches are never issued — write them off under Stock Counts)' : '') + '. What is available will be issued and the requisition stays <b>Part issued</b> until the rest arrives.</div></div>' : ''),
+      onOpen: m => m.querySelectorAll('tr[data-i]').forEach(tr => { const r = rows.find(x => x.i === +tr.dataset.i); tr.querySelector('[data-q]').oninput = e => { tr.querySelector('[data-b]').textContent = fefo(r, util.num(e.target.value)); }; }),
       actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Issue', kind: 'primary', icon: 'check', onClick: (close, m) => {
         const f = ui.formData(m.querySelector('.form-grid'));
         const fresh = store.get('stockIssues', id); const lines = fresh.lines.map(l => Object.assign({}, l, { batches: (l.batches || []).slice() }));
@@ -285,12 +305,12 @@
         store.batch(() => {
           m.querySelectorAll('tr[data-i]').forEach(tr => {
             const i = +tr.dataset.i; const q = util.num(tr.querySelector('[data-q]').value); if (!(q > 0)) return;
-            const r = rows.find(x => x.i === i); const allowed = Math.min(r.want, Math.max(0, util.num((store.get('stockItems', r.l.itemId) || {}).onHand)));
+            const r = rows.find(x => x.i === i); const item = store.get('stockItems', r.l.itemId) || r.it; const allowed = Math.min(r.want, availability(item).available);
             if (q > allowed + 1e-9) { errs.push(r.l.itemName + ': only ' + allowed + ' can be issued'); return; }
             try {
-              const mv = domain.postStock({ itemId: r.l.itemId, type: 'Issue', qty: -q, date: f.date || util.today(), department: fresh.department, issueId: fresh.id, ref: fresh.number, notes: 'Issued to ' + fresh.department + (f.receivedBy ? ' — received by ' + f.receivedBy : '') }, { silent: true });
+              const mvs = postIssue(item, q, { date: f.date || util.today(), department: fresh.department, issueId: fresh.id, ref: fresh.number, notes: 'Issued to ' + fresh.department + (f.receivedBy ? ' — received by ' + f.receivedBy : '') });
               lines[i].qtyIssued = util.round2(util.num(lines[i].qtyIssued) + q);
-              lines[i].batches = lines[i].batches.concat(mv.batches || []);
+              mvs.forEach(mv => { lines[i].batches = lines[i].batches.concat(mv.batches || []); });
               posted++;
             } catch (e) { errs.push(r.l.itemName + ': ' + e.message); }
           });

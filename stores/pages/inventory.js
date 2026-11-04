@@ -66,7 +66,8 @@
   }
   function partyText(m) {
     if (m.department) return m.department;
-    if (m.supplierId) return domain.supplierName(m.supplierId);
+    if (m.supplierId) return domain.supplierName(m.supplierId, m.supplierName || '');
+    if (m.supplierName) return m.supplierName;
     return m.reason || '';
   }
   /** Items whose name matches an outstanding PO line. */
@@ -362,7 +363,7 @@
         { key: 'location', label: 'All locations', options: locs }],
       onRow: i => router.go('inventory/' + i.id),
       columns: [
-        { key: 'code', label: 'Code', render: i => '<span class="mono">' + esc(i.code) + '</span>' },
+        { key: 'code', label: 'Code', render: i => '<span class="mono nowrap">' + esc(i.code) + '</span>' },
         { key: 'name', label: 'Item', render: i => '<div class="t-title">' + esc(i.name) + '</div><div class="t-sub">' + esc(i.category || '') + '</div>' },
         { key: 'location', label: 'Location', render: i => esc(i.location || '—') },
         { key: 'onHand', label: 'On hand', cls: 'num', sort: i => util.num(i.onHand), render: i => '<b>' + qtyFmt(i.onHand) + '</b> <span class="muted small">' + esc(i.unit || '') + '</span>' },
@@ -418,7 +419,7 @@
       ui.kpi({ label: 'Average cost', icon: 'tag', value: util.money(it.avgCost), meta: 'Last paid ' + (it.lastCost !== undefined ? util.money(it.lastCost) : '—') }) +
       ui.kpi({ label: 'Reorder level', icon: 'alert', tone: st.label === 'Reorder' ? 'warn' : '', value: util.num(it.reorderLevel) ? qtyFmt(it.reorderLevel) : '—', meta: 'Reorder qty ' + (util.num(it.reorderQty) ? qtyFmt(it.reorderQty) : '—') + ' · max ' + (util.num(it.maxLevel) ? qtyFmt(it.maxLevel) : '—') }) +
       ui.kpi({ label: 'Days of cover', icon: 'clock', tone: cover !== null && cover < 14 ? 'warn' : '', value: cover === null ? '—' : util.int(cover), meta: cover === null ? 'No issues in 90 days' : 'At the last 90 days’ usage' }) +
-      ui.kpi({ label: 'Nearest expiry', icon: 'calendar', tone: (expiryState(nearestExpiry(it)) || {}).tone === 'danger' ? 'bad' : (expiryState(nearestExpiry(it)) || {}).tone === 'warning' ? 'warn' : '', value: nearestExpiry(it) ? util.date(nearestExpiry(it)) : '—', meta: (it.batches || []).length + ' ' + util.plural((it.batches || []).length, 'batch', 'batches') }) + '</div>' +
+      ui.kpi({ label: 'Nearest expiry', icon: 'calendar', tone: (expiryState(nearestExpiry(it)) || {}).tone === 'danger' ? 'bad' : (expiryState(nearestExpiry(it)) || {}).tone === 'warning' ? 'warn' : '', value: nearestExpiry(it) ? '<span style="font-size:19px">' + util.date(nearestExpiry(it)) + '</span>' : '—', meta: (it.batches || []).length + ' ' + util.plural((it.batches || []).length, 'batch', 'batches') }) + '</div>' +
       '<div class="card"><div class="tabs">' + TABS.map(t => '<button class="' + (t[0] === tab ? 'on' : '') + '" data-tab="' + t[0] + '">' + ui.icon(t[2], 'sm') + t[1] + '</button>').join('') + '</div><div id="itTab"></div></div>';
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { history.replaceState(null, '', '#/inventory/' + it.id + '/' + b.dataset.tab); renderItem(el, it.id, b.dataset.tab); });
     el.querySelector('[data-a=print]').onclick = () => printBinCard(it);

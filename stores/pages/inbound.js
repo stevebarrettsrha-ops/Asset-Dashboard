@@ -13,9 +13,9 @@
   const CONDITIONS = ['Good', 'Partially damaged', 'Damaged', 'Incomplete'];
   const TYPE_TONE = { Stock: 'info', Asset: 'purple', Service: '' };
 
-  const CSS = '.ib-chips{display:flex;gap:4px;flex-wrap:wrap}.ib-late{color:var(--danger);font-weight:600}.ib-sub td{background:var(--surface-2)!important;padding:0!important}' +
+  const CSS = '.ib-chips{display:flex;gap:4px;flex-wrap:wrap}.ib-late{color:var(--danger);font-weight:600}.ib-sub>td{background:var(--surface-2)!important;padding:0 0 0 24px!important}.ib-sub table td,.ib-sub table th{background:var(--surface-2)!important}' +
     '.ib-sub table{margin:0}.ib-lines td{vertical-align:top}.ib-lines input.input,.ib-lines select.input{height:32px;font-size:13px;padding:0 8px}' +
-    '.ib-lines .w60{width:72px}.ib-lines .w90{width:96px}.ib-lines .w120{width:128px}.ib-lines .w150{width:150px}.ib-lines .w200{min-width:200px}' +
+    '.ib-lines .w60{width:68px}.ib-lines .w90{width:92px}.ib-lines .w120{width:108px}.ib-lines .w150{width:138px}.ib-lines .w200{min-width:190px}.ib-lines .rej{display:flex;flex-direction:column;gap:4px;align-items:flex-start}' +
     '.ib-res{font-size:11.5px;margin-top:4px;color:var(--text-3)}.ib-res.ok{color:var(--success)}.ib-res.new{color:var(--purple)}' +
     '.ib-asset{font-size:12.5px;color:var(--purple);background:var(--purple-bg);border:1px solid var(--purple-bd);border-radius:8px;padding:8px 10px}' +
     '.ib-svc{font-size:12.5px;color:var(--text-3)}.ib-line-off td{opacity:.55}' +
@@ -88,9 +88,9 @@
           '<div class="ib-res ' + (item ? 'ok' : 'new') + '">' + (item ? '→ ' + esc(item.code) + ' · on hand ' + util.int(item.onHand) + ' ' + esc(item.unit || '') : 'New item: ' + esc(cleanName(l.line.description)).slice(0, 60) +
             ' <select class="input" data-k="category" style="height:26px;font-size:12px;margin-top:4px;width:100%">' + ui.options(cats, l.category || 'General') + '</select>') + '</div></td>' +
           '<td data-l="Bin"><select class="input w120" data-k="location">' + ui.options(locs, l.location || (item && item.location) || '', '—') + '</select></td>' +
-          '<td data-l="Batch / lot"><input class="input w120" data-k="batch" value="' + esc(l.batch) + '" placeholder="Batch"></td>' +
+          '<td data-l="Batch / lot"><input class="input w90" data-k="batch" value="' + esc(l.batch) + '" placeholder="Batch"></td>' +
           '<td data-l="Expiry' + (needExp ? ' (required)' : '') + '"><input class="input w150" type="date" data-k="expiry" value="' + esc(l.expiry) + '"' + (needExp ? ' required' : '') + '></td>' +
-          '<td data-l="Unit cost" class="num"><input class="input w120 num" type="number" step="0.01" min="0" data-k="cost" value="' + esc(l.cost) + '"></td>';
+          '<td data-l="Unit cost" class="num"><input class="input w90 num" type="number" step="0.01" min="0" data-k="cost" value="' + esc(l.cost) + '"></td>';
       } else if (isAsset) {
         stockCells = '<td colspan="5" data-l="Fixed asset"><div class="ib-asset">Fixed asset — not put into stock. The Fixed Asset Officer is notified to tag and register it.</div></td>';
       } else {
@@ -98,11 +98,11 @@
       }
       const qtyCells = mode === 'grn'
         ? '<td data-l="Received now" class="num"><input class="input w60 num" type="number" min="0" step="any" data-k="qty" value="' + esc(l.qty) + '"></td>' +
-          '<td data-l="Rejected" class="num"><input class="input w60 num" type="number" min="0" step="any" data-k="rej" value="' + esc(l.rej || '') + '" placeholder="0">' +
-          (util.num(l.rej) > 0 ? '<select class="input w150" data-k="reason" style="margin-top:4px">' + ui.options(REJECT_REASONS, l.reason || '', 'Reason…') + '</select>' : '') + '</td>'
+          '<td data-l="Rejected"><div class="rej"><input class="input w60 num" type="number" min="0" step="any" data-k="rej" value="' + esc(l.rej || '') + '" placeholder="0">' +
+          (util.num(l.rej) > 0 ? '<select class="input w120" data-k="reason">' + ui.options(REJECT_REASONS, l.reason || '', 'Reason…') + '</select>' : '') + '</div></td>'
         : '<td data-l="Received" class="num strong">' + util.int(l.qty) + ' ' + esc(l.line.unit || '') + '</td>';
       return '<tr data-row="' + k + '" class="' + (mode === 'grn' && !util.num(l.qty) && !util.num(l.rej) ? 'ib-line-off' : '') + '"><td class="muted" data-l="Line">' + (l.i + 1) + '</td>' +
-        '<td data-l="Item" style="min-width:200px"><div class="strong">' + esc(l.line.description) + '</div><div class="t-sub">' + esc(l.line.unit || '') + (mode === 'grn' ? ' · ordered ' + util.int(l.ordered) + ' · received before ' + util.int(l.before) + ' · <b>outstanding ' + util.int(l.outstanding) + '</b>' : '') + '</div></td>' +
+        '<td data-l="Item" style="min-width:170px"><div class="strong">' + esc(l.line.description) + '</div><div class="t-sub">' + esc(l.line.unit || '') + (mode === 'grn' ? ' · ordered ' + util.int(l.ordered) + ' · received before ' + util.int(l.before) + ' · <b>outstanding ' + util.int(l.outstanding) + '</b>' : '') + '</div></td>' +
         '<td data-l="Type">' + typeCell + '</td>' + qtyCells + stockCells + '</tr>';
     }).join('');
   }
@@ -112,14 +112,22 @@
   }
   /** Read inputs back into state on every change, re-render the row when its structure changes. */
   function bindLines(tbody, st, mode, onType) {
+    let swapping = false;
     const upd = (tr, rerender) => {
+      if (swapping || !tr.isConnected) return tr; // already being redrawn
       const l = st[+tr.dataset.row];
       tr.querySelectorAll('[data-k]').forEach(inp => { l[inp.dataset.k] = inp.value; });
-      if (rerender) { const tmp = document.createElement('tbody'); tmp.innerHTML = lineRows([l], mode).replace('data-row="0"', 'data-row="' + tr.dataset.row + '"'); const nr = tmp.firstElementChild; tr.replaceWith(nr); return nr; }
+      if (rerender) {
+        // Replacing the row blurs its focused input, which fires another change — ignore that nested one.
+        const tmp = document.createElement('tbody'); tmp.innerHTML = lineRows([l], mode).replace('data-row="0"', 'data-row="' + tr.dataset.row + '"'); const nr = tmp.firstElementChild;
+        swapping = true; try { tr.replaceWith(nr); } finally { swapping = false; }
+        return nr;
+      }
       return tr;
     };
     tbody.addEventListener('change', e => {
-      const tr = e.target.closest('tr[data-row]'); if (!tr) return;
+      if (swapping) return;
+      const tr = e.target.closest('tr[data-row]'); if (!tr || !tr.isConnected) return;
       const k = e.target.dataset.k;
       if (k === 'type') { const l = st[+tr.dataset.row]; l.type = e.target.value; onType && onType(l); upd(tr, true); return; }
       const structural = k === 'itemText' || k === 'rej';
