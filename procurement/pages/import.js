@@ -576,14 +576,29 @@
   function undoImport(entry) {
     const c = entry.created || {};
     let n = 0;
-    ['invoices', 'purchaseOrders', 'comparisons', 'plans'].forEach(coll => { n += removeMany(coll, c[coll]); });
-    // Restore records this import changed.
+    // Anything worked on since the import stays: edited records, and POs that were received,
+    // invoiced, put into stock, registered or linked to a memo/comparison since.
+    const since = (Date.parse(entry.at) || 0) + 120000;
+    const createdInv = new Set(c.invoices || []);
+    const poInUse = id => store.find('deliveries', d => d.poId === id) || store.find('stockMoves', m => m.poId === id) || store.find('assetRegistrations', r => r.poId === id) ||
+      store.find('invoices', i => i.poId === id && !createdInv.has(i.id)) || store.find('supplierReturns', r => r.poId === id) || store.find('documents', d => d.links && d.links.poId === id);
+    const keep = [];
+    const removable = (coll, ids) => (ids || []).filter(id => {
+      const r = store.get(coll, id); if (!r) return false;
+      const used = (r.updatedAt || 0) > since || (coll === 'purchaseOrders' && poInUse(id)) || (coll === 'invoices' && r.status === 'Paid');
+      if (used) keep.push(r);
+      return !used;
+    });
+    ['invoices', 'purchaseOrders', 'comparisons', 'plans'].forEach(coll => { n += removeMany(coll, removable(coll, c[coll])); });
+    // Restore records this import changed — unless someone has edited them since.
     (entry.before || []).slice().reverse().forEach(b => {
       const arr = store.db[b.coll] || [];
       const i = arr.findIndex(r => r.id === b.rec.id);
-      const rec = Object.assign({}, b.rec, { updatedAt: Date.now() });
-      if (i >= 0) arr[i] = rec;
+      if (i < 0 || (arr[i].updatedAt || 0) > since) return;
+      arr[i] = Object.assign({}, b.rec, { updatedAt: Date.now() });
     });
+    entry.kept = keep.length;
+    if (keep.length) ui.toast(keep.length + ' imported ' + util.plural(keep.length, 'record was', 'records were') + ' kept because they have been worked on since the import.', 'warning', 8000);
     // Remove suppliers this import created, unless something else now uses them.
     const used = new Set();
     ['purchaseOrders', 'invoices', 'documents'].forEach(coll => store.list(coll).forEach(r => r.supplierId && used.add(r.supplierId)));

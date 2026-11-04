@@ -372,6 +372,9 @@
 
   const pdf = Proc.pdf = {};
   pdf.clean = clean;
+  /** Building blocks for other documents on the letterhead (GRN, issue voucher, stock reports):
+      const { doc } = …newDoc(); draw from y = kit.top; kit.finish(doc, { side: false }); kit.deliver(doc, name, output). */
+  pdf.kit = { newDoc, finish, deliver, fileSafe, clean, fitSize, pageSize, top: 122, INK, GREY, BLUE };
 
   /* ------------------------------------------------ on-screen preview */
   /** Render a PDF blob into a container as page images (pdf.js, lazy-loaded).

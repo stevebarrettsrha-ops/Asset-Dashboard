@@ -6603,6 +6603,9 @@
                     <button class="settings-nav-btn" onclick="showSettingsTab('account')" id="settingsNavAccount">
                         👥 Accounts
                     </button>
+                    <button class="settings-nav-btn" onclick="showSettingsTab('backups')" id="settingsNavBackups">
+                        💾 Backups
+                    </button>
                 </div>
 
                 <!-- Settings Content -->
@@ -6621,6 +6624,11 @@
                         <div id="myAccountContent">
                             <!-- Will be populated by JavaScript -->
                         </div>
+                    </div>
+
+                    <!-- Backups Tab (daily copies, restore, full backup) -->
+                    <div id="settingsTabBackups" class="settings-tab" style="display: none;">
+                        <div id="assetBackupsContent"></div>
                     </div>
                 </div>
             </div>
@@ -6984,11 +6992,11 @@
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">Import Mode:</label>
                         <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
-                            <input type="radio" name="importMode" value="replace" checked style="margin-right: 8px;">
+                            <input type="radio" name="jsonImportMode" value="replace" style="margin-right: 8px;">
                             <span style="color: var(--text-primary);">Replace all data</span>
                         </label>
                         <label style="display: inline-flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="importMode" value="merge" style="margin-right: 8px;">
+                            <input type="radio" name="jsonImportMode" value="merge" checked style="margin-right: 8px;">
                             <span style="color: var(--text-primary);">Merge with existing</span>
                         </label>
                     </div>
@@ -13260,8 +13268,10 @@
                             return;
                         }
                         if (dlResp && dlResp.ok) {
-                            cloudData = await dlResp.json();
-                            downloadOk = true;
+                            try { cloudData = JSON.parse(await dlResp.text()); } catch (e) { cloudData = null; }
+                            // Only a readable backup is merged; anything else must not be uploaded over.
+                            downloadOk = !!(cloudData && typeof cloudData === 'object' && cloudData.data && Array.isArray(cloudData.data.assets));
+                            if (!downloadOk) console.warn('[AutoSync] Drive copy unreadable — not uploading over it');
                         } else if (dlResp && dlResp.status === 404) {
                             downloadOk = true;   // file genuinely gone ⇒ re-create it
                         }
@@ -13330,6 +13340,7 @@
 
                 if (uploadResp && uploadResp.ok) {
                     uploadSucceeded = true;
+                    if (window.assetSafety) window.assetSafety.afterUpload(blob);
                     lastSyncTime = new Date();
                     localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
                     try { localStorage.removeItem('hospitalLocationRecordsDirty'); } catch (e) {}
@@ -14154,9 +14165,20 @@
                 const localCodeSet = new Set(localAssets.map(a => (a.assetCode || '').toLowerCase()).filter(Boolean));
 
                 let added = 0;
+                const localById = new Map(localAssets.filter(a => a && a.id).map(a => [a.id, a]));
                 cloudDataObj.assets.forEach(ca => {
                     // Skip assets that have been deleted locally or from cloud
                     if (ca.id && deletedAssetIds.has(ca.id)) return;
+                    // Same asset on both sides: the more recent edit wins.
+                    const mine = ca.id && localById.get(ca.id);
+                    if (mine) {
+                        if ((ca._modifiedAt || 0) > (mine._modifiedAt || 0)) {
+                            Object.keys(mine).forEach(k => delete mine[k]);
+                            Object.assign(mine, ca);
+                            added++;
+                        }
+                        return;
+                    }
 
                     // The cloud backup may hold OLD messy pre-restructure values
                     // (multi-location departments, un-normalised codes). Also skip
@@ -14192,7 +14214,8 @@
                     }
                 });
                 if (added > 0) {
-                    saveAssetsToStorage(localAssets);
+                    _assetStampSkipNew = true;
+                    try { saveAssetsToStorage(localAssets); } finally { _assetStampSkipNew = false; }
                     allAssetsData = localAssets;
                     sortByDateDescending(allAssetsData);
                     filteredData = allAssetsData.slice(); // Copy to avoid filter overwrite
@@ -14935,10 +14958,39 @@
         // backup payload as saveToCloud() but shows no confirms/alerts and returns
         // true on success, false on any failure. Does not disturb the UI beyond
         // the syncing indicator.
+        // Before any upload, pull in the shared Drive copy and merge it, so we never
+        // write over records other computers saved since we last synced.
+        // Returns { ok: true } when it is safe to upload, or { ok: false, reason }.
+        async function driveMergeBeforeUpload() {
+            if (!cloudFileId) {
+                const savedFileId = localStorage.getItem('assetDashboardCloudFileId');
+                if (savedFileId) cloudFileId = savedFileId;
+                else if (typeof findExistingBackupFile === 'function') { try { await findExistingBackupFile(); } catch (e) { return { ok: false, reason: 'Could not look for the Google Drive copy (' + e.message + ')' }; } }
+            }
+            if (!cloudFileId) return { ok: true };          // no shared copy yet: safe to create it
+            let resp;
+            try { resp = await fetchBackupMediaResponse(cloudFileId); }
+            catch (e) { return { ok: false, reason: 'Could not reach Google Drive' }; }
+            if (!resp) return { ok: false, reason: 'Could not read the Google Drive copy' };
+            if (resp.status === 401) return { ok: false, reason: 'invalid_token' };
+            if (resp.status === 404) return { ok: true };   // file gone: re-create it
+            if (!resp.ok) return { ok: false, reason: 'Could not read the Google Drive copy (HTTP ' + resp.status + ')' };
+            let cloud = null;
+            try { cloud = JSON.parse(await resp.text()); } catch (e) { cloud = null; }
+            if (!cloud || typeof cloud !== 'object' || !cloud.data || typeof cloud.data !== 'object' || !Array.isArray(cloud.data.assets)) {
+                return { ok: false, reason: 'The Google Drive copy could not be read, so nothing was uploaded over it' };
+            }
+            try { mergeCloudIntoLocal(cloud.data); }
+            catch (e) { console.error('[Drive] merge failed', e); return { ok: false, reason: 'Could not combine the Google Drive copy with this computer (' + e.message + ')' }; }
+            return { ok: true };
+        }
+
         async function saveToCloudSilent() {
             if (typeof isCloudConnected === 'undefined' || !isCloudConnected || !googleAccessToken) return false;
             try {
                 if (typeof setCloudSyncing === 'function') setCloudSyncing(true);
+                const pre = await driveMergeBeforeUpload();
+                if (!pre.ok) { console.warn('[Drive] upload skipped:', pre.reason); if (typeof setCloudSyncing === 'function') setCloudSyncing(false); return false; }
                 // Pick up location-record edits saved moments ago in another
                 // tab/frame so the upload always carries the latest state.
                 if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
@@ -14946,11 +14998,6 @@
                 const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
 
                 let response;
-                if (!cloudFileId) {
-                    const savedFileId = localStorage.getItem('assetDashboardCloudFileId');
-                    if (savedFileId) cloudFileId = savedFileId;
-                    else if (typeof findExistingBackupFile === 'function') await findExistingBackupFile();
-                }
 
                 if (cloudFileId) {
                     response = await fetch(
@@ -14974,6 +15021,7 @@
                 }
 
                 if (!response || !response.ok) { if (typeof setCloudSyncing === 'function') setCloudSyncing(false); return false; }
+                if (window.assetSafety) window.assetSafety.afterUpload(blob);
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -15007,11 +15055,13 @@
 
             document.querySelectorAll('.cloud-dropdown-menu.show').forEach(m => m.classList.remove('show'));
 
-            if (!confirm('This will save your current data to the cloud. Continue?')) return;
+            if (!confirm('This will save your current data to the cloud. Changes saved from other computers are combined in first. Continue?')) return;
 
             setCloudSyncing(true);
 
             try {
+                const pre = await driveMergeBeforeUpload();
+                if (!pre.ok) throw new Error(pre.reason);
                 // Pick up location-record edits saved moments ago in another
                 // tab/frame so the upload always carries the latest state.
                 if (window.mphRefreshLocationRecords) { try { await window.mphRefreshLocationRecords(); } catch (e) {} }
@@ -15065,6 +15115,7 @@
                     const errorData = await response.json();
                     throw new Error(errorData.error?.message || 'Upload failed');
                 }
+                if (window.assetSafety) window.assetSafety.afterUpload(blob);
 
                 lastSyncTime = new Date();
                 localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -15100,101 +15151,57 @@
         // Returns { restoredCount, backupData }. Throws on failure.
         async function downloadAndRestoreCloudBackup() {
             const backupData = await fetchCloudBackupData(cloudFileId);
+            return await combineBackupIntoLocal(backupData, 'daily');
+        }
 
-            if (!backupData.data || !backupData.version) {
-                throw new Error('Invalid backup file format');
+        // Combine a backup (Drive copy or a chosen backup file) into this computer's
+        // data. Takes a copy of this computer's data first. Nothing local is removed.
+        async function combineBackupIntoLocal(backupData, copyKind) {
+            if (!backupData || !backupData.data || !backupData.version || !Array.isArray(backupData.data.assets)) {
+                throw new Error('The backup could not be read, so nothing on this computer was changed');
             }
 
-            // Restore data to correct storage key and refresh UI
-            let restoredCount = 0;
-
-            // Merge deleted asset IDs from cloud
-            if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
-                backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
+            if (window.assetSafety) {
+                try { await (copyKind === 'now' ? window.assetSafety.copyNow() : window.assetSafety.takeDailyCopy()); } catch (e) { /* never blocks a sync */ }
             }
 
-            if (backupData.data.assets && backupData.data.assets.length > 0) {
-                // Filter out assets that have been deleted
-                const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
-                saveAssetsToStorage(filteredAssets);
-                allAssetsData = filteredAssets;
-                sortByDateDescending(allAssetsData);
-                filteredData = allAssetsData;
-                restoredCount = filteredAssets.length;
-            }
-
-            // Restore QR code registry
-            if (backupData.data.qrCodeRegistry) {
-                saveQRRegistry(backupData.data.qrCodeRegistry);
-            }
-
-            // Restore audit trail
-            if (backupData.data.auditTrail) {
-                saveAuditToStorage(backupData.data.auditTrail);
-            }
-
-            // Restore departments
-            if (backupData.data.departments && backupData.data.departments.length > 0) {
-                localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
-            }
-
-            // Restore location records (Location Records page) — merged, not
-            // replaced, so a backup can never wipe records added since it was
-            // taken (deliberate deletions are honored via tombstones)
+            // Combine, never replace: assets that exist only on this computer are kept,
+            // the more recent edit of each asset wins, and deletions travel as before.
+            mergeCloudIntoLocal(backupData.data);
             mergeLocationRecordsFromCloud(backupData.data);
 
-            // Restore categories
-            if (backupData.data.categories && backupData.data.categories.length > 0) {
-                localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
+            // QR codes: add any this computer does not have yet.
+            if (backupData.data.qrCodeRegistry && typeof loadQRRegistry === 'function') {
+                try {
+                    const mine = loadQRRegistry();
+                    const theirs = backupData.data.qrCodeRegistry;
+                    if (Array.isArray(mine) && Array.isArray(theirs)) {
+                        const key = r => (r && (r.id || r.assetId || r.code || r.assetCode)) || JSON.stringify(r);
+                        const have = new Set(mine.map(key));
+                        const add = theirs.filter(r => !have.has(key(r)));
+                        if (add.length) saveQRRegistry(mine.concat(add));
+                    } else if ((!mine || (Array.isArray(mine) && !mine.length) || (typeof mine === 'object' && !Object.keys(mine).length)) && theirs) {
+                        saveQRRegistry(theirs);
+                    } else if (mine && theirs && typeof mine === 'object' && typeof theirs === 'object' && !Array.isArray(mine)) {
+                        saveQRRegistry(Object.assign({}, theirs, mine));
+                    }
+                } catch (e) { console.warn('QR registry merge skipped', e); }
             }
 
-            // Restore disposal deleted IDs (merge cloud + local)
-            if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
-                const localDelIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
-                backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
-                _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDelIds]);
-                disposalDeletedIds = localDelIds;
-            }
-
-            // Restore disposal records (filtering out deleted ones)
-            if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                const delIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
-                const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
-                _dbSet(DISPOSAL_STORAGE_KEY, filteredRecs);
-                disposalRecords = filteredRecs;
-            }
-
-            // Restore portal user accounts
-            if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
-                localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
-            }
-
-            // Restore portal heading settings
             if (backupData.data.portalHeadingSettings) {
-                localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
+                try { localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings)); } catch (e) { /* ignore */ }
             }
 
-            // Restore month comments (newest wins per month)
-            if (backupData.data.monthComments) {
-                mergeMonthComments(backupData.data.monthComments);
-            }
-
-            if (backupData.data.localUserSettings) {
-                localUserSettings = backupData.data.localUserSettings;
-                saveLocalUserSettings();
-            }
-
-            // Ensure built-in default users still exist after a restore
+            // Ensure built-in default users still exist after a sync
             if (typeof seedDefaultUsers === 'function') seedDefaultUsers();
 
-            // Restore Form 7C (Boarded Items) saved forms
-            if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
-            if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
-
-            // Refresh the UI with restored data
+            // Refresh the UI with the combined data
+            allAssetsData = loadAssetsFromStorage();
+            sortByDateDescending(allAssetsData);
+            filteredData = allAssetsData.slice();
             if (typeof loadData === 'function') loadData();
             if (typeof loadDisposalRecords === 'function') loadDisposalRecords();
+            const restoredCount = allAssetsData.length;
 
             lastSyncTime = new Date();
             localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -15225,7 +15232,7 @@
                 return;
             }
 
-            if (!confirm('This will replace your local data with the cloud backup. Continue?')) return;
+            if (!confirm('This will bring in the Google Drive copy and combine it with this computer\'s data. Nothing that exists only on this computer is removed. Continue?')) return;
 
             setCloudSyncing(true);
 
@@ -15236,7 +15243,7 @@
 
                 const disposalCount = (backupData.data.disposalRecords || []).length;
                 const backupTime = new Date(backupData.timestamp).toLocaleString();
-                alert(`Data synced from cloud successfully!\n\nAssets restored: ${restoredCount}\nDisposal records: ${disposalCount}\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
+                alert(`Data synced from cloud successfully!\n\nAssets in the register: ${restoredCount}\nDisposal records: ${disposalCount}\nBackup created: ${backupTime}\nSaved by: ${lastSavedBy}`);
 
             } catch (error) {
                 console.error('Error syncing from cloud:', error);
@@ -15336,103 +15343,17 @@
         async function selectBackupFile(fileId, fileName) {
             closeFileBrowserModal();
 
-            if (!confirm(`Sync from "${fileName}"?\n\nThis will replace your local data.`)) return;
+            if (!confirm(`Bring in "${fileName}"?\n\nAssets in that file that are missing here are added back, and older edits never overwrite newer ones. A copy of this computer's data is kept first (Settings → Backups).`)) return;
 
             setCloudSyncing(true);
 
             try {
                 const backupData = await fetchCloudBackupData(fileId);
-
-                if (!backupData.data || !backupData.version) {
-                    throw new Error('Invalid backup file format');
-                }
-
-                // Restore data to correct storage key and refresh UI
-                let restoredCount = 0;
-
-                // Merge deleted asset IDs from cloud
-                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
-                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                    _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
-                }
-
-                if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    // Filter out assets that have been deleted
-                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
-                    saveAssetsToStorage(filteredAssets);
-                    allAssetsData = filteredAssets;
-                    sortByDateDescending(allAssetsData);
-                    filteredData = allAssetsData;
-                    restoredCount = filteredAssets.length;
-                }
-
-                // Restore QR code registry
-                if (backupData.data.qrCodeRegistry) {
-                    saveQRRegistry(backupData.data.qrCodeRegistry);
-                }
-
-                // Restore audit trail
-                if (backupData.data.auditTrail) {
-                    saveAuditToStorage(backupData.data.auditTrail);
-                }
-
-                // Restore departments
-                if (backupData.data.departments && backupData.data.departments.length > 0) {
-                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
-                }
-
-                // Restore location records (Location Records page) — merged,
-                // not replaced: an empty or older cloud copy can never wipe
-                // the records on this device (the root cause of location
-                // records "disappearing at login"). Deliberate deletions are
-                // honored via tombstones.
-                mergeLocationRecordsFromCloud(backupData.data);
-
-                // Restore categories
-                if (backupData.data.categories && backupData.data.categories.length > 0) {
-                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
-                }
-
-                // Restore portal user accounts
-                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
-                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
-                }
-
-                // Restore portal heading settings
-                if (backupData.data.portalHeadingSettings) {
-                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
-                }
-
-                // Restore month comments (newest wins per month)
-                if (backupData.data.monthComments) {
-                    mergeMonthComments(backupData.data.monthComments);
-                }
-
-                if (backupData.data.localUserSettings) {
-                    localUserSettings = backupData.data.localUserSettings;
-                    saveLocalUserSettings();
-                }
-
-                // Restore Form 7C (Boarded Items) saved forms
-                if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
-                if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
-
-                // Refresh the UI with restored data
-                if (typeof loadData === 'function') loadData();
-
-                cloudFileId = fileId;
-                localStorage.setItem('assetDashboardCloudFileId', cloudFileId);
-
-                lastSyncTime = new Date();
-                localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
-                updateLastSyncDisplay();
-
-                lastSavedBy = backupData.savedBy || 'Unknown';
-                cloudFileTimestamp = backupData.timestamp;
-                updateLastSavedByDisplay();
+                // Combined in, not replaced, and later syncs keep using the shared file.
+                const { restoredCount } = await combineBackupIntoLocal(backupData, 'now');
 
                 setCloudSyncing(false);
-                alert(`Synced from "${fileName}" successfully!\n\nAssets restored: ${restoredCount}`);
+                alert(`Brought in "${fileName}".\n\nAssets in the register: ${restoredCount}`);
 
             } catch (error) {
                 console.error('Error syncing from file:', error);
@@ -15609,115 +15530,13 @@
                     return;
                 }
 
-                const backupData = await fetchCloudBackupData(cloudFileId);
-
-                if (!backupData.data || !backupData.version) {
-                    throw new Error('Invalid backup file format');
-                }
-
-                // Restore data to correct storage key and refresh UI
-                let restoredCount = 0;
-
-                // Merge deleted asset IDs from cloud
-                if (backupData.data.deletedAssetIds && backupData.data.deletedAssetIds.length > 0) {
-                    backupData.data.deletedAssetIds.forEach(id => deletedAssetIds.add(id));
-                    _dbSet(ASSET_DELETED_IDS_KEY, [...deletedAssetIds]);
-                }
-
-                if (backupData.data.assets && backupData.data.assets.length > 0) {
-                    // Filter out assets that have been deleted
-                    const filteredAssets = backupData.data.assets.filter(a => !deletedAssetIds.has(a.id));
-                    saveAssetsToStorage(filteredAssets);
-                    allAssetsData = filteredAssets;
-                    sortByDateDescending(allAssetsData);
-                    filteredData = allAssetsData;
-                    restoredCount = filteredAssets.length;
-                }
-
-                // Restore QR code registry
-                if (backupData.data.qrCodeRegistry) {
-                    saveQRRegistry(backupData.data.qrCodeRegistry);
-                }
-
-                // Restore audit trail
-                if (backupData.data.auditTrail) {
-                    saveAuditToStorage(backupData.data.auditTrail);
-                }
-
-                // Restore departments
-                if (backupData.data.departments && backupData.data.departments.length > 0) {
-                    localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(backupData.data.departments));
-                }
-
-                // Restore location records (Location Records page) — merged,
-                // not replaced: an empty or older cloud copy can never wipe
-                // the records on this device (the root cause of location
-                // records "disappearing at login"). Deliberate deletions are
-                // honored via tombstones.
-                mergeLocationRecordsFromCloud(backupData.data);
-
-                // Restore categories
-                if (backupData.data.categories && backupData.data.categories.length > 0) {
-                    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(backupData.data.categories));
-                }
-
-                // Restore disposal deleted IDs (merge cloud + local)
-                if (backupData.data.disposalDeletedIds && backupData.data.disposalDeletedIds.length > 0) {
-                    const localDelIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
-                    backupData.data.disposalDeletedIds.forEach(id => localDelIds.add(id));
-                    _dbSet(DISPOSAL_DELETED_IDS_KEY, [...localDelIds]);
-                    disposalDeletedIds = localDelIds;
-                }
-
-                // Restore disposal records (filtering out deleted ones)
-                if (backupData.data.disposalRecords && backupData.data.disposalRecords.length > 0) {
-                    const delIds = new Set((_dbGet(DISPOSAL_DELETED_IDS_KEY) || []));
-                    const filteredRecs = backupData.data.disposalRecords.filter(r => !delIds.has(r.id));
-                    _dbSet(DISPOSAL_STORAGE_KEY, filteredRecs);
-                    disposalRecords = filteredRecs;
-                }
-
-                // Restore portal user accounts
-                if (backupData.data.portalUserAccounts && backupData.data.portalUserAccounts.length > 0) {
-                    localStorage.setItem('portalUserAccounts', JSON.stringify(backupData.data.portalUserAccounts));
-                }
-
-                // Restore portal heading settings
-                if (backupData.data.portalHeadingSettings) {
-                    localStorage.setItem('portalHeadingSettings', JSON.stringify(backupData.data.portalHeadingSettings));
-                }
-
-                // Restore month comments (newest wins per month)
-                if (backupData.data.monthComments) {
-                    mergeMonthComments(backupData.data.monthComments);
-                }
-
-                if (backupData.data.localUserSettings) {
-                    localUserSettings = backupData.data.localUserSettings;
-                    saveLocalUserSettings();
-                }
-
-                // Restore Form 7C (Boarded Items) saved forms
-                if (backupData.data.form7cForms) form7cMergeFromCloud(backupData.data.form7cForms);
-                if (backupData.data.assetAdditionForms) faaMergeFromCloud(backupData.data.assetAdditionForms);
-
-                // Refresh the UI with restored data
-                if (typeof loadData === 'function') loadData();
-                if (typeof loadDisposalRecords === 'function') loadDisposalRecords();
-
-                lastSyncTime = new Date();
-                localStorage.setItem('assetDashboardLastSyncTime', lastSyncTime.toISOString());
-                updateLastSyncDisplay();
-
-                lastSavedBy = backupData.savedBy || 'Unknown';
-                cloudFileTimestamp = backupData.timestamp;
-                updateLastSavedByDisplay();
+                const { restoredCount, backupData } = await downloadAndRestoreCloudBackup();
 
                 setCloudSyncing(false);
 
                 const disposalCountLogin = (backupData.data.disposalRecords || []).length;
                 const savedByInfo = backupData.savedBy ? ` (saved by ${backupData.savedBy})` : '';
-                alert(`Synced from cloud${savedByInfo}\n\nAssets restored: ${restoredCount}\nDisposal records: ${disposalCountLogin}`);
+                alert(`Synced from cloud${savedByInfo}\n\nAssets in the register: ${restoredCount}\nDisposal records: ${disposalCountLogin}`);
 
             } catch (error) {
                 console.error('Error syncing on login:', error);
@@ -15796,6 +15615,8 @@
                 render2FASettings();
             } else if (tabName === 'account') {
                 renderMyAccount();
+            } else if (tabName === 'backups') {
+                if (window.assetSafety) window.assetSafety.renderPanel();
             }
         }
 
@@ -16451,7 +16272,7 @@
                         _dbStorageErrorShown = true;
                         try {
                             alert('⚠️ Storage error: your most recent changes may not have been saved.\n\n' +
-                                  'Please export a backup (Export button) and reload the page. ' +
+                                  'Please download a backup (Settings → Backups → Download full backup now) and reload the page. ' +
                                   'If this keeps happening, the browser\'s storage may be full or blocked.');
                         } catch (e) {}
                     }
@@ -18343,6 +18164,8 @@
             return trimmed;
         }
 
+        var _assetBaseline = null;          // see _stampChangedAssets
+        var _assetStampSkipNew = false;     // true while merging copies from elsewhere
         function loadAssetsFromStorage() {
             try {
                 let assets = _dbGet(STORAGE_KEY);
@@ -18358,7 +18181,9 @@
                     }
                     // Backfill missing IDs, normalize dates, and backfill salvage values
                     let needsSave = false;
+                    const _cleaned = [];   // assets tidied here (not edited by a person)
                     assets.forEach(asset => {
+                        const _was = { id: asset.id, dateIn: asset.dateIn, dateOut: asset.dateOut, salvage: asset.salvageValue, month: asset.month };
                         if (!asset.id) {
                             asset.id = generateAssetId();
                             needsSave = true;
@@ -18369,6 +18194,7 @@
                         if (asset.dateOut) {
                             asset.dateOut = normalizeDateToDisplay(asset.dateOut);
                         }
+                        _cleaned.push([asset, _was]);
                         // Survey-created assets once had their Date In stamped
                         // with the day their room row was coded; that date was
                         // never real. Clear it wherever it still stands (this
@@ -18385,6 +18211,15 @@
                             needsSave = true;
                         }
                     });
+                    // Tidy-ups made while loading are not edits: fold them into the
+                    // edit baseline so they never count as "newer" than another computer's change.
+                    if (_assetBaseline) {
+                        _cleaned.forEach(([a, was]) => {
+                            if (was.id !== a.id || was.dateIn !== a.dateIn || was.dateOut !== a.dateOut || was.salvage !== a.salvageValue || was.month !== a.month) {
+                                _assetBaseline.set(a.id, { sig: _assetSig(a), at: a._modifiedAt || 0 });
+                            }
+                        });
+                    }
                     if (needsSave) {
                         _dbSet(STORAGE_KEY, assets);
                     }
@@ -18398,9 +18233,37 @@
         }
 
         // Save assets to IndexedDB (via in-memory cache)
+        // Each asset carries _modifiedAt (ms) so that, when copies from several
+        // computers are combined, the most recent edit of an asset wins.
+        // _assetBaseline holds each asset as last saved/loaded (id -> JSON without
+        // the stamp); any asset that differs from it on save is stamped now.
+        function _assetSig(a) {
+            const m = a._modifiedAt; delete a._modifiedAt;
+            let sig; try { sig = JSON.stringify(a); } finally { if (m !== undefined) a._modifiedAt = m; }
+            return sig;
+        }
+        function _rebuildAssetBaseline(assets) {
+            _assetBaseline = new Map();
+            (assets || []).forEach(a => { if (a && a.id) _assetBaseline.set(a.id, { sig: _assetSig(a), at: a._modifiedAt || 0 }); });
+        }
+        function _stampChangedAssets(assets) {
+            if (!Array.isArray(assets)) return;
+            if (!_assetBaseline) { _rebuildAssetBaseline(assets); return; }
+            const now = Date.now(), next = new Map();
+            assets.forEach(a => {
+                if (!a || !a.id) return;
+                const sig = _assetSig(a), prev = _assetBaseline.get(a.id);
+                if (!prev) { if (!a._modifiedAt && !_assetStampSkipNew) a._modifiedAt = now; }
+                else if (prev.sig !== sig && (a._modifiedAt || 0) === prev.at) a._modifiedAt = now;
+                next.set(a.id, { sig, at: a._modifiedAt || 0 });
+            });
+            _assetBaseline = next;
+        }
+
         function saveAssetsToStorage(assets) {
             if (typeof dataIsDirty !== "undefined") dataIsDirty = true;
             try {
+                try { _stampChangedAssets(assets); } catch (e) { console.warn('[Assets] could not stamp edits', e); }
                 _dbSet(STORAGE_KEY, assets);
                 return true;
             } catch (error) {
@@ -18408,6 +18271,22 @@
                 alert('⚠️ Error saving data: ' + error.message);
                 return false;
             }
+        }
+
+        // Before a "Replace all" import: warn when most of the register would go,
+        // and keep a copy (Settings → Backups). Returns the current assets, or null if cancelled.
+        function assetsBeforeReplace(newCount) {
+            const current = loadAssetsFromStorage();
+            if (current.length > 20 && newCount < current.length / 2 &&
+                !confirm(`Replace will remove ${current.length - newCount} of the ${current.length} assets from the register, on every computer that syncs.\n\nA copy is kept in Settings → Backups. Replace anyway?`)) return null;
+            if (window.assetSafety) window.assetSafety.copyNow();
+            return current;
+        }
+        // Assets dropped by a replace are marked deleted, so syncing does not bring them back.
+        function tombstoneReplaced(oldList, newList) {
+            const keep = new Set((newList || []).map(a => a && a.id).filter(Boolean));
+            const gone = (oldList || []).map(a => a && a.id).filter(id => id && !keep.has(id));
+            if (gone.length) trackDeletedAssetIds(gone);
         }
 
         // Track deleted asset IDs so cloud sync doesn't re-add them
@@ -19011,6 +18890,13 @@
                     }
 
                     savedFeedback = '✅ Asset updated successfully!';
+                } else {
+                    // The asset was removed meanwhile (deleted, or another computer's sync).
+                    // Never drop the user's edit silently: put it back as it now stands.
+                    const restored = Object.assign({}, currentEditingAsset, assetData, { id: generateAssetId(), restoredFrom: currentEditingAsset.id });
+                    assets.push(restored);
+                    addAuditEntry(restored.assetCode, 'Asset Restored', restored.department, 'Edited after it had been removed — saved again so the edit is not lost');
+                    savedFeedback = '✅ Saved. This asset had been removed (for example by another computer), so it was added back with your changes.';
                 }
             } else {
                 // Add new asset(s) — expand by quantity if qty > 1
@@ -19108,6 +18994,9 @@
         // After stored data loads, fix user names recorded on audit trail
         // entries (e.g. renamed accounts) so history and reports show the
         // current name.
+        // Baseline for edit stamps: the assets as loaded (after one-off clean-ups).
+        _idbInitPromise.then(() => { try { _rebuildAssetBaseline(loadAssetsFromStorage()); } catch (e) { console.warn('[Assets] baseline', e); } });
+
         _idbInitPromise.then(() => {
             try {
                 const audit = loadAuditFromStorage();
@@ -20141,7 +20030,7 @@
             const assetList = assetsToDelete.slice(0, 5).map(a => `  • ${a.assetCode} - ${a.description}`).join('\n');
             const moreText = assetsToDelete.length > 5 ? `\n  ...and ${assetsToDelete.length - 5} more` : '';
 
-            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views (Dashboard, Board of Survey, and Asset Register).\nThis action cannot be undone.`)) {
+            if (!(confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views (Dashboard, Board of Survey, and Asset Register).\nA copy is kept in Settings → Backups.`) && (window.assetSafety ? (window.assetSafety.copyNow(), true) : true))) {
                 return;
             }
 
@@ -20247,13 +20136,15 @@
                             return;
                         }
 
-                        if (confirm(`Import ${importedAssets.length} assets?\n\nThis will REPLACE all existing data. This action cannot be undone.`)) {
+                        const before = importedAssets.length && confirm(`Import ${importedAssets.length} assets?\n\nThis will REPLACE all existing data. A copy of the current data is kept in Settings → Backups.`) ? assetsBeforeReplace(importedAssets.length) : null;
+                        if (before) {
                             // Ensure all assets have IDs
                             importedAssets.forEach(asset => {
                                 if (!asset.id) asset.id = generateAssetId();
                                 if (!asset.department) asset.department = '';
                             });
 
+                            tombstoneReplaced(before, importedAssets);
                             saveAssetsToStorage(importedAssets);
                             addAuditEntry('SYSTEM', 'Data Import', 'All Departments', `Imported ${importedAssets.length} assets`);
                             refreshAllViews();
@@ -20475,7 +20366,7 @@
 
         // Process imported data (handles both old format and new complete backup format)
         function processImportData(importedData) {
-            const importMode = document.querySelector('input[name="importMode"]:checked')?.value || 'replace';
+            const importMode = document.querySelector('input[name="jsonImportMode"]:checked')?.value || 'merge';
 
             let assets, auditTrail, departments, categories, warrantyOverrides;
             let isCompleteBackup = false;
@@ -20542,17 +20433,22 @@
             if (!confirm(confirmMessage)) {
                 return;
             }
+            if (importMode !== 'replace' && window.assetSafety) window.assetSafety.copyNow();
 
             let importedCount = 0;
             let skippedCount = 0;
 
             if (importMode === 'replace') {
+                if (validAssets.length === 0) { alert('⚠️ The file has no assets, so nothing was replaced.'); return; }
+                const before = assetsBeforeReplace(validAssets.length);
+                if (!before) return;
                 // Replace mode: clear existing data and import new
                 validAssets.forEach(asset => {
                     if (!asset.id) asset.id = generateAssetId();
                     if (!asset.department) asset.department = '';
                 });
 
+                tombstoneReplaced(before, validAssets);
                 saveAssetsToStorage(validAssets);
                 importedCount = validAssets.length;
 
@@ -29295,6 +29191,11 @@
             const progress = document.getElementById('importProgress');
             const progressFill = document.getElementById('importProgressFill');
             const progressText = document.getElementById('importProgressText');
+            let replacedAssets = null;
+            if (importMode === 'replace') {
+                replacedAssets = assetsBeforeReplace(rowsToImport.length);
+                if (!replacedAssets) return;
+            } else if (window.assetSafety) window.assetSafety.copyNow();
             progress.style.display = 'block';
             progressFill.style.width = '0%';
             progressText.textContent = 'Preparing import...';
@@ -29308,7 +29209,8 @@
                 let importedCount = 0;
 
                 if (importMode === 'replace') {
-                    // Clear existing assets
+                    // Clear existing assets (marked deleted so syncing does not bring them back)
+                    tombstoneReplaced(replacedAssets || existingAssets, []);
                     existingAssets = [];
                 }
 
@@ -30353,6 +30255,9 @@
             const confirmMsg = `You are about to import ${dataToImport.length} assets.\n\nMode: ${importMode === 'replace' ? 'REPLACE ALL (this will delete existing assets!)' : 'Merge (add new, skip duplicates)'}\n\nProceed?`;
 
             if (!confirm(confirmMsg)) return;
+            let replacedAssets = null;
+            if (importMode === 'replace') { replacedAssets = assetsBeforeReplace(dataToImport.length); if (!replacedAssets) return; }
+            else if (window.assetSafety) window.assetSafety.copyNow();
 
             showGDriveProcessing('Importing assets...', `Processing ${dataToImport.length} assets`);
 
@@ -30360,6 +30265,7 @@
                 let existingAssets = loadAssetsFromStorage();
 
                 if (importMode === 'replace') {
+                    tombstoneReplaced(replacedAssets || existingAssets, []);
                     existingAssets = [];
                 }
 
@@ -31316,7 +31222,7 @@
 
             if (selectedIds.length === 0) return;
 
-            if (!confirm(`Are you sure you want to delete ${selectedIds.length} disposal record(s) AND their associated assets from all views?\n\nThis action cannot be undone.`)) {
+            if (!(confirm(`Are you sure you want to delete ${selectedIds.length} disposal record(s) AND their associated assets from all views?\n\nA copy is kept in Settings → Backups.`) && (window.assetSafety ? (window.assetSafety.copyNow(), true) : true))) {
                 return;
             }
 
@@ -33524,7 +33430,7 @@
             const assetList = assetsToDelete.slice(0, 5).map(a => `  \u2022 ${a.assetCode} - ${a.description}`).join('\n');
             const moreText = assetsToDelete.length > 5 ? `\n  ...and ${assetsToDelete.length - 5} more` : '';
 
-            if (!confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views.\nThis action cannot be undone.`)) {
+            if (!(confirm(`Are you sure you want to delete ${assetsToDelete.length} asset(s)?\n\n${assetList}${moreText}\n\nThis will remove them from ALL views.\nA copy is kept in Settings → Backups.`) && (window.assetSafety ? (window.assetSafety.copyNow(), true) : true))) {
                 return;
             }
 
@@ -38248,7 +38154,7 @@
             }).join('\n');
 
             const confirmMsg = `WARNING: This will permanently DELETE ${toDelete.length} multi-code asset row(s) without splitting them.\n\nAssets to delete:\n${assetSummary}\n\nUse this after you have already split the ones you need, to clean up the remaining duplicates.\n\nThis cannot be undone. Proceed?`;
-            if (!confirm(confirmMsg)) return;
+            if (!(confirm(confirmMsg) && (window.assetSafety ? (window.assetSafety.copyNow(), true) : true))) return;
 
             let assets = loadAssetsFromStorage();
             const idsToRemove = new Set(toDelete.map(item => item.original.id));
@@ -38283,5 +38189,150 @@
         }
 
     </script>
+    <script>
+        // Single sign-on: someone already signed in on the hospital portal with
+        // access to the Fixed Asset Register goes straight in (the dashboard's own
+        // sign-in gates — forced password change and the cloud sync — still run).
+        (function () {
+            function portalSession() {
+                try { var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null'); return p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0 ? p : null; }
+                catch (e) { return null; }
+            }
+            function portalSignIn() {
+                var p = portalSession();
+                if (!p || currentUser) return;
+                var page = document.getElementById('loginPage');
+                if (!page || page.style.display === 'none') return;
+                var local = null;
+                try { local = (JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]')).find(function (u) { return String(u.username).toLowerCase() === p.username; }) || null; } catch (e) {}
+                // Permission level comes from the portal account (kept from the old portal), never assumed.
+                var role = p.assetRole || 'User';
+                var user = Object.assign({ username: p.username, displayName: p.displayName, role: role, email: p.email || '', permissions: { canExport: role !== 'Viewer', canRefresh: role !== 'Viewer' } }, local || {},
+                    { source: 'local', viaPortal: true, displayName: p.displayName || (local && local.displayName) || p.username });
+                var tfa = getUserTwoFASettings(p.username);
+                if (tfa && tfa.twoFactorEnabled) return; // keep the two-step login for 2FA users
+                user.twoFactorEnabled = false; user.twoFactorSecret = (tfa && tfa.twoFactorSecret) || null; user.backupCodes = (tfa && tfa.backupCodes) || null;
+                completeLogin(user);
+            }
+            var origLogout = handleLogout;
+            handleLogout = function () {
+                var via = currentUser && currentUser.viaPortal;
+                origLogout();
+                if (!currentUser) { try { sessionStorage.removeItem('mphPortalSession'); } catch (e) {} if (via) window.location.href = 'portal.html'; }
+            };
+            function later() { setTimeout(portalSignIn, 700); }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', later); else later();
+        })();
+    </script>
+    <script>
+        // ── Assets on Order hand-off (asset-intake.html) ─────────────────────
+        // The Fixed Asset Officer picks a delivered asset on "Assets on Order" →
+        // this fills a new asset here (description, supplier, cost, date in,
+        // serial) to check, code and save. The codes saved are passed back so the
+        // purchase is marked registered there. Isolated and defensive: any
+        // failure leaves the register working exactly as before.
+        (function () {
+            var PREFILL = 'assetIntakePrefill', RESULTS = 'assetIntakeResults';
+            function read() { try { return JSON.parse(sessionStorage.getItem(PREFILL) || 'null'); } catch (e) { return null; } }
+            function el(id) { return document.getElementById(id); }
+            function set(id, v) { var e = el(id); if (!e || v === undefined || v === null) return; e.value = v; try { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); } catch (x) {} }
+            function dashboardShown() { var d = el('dashboardContainer'); return !!(d && d.style.display !== 'none' && typeof currentUser !== 'undefined' && currentUser); }
+            function note(html, ms) {
+                var t = document.createElement('div');
+                t.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:100000;max-width:380px;background:#0f1b2a;color:#f1f5f9;padding:12px 16px;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.35);font:14px/1.45 Inter,system-ui,sans-serif';
+                t.innerHTML = html; document.body.appendChild(t); setTimeout(function () { t.remove(); }, ms || 9000);
+            }
+            var active = null, filled = false;
+            function fill(p) {
+                if (typeof openAssetModal !== 'function') return false;
+                openAssetModal();
+                var qty = Math.max(1, parseInt(p.qty, 10) || 1), unit = Number(p.unitPrice) || 0;
+                set('description', p.description || '');
+                set('supplier', p.supplier || '');
+                set('quantity', qty);
+                set('unitPrice', unit.toFixed(2));
+                set('totalPrice', (unit * qty).toFixed(2));
+                set('source', 'Purchased');
+                if (p.dateIn) {
+                    set('dateIn', p.dateIn);
+                    try { if (typeof getMonthFromDate === 'function' && typeof formatDateForDisplay === 'function') set('month', getMonthFromDate(formatDateForDisplay(p.dateIn))); } catch (x) {}
+                }
+                if (p.serials && p.serials.length) set('serialModel', p.serials[0]);
+                if (p.codes && p.codes.length) set('assetCode', p.codes[0]);
+                set('assetComment', ['PO ' + (p.poNumber || ''), p.grn ? 'GRN ' + p.grn : '', p.serials && p.serials.length > 1 ? 'Serials: ' + p.serials.join(', ') : '', p.notes || ''].filter(Boolean).join(' · '));
+                try {
+                    if (p.department && typeof loadDepartments === 'function' && typeof selectAssetDeptOption === 'function') {
+                        var want = String(p.department).trim().toLowerCase();
+                        var hit = (loadDepartments() || []).find(function (d) { return String(d).trim().toLowerCase() === want; });
+                        if (hit) selectAssetDeptOption(hit, hit);
+                    }
+                } catch (x) {}
+                var form = el('assetForm'), old = el('intakePrefillBanner');
+                if (old) old.remove();
+                if (form) {
+                    var b = document.createElement('div'); b.id = 'intakePrefillBanner';
+                    b.style.cssText = 'margin:0 0 14px;padding:10px 12px;border-radius:8px;background:#eff8ff;border:1px solid #b2ddff;color:#0f1b2a;font-size:13.5px';
+                    b.innerHTML = '<b>Filled from PO ' + String(p.poNumber || '').replace(/</g, '&lt;') + (p.grn ? ' · ' + String(p.grn).replace(/</g, '&lt;') : '') + '</b> — choose the department, check the details, give the asset code and save. ' +
+                        '<a href="asset-intake.html#/register" style="margin-left:6px">Cancel</a>';
+                    form.insertBefore(b, form.firstChild);
+                    b.querySelector('a').onclick = function () { sessionStorage.removeItem(PREFILL); };
+                }
+                return true;
+            }
+            // Wrap saveAsset: when a prefilled asset is saved, send the new codes back to Assets on Order.
+            if (typeof saveAsset === 'function') {
+                var origSave = saveAsset;
+                saveAsset = function (ev) {
+                    var p = read();
+                    var before = null;
+                    if (p && filled && typeof currentEditingAsset !== 'undefined' && !currentEditingAsset) {
+                        try { before = {}; (loadAssetsFromStorage() || []).forEach(function (a) { before[a.id] = 1; }); } catch (x) { before = null; }
+                    }
+                    var r = origSave.apply(this, arguments);
+                    try {
+                        if (before) {
+                            var modal = el('assetModal');
+                            var added = (loadAssetsFromStorage() || []).filter(function (a) { return !before[a.id]; });
+                            if (added.length && (!modal || modal.style.display === 'none')) {
+                                var list = []; try { list = JSON.parse(localStorage.getItem(RESULTS) || '[]'); } catch (x) {}
+                                list.push({ intakeKey: p.intakeKey, poId: p.poId, lineIndex: p.lineIndex, qty: added.length, description: p.description,
+                                    assetCodes: added.map(function (a) { return a.assetCode; }).filter(Boolean), serials: p.serials || [], department: added[0].department || p.department || '',
+                                    location: added[0].room || '', notes: p.notes || '', at: Date.now(), by: p.by || (currentUser && (currentUser.displayName || currentUser.username)) || '' });
+                                localStorage.setItem(RESULTS, JSON.stringify(list));
+                                sessionStorage.removeItem(PREFILL); filled = false;
+                                var banner = el('intakePrefillBanner'); if (banner) banner.remove();
+                                note('✅ ' + added.length + ' asset' + (added.length === 1 ? '' : 's') + ' saved and marked registered for PO ' + String(p.poNumber || '').replace(/</g, '&lt;') + '. <a href="asset-intake.html#/registered" style="color:#7cc4fa;font-weight:600">Back to Assets on Order →</a>');
+                            }
+                        }
+                    } catch (x) { console.warn('[Assets on Order] could not record the registration', x); }
+                    return r;
+                };
+            }
+            // Once signed in and the dashboard is showing, open the prefilled form.
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries++;
+                var p = read();
+                if (!p || tries > 900) { clearInterval(timer); return; }
+                if (!dashboardShown() || filled) return;
+                try { filled = fill(p); } catch (x) { console.warn('[Assets on Order] prefill failed', x); clearInterval(timer); }
+                if (filled) clearInterval(timer);
+            }, 700);
+            // "Assets on Order" link in the sidebar (above Records).
+            function addLink() {
+                var nav = document.querySelector('#sidebar .sidebar-nav'); if (!nav || el('navAssetsOnOrder')) return;
+                var labels = nav.querySelectorAll('.sidebar-section-label'); var records = null;
+                for (var i = 0; i < labels.length; i++) if (/records/i.test(labels[i].textContent)) { records = labels[i]; break; }
+                var btn = document.createElement('button');
+                btn.className = 'sidebar-nav-item'; btn.id = 'navAssetsOnOrder'; btn.setAttribute('data-tooltip', 'Assets on Order');
+                btn.innerHTML = '<span class="sidebar-nav-icon">&#x1F69A;</span><span class="sidebar-nav-text">Assets on Order</span>';
+                btn.onclick = function () { window.location.href = 'asset-intake.html'; };
+                if (records) nav.insertBefore(btn, records); else nav.appendChild(btn);
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addLink); else addLink();
+            window.assetIntakeHandoff = { fill: fill, read: read };
+        })();
+    </script>
+    <script src="asset-register-safety.js"></script>
 </body>
 </html>

@@ -157,9 +157,14 @@
       r.readAsText(f); e.target.value = '';
     };
     const sb = body.querySelector('[data-sync]'); if (sb) sb.onclick = async () => { await Proc.sync.run(); data(body); };
+    body.insertAdjacentHTML('beforeend', '<div class="mt-3" id="bkPanel"></div>');
+    ui.backupPanel(body.querySelector('#bkPanel'));
     body.querySelector('[data-wipe]').onclick = async () => {
-      const v = await ui.form('Erase all procurement data', [{ name: 'confirm', label: 'Type ERASE to confirm', required: true, hint: 'Download a backup first. Data already synced to Google Drive may come back on the next sync.' }], { ok: 'Erase everything' });
+      const v = await ui.form('Erase all procurement data', [{ name: 'confirm', label: 'Type ERASE to confirm', required: true, hint: 'A full backup file is downloaded automatically first. Erasing also removes these records from every computer that syncs with Google Drive.' }], { ok: 'Erase everything' });
       if (!v || v.confirm !== 'ERASE') { if (v) ui.toast('Nothing erased — confirmation text did not match.', 'warning'); return; }
+      // Always keep a copy first: download a full backup before anything is removed.
+      util.download(new Blob([store.exportJSON()], { type: 'application/json' }), 'procurement-backup-before-erase-' + util.today() + '.json');
+      await store.flush();
       const settings = store.db.settings;
       store.COLLECTIONS.forEach(c => { store.list(c).forEach(r => store.remove(c, r.id)); });
       store.db.settings = settings; Proc.audit('Erase Data', 'All procurement records erased'); store.flush(); ui.toast('All procurement records erased'); data(body);

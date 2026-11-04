@@ -23,6 +23,25 @@
     '</style>');
 
   const poLabel = p => (p.poNumber ? 'PO ' + p.poNumber : 'Draft PO');
+  /* Receipt status per line (Stores / Fixed Assets). Imported history with no delivery records reads as received. */
+  const LINE_TONE = { 'On order': 'warning', 'Part delivered': 'info', 'Delivered — to put away': 'warning', 'In stock': 'success', 'Delivered — to register': 'purple', Registered: 'success', Service: '', Completed: 'success', Received: 'success' };
+  function lineLabels(po) {
+    const ls = domain.lineStatus(po);
+    const history = !store.find('deliveries', d => d.poId === po.id) && (po.historic || ['Delivered', 'Invoiced', 'Paid', 'Closed'].indexOf(po.status) >= 0);
+    return history ? ls.map(l => Object.assign({}, l, { label: l.type === 'Service' ? 'Completed' : 'Received' })) : ls;
+  }
+  /** One compact receipt chip for the PO list. */
+  function receiptChip(po) {
+    if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled') return '';
+    const ls = lineLabels(po), goods = ls.filter(l => l.type !== 'Service');
+    if (!goods.length) return ui.badge('Service', '');
+    const toReg = util.sum(goods.filter(l => l.type === 'Asset'), l => Math.max(0, l.received - l.registered));
+    if (toReg) return ui.badge(util.int(toReg) + ' ' + util.plural(toReg, 'asset') + ' to register', 'purple');
+    if (goods.some(l => l.label === 'Delivered — to put away')) return ui.badge('To put away', 'warning');
+    if (goods.every(l => ['In stock', 'Registered', 'Received'].indexOf(l.label) >= 0)) return ui.badge(goods.every(l => l.label === 'Received') ? 'Received' : 'In stock', 'success');
+    if (goods.some(l => l.received > 0)) return ui.badge('Part delivered', 'info');
+    return ui.badge('On order', 'warning');
+  }
   const normNo = s => String(s || '').trim().toUpperCase();
   const STEPS = ['Draft', 'Issued', 'Delivered', 'Invoiced', 'Paid'];
   const stepIndex = s => ({ Draft: 0, Issued: 2, 'Partially Delivered': 2, Delivered: 3, Invoiced: 4, Paid: 5, Closed: 5 })[s] || 0;
@@ -111,9 +130,10 @@
         { key: 'department', label: 'Department', render: p => '<span class="muted">' + esc(p.department || '—') + '</span>' },
         { key: 'total', label: 'Total', cls: 'num', sort: p => util.num(p.total), render: p => '<span class="strong">' + util.money(p.total) + '</span>' },
         { key: 'status', label: 'Status', render: p => ui.badge(p.status) },
+        { key: 'receipt', label: 'Receipt', sort: false, render: p => receiptChip(p) },
         { key: 'docs', label: '', sort: p => counts[p.id] || 0, render: p => counts[p.id] ? '<span class="chip" title="Documents">' + ui.icon('clip', 'sm') + counts[p.id] + '</span>' : '' }
       ],
-      footer: list => '<td colspan="5">' + util.int(list.length) + ' purchase ' + util.plural(list.length, 'order') + '</td><td class="num">' + util.money(util.sum(list, p => p.total)) + '</td><td colspan="2"></td>'
+      footer: list => '<td colspan="5">' + util.int(list.length) + ' purchase ' + util.plural(list.length, 'order') + '</td><td class="num">' + util.money(util.sum(list, p => p.total)) + '</td><td colspan="3"></td>'
     });
     el.querySelectorAll('#poSeg button').forEach(b => b.onclick = () => {
       seg = b.dataset.s; try { sessionStorage.setItem('ordersSeg', seg); } catch (e) { /* ignore */ }
@@ -140,6 +160,9 @@
     const dels = store.filter('deliveries', d => d.poId === po.id).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const invs = store.filter('invoices', i => i.poId === po.id).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const items = (po.items || []).length ? po.items : [{ description: po.description || '—', unit: '', qty: 1, unitPrice: po.subtotal || po.total, total: po.subtotal || po.total }];
+    const recv = po.poNumber ? domain.lineReceived(po) : [];
+    const lstat = po.poNumber && po.status !== 'Draft' ? lineLabels(po) : [];
+    const trail = po.poNumber ? domain.poTrail(po) : [];
     const invoiced = util.sum(invs, i => i.total), paid = util.sum(invs.filter(i => i.status === 'Paid'), i => i.total);
     const S = store.settings();
 
@@ -160,14 +183,29 @@
         '<div class="card mb-3"><div class="card-b">' + ui.stepper(STEPS, stepIndex(po.status)) + '</div></div>') +
       '<div class="grid side"><div class="stack">' +
       // Items
-      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Unit</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
-      items.map((it, i) => '<tr><td class="muted">' + (i + 1) + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.unit || '') + '</td><td class="num">' + util.int(it.qty) + '</td><td class="num">' + util.money(it.unitPrice) + '</td><td class="num strong">' + util.money(it.total || util.num(it.qty) * util.num(it.unitPrice)) + '</td></tr>').join('') +
+      '<div class="card"><div class="card-h"><div><h3>Items</h3><div class="sub">' + esc(po.description || '') + '</div></div></div><div class="card-b flush"><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Description</th><th>Type</th><th class="num">Qty</th><th>Receipt</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
+      items.map((it, i) => {
+        // Stock goes into General Stores, Asset goes to the Fixed Asset Officer, Service has nothing to receive.
+        const type = domain.classifyLine(it, po), rec = recv[i] || 0, qty = util.num(it.qty) || 1;
+        return '<tr><td class="muted">' + (i + 1) + '</td><td>' + esc(it.description) + '</td>' +
+          '<td><select class="input sm" data-itype="' + i + '" title="Stock goes to General Stores; Asset to the Fixed Asset Officer; Service has nothing to receive" style="width:88px">' + domain.ITEM_TYPES.map(t => '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></td>' +
+          '<td class="num nowrap">' + util.int(it.qty) + ' <span class="muted">' + esc(it.unit || '') + '</span></td>' +
+          '<td>' + (lstat[i] ? ui.badge(lstat[i].label, LINE_TONE[lstat[i].label] || '') : '<span class="muted">—</span>') +
+          (type !== 'Service' && lstat.length ? '<div class="t-sub nowrap">' + util.int(rec) + ' of ' + util.int(qty) + ' received' + (type === 'Asset' && lstat[i] && lstat[i].registered ? ' · ' + util.int(lstat[i].registered) + ' registered' : '') + '</div>' : '') + '</td>' +
+          '<td class="num">' + util.money(it.unitPrice) + '</td><td class="num strong">' + util.money(it.total || util.num(it.qty) * util.num(it.unitPrice)) + '</td></tr>';
+      }).join('') +
       '</tbody></table></div><div style="padding:14px 18px;border-top:1px solid var(--border)"><div class="totals"><div class="k">Subtotal</div><div class="v">' + util.money(po.subtotal || util.sum(items, i => i.total)) + '</div><div class="k">GCT</div><div class="v">' + util.money(po.gct) + '</div><div class="k grand">Total</div><div class="v grand">' + util.money(po.total) + '</div></div>' +
       '<div class="words right mt-1">' + esc(domain.amountWords(po.total)) + '</div></div></div></div>' +
+      // Delivery & asset trail — what Stores and the Fixed Asset Officer did with this PO
+      (po.poNumber ? '<div class="card"><div class="card-h"><div><h3>Delivery &amp; asset trail</h3><div class="sub">Issued, delivered, put into stock and registered — recorded by Procurement, General Stores and Fixed Assets</div></div></div><div class="card-b">' +
+        (trail.length ? '<div class="timeline">' + trail.map(ev => '<div class="tl-item"><div class="row between" style="gap:6px"><span class="strong">' + (ev.link ? '<a href="' + esc(ev.link) + '">' + esc(ev.title) + '</a>' : esc(ev.title)) + '</span>' + ui.badge({ issued: 'Issued', delivered: 'Delivered', stocked: 'In stock', pending: 'Waiting', returned: 'Returned', registered: 'Registered', invoiced: 'Invoiced', paid: 'Paid', rejected: 'Voided' }[ev.kind] || ev.kind, { issued: 'primary', delivered: 'info', stocked: 'success', pending: 'warning', returned: 'danger', registered: 'purple', invoiced: 'purple', paid: 'success', rejected: 'danger' }[ev.kind] || '') + '</div>' +
+          (ev.detail ? '<div class="small" style="color:var(--text-2)">' + esc(ev.detail) + '</div>' : '') +
+          '<div class="when">' + esc(typeof ev.at === 'number' ? util.dateTime(ev.at) : util.date(String(ev.at).slice(0, 10))) + (ev.by ? ' · ' + esc(ev.by) : '') + (ev.app ? ' · ' + esc(ev.app) : '') + '</div></div>').join('') + '</div>'
+          : '<p class="muted small">Nothing has happened on this PO yet.</p>') + '</div></div>' : '') +
       // Deliveries
       '<div class="card"><div class="card-h"><div><h3>Deliveries</h3><div class="sub">' + (dels.length ? dels.length + ' recorded' : 'Nothing received yet') + '</div></div>' + (['Issued', 'Partially Delivered', 'Delivered'].indexOf(po.status) >= 0 ? '<a class="btn sm" href="#/receiving?po=' + po.id + '">' + ui.icon('plus', 'sm') + 'Record delivery</a>' : '') + '</div>' +
       (dels.length ? '<div class="card-b flush"><table class="table compact"><thead><tr><th>Date</th><th>GRN</th><th>Received by</th><th>Condition</th><th></th></tr></thead><tbody>' +
-        dels.map(d => '<tr><td>' + esc(util.date(d.date)) + '</td><td class="mono">' + esc(d.grn || '—') + '</td><td>' + esc(d.receivedBy || '') + '</td><td>' + esc(d.condition || '') + '</td><td>' + (d.partial ? ui.badge('Partial', 'warning') : ui.badge('Complete', 'success')) + '</td></tr>').join('') + '</tbody></table></div>' : '') + '</div>' +
+        dels.map(d => '<tr><td>' + esc(util.date(d.date)) + '</td><td class="mono">' + esc(d.grn || '—') + '</td><td>' + esc(d.receivedBy || '') + '</td><td>' + esc(d.condition || '') + '</td><td>' + (d.voided ? ui.badge('Voided', 'danger') : d.partial ? ui.badge('Partial', 'warning') : ui.badge('Complete', 'success')) + '</td></tr>').join('') + '</tbody></table></div>' : '') + '</div>' +
       // Invoices
       '<div class="card"><div class="card-h"><div><h3>Invoices &amp; payment</h3><div class="sub">' + (invs.length ? 'Invoiced ' + util.money(invoiced) + ' · paid ' + util.money(paid) + ' · balance ' + util.money(util.num(po.total) - paid) : 'No invoice recorded') + '</div></div>' + (po.status !== 'Draft' && po.status !== 'Cancelled' ? '<a class="btn sm" href="#/invoices?po=' + po.id + '&new=1">' + ui.icon('plus', 'sm') + 'Record invoice</a>' : '') + '</div>' +
       (invs.length ? '<div class="card-b flush"><table class="table compact"><thead><tr><th>Invoice #</th><th>Date</th><th>Due</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>' +
@@ -216,6 +254,13 @@
     drawDocs();
 
     const pdfOut = output => { if (!(Proc.pdf && Proc.pdf.purchaseOrder)) return ui.toast('PDF engine not loaded.', 'error'); return Proc.pdf.purchaseOrder(po, { output }).catch(e => ui.toast(e.message, 'error')); };
+    el.querySelectorAll('[data-itype]').forEach(sel => sel.onchange = () => {
+      const i = +sel.dataset.itype;
+      const copy = util.clone(items); copy[i] = Object.assign({}, copy[i], { itemType: sel.value });
+      store.upsert('purchaseOrders', { id: po.id, items: copy });
+      Proc.audit('Classify PO Line', poLabel(po) + ' line ' + (i + 1) + ': ' + sel.value, po.id);
+      ui.toast('Line ' + (i + 1) + ' marked as ' + sel.value);
+    });
     el.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
       const a = b.dataset.a;
       if (a === 'pdf') pdfOut('open');
@@ -278,6 +323,7 @@
       store.upsert('purchaseOrders', { id: po.id, poNumber: v.poNumber.trim(), date: v.date, paymentTerms: v.paymentTerms, status: 'Issued', issuedAt: util.today() });
       domain.refreshOrderStatus(po.id);
       Proc.audit('Issue PO', 'PO ' + v.poNumber + ' — ' + po.supplierName + ' — ' + util.money(po.total), po.id);
+      domain.afterIssue(store.get('purchaseOrders', po.id));
       ui.toast('PO ' + v.poNumber + ' issued. Print it, sign it, and upload the signed copy.');
       router.refresh();
       return;

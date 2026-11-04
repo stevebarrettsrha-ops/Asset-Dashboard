@@ -15,6 +15,10 @@
 (function () {
   'use strict';
   const Proc = window.Proc = window.Proc || {};
+  /** Which app this page is. procurement.html, stores.html and asset-intake.html share the same records. */
+  const APP = Proc.APP = Object.assign({ id: 'procurement', system: 'procurement', name: 'Procurement', defaultUser: 'procurement', profileWhere: 'memos and purchase orders' }, window.PROC_APP || {});
+  APP.audience = APP.system === 'intake' ? 'assets' : APP.system; // who notifications for this app are addressed to
+  Proc.APP_URLS = { procurement: 'procurement.html', stores: 'stores.html', intake: 'asset-intake.html', assets: 'index.html' };
 
   /* ------------------------------------------------------------------ util */
   const util = Proc.util = {};
@@ -184,7 +188,18 @@
       ]
     },
     officers: {},              // username -> { name: 'Ms. Christine Crawford', title: 'Public Procurement Officer' }
-    counters: { req: 1000, po: 0, memo: 0, cmp: 0 },
+    counters: { req: 1000, po: 0, memo: 0, cmp: 0, grn: 0, siv: 0, itm: 0, cnt: 0, rtn: 0, adj: 0 },
+    /** General Stores and Fixed Asset intake */
+    stores: {
+      storeName: 'General Stores',
+      leadDays: 14,             // expected delivery = PO date + this, unless the PO gives a date
+      assetThreshold: 50000,    // a line at or above this unit price is treated as a fixed asset (unless it is a service)
+      expiryWarnDays: 90,
+      locations: ['Main Store', 'Shelf A', 'Shelf B', 'Shelf C', 'Cold Room', 'Bulk Store'],
+      categories: ['Medical Supplies', 'Laboratory Supplies', 'Cleaning & Sanitation', 'Office & Stationery', 'Kitchen / Dietary', 'Linen & Bedding', 'Maintenance & Electrical', 'Personal Protective Equipment', 'IT Consumables', 'General'],
+      assetKeywords: '',        // extra words that mark a line as an asset (comma separated)
+      serviceKeywords: ''       // extra words that mark a line as a service
+    },
     poPrefix: '',              // official PO numbers are typed in (e.g. 1124590); prefix only for system-generated drafts
     updatedAt: 0
   };
@@ -194,8 +209,10 @@
   const STORAGE_KEY = 'procurementData';
   const IDB_NAME = 'ProcurementDB';
   const IDB_VERSION = 2;               // v2 adds the "files" store for documents
-  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks'];
-  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK' };
+  const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks',
+    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications'];
+  const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK',
+    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF' };
   const listeners = {};
   let idbPromise = null;
   let saveTimer = null;
@@ -259,7 +276,8 @@
     }
     const db = emptyDb();
     const now = Date.now();
-    const stamp = r => Object.assign(r, { createdAt: r.createdAt || new Date(now).toISOString(), updatedAt: now });
+    // updatedAt 1: converted old-format records never win over a real edit when copies are merged (e.g. a stale old page still syncing).
+    const stamp = r => Object.assign(r, { createdAt: r.createdAt || new Date(now).toISOString(), updatedAt: 1 });
     const legacyPOs = Array.isArray(raw.purchaseOrders) ? raw.purchaseOrders : [];
     const usedSupplierIds = new Set(legacyPOs.map(p => p && p.supplier && p.supplier.id).filter(Boolean));
     (raw.suppliers || []).forEach(s => {
@@ -365,85 +383,211 @@
       store.save();
       store.emit('change', { coll: 'settings' });
     },
-    /** Next sequential number for a counter key (req, memo, cmp…). */
+    /** Next sequential number for a counter key (req, memo, cmp, grn…). Shared across open tabs so numbers never repeat. */
     next(counter) {
       const c = store.db.settings.counters;
-      c[counter] = (c[counter] || 0) + 1;
-      store.db.settings.updatedAt = Date.now();
+      let shared = {};
+      try { shared = JSON.parse(localStorage.getItem(COUNTER_KEY) || '{}') || {}; } catch (e) { shared = {}; }
+      c[counter] = Math.max(c[counter] || 0, shared[counter] || 0) + 1;
+      shared[counter] = c[counter];
+      try { localStorage.setItem(COUNTER_KEY, JSON.stringify(shared)); } catch (e) { /* the record still carries the counter */ }
       store.save();
       return c[counter];
     },
     save() {
+      pendingSave = true;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(store.flush, 150);
     },
+    /** Write now. Other tabs' saves are merged in first (in the same transaction), so no tab overwrites another's work. */
     flush() {
       clearTimeout(saveTimer);
-      const db = store.db;
-      const p = idb('kv', 'readwrite', st => st.put(db, STORAGE_KEY)).catch(e => console.error('[Proc] IndexedDB save failed', e));
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
-      catch (e) { // localStorage is only a fast cache; IndexedDB is the durable copy.
-        try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* ignore */ }
-      }
-      store.emit('saved');
-      return p;
+      pendingSave = false;
+      return persist();
     },
     load() {
-      let cached = null;
-      try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) cached = JSON.parse(raw); } catch (e) { cached = null; }
+      let cached = null, rawCache = null;
+      try { rawCache = localStorage.getItem(STORAGE_KEY); if (rawCache) cached = JSON.parse(rawCache); } catch (e) { cached = null; }
+      // Keep the original once, before the old page's data is converted.
+      if (cached && !(cached.schemaVersion >= 2)) { try { if (!localStorage.getItem(STORAGE_KEY + '_v1_backup')) localStorage.setItem(STORAGE_KEY + '_v1_backup', rawCache); } catch (e) { /* IndexedDB copy below */ } }
       store.db = migrate(cached);
-      store.ready = idb('kv', 'readonly', st => st.get(STORAGE_KEY)).then(durable => {
-        if (durable && (!cached || (durable.schemaVersion || 1) >= (cached.schemaVersion || 1))) {
-          const fromIdb = migrate(durable);
-          const newest = latestStamp(fromIdb) >= latestStamp(store.db) ? fromIdb : store.db;
-          store.db = newest;
+      store.ready = idb('kv', 'readonly', st => st.get(STORAGE_KEY)).then(async durable => {
+        if (durable && !(durable.schemaVersion >= 2)) await idb('kv', 'readwrite', st => st.put(durable, STORAGE_KEY + '_v1_backup')).catch(() => {});
+        if (durable) {
+          // Merge the database copy and the browser cache record by record (newest wins) rather than choosing one.
+          const base = migrate(durable);
+          if (cached) mergeInto(base, store.db);
+          store.db = base;
         }
+        lastSeenSavedAt = store.db._savedAt || 0;
         if (store.db.migratedFrom === 1) { delete store.db.migratedFrom; store.db._migratedAt = Date.now(); }
-        store.flush();
+        await store.flush();
         store.emit('change', { coll: '*', action: 'load' });
-      }).catch(e => { console.warn('[Proc] IndexedDB unavailable; using browser cache only', e); });
+      }).catch(e => { console.warn('[Proc] IndexedDB unavailable; using browser cache only', e); idbBroken = true; });
       return store.ready;
     },
     exportJSON() { return JSON.stringify({ version: '2.0', type: 'procurement', exportedAt: new Date().toISOString(), data: store.db }, null, 1); },
-    /** Merge another copy of the data (backup file or Drive). Newest record wins. */
+    /** Merge another copy of the data (backup file or Drive). Newest record wins; deletions travel as tombstones. */
     merge(other) {
-      const incoming = migrate(util.clone(other && other.data ? other.data : other));
-      let changed = 0;
-      COLLECTIONS.forEach(c => {
-        const local = store.db[c];
-        const byId = new Map(local.map(r => [r.id, r]));
-        const tomb = store.db.tombstones[c] || {};
-        (incoming[c] || []).forEach(r => {
-          if (!r || !r.id) return;
-          if (tomb[r.id] && tomb[r.id] >= (r.updatedAt || 0)) return;
-          const mine = byId.get(r.id);
-          if (!mine) { local.push(r); byId.set(r.id, r); changed++; }
-          else if ((r.updatedAt || 0) > (mine.updatedAt || 0)) { Object.keys(mine).forEach(k => delete mine[k]); Object.assign(mine, r); changed++; }
-        });
-        const theirTomb = (incoming.tombstones || {})[c] || {};
-        Object.keys(theirTomb).forEach(id => {
-          const mine = byId.get(id);
-          if (mine && theirTomb[id] >= (mine.updatedAt || 0)) { local.splice(local.indexOf(mine), 1); changed++; }
-          tomb[id] = Math.max(tomb[id] || 0, theirTomb[id]);
-        });
-        store.db.tombstones[c] = tomb;
-      });
-      if ((incoming.settings.updatedAt || 0) > (store.db.settings.updatedAt || 0)) {
-        const officers = Object.assign({}, incoming.settings.officers, store.db.settings.officers);
-        store.db.settings = incoming.settings; store.db.settings.officers = officers; changed++;
-      }
-      ['req', 'po', 'memo', 'cmp'].forEach(k => {
-        const a = store.db.settings.counters[k] || 0, b = (incoming.settings.counters || {})[k] || 0;
-        if (b > a) { store.db.settings.counters[k] = b; changed++; }
-      });
-      const seen = new Set(store.db.auditLog.map(a => a.timestamp + '|' + a.action + '|' + a.user));
-      (incoming.auditLog || []).forEach(a => { const k = a.timestamp + '|' + a.action + '|' + a.user; if (!seen.has(k)) { store.db.auditLog.push(a); seen.add(k); changed++; } });
-      store.db.auditLog.sort((x, y) => (y.timestamp > x.timestamp ? 1 : -1));
-      if (store.db.auditLog.length > 3000) store.db.auditLog.length = 3000;
+      const changed = mergeInto(store.db, migrate(util.clone(other && other.data ? other.data : other)));
       if (changed) { store.save(); store.emit('change', { coll: '*', action: 'merge' }); }
       return changed;
+    },
+    /** Daily copies of the data kept on this computer (last 14 days). */
+    snapshots: {
+      async list() { const keys = await idb('kv', 'readonly', st => st.getAllKeys()).catch(() => []); return (keys || []).filter(k => /^snapshot-\d{4}-\d{2}-\d{2}$/.test(k)).map(k => k.slice(9)).sort().reverse(); },
+      get(day) { return idb('kv', 'readonly', st => st.get('snapshot-' + day)); },
+      async restore(day) { const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day); return store.merge(d); },
+      /** Records in the copy that were deleted here since (blocked by a newer deletion mark). */
+      async deleted(day) {
+        const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day);
+        const copy = migrate(util.clone(d)), out = {};
+        COLLECTIONS.forEach(c => {
+          if (c === 'notifications') return;
+          const here = new Set((store.db[c] || []).map(r => r.id)), tomb = (store.db.tombstones || {})[c] || {};
+          const gone = (copy[c] || []).filter(r => r && r.id && !here.has(r.id) && tomb[r.id]);
+          if (gone.length) out[c] = gone;
+        });
+        return out;
+      },
+      /** Bring back records deleted since the copy was made (they are re-saved as new edits so the undelete travels to other computers). */
+      async undelete(day, colls) {
+        const found = await store.snapshots.deleted(day); let n = 0; const now = Date.now();
+        Object.keys(found).forEach(c => {
+          if (colls && colls.indexOf(c) < 0) return;
+          found[c].forEach(r => {
+            if (store.db.tombstones[c]) delete store.db.tombstones[c][r.id];
+            r.updatedAt = now; r.updatedBy = Proc.auth.userName(); delete r._deleted;
+            (store.db[c] = store.db[c] || []).push(r); n++;
+          });
+        });
+        if (n) { store.save(); store.emit('change', { coll: '*', action: 'merge' }); }
+        return n;
+      },
+      async download(day) { const d = await store.snapshots.get(day); if (!d) throw new Error('No copy for ' + day); util.download(new Blob([JSON.stringify({ version: '2.0', type: 'procurement', exportedAt: day, data: d })], { type: 'application/json' }), 'procurement-backup-' + day + '.json'); }
     }
   };
+
+  /* ---------------- persistence helpers */
+  const COUNTER_KEY = 'procurementCounters';
+  const TAB_ID = util.uid('TAB');
+  let pendingSave = false, lastSeenSavedAt = 0, idbBroken = false, lastSnapshotDay = '', saveErrorShownAt = 0;
+  let channel = null;
+  try { channel = new BroadcastChannel('procurementData'); } catch (e) { channel = null; }
+
+  /** Merge `incoming` (an already-migrated dataset) into `target`. Returns the number of changes. */
+  function mergeInto(target, incoming) {
+    let changed = 0;
+    target.tombstones = target.tombstones || {};
+    COLLECTIONS.forEach(c => {
+      const local = target[c] = target[c] || [];
+      const byId = new Map(local.map(r => [r.id, r]));
+      const tomb = target.tombstones[c] || {};
+      (incoming[c] || []).forEach(r => {
+        if (!r || !r.id) return;
+        if (tomb[r.id] && tomb[r.id] >= (r.updatedAt || 0)) return;
+        const mine = byId.get(r.id);
+        if (!mine) { local.push(r); byId.set(r.id, r); changed++; }
+        else if ((r.updatedAt || 0) > (mine.updatedAt || 0)) { Object.keys(mine).forEach(k => delete mine[k]); Object.assign(mine, r); changed++; }
+      });
+      const theirTomb = (incoming.tombstones || {})[c] || {};
+      Object.keys(theirTomb).forEach(id => {
+        const mine = byId.get(id);
+        if (mine && theirTomb[id] >= (mine.updatedAt || 0)) { local.splice(local.indexOf(mine), 1); changed++; }
+        tomb[id] = Math.max(tomb[id] || 0, theirTomb[id]);
+      });
+      target.tombstones[c] = tomb;
+    });
+    const inS = incoming.settings || {}, myS = target.settings = target.settings || {};
+    if ((inS.updatedAt || 0) > (myS.updatedAt || 0)) {
+      const officers = Object.assign({}, inS.officers, myS.officers), counters = Object.assign({}, myS.counters);
+      target.settings = Object.assign({}, inS, { officers, counters }); changed++;
+    } else if (inS.officers) {
+      Object.keys(inS.officers).forEach(u => { if (!(myS.officers || {})[u]) { myS.officers = Object.assign({}, myS.officers, { [u]: inS.officers[u] }); changed++; } });
+    }
+    const tc = target.settings.counters = target.settings.counters || {};
+    Object.keys(inS.counters || {}).forEach(k => { if ((inS.counters[k] || 0) > (tc[k] || 0)) { tc[k] = inS.counters[k]; changed++; } });
+    target.auditLog = target.auditLog || [];
+    const seen = new Set(target.auditLog.map(a => a.timestamp + '|' + a.action + '|' + a.user));
+    (incoming.auditLog || []).forEach(a => { const k = a.timestamp + '|' + a.action + '|' + a.user; if (!seen.has(k)) { target.auditLog.push(a); seen.add(k); changed++; } });
+    target.auditLog.sort((x, y) => (y.timestamp > x.timestamp ? 1 : -1));
+    if (target.auditLog.length > 3000) target.auditLog.length = 3000;
+    // Other top-level lists (import history…): keep the union by id.
+    ['importLog'].forEach(k => {
+      if (!Array.isArray(incoming[k])) return;
+      const mine = target[k] = Array.isArray(target[k]) ? target[k] : [];
+      const ids = new Set(mine.map(e => e.id));
+      incoming[k].forEach(e => { if (e && e.id && !ids.has(e.id)) { mine.push(e); changed++; } });
+    });
+    return changed;
+  }
+
+  async function persist() {
+    let idbOk = false;
+    if (!idbBroken) {
+      try {
+        const db = await openIDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('kv', 'readwrite'); const st = tx.objectStore('kv');
+          const g = st.get(STORAGE_KEY);
+          g.onsuccess = () => {
+            const theirs = g.result;
+            // Another tab saved since we last looked: take its records first.
+            if (theirs && theirs._writer !== TAB_ID && (theirs._savedAt || 0) > lastSeenSavedAt) {
+              if (mergeInto(store.db, migrate(theirs))) setTimeout(() => store.emit('change', { coll: '*', action: 'tab-merge' }), 0);
+            }
+            store.db._savedAt = Date.now(); store.db._writer = TAB_ID; lastSeenSavedAt = store.db._savedAt;
+            st.put(store.db, STORAGE_KEY);
+            const day = util.today();
+            if (lastSnapshotDay !== day) { st.put(store.db, 'snapshot-' + day); lastSnapshotDay = day; pruneSnapshots(st); }
+          };
+          tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+        });
+        idbOk = true;
+      } catch (e) { console.error('[Proc] IndexedDB save failed', e); }
+    }
+    let lsOk = false;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store.db)); lsOk = true; }
+    catch (e) {
+      // The browser cache is only a convenience — drop it only when the database copy is safely written.
+      if (idbOk) { try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* ignore */ } }
+    }
+    if (!idbOk && !lsOk) {
+      store.emit('saveError', new Error('This computer could not save the latest changes (browser storage is full or blocked).'));
+      return false;
+    }
+    if (channel) { try { channel.postMessage({ type: 'saved', tab: TAB_ID, at: store.db._savedAt }); } catch (e) { /* ignore */ } }
+    store.emit('saved');
+    return true;
+  }
+  function pruneSnapshots(st) {
+    const r = st.getAllKeys();
+    r.onsuccess = () => { (r.result || []).filter(k => /^snapshot-\d{4}-\d{2}-\d{2}$/.test(k)).sort().reverse().slice(14).forEach(k => st.delete(k)); };
+  }
+  /** Another tab saved: pull its records in. */
+  const pullFromOtherTab = util.debounce(async () => {
+    try {
+      const theirs = await idb('kv', 'readonly', st => st.get(STORAGE_KEY));
+      if (!theirs || theirs._writer === TAB_ID || (theirs._savedAt || 0) <= lastSeenSavedAt) return;
+      const n = mergeInto(store.db, migrate(theirs));
+      lastSeenSavedAt = theirs._savedAt || lastSeenSavedAt;
+      if (n) store.emit('change', { coll: '*', action: 'tab-merge' });
+    } catch (e) { /* next save merges anyway */ }
+  }, 250);
+  if (channel) channel.onmessage = e => { if (e.data && e.data.type === 'saved' && e.data.tab !== TAB_ID) pullFromOtherTab(); };
+  window.addEventListener('storage', e => { if (e.key === STORAGE_KEY) pullFromOtherTab(); });
+  // Never lose the last change when the page is closed, reloaded or hidden.
+  const flushIfPending = () => {
+    if (!pendingSave) return;
+    // The database write is asynchronous and may not finish before the page closes, so write the
+    // browser cache straight away too (it is merged back in on the next load).
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store.db)); } catch (e) { /* full: the database write below still runs */ }
+    store.flush();
+  };
+  window.addEventListener('pagehide', flushIfPending);
+  window.addEventListener('beforeunload', flushIfPending);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushIfPending(); });
+
   function latestStamp(db) {
     let m = (db.settings && db.settings.updatedAt) || 0;
     COLLECTIONS.forEach(c => (db[c] || []).forEach(r => { if ((r.updatedAt || 0) > m) m = r.updatedAt; }));
@@ -741,7 +885,7 @@
   domain.refreshOrderStatus = function (poId) {
     const po = store.get('purchaseOrders', poId);
     if (!po || po.status === 'Cancelled' || po.status === 'Draft') return po;
-    const dels = store.filter('deliveries', d => d.poId === poId);
+    const dels = store.filter('deliveries', d => d.poId === poId && !d.voided);
     const invs = store.filter('invoices', i => i.poId === poId);
     let status = 'Issued';
     if (dels.length) status = dels.some(d => d.partial) && !dels.some(d => d.final) ? 'Partially Delivered' : 'Delivered';
@@ -775,6 +919,289 @@
     const u = Proc.auth.user;
     const prof = (u && store.settings().officers[u.username]) || {};
     return { name: prof.name || (u ? u.displayName : 'Procurement Officer'), title: prof.title || 'Public Procurement Officer', org: store.settings().org.hospital, phone: prof.phone || '', email: prof.email || (u && u.email) || '' };
+  };
+
+  /* ========================================================= supply chain
+     Shared by Procurement, General Stores and Fixed Asset intake.
+     A PO line is Stock (consumable, goes into the store), Asset (fixed asset:
+     furniture, machinery, tools, equipment…) or Service (nothing to receive). */
+  const ASSET_WORDS = 'chair|chairs|desk|desks|table|tables|cabinet|cabinets|cupboard|shelving|locker|lockers|bed|beds|bedside|sofa|bench|stool|trolley|trolleys|wheelchair|wheelchairs|stretcher|stretchers|crib|cot|incubator|incubators|resuscitaire|ventilator|ventilators|defibrillator|defibrillators|ecg machine|ctg machine|ctg|abg machine|ultrasound|x-ray machine|autoclave|steriliser|sterilizer|microscope|centrifuge|analyser|analyzer|machine|machines|equipment|computer|computers|laptop|laptops|desktop|printer|printers|photocopier|scanner|projector|television|camera|cctv|nvr|nvrs|dvr|server|router|ups|generator|refrigerator|fridge|freezer|air condition|air-condition|air conditioning|airconditioning|a/c unit|ac unit|ac units|condensing unit|water cooler|water coolers|wall fan|wall fans|industrial fan|stand fan|ceiling fan|stove|oven|microwave|washing machine|dryer|vehicle|motor vehicle|pump|compressor|drill|grinder|chainsaw|welder|welding machine|ladder|toolkit|tool set|tool box|toolbox|weighing scale|suction|infusion pump|oxygen concentrator|telephone set|two-way radio|mattress|mattresses|filing cabinet|emergency cart|crash cart|medication trolley|hospital bed|railed bed';
+  const SERVICE_WORDS = 'repair|repairs|servicing|service|maintenance|rental|rent|hire|collection|disposal|removal|installation|install|labour|labor|fabrication|renovation|construction|treatment|consultancy|training|transport|courier|uninstall|recommission|leak check|re-install|reinstall|calibration|inspection|cleaning service|adjustment|adjustments|adjustemnts|modification|remove and replace|pest control|security service';
+  function wordRe(list, extra) {
+    const words = list.split('|').concat(String(extra || '').split(',').map(w => w.trim()).filter(Boolean));
+    return new RegExp('\\b(' + words.map(w => w.replace(/[.*+?^${}()[\]\\/]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|') + ')\\b', 'i');
+  }
+  const STOCK_WORDS = 'milk|food|foods|rice|flour|sugar|oil|juice|water|bread|chicken|meat|fish|vegetable|vegetables|fruit|fruits|grocery|groceries|ground provision|ground provisions|cereal|oats|beans|soup|ketchup|macaroni|powder|soap|detergent|bleach|disinfectant|sanitizer|sanitiser|cleaner|deodorizer|chemical|chemicals|paper|tissue|towel|towels|bed roll|bed rolls|napkin|napkins|cup|cups|plate|plates|spoon|spoons|fork|forks|foil|lunch box|glove|gloves|syringe|syringes|needle|needles|gauze|bandage|bandages|suture|sutures|catheter|catheters|cannula|cannulas|tube|tubes|tubing|swab|swabs|mask|masks|gown|gowns|reagent|reagents|test kit|test kits|strip|strips|cartridge|cartridges|toner|ink|pen|pens|pencils|stationery|envelope|envelopes|folder|folders|battery|batteries|bulb|bulbs|lamp|lamps|oxygen|gas|diesel|fuel|medication|medicine|drug|drugs|tablet|tablets|capsule|capsules|vaccine|vaccines|sundries|supplies|linen|sheets|pillow|pillowcase|uniform|uniforms|log book|logbook|card|cards|form|forms|tape|label|labels|filter|filters|spare part|spare parts|slide|slides|pipette|pipettes|fluid|fluids|calibrant|solution|solutions|scrub|brush|brushes|airway|tips|sponge|sponges|badge|badges|handle|handles|cushion|cushions|hose|hoses|refrigerant|lock|locks|hinge|hinges|caster|casters|wheel|wheels|replacement|refill|refills|electrode|electrodes|cuff|cuffs|diathermy pencil|drape|drapes|container|containers|bag|bags|bin liner|bin liners|calico|fabric|material|cement|paint|plumbing|fitting|fittings|screws|nails|wire|cable';
+  const QTY_ITEM = /\d+(\.\d+)?\s*(ea|each|c\/s|cs|case|cases|gal|gals|lbs?|pk|pks|pack|packs|box|boxes|bx|kg|rolls?|reams?|bags?|doz|btl|bottles?|units?|pcs?|pieces?|tins?|cans?)\b/gi;
+  /** 'Stock' | 'Asset' | 'Service' for one PO line. A line's own itemType (set by an officer) always wins. */
+  domain.classifyLine = function (line, po) {
+    line = line || {};
+    if (line.itemType) return line.itemType;
+    const S = store.settings().stores || {};
+    const d = String(line.description || '') + ' ' + (po && (!po.items || po.items.length <= 1) ? String(po.description || '') : '');
+    if ((po && (po.type === 'Services' || po.type === 'Works')) || wordRe(SERVICE_WORDS, S.serviceKeywords).test(d)) return 'Service';
+    const assetRe = wordRe(ASSET_WORDS, S.assetKeywords), stockRe = wordRe(STOCK_WORDS);
+    // Decide by the main noun: "microscope slides" are slides; "battery for ventilator" is a battery;
+    // "bed rolls" are bed rolls (the longer match wins when both start together).
+    const head = text => {
+      const am = text.match(assetRe), sm = text.match(stockRe);
+      if (am && sm) {
+        if (am.index === sm.index) return sm[0].length >= am[0].length ? 'Stock' : 'Asset';
+        const f = am.index < sm.index ? am : sm, g = f === am ? sm : am;
+        const between = text.slice(f.index + f[0].length, g.index);
+        return (/\b(for|of|to suit|compatible with|from)\b/i.test(between) ? f : g) === am ? 'Asset' : 'Stock';
+      }
+      return am ? 'Asset' : sm ? 'Stock' : '';
+    };
+    const many = (d.match(QTY_ITEM) || []).length >= 2 || (d.match(/,/g) || []).length >= 2;
+    // A list of items in one line: judge by the first item, then the whole line.
+    const byWords = (many ? head(d.split(/,\s*/)[0]) : '') || head(d);
+    if (byWords) return byWords;
+    // Price rule only for a single countable item — not a bulk order written as one "lot" line.
+    const unit = String(line.unit || '').toLowerCase();
+    if (!many && ['lot', 'job', 'month', 'case', 'cs', 'c/s', 'box', 'pk', 'gal', 'kg', 'lb', 'lbs', 'ream', 'roll', 'bag', 'doz', 'litre', 'drum'].indexOf(unit) < 0 &&
+        util.num(line.unitPrice) >= util.num(S.assetThreshold || 50000)) return 'Asset';
+    return 'Stock';
+  };
+  domain.ITEM_TYPES = ['Stock', 'Asset', 'Service'];
+  /** PO lines, with a single fallback line for POs that only have a total. */
+  domain.poLines = function (po) {
+    if (po && po.items && po.items.length) return po.items;
+    return [{ description: (po && po.description) || 'Goods / services as per PO', unit: 'lot', qty: 1, unitPrice: po ? (po.subtotal || po.total || 0) : 0, total: po ? (po.subtotal || po.total || 0) : 0 }];
+  };
+  const DONE_STATUSES = ['Delivered', 'Invoiced', 'Paid', 'Closed'];
+  /** Quantity received so far on each line of a PO (array, same order as poLines). */
+  domain.lineReceived = function (po) {
+    const lines = domain.poLines(po);
+    const got = lines.map(() => 0);
+    const dels = store.filter('deliveries', d => d.poId === po.id && !d.voided);
+    if (!dels.length) {
+      // Imported history / older POs with no delivery records: treat finished POs as fully received.
+      if (DONE_STATUSES.indexOf(po.status) >= 0 || po.historic) return lines.map(l => util.num(l.qty) || 1);
+      return got;
+    }
+    dels.forEach(d => {
+      const items = d.items || [];
+      if (!items.length) { if (d.final || !d.partial) lines.forEach((l, i) => { got[i] = Math.max(got[i], util.num(l.qty) || 1); }); return; }
+      items.forEach(it => {
+        let i = typeof it.lineIndex === 'number' ? it.lineIndex : -1;
+        if (i < 0) i = lines.findIndex((l, j) => String(l.description || '').trim().toLowerCase() === String(it.description || '').trim().toLowerCase() && got[j] < (util.num(l.qty) || 1));
+        if (i < 0) i = lines.findIndex(l => String(l.description || '').trim().toLowerCase() === String(it.description || '').trim().toLowerCase());
+        if (i >= 0) got[i] += util.num(it.qtyReceived !== undefined ? it.qtyReceived : it.qty);
+      });
+    });
+    return got;
+  };
+  /** Expected delivery date for a PO. */
+  domain.expectedDate = function (po) {
+    if (po.expectedDate) return po.expectedDate;
+    return util.addDays(po.issuedAt || po.date || util.today(), util.num((store.settings().stores || {}).leadDays || 14));
+  };
+  /**
+   * Every PO line still to be delivered (issued, not cancelled), with what has arrived.
+   * opts: { type: 'Stock'|'Asset'|'Service'|'' , includeServices: false, poId }
+   * Row: { po, line, index, type, ordered, received, outstanding, expected, overdue, daysLate }
+   */
+  domain.inbound = function (opts) {
+    opts = opts || {};
+    const out = []; const today = util.today();
+    store.list('purchaseOrders').forEach(po => {
+      if (opts.poId && po.id !== opts.poId) return;
+      if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled' || po.historic) return;
+      if (!opts.poId && DONE_STATUSES.indexOf(po.status) >= 0 && !store.find('deliveries', d => d.poId === po.id)) return;
+      const lines = domain.poLines(po); const got = domain.lineReceived(po); const exp = domain.expectedDate(po);
+      lines.forEach((line, i) => {
+        const type = domain.classifyLine(line, po);
+        if (type === 'Service' && !opts.includeServices && opts.type !== 'Service') return;
+        if (opts.type && type !== opts.type) return;
+        const ordered = util.num(line.qty) || 1, received = got[i] || 0, outstanding = Math.max(0, util.round2(ordered - received));
+        if (!outstanding && !opts.includeComplete) return;
+        const daysLate = util.daysBetween(exp, today);
+        out.push({ po, line, index: i, type, ordered, received, outstanding, expected: exp, overdue: outstanding > 0 && daysLate > 0, daysLate: Math.max(0, daysLate || 0) });
+      });
+    });
+    return out;
+  };
+  /** Fixed-asset lines: ordered, received, registered (assetRegistrations). Row adds { registered, toRegister }. */
+  domain.assetLines = function () {
+    const regs = store.list('assetRegistrations');
+    const out = [];
+    store.list('purchaseOrders').forEach(po => {
+      if (!po.poNumber || po.status === 'Draft' || po.status === 'Cancelled') return;
+      // History from before this system (no delivery records but already delivered) is not re-registered.
+      if (po.historic || (DONE_STATUSES.indexOf(po.status) >= 0 && !store.find('deliveries', d => d.poId === po.id))) return;
+      const lines = domain.poLines(po); let got = null;
+      lines.forEach((line, i) => {
+        if (domain.classifyLine(line, po) !== 'Asset') return;
+        got = got || domain.lineReceived(po);
+        const ordered = util.num(line.qty) || 1, received = got[i] || 0;
+        const registered = util.sum(regs.filter(r => r.poId === po.id && r.lineIndex === i), r => r.qty);
+        out.push({ po, line, index: i, ordered, received, registered, outstanding: Math.max(0, ordered - received), toRegister: Math.max(0, received - registered), expected: domain.expectedDate(po) });
+      });
+    });
+    return out;
+  };
+
+  /** Stores put goods into stock (GRN by Stores, or put-away of a delivery Procurement recorded). Tells Procurement. */
+  domain.afterStocked = function (delivery, moves) {
+    const po = store.get('purchaseOrders', delivery.poId); if (!po) return;
+    moves = (moves || store.filter('stockMoves', m => m.grnId === delivery.id && m.type === 'Receipt'));
+    if (!moves.length) return;
+    const text = moves.slice(0, 3).map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' → ' + m.location : '')).join('; ') + (moves.length > 3 ? '…' : '');
+    Proc.notify({ to: ['procurement'], type: 'stocked', poId: po.id, title: 'Put into stock — PO ' + po.poNumber + ' · ' + (po.supplierName || ''), body: 'GRN ' + (delivery.grn || '') + ' · ' + text, link: { app: 'procurement', route: '#/orders/' + po.id } });
+  };
+  /** The Fixed Asset Officer registered assets from a PO line. Tells Procurement (and Stores). */
+  domain.afterRegister = function (reg) {
+    const po = store.get('purchaseOrders', reg.poId); if (!po) return;
+    const codes = (reg.assetCodes || []).filter(Boolean);
+    Proc.notify({ to: ['procurement', 'stores'], type: 'asset-registered', poId: po.id, title: util.num(reg.qty) + ' ' + util.plural(util.num(reg.qty), 'asset') + ' registered — PO ' + po.poNumber, body: (reg.description || '') + (codes.length ? ' · ' + codes.slice(0, 4).join(', ') + (codes.length > 4 ? '…' : '') : '') + (reg.department ? ' · ' + reg.department : ''), link: { app: 'procurement', route: '#/orders/' + po.id } });
+  };
+  /**
+   * Everything that has happened to a PO after it was issued, newest last — for Procurement's PO page.
+   * Event: { at (ISO date), kind: 'issued'|'delivered'|'stocked'|'rejected'|'returned'|'registered'|'invoiced'|'paid', title, detail, by, app, link }
+   */
+  domain.poTrail = function (po) {
+    const ev = [];
+    if (po.poNumber && po.status !== 'Draft') ev.push({ at: po.issuedAt || po.date, kind: 'issued', title: 'PO ' + po.poNumber + ' issued', detail: (po.supplierName || '') + ' · ' + util.money(po.total), by: po.createdBy || '' });
+    store.filter('deliveries', d => d.poId === po.id).forEach(d => {
+      const got = (d.items || []).filter(i => util.num(i.qtyReceived) > 0);
+      ev.push({ at: d.date, kind: d.voided ? 'rejected' : 'delivered', title: (d.voided ? 'GRN voided — ' : 'Delivered — ') + (d.grn || 'delivery'), detail: (got.length ? got.map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + bareName(i.description)).slice(0, 4).join('; ') + (got.length > 4 ? '…' : '') : (d.final ? 'Full delivery' : 'Part delivery')) + (d.rejectedQty ? ' · ' + d.rejectedQty + ' rejected' : '') + (d.condition ? ' · ' + d.condition : ''), by: d.receivedBy || d.createdBy || '', app: d.recordedIn === 'procurement' ? 'Procurement' : 'General Stores', link: d.recordedIn === 'procurement' ? '' : (Proc.APP_URLS.stores + '#/grn/' + d.id) });
+      const moves = d.voided ? [] : store.filter('stockMoves', m => m.grnId === d.id && m.type === 'Receipt');
+      if (d.voided && store.find('stockMoves', m => m.grnId === d.id)) ev.push({ at: d.voidedAt ? String(d.voidedAt).slice(0, 10) : d.date, kind: 'rejected', title: 'Stock reversed — ' + (d.grn || ''), detail: 'GRN voided; its stock receipts were reversed', by: d.voidedBy || '', app: 'General Stores' });
+      else if (moves.length) ev.push({ at: moves[0].date, kind: 'stocked', title: 'Put into stock', detail: moves.map(m => util.num(m.qty) + ' ' + (m.unit || '') + ' ' + m.itemName + (m.location ? ' (' + m.location + ')' : '')).slice(0, 4).join('; ') + (moves.length > 4 ? '…' : ''), by: moves[0].by || '', app: 'General Stores', link: Proc.APP_URLS.stores + '#/inventory/' + moves[0].itemId });
+      else if (d.recordedIn === 'procurement' && !d.stocked) ev.push({ at: d.date, kind: 'pending', title: 'Waiting for Stores to put away', detail: d.grn || '', by: '', app: 'General Stores' });
+    });
+    store.filter('supplierReturns', r => r.poId === po.id).forEach(r => ev.push({ at: r.date, kind: 'returned', title: 'Returned to supplier — ' + (r.number || ''), detail: (r.items || []).map(i => util.num(i.qty) + ' ' + i.description + (i.reason ? ' (' + i.reason + ')' : '')).join('; ') + ' · ' + (r.status || ''), by: r.createdBy || '', app: 'General Stores' }));
+    store.filter('assetRegistrations', r => r.poId === po.id).forEach(r => ev.push({ at: (r.registeredAt || r.createdAt || '').slice(0, 10), kind: 'registered', title: util.num(r.qty) + ' ' + util.plural(util.num(r.qty), 'asset') + ' registered', detail: (r.description || '') + ((r.assetCodes || []).filter(Boolean).length ? ' · ' + r.assetCodes.filter(Boolean).join(', ') : ' · asset codes to follow') + (r.department ? ' · ' + r.department : ''), by: r.registeredBy || r.createdBy || '', app: 'Fixed Assets', link: Proc.APP_URLS.intake + '#/registered' }));
+    store.filter('invoices', i => i.poId === po.id).forEach(i => {
+      ev.push({ at: i.date, kind: 'invoiced', title: 'Invoice ' + (i.invoiceNumber || ''), detail: util.money(i.total) + ' · ' + (i.status || ''), by: i.createdBy || '' });
+      if (i.status === 'Paid') ev.push({ at: i.paidDate || i.date, kind: 'paid', title: 'Paid — invoice ' + (i.invoiceNumber || ''), detail: util.money(i.paidAmount || i.total) + (i.paymentRef ? ' · ' + i.paymentRef : ''), by: '' });
+    });
+    return ev.filter(e => e.at).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  };
+  /** Per-line status for a PO, for Procurement and Stores: { type, ordered, received, stocked, registered, label } */
+  domain.lineStatus = function (po) {
+    const lines = domain.poLines(po); const got = domain.lineReceived(po);
+    const regs = store.filter('assetRegistrations', r => r.poId === po.id);
+    const dels = store.filter('deliveries', d => d.poId === po.id && !d.voided);
+    return lines.map((l, i) => {
+      const type = domain.classifyLine(l, po), ordered = util.num(l.qty) || 1, received = got[i] || 0;
+      const registered = util.sum(regs.filter(r => r.lineIndex === i), r => r.qty);
+      const stocked = util.sum(dels.filter(d => d.recordedIn !== 'procurement' || d.stocked).map(d => (d.items || []).find(x => x.lineIndex === i)).filter(Boolean), x => x.qtyReceived);
+      let label = 'On order';
+      if (type === 'Service') label = received >= ordered ? 'Completed' : 'Service';
+      else if (received >= ordered) label = type === 'Asset' ? (registered >= received ? 'Registered' : 'Delivered — to register') : (stocked >= received ? 'In stock' : 'Delivered — to put away');
+      else if (received > 0) label = 'Part delivered';
+      return { type, ordered, received, stocked: type === 'Stock' ? stocked : 0, registered, label };
+    });
+  };
+
+  /* ---------------- stock ledger */
+  domain.stockKey = s => String(s || '').toLowerCase().replace(/^\d+(\.\d+)?\s*(ea|each|pk|pks|pcs|box|boxes|cs|c\/s|case|cases|lbs?|kg|gal|lt|ltr|litres?|rolls?|rms?|reams?|bags?|doz|btl|bottles?)\b\s*[-–:]?\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  domain.findStockItem = function (text) {
+    const t = String(text || '').trim(); if (!t) return null;
+    const byCode = store.find('stockItems', i => i.code && i.code.toLowerCase() === t.toLowerCase());
+    if (byCode) return byCode;
+    const k = domain.stockKey(t);
+    return store.find('stockItems', i => domain.stockKey(i.name) === k || (i.aliases || []).some(a => domain.stockKey(a) === k)) || null;
+  };
+  /** Find a stock item by code/name, or create it (code STK-0001…). extra: { unit, category, location, supplierId, reorderLevel… } */
+  domain.ensureStockItem = function (name, extra, opts) {
+    const found = domain.findStockItem(name);
+    if (found) return found;
+    const n = store.next('itm');
+    return store.upsert('stockItems', Object.assign({ code: 'STK-' + String(n).padStart(4, '0'), name: String(name || 'Item').trim(), unit: 'each', category: 'General', location: '',
+      reorderLevel: 0, reorderQty: 0, maxLevel: 0, trackExpiry: false, onHand: 0, avgCost: 0, value: 0, batches: [], status: 'Active' }, extra || {}), opts);
+  };
+  /**
+   * Post one stock movement and update the item (balance, weighted average cost, batches).
+   * move: { itemId, type: 'Receipt'|'Issue'|'Adjustment'|'Return to supplier'|'Transfer'|'Opening'|'Write-off', qty (+ in / − out),
+   *         unitCost, batchNo, expiryDate, date, ref, poId, grnId, issueId, department, supplierId, notes }
+   * Issues consume batches first-expiry-first-out. Throws if stock would go below zero (unless opts.allowNegative).
+   */
+  domain.postStock = function (move, opts) {
+    opts = opts || {};
+    const item = store.get('stockItems', move.itemId);
+    if (!item) throw new Error('Stock item not found');
+    const qty = util.num(move.qty); if (!qty) throw new Error('Quantity is zero');
+    const before = util.num(item.onHand);
+    const after = util.round2(before + qty);
+    if (after < 0 && !opts.allowNegative) throw new Error('Only ' + before + ' ' + (item.unit || '') + ' of ' + item.name + ' in stock');
+    let avg = util.num(item.avgCost);
+    const cost = move.unitCost !== undefined && move.unitCost !== '' ? util.num(move.unitCost) : avg;
+    if (qty > 0 && (move.type === 'Receipt' || move.type === 'Opening' || (move.type === 'Adjustment' && move.unitCost !== undefined))) avg = after > 0 ? util.round2(((Math.max(before, 0) * avg) + qty * cost) / Math.max(after, qty)) : cost;
+    let batches = (item.batches || []).map(b => Object.assign({}, b));
+    const used = [];
+    if (qty > 0 && (move.batchNo || move.expiryDate)) {
+      const b = batches.find(x => (x.batchNo || '') === (move.batchNo || '') && (x.expiryDate || '') === (move.expiryDate || ''));
+      if (b) b.qty = util.round2(b.qty + qty); else batches.push({ batchNo: move.batchNo || '', expiryDate: move.expiryDate || '', qty, receivedDate: move.date || util.today() });
+    } else if (qty < 0 && batches.length) {
+      // First-expiry-first-out. Issues and transfers never hand out expired batches (write-offs and
+      // count adjustments may). Stock that is not tracked by batch is used after the dated batches.
+      let need = -qty;
+      const today = util.today();
+      const clearing = move.type === 'Write-off' || move.type === 'Adjustment' || move.type === 'Return to supplier';
+      const usable = b => b.qty > 0 && (clearing || (move.batchNo && b.batchNo === move.batchNo) || !b.expiryDate || b.expiryDate >= today);
+      const unbatched = Math.max(0, util.round2(before - util.sum(batches, b => b.qty)));
+      const order = batches.filter(usable).sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'));
+      if (move.batchNo) order.sort((a, b) => (a.batchNo === move.batchNo ? -1 : b.batchNo === move.batchNo ? 1 : 0));
+      order.forEach(b => { if (need <= 0) return; const take = Math.min(b.qty, need); b.qty = util.round2(b.qty - take); need = util.round2(need - take); used.push({ batchNo: b.batchNo, expiryDate: b.expiryDate, qty: take }); });
+      if (need > 0) need = util.round2(need - Math.min(unbatched, need));
+      if (need > 0 && !opts.allowNegative) {
+        const expired = util.sum(batches.filter(b => b.qty > 0 && b.expiryDate && b.expiryDate < today), b => b.qty);
+        throw new Error('Only ' + util.round2(-qty - need) + ' ' + (item.unit || '') + ' of ' + item.name + ' can be issued' + (expired ? ' — ' + expired + ' more are in expired batches (write them off)' : ''));
+      }
+      batches = batches.filter(b => b.qty > 0);
+    }
+    const rec = store.upsert('stockMoves', Object.assign({ date: util.today(), by: auth.userName() }, move, { itemId: item.id, itemCode: item.code, itemName: item.name, unit: item.unit, qty, unitCost: cost, value: util.round2(qty * cost), balanceAfter: after, batches: used.length ? used : undefined }), { silent: true });
+    const patch = { id: item.id, onHand: after, avgCost: avg, value: util.round2(after * avg), batches };
+    if (qty > 0 && move.type === 'Receipt') { patch.lastReceived = move.date || util.today(); patch.lastCost = cost; if (move.supplierId) patch.supplierIds = Array.from(new Set((item.supplierIds || []).concat([move.supplierId]))); }
+    if (qty < 0 && move.type === 'Issue') patch.lastIssued = move.date || util.today();
+    store.upsert('stockItems', patch, opts.silent ? { silent: true } : undefined);
+    return rec;
+  };
+  domain.stockState = function (item) {
+    const on = util.num(item.onHand);
+    if (on <= 0) return { label: 'Out of stock', tone: 'danger' };
+    if (util.num(item.reorderLevel) && on <= util.num(item.reorderLevel)) return { label: 'Reorder', tone: 'warning' };
+    if (util.num(item.maxLevel) && on > util.num(item.maxLevel)) return { label: 'Overstocked', tone: 'info' };
+    return { label: 'In stock', tone: 'success' };
+  };
+
+  /* ---------------- notifications */
+  /** Proc.notify({ to: ['procurement'|'stores'|'assets'], type, title, body, link: { app: 'procurement'|'stores'|'intake'|'assets', route: '#/…' }, poId }) */
+  Proc.notify = function (n) {
+    return store.upsert('notifications', Object.assign({ to: [], type: 'info', title: '', body: '', link: null, at: Date.now(), from: APP.audience, fromUser: auth.userName(), readBy: {} }, n));
+  };
+  Proc.notifications = {
+    mine() { return store.list('notifications').filter(n => (n.to || []).indexOf(APP.audience) >= 0).sort((a, b) => (b.at || 0) - (a.at || 0)); },
+    unread() { const u = auth.user ? auth.user.username : ''; return Proc.notifications.mine().filter(n => !(n.readBy || {})[u]); },
+    markRead(ids) { const u = auth.user ? auth.user.username : ''; if (!u) return; ids.forEach(id => { const n = store.get('notifications', id); if (n && !(n.readBy || {})[u]) store.upsert('notifications', { id, readBy: Object.assign({}, n.readBy, { [u]: Date.now() }) }, { silent: true }); }); store.save(); store.emit('change', { coll: 'notifications' }); },
+    href(n) { if (!n.link) return ''; const app = n.link.app; const same = app === APP.id || (app === 'intake' && APP.id === 'intake'); return (same ? '' : (Proc.APP_URLS[app] || '')) + (n.link.route || ''); }
+  };
+  /** Item name without a leading ordered quantity ("100 box - Gloves" → "Gloves"), for sentences that state their own quantity. */
+  const bareName = t => String(t || '').replace(/^\s*\d+(\.\d+)?\s*[a-z\/.]{0,6}\s*[-–:]\s*/i, '');
+  /** After a PO is issued: tell Stores what to expect, and Fixed Assets about any assets. */
+  domain.afterIssue = function (po) {
+    if (!po || !po.poNumber) return;
+    const lines = domain.poLines(po); const types = lines.map(l => domain.classifyLine(l, po));
+    const goods = types.filter(t => t !== 'Service').length; const assets = types.filter(t => t === 'Asset').length;
+    const when = util.date(domain.expectedDate(po));
+    if (goods) Proc.notify({ to: ['stores'], type: 'po-issued', poId: po.id, title: 'PO ' + po.poNumber + ' issued — ' + (po.supplierName || ''), body: goods + ' ' + util.plural(goods, 'line') + ' to receive · ' + util.money(po.total) + ' · expected by ' + when, link: { app: 'stores', route: '#/inbound?po=' + po.id } });
+    if (assets) Proc.notify({ to: ['assets'], type: 'asset-ordered', poId: po.id, title: assets + ' fixed ' + util.plural(assets, 'asset') + ' ordered — PO ' + po.poNumber, body: (po.supplierName || '') + ' · expected by ' + when, link: { app: 'intake', route: '#/onorder?po=' + po.id } });
+  };
+  /** After goods arrive (recorded by Stores or Procurement): tell Procurement, and Fixed Assets for asset lines. */
+  domain.afterDelivery = function (delivery, opts) {
+    opts = opts || {};
+    const po = store.get('purchaseOrders', delivery.poId); if (!po) return;
+    const lines = domain.poLines(po); const got = domain.lineReceived(po);
+    const complete = lines.every((l, i) => (got[i] || 0) >= (util.num(l.qty) || 1));
+    const items = (delivery.items || []).filter(i => util.num(i.qtyReceived) > 0);
+    const summary = items.slice(0, 3).map(i => util.num(i.qtyReceived) + ' ' + (i.unit || '') + ' ' + bareName(i.description)).join('; ') + (items.length > 3 ? '…' : '');
+    if (opts.by !== 'procurement') Proc.notify({ to: ['procurement'], type: 'delivered', poId: po.id, title: (complete ? 'Delivered in full' : 'Part delivery') + ' — PO ' + po.poNumber + ' · ' + (po.supplierName || ''), body: 'GRN ' + (delivery.grn || '') + (summary ? ' · ' + summary : '') + (delivery.rejectedQty ? ' · ' + delivery.rejectedQty + ' rejected' : ''), link: { app: 'procurement', route: '#/orders/' + po.id } });
+    else Proc.notify({ to: ['stores'], type: 'put-away', poId: po.id, title: 'Procurement recorded a delivery — PO ' + po.poNumber, body: 'Put the goods into stock: ' + (summary || po.description || ''), link: { app: 'stores', route: '#/inbound?tab=putaway' } });
+    const assetQty = util.sum(items.filter(i => { const l = typeof i.lineIndex === 'number' ? lines[i.lineIndex] : lines.find(x => x.description === i.description); return l && domain.classifyLine(l, po) === 'Asset'; }), i => i.qtyReceived);
+    if (assetQty) Proc.notify({ to: ['assets'], type: 'asset-delivered', poId: po.id, title: assetQty + ' fixed ' + util.plural(assetQty, 'asset') + ' delivered — PO ' + po.poNumber, body: (po.supplierName || '') + ' · tag and register them in the asset register', link: { app: 'intake', route: '#/register?po=' + po.id } });
   };
 
   /* ------------------------------------------------------------------ ui */
@@ -838,7 +1265,15 @@
     filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
-    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'
+    target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/>',
+    layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    'arrow-down-left': '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>',
+    clipboardCheck: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+    barcode: '<path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/>'
   };
   ui.icon = (name, cls) => '<svg class="i ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || ICONS.file) + '</svg>';
   ui.ICONS = ICONS;
@@ -1172,9 +1607,52 @@
     return '<div class="route">' + route.steps.map((s, i) => '<div class="route-step ' + (s.warn ? 'warn' : '') + '"><div class="n">' + (i + 1) + '</div><div><div class="t">' + util.esc(s.title) + '</div><div class="d">' + util.esc(s.detail || '') + '</div></div></div>').join('') + '</div>';
   };
 
+  /**
+   * Backups & recovery panel (used on every app's Settings page): daily copies on this computer,
+   * download/merge them back, a full backup file, and documents that exist only on this computer.
+   */
+  ui.backupPanel = async function (el) {
+    const days = await store.snapshots.list();
+    const localDocs = store.list('documents').filter(d => !d.driveFileId);
+    el.innerHTML = '<div class="card"><div class="card-h"><div><h3>Backups &amp; recovery</h3><div class="sub">A copy of all records is kept on this computer once a day (last 14 days)' + (sync.token() ? ', and in Google Drive under “' + GDRIVE.BACKUP_FOLDER + '” (last 60 days)' : '') + '. Restoring fills in what is missing and can bring back records deleted by mistake — nothing newer is overwritten.</div></div>' +
+      '<button class="btn primary" data-full>' + ui.icon('download', 'sm') + 'Download full backup now</button></div>' +
+      '<div class="card-b">' + (days.length ? '<div class="table-wrap"><table class="table compact"><thead><tr><th>Daily copy</th><th></th></tr></thead><tbody>' +
+        days.map(d => '<tr><td>' + util.dateLong(d) + (d === util.today() ? ' <span class="chip">today</span>' : '') + '</td><td class="actions"><button class="btn sm" data-dl="' + d + '">' + ui.icon('download', 'sm') + 'Download</button> <button class="btn sm" data-rs="' + d + '">' + ui.icon('refresh', 'sm') + 'Restore…</button></td></tr>').join('') +
+        '</tbody></table></div>' : '<p class="muted">The first daily copy is made at the next save.</p>') +
+      '<div class="divider"></div>' + (localDocs.length ? '<div class="alert warning">' + ui.icon('alert') + '<div><div class="t">' + localDocs.length + ' ' + util.plural(localDocs.length, 'document is', 'documents are') + ' only on this computer</div>' +
+        (sync.token() ? 'They are being copied to Google Drive a few at a time.' : 'Connect Google Drive (sign in on the Fixed Asset dashboard) so uploaded quotes, POs and invoices are kept off this computer too, or download them.') +
+        ' <button class="btn sm" data-docs style="margin-left:6px">' + ui.icon('download', 'sm') + 'Download them</button></div></div>' : '<div class="alert success">' + ui.icon('check') + '<div>Every uploaded document has a copy in Google Drive.</div></div>') + '</div></div>';
+    el.querySelector('[data-full]').onclick = () => { util.download(new Blob([store.exportJSON()], { type: 'application/json' }), 'procurement-backup-' + util.today() + '.json'); Proc.audit('Export Backup', 'Full backup downloaded'); };
+    el.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => store.snapshots.download(b.dataset.dl).catch(e => ui.toast(e.message, 'error')));
+    el.querySelectorAll('[data-rs]').forEach(b => b.onclick = async () => {
+      const day = b.dataset.rs;
+      let found = {};
+      try { found = await store.snapshots.deleted(day); } catch (e) { return ui.toast(e.message, 'error'); }
+      const kinds = Object.keys(found);
+      const label = c => util.esc(c.replace(/([A-Z])/g, ' $1').replace(/^./, x => x.toUpperCase()));
+      const list = kinds.length ? '<p style="margin-top:10px"><b>Deleted since then</b> — tick what you want back:</p>' + kinds.map(c => '<label class="check" style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" data-undel="' + c + '"> ' + label(c) + ' <span class="chip">' + found[c].length + '</span></label>').join('') : '';
+      ui.modal({
+        title: 'Restore from ' + util.dateLong(day), size: 'sm',
+        body: '<p>Records missing here are added back and older versions are filled in. Nothing changed after that day is overwritten.</p>' + list,
+        actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Restore', kind: 'primary', icon: 'refresh', onClick: async (close, m) => {
+          const picked = Array.from(m.querySelectorAll('[data-undel]:checked')).map(i => i.dataset.undel);
+          const merged = await store.snapshots.restore(day);
+          const back = picked.length ? await store.snapshots.undelete(day, picked) : 0;
+          const n = merged + back;
+          Proc.audit('Restore Backup', 'Daily copy ' + day + ' merged (' + merged + ' changes' + (back ? ', ' + back + ' deleted records brought back: ' + picked.join(', ') : '') + ')');
+          ui.toast(n ? n + ' records brought back' : 'Nothing was missing', n ? 'success' : 'info');
+        } }]
+      });
+    });
+    const dd = el.querySelector('[data-docs]');
+    if (dd) dd.onclick = async () => { for (const d of localDocs) { await files.download(d.id); await new Promise(r => setTimeout(r, 400)); } };
+  };
+  if (APP.id === 'stores') { Proc.storesSettingsHooks = Proc.storesSettingsHooks || []; Proc.storesSettingsHooks.push({ title: 'Backups & recovery', icon: 'cloud', render: el => ui.backupPanel(el) }); }
+
   /* --------------------------------------------------------------- auth */
   const CREDENTIALS_SHEET_ID = '1fVBNtjeltelPeHDlGffOyrfa4_vBreT0uNBEL8fvirQ';
-  const SESSION_KEY = 'procSession';
+  const SESSION_KEY = APP.id === 'procurement' ? 'procSession' : 'procSession-' + APP.id;
+  const canUse = systems => (systems || []).indexOf(APP.system) >= 0 || (APP.system === 'intake' && (systems || []).indexOf('assets') >= 0);
   const auth = Proc.auth = {
     user: null,
     userName() { return auth.user ? (domainOfficerName() || auth.user.displayName) : 'System'; },
@@ -1198,7 +1676,7 @@
       try { return JSON.parse(localStorage.getItem('procCachedCredentials') || 'null'); } catch (e) { return null; }
     },
     portalUsers() {
-      try { const u = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'); return Array.isArray(u) ? u.filter(x => x.dashboard === 'procurement') : []; } catch (e) { return []; }
+      try { const u = JSON.parse(localStorage.getItem('portalUserAccounts') || '[]'); return Array.isArray(u) ? u.filter(x => x.dashboard === APP.system || (APP.system === 'intake' && x.dashboard === 'assets')) : []; } catch (e) { return []; }
     },
     async login(username, password, onStatus) {
       const user = String(username || '').trim();
@@ -1210,18 +1688,43 @@
         if (c) match = { username: String(c.username).trim(), displayName: c.displayName || c.username, role: c.role || 'user', email: c.email || '' };
       }
       if (!match) {
-        const p = auth.portalUsers().find(u => u.username === user.toLowerCase() && u.password === password);
+        // Accounts made on the portal are stored as SHA-256 hashes (same salt as the asset dashboard).
+        const hashed = await auth.hash(password);
+        const p = auth.portalUsers().find(u => String(u.username).toLowerCase() === user.toLowerCase() && (u.passwordHash ? u.passwordHash === hashed : u.password === password));
         if (p) match = { username: p.username, displayName: p.displayName || p.username, role: p.role || 'procurement_officer', email: '' };
       }
-      if (!match && user.toLowerCase() === 'procurement' && password === '123') match = { username: 'procurement', displayName: 'Procurement Officer', role: 'procurement_officer', email: '' };
+      if (!match && APP.defaultUser && user.toLowerCase() === APP.defaultUser && password === '123') match = { username: APP.defaultUser, displayName: APP.name + ' Officer', role: APP.system + '_officer', email: '' };
       if (!match) throw new Error('Invalid username or password');
       auth.user = match;
       try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(match)); } catch (e) { /* ignore */ }
       Proc.audit('Login', 'Signed in: ' + match.displayName);
       return match;
     },
-    restore() { try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) auth.user = s; } catch (e) { /* ignore */ } return auth.user; },
-    logout() { Proc.audit('Logout', 'Signed out: ' + auth.userName()); auth.user = null; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ } location.hash = ''; location.reload(); }
+    async hash(pw) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pw) + 'AssetDashboard_Salt_2024'));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+    /** Signed in already: this tab's own session, or the hospital portal's single sign-on session. */
+    restore() {
+      try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) { auth.user = s; return s; } } catch (e) { /* ignore */ }
+      try {
+        const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null');
+        if (p && p.exp > Date.now() && canUse(p.systems)) {
+          auth.user = { username: p.username, displayName: p.displayName, role: p.role === 'admin' ? 'admin' : p.role === 'operations' ? 'operations' : APP.system + '_officer', portalRole: p.role, email: p.email || '', viaPortal: true };
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify(auth.user));
+          Proc.audit('Login', 'Signed in through the hospital portal: ' + p.displayName);
+        }
+      } catch (e) { /* ignore */ }
+      return auth.user;
+    },
+    logout() {
+      Proc.audit('Logout', 'Signed out: ' + auth.userName());
+      const viaPortal = auth.user && auth.user.viaPortal;
+      auth.user = null;
+      try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('mphPortalSession'); } catch (e) { /* ignore */ }
+      if (viaPortal) { location.href = 'portal.html'; return; }
+      location.hash = ''; location.reload();
+    }
   };
   function domainOfficerName() { const p = auth.user && store.db.settings.officers[auth.user.username]; return p && p.name; }
 
@@ -1256,7 +1759,7 @@
       document.body.classList.remove('sb-open');
       view.innerHTML = '';
       setCrumbs([page.title].concat(params.length ? [params[0]] : []));
-      document.title = page.title + ' · Procurement · ' + store.settings().org.hospital;
+      document.title = page.title + ' · ' + APP.name + ' · ' + store.settings().org.hospital;
       try { await page.render(view, params); }
       catch (e) { console.error(e); view.innerHTML = '<div class="alert danger">' + ui.icon('alert') + '<div><div class="t">This page could not be displayed</div>' + util.esc(e.message) + '</div></div>'; }
       window.scrollTo(0, 0);
@@ -1288,7 +1791,7 @@
   function setCrumbs(parts) {
     const el = document.getElementById('crumbs');
     if (!el) return;
-    el.innerHTML = '<a href="#/dashboard">Procurement</a>' + parts.map((p, i) => ui.icon('chevron-right', 'sm') + '<span class="' + (i === parts.length - 1 ? 'cur' : '') + '">' + util.esc(p) + '</span>').join('');
+    el.innerHTML = '<a href="#/dashboard">' + util.esc(APP.name) + '</a>' + parts.map((p, i) => ui.icon('chevron-right', 'sm') + '<span class="' + (i === parts.length - 1 ? 'cur' : '') + '">' + util.esc(p) + '</span>').join('');
   }
   ui.setCrumbs = setCrumbs;
 
@@ -1316,7 +1819,7 @@
   };
 
   /* ---------------------------------------------------------------- sync */
-  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents' };
+  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents', BACKUP_FOLDER: 'Procurement Backups' };
   const sync = Proc.sync = {
     state: 'off', lastSync: null, fileId: null, docsFolderId: null, timer: null, busy: false,
     token() {
@@ -1344,15 +1847,19 @@
       if (!sync.token()) { sync.setState('off'); return; }
       sync.busy = true; sync.setState('busy');
       try {
-        if (!sync.fileId) {
-          const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE_NAME + "' and trashed=false";
-          const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
-          const j = await r.json(); if (j.files && j.files.length) sync.fileId = j.files[0].id;
-        }
-        if (sync.fileId) {
-          const r = await sync.api('https://www.googleapis.com/drive/v3/files/' + sync.fileId + '?alt=media');
-          const cloud = await r.json().catch(() => null);
-          if (cloud) store.merge(cloud);
+        // Every copy of the shared file (normally one; two if computers ever raced to create it) is merged in.
+        const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE_NAME + "' and trashed=false";
+        const lr = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime)');
+        const found = ((await lr.json()).files || []);
+        if (found.length) sync.fileId = found[0].id;
+        for (const f of found) {
+          const r = await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media');
+          const text = await r.text();
+          let cloud = null;
+          try { cloud = JSON.parse(text); } catch (e) { cloud = null; }
+          // Never write over a shared copy we could not read — it may hold other computers' work.
+          if (!cloud || typeof cloud !== 'object') throw new Error('The Google Drive copy could not be read, so nothing was uploaded over it');
+          store.merge(cloud);
         }
         const blob = new Blob([JSON.stringify({ version: '2.0', type: 'procurement', timestamp: new Date().toISOString(), data: store.db })], { type: 'application/json' });
         if (sync.fileId) await sync.api('https://www.googleapis.com/upload/drive/v3/files/' + sync.fileId + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob });
@@ -1363,11 +1870,44 @@
           const r = await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
           sync.fileId = (await r.json()).id;
         }
+        await sync.dailySnapshot(blob).catch(e => console.warn('[Proc sync] daily backup skipped', e.message));
         // Copy any documents that have not reached Drive yet.
         for (const d of store.list('documents').filter(x => !x.driveFileId).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
         sync.lastSync = Date.now(); sync.setState('on');
-      } catch (e) { console.warn('[Proc sync]', e.message); sync.setState(sync.token() ? 'err' : 'off'); }
+      } catch (e) {
+        console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
+        if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the Drive file.', 'error', 15000); }
+      }
       finally { sync.busy = false; }
+    },
+    /** Once a day, keep a dated copy in Drive ("Procurement Backups"), and remove copies older than 60 days. */
+    async dailySnapshot(blob) {
+      const day = util.today();
+      if (localStorage.getItem('procDriveSnapshotDay') === day) return;
+      const folder = await sync.folder(GDRIVE.BACKUP_FOLDER);
+      const name = 'PROCUREMENT_BACKUP_' + day + '.json';
+      const q = "'" + folder + "' in parents and trashed=false";
+      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=200');
+      const list = (await r.json()).files || [];
+      if (!list.some(f => f.name === name)) {
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ name, parents: [folder], mimeType: 'application/json' })], { type: 'application/json' }));
+        form.append('file', blob);
+        await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
+      }
+      const cutoff = util.addDays(day, -60);
+      for (const f of list) { const m = /^PROCUREMENT_BACKUP_(\d{4}-\d{2}-\d{2})\.json$/.exec(f.name); if (m && m[1] < cutoff) await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }).catch(() => {}); }
+      localStorage.setItem('procDriveSnapshotDay', day);
+    },
+    async folder(name) {
+      sync.folders = sync.folders || {};
+      if (sync.folders[name]) return sync.folders[name];
+      const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + name + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
+      const j = await r.json();
+      if (j.files && j.files.length) return (sync.folders[name] = j.files[0].id);
+      const c = await sync.api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [GDRIVE.FOLDER_ID] }) });
+      return (sync.folders[name] = (await c.json()).id);
     },
     async docsFolder() {
       if (sync.docsFolderId) return sync.docsFolderId;
@@ -1449,19 +1989,43 @@
         syncEl.innerHTML = '<span class="sync-dot ' + s + '"></span><span>' + label + (s === 'on' && sync.lastSync ? ' · ' + util.ago(sync.lastSync) : '') + '</span>';
       };
       store.on('sync', showSync); showSync(sync.state);
+      store.on('saveError', e => {
+        syncEl.innerHTML = '<span class="sync-dot err"></span><span>Not saved on this computer — download a backup</span>';
+        if (Date.now() - saveErrorShownAt > 60000) { saveErrorShownAt = Date.now(); ui.toast(e.message + ' Download a backup from Settings → Data now, then free some browser storage.', 'error', 15000); }
+      });
+      store.on('saved', () => { if (/Not saved/.test(syncEl.textContent)) showSync(sync.state); });
+      Proc.shell.bindBell();
+    },
+    /** Notification bell: messages addressed to this app (deliveries, new POs, assets to register…). */
+    bindBell() {
+      const btn = document.getElementById('bellBtn'); if (!btn) return;
+      const draw = () => { const n = Proc.notifications.unread().length; btn.innerHTML = ui.icon('bell') + (n ? '<span class="bell-n">' + (n > 99 ? '99+' : n) + '</span>' : ''); btn.title = n ? n + ' unread notifications' : 'Notifications'; };
+      draw(); store.on('change', util.debounce(draw, 300));
+      btn.onclick = () => {
+        const old = document.getElementById('bellPanel'); if (old) { old.remove(); return; }
+        const list = Proc.notifications.mine().slice(0, 30); const u = auth.user ? auth.user.username : '';
+        const panel = document.createElement('div'); panel.id = 'bellPanel'; panel.className = 'bell-panel';
+        panel.innerHTML = '<div class="bell-h"><b>Notifications</b><button class="btn xs ghost" data-all>Mark all read</button></div>' +
+          (list.length ? list.map(n => '<a class="bell-item' + ((n.readBy || {})[u] ? '' : ' unread') + '" data-id="' + n.id + '" href="' + util.esc(Proc.notifications.href(n) || 'javascript:void 0') + '"><div class="t">' + util.esc(n.title) + '</div>' + (n.body ? '<div class="s">' + util.esc(n.body) + '</div>' : '') + '<div class="w">' + util.ago(n.at) + (n.fromUser ? ' · ' + util.esc(n.fromUser) : '') + '</div></a>').join('') : '<div class="empty" style="padding:28px 16px">' + ui.icon('bell', 'lg') + '<p>No notifications yet.</p></div>');
+        document.body.appendChild(panel);
+        const r = btn.getBoundingClientRect(); panel.style.top = (r.bottom + 8) + 'px'; panel.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        panel.querySelector('[data-all]').onclick = e => { e.preventDefault(); Proc.notifications.markRead(list.map(n => n.id)); panel.remove(); draw(); };
+        panel.querySelectorAll('.bell-item').forEach(a => a.addEventListener('click', () => { Proc.notifications.markRead([a.dataset.id]); panel.remove(); draw(); }));
+        setTimeout(() => { const off = e => { if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) { panel.remove(); document.removeEventListener('mousedown', off); } }; document.addEventListener('mousedown', off); }, 0);
+      };
     },
     profileDialog(first) {
       const u = auth.user; if (!u) return Promise.resolve();
       const cur = store.settings().officers[u.username] || {};
-      return ui.form(first ? 'Welcome — how should your name appear on memos?' : 'My profile', [
-        { name: 'name', label: 'Name as printed on memos and POs', value: cur.name || (u.displayName !== 'Procurement Officer' ? u.displayName : ''), required: true, placeholder: 'e.g. Ms. Christine Crawford', hint: 'Include your title (Mr./Ms./Mrs.) the way it appears on approval letters.' },
-        { name: 'title', label: 'Job title', value: cur.title || 'Public Procurement Officer', required: true, span: 's6' },
+      return ui.form(first ? 'Welcome — how should your name appear on ' + APP.profileWhere + '?' : 'My profile', [
+        { name: 'name', label: 'Name as printed on ' + APP.profileWhere, value: cur.name || (u.displayName !== 'Procurement Officer' ? u.displayName : ''), required: true, placeholder: 'e.g. Ms. Christine Crawford', hint: 'Include your title (Mr./Ms./Mrs.) the way it appears on approval letters.' },
+        { name: 'title', label: 'Job title', value: cur.title || (APP.defaultTitle || 'Public Procurement Officer'), required: true, span: 's6' },
         { name: 'phone', label: 'Phone / extension', value: cur.phone || '', span: 's6' },
         { name: 'email', label: 'Email', value: cur.email || u.email || '', type: 'email' }
       ], { ok: 'Save profile' }).then(v => {
         if (!v) return;
         const officers = Object.assign({}, store.settings().officers); officers[u.username] = v;
-        store.saveSettings({ officers }); Proc.shell.renderTop(); ui.toast('Profile saved — memos will be signed as ' + v.name);
+        store.saveSettings({ officers }); Proc.shell.renderTop(); ui.toast('Profile saved — ' + APP.profileWhere + ' will show ' + v.name);
       });
     }
   };
@@ -1470,6 +2034,8 @@
   Proc.boot = async function () {
     store.load();
     await store.ready;
+    // Ask the browser to keep this site's data even when the disk is short of space.
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {}); } catch (e) { /* not supported */ }
     const loginEl = document.getElementById('loginScreen'), appEl = document.getElementById('app');
     const enter = async () => {
       loginEl.hidden = true; appEl.hidden = false;
