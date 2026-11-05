@@ -15,7 +15,7 @@
   /* ------------------------------------------------------------ config */
   const KEYS = {
     accounts: 'portalAccountsV2', legacy: 'portalUserAccounts', headings: 'portalHeadingSettings', log: 'portalSigninLog',
-    tomb: 'portalAccountTombstones', session: 'mphPortalSession', theme: 'portalTheme', lastSync: 'portalLastSync',
+    tomb: 'portalAccountTombstones', session: 'mphPortalSession', theme: 'portalTheme2', lastSync: 'portalLastSync',
     fails: 'portalFailedSignins', lock: 'mphPortalLocked', assetUsers: 'assetDashboardLocalUsers'
   };
   const SALT = 'AssetDashboard_Salt_2024';
@@ -36,18 +36,28 @@
     intake: { label: 'Assets on Order', url: 'asset-intake.html', icon: '🚚', desc: 'Fixed assets bought by Procurement: on order, delivered by Stores, and waiting to be registered.' }
   };
   const ROLES = {
-    admin: { label: 'Administrator', btn: 'Enter as Admin', short: 'Admin', color: '#f2a91c', dark: true, icon: '🛡️', home: 'console', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
+    admin: { label: 'Administrator', btn: 'Enter as Admin', short: 'Admin', color: '#4f46e5', icon: '🛡️', home: 'console', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
       desc: 'Manage user accounts and sync, set the hospital headings, and open every system.' },
-    procurement: { label: 'Procurement Officer', btn: 'Enter Procurement', short: 'Procurement', color: '#3b8fdc', icon: '📋', home: 'procurement.html', systems: ['procurement'],
+    procurement: { label: 'Procurement Officer', btn: 'Enter Procurement', short: 'Procurement', color: '#0284c7', icon: '📋', home: 'procurement.html', systems: ['procurement'],
       desc: 'Compare prices, prepare approval memos, raise and track purchase orders, and keep supplier files.' },
-    stores: { label: 'Stores Keeper', btn: 'Enter Stores', short: 'Stores', color: '#22a35a', icon: '📦', home: 'stores.html', systems: ['stores'],
+    stores: { label: 'Stores Keeper', btn: 'Enter Stores', short: 'Stores', color: '#0d9488', icon: '📦', home: 'stores.html', systems: ['stores'],
       desc: 'Receive deliveries, issue stock to departments, and watch stock levels and reorder points.' },
-    assets: { label: 'Fixed Asset Officer', btn: 'Enter Fixed Assets', short: 'Fixed Assets', color: '#a35bd6', icon: '🏷️', home: 'index.html', systems: ['assets', 'locations', 'intake'],
+    assets: { label: 'Fixed Asset Officer', btn: 'Enter Fixed Assets', short: 'Fixed Assets', color: '#7c3aed', icon: '🏷️', home: 'index.html', systems: ['assets', 'locations', 'intake'],
       desc: 'Keep the fixed asset register, asset codes, location records, transfers and FY reports.' },
-    operations: { label: 'Operations Manager', btn: 'Enter Operations', short: 'Operations', color: '#14a89a', icon: '📊', home: 'hub', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
+    operations: { label: 'Operations Manager', btn: 'Enter Operations', short: 'Operations', color: '#0891b2', icon: '📊', home: 'hub', systems: ['procurement', 'stores', 'assets', 'locations', 'intake'],
       desc: 'Oversee procurement, stores and fixed assets, and open any system to review activity.' }
   };
   const ROLE_ORDER = ['admin', 'procurement', 'stores', 'assets', 'operations'];
+  /* Line icons for the role cards and sign-in window. */
+  const svg = d => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
+  const ROLE_SVG = {
+    admin: svg('<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/>'),
+    procurement: svg('<rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5V3h6v1.5"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4"/>'),
+    stores: svg('<path d="m3.5 7.5 8.5-4.5 8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="m3.5 7.5 8.5 4.5 8.5-4.5M12 12v9"/>'),
+    assets: svg('<path d="M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1l8 8a1.4 1.4 0 0 1 0 2l-7 7a1.4 1.4 0 0 1-2 0l-8.1-7.9Z"/><circle cx="8.5" cy="8.5" r="1.6"/>'),
+    operations: svg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')
+  };
+  const ICON = { sync: svg('<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4"/>'), check: svg('<path d="m5 12.5 4.5 4.5L19 7.5"/>'), arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'), lock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'), moon: svg('<path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5Z"/>'), sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'), pulse: svg('<path d="M3 12h4l2-5 4 10 2-5h6"/>') };
   const DEPARTMENTS = ['Procurement Unit', 'General Stores', 'Fixed Assets', 'Finance', 'Administration', 'Operations', 'Human Resources', 'Maintenance', 'Information Technology', 'Pharmacy', 'Dietary'];
 
   /* ------------------------------------------------------------- utils */
@@ -78,8 +88,8 @@
   function modal(o) {
     const scrim = document.createElement('div');
     scrim.className = 'scrim';
-    scrim.innerHTML = '<div class="modal ' + (o.size || '') + '" role="dialog" aria-modal="true"><div class="modal-h">' +
-      (o.icon ? '<div class="role-ic" style="background:' + (o.iconColor ? 'color-mix(in srgb,' + o.iconColor + ' 18%,transparent)' : 'var(--surface-3)') + '">' + o.icon + '</div>' : '') +
+    scrim.innerHTML = '<div class="modal ' + (o.size || '') + '" role="dialog" aria-modal="true"' + (o.iconColor ? ' style="--mc:' + o.iconColor + '"' : '') + '><div class="modal-h">' +
+      (o.icon ? '<div class="role-ic" style="background:' + (o.iconColor ? 'color-mix(in srgb,' + o.iconColor + ' 13%,transparent)' : 'var(--surface-3)') + '">' + o.icon + '</div>' : '') +
       '<div><h3>' + esc(o.title) + '</h3>' + (o.sub ? '<div class="muted small">' + o.sub + '</div>' : '') + '</div>' +
       (o.dismissable === false ? '' : '<button class="btn ghost icon x" data-x aria-label="Close">✕</button>') + '</div><div class="modal-b">' + (o.body || '') + '</div><div class="modal-f"></div></div>';
     const close = () => { scrim.remove(); document.removeEventListener('keydown', onKey); };
@@ -376,48 +386,70 @@
   function renderLanding() {
     view = 'landing';
     const s = session();
+    const SYS_FOR = k => ROLES[k].home === 'console' ? 'Admin console · every system' : ROLES[k].home === 'hub' ? 'Overview · every system' : ROLES[k].systems.map(x => SYSTEMS[x] ? SYSTEMS[x].label : x).slice(0, 2).join(' · ');
     $('#app').innerHTML =
-      '<div class="landing">' +
-      '<div class="pill-badge"><span class="dot"></span><span data-org></span> — Hospital Systems Portal</div>' +
-      '<div class="brand"><div class="brand-tile" data-initial>M</div><div><div class="brand-name" data-hospital></div><div class="brand-sub">Management Systems Portal</div></div></div>' +
-      '<p class="tagline">Procurement, general stores and fixed assets in one place — sign in once with your hospital account and go straight to your work.</p>' +
+      '<header class="lp-top"><div class="lp-mark">' + ICON.pulse + '</div><div class="lp-id"><div class="h" data-hospital></div><div class="s"><span data-org></span> · Systems Portal</div></div><div class="spacer"></div>' +
+      '<div class="lp-clock" id="lpClock"></div><button class="icon-btn" id="lpTheme" title="Light / dark" aria-label="Switch light or dark">' + (theme() === 'dark' ? ICON.sun : ICON.moon) + '</button></header>' +
+      '<div class="landing"><section class="hero"><div>' +
+      '<div class="eyebrow">Hospital Systems Portal</div>' +
+      '<h1>Procurement, Stores &amp; Fixed Assets — <span class="hl">one sign-in.</span></h1>' +
+      '<p class="lead">Sign in once with your hospital account and go straight to your work. Your role decides which systems open.</p>' +
+      '<ol class="steps" id="steps"><li class="' + (synced ? 'done' : 'now') + '"><span class="n">' + (synced ? ICON.check : '1') + '</span>Sync this computer</li><li class="' + (synced ? 'now' : '') + '"><span class="n">2</span>Choose your role</li><li><span class="n">3</span>Sign in</li></ol>' +
       (s ? '<div class="signed-bar"><span class="avatar" style="background:' + ROLES[s.role].color + '">' + esc(initials(s.displayName)) + '</span><span>Signed in as <b>' + esc(s.displayName) + '</b> · ' + esc(ROLES[s.role].label) + '</span><button class="btn gold sm" data-continue>Continue</button><button class="btn ghost sm" data-signout>Sign out</button></div>' : '') +
-      '<div class="sync-card' + (synced ? ' synced' : '') + '" id="syncCard"><div class="ic">⟳</div><div style="flex:1;min-width:0"><div class="t">Sync before signing in</div>' +
-      '<div class="d">Brings this computer up to date before anyone signs in. <em>Everyone must sync before signing in.</em></div><div class="msg" id="syncMsg"></div></div>' +
-      '<button class="btn gold" id="syncBtn">' + (synced ? 'Synced' : 'Sync Now') + '</button></div>' +
-      '<div class="why"><b>Why Sync Now comes first:</b> it gives this computer the latest accounts, so everyone signs in with their current password and disabled accounts are kept out. If it could not sync, try again or ask the Administrator.<div class="offline" id="offlineWrap" hidden><a href="javascript:void 0" id="offlineLink">Continue without syncing on this computer</a> — accounts may be out of date.</div></div>' +
-      '<div class="roles' + (synced ? '' : ' locked') + '" id="roles">' + ROLE_ORDER.map(k => {
+      '</div><aside class="sync-panel' + (synced ? ' synced' : '') + '" id="syncCard"><div class="sync-head"><div class="sync-orb" id="syncOrb">' + (synced ? ICON.check : ICON.sync) + '</div><div><div class="t">' + (synced ? 'This computer is up to date' : 'Sync before signing in') + '</div>' +
+      '<div class="d">Gets the latest accounts and passwords from Google Drive.</div></div></div><div class="msg" id="syncMsg"></div>' +
+      '<button class="btn gold" id="syncBtn">' + (synced ? 'Synced' : 'Sync now') + '</button>' +
+      '<div class="why"><b>Why sync first?</b> Everyone then signs in with their current password, and disabled accounts stay out. If it cannot sync, try again or ask the Administrator.<div class="offline" id="offlineWrap" hidden><a href="javascript:void 0" id="offlineLink">Continue without syncing</a> — accounts may be out of date.</div></div></aside></section>' +
+      '<div class="section-h"><h2>Choose your role</h2><p>Pick the card for your job — you will be asked for your username and password.</p></div>' +
+      '<div class="roles' + (synced ? '' : ' locked') + '" id="roles">' + ROLE_ORDER.map((k, i) => {
         const r = ROLES[k];
-        return '<div class="role-card" style="--rc:' + r.color + '" data-role="' + k + '"><div class="ic">' + r.icon + '</div><h2>' + esc(r.label) + '</h2><p>' + esc(r.desc) + '</p><button class="enter' + (r.dark ? ' dark-text' : '') + '" data-role="' + k + '">' + esc(r.btn) + ' →</button></div>';
+        return '<div class="role-card" tabindex="0" role="button" aria-label="' + esc(r.btn) + '" style="--rc:' + r.color + ';--i:' + i + '" data-role="' + k + '"><span class="wash"></span><span class="lock-chip">' + ICON.lock + 'Sync first</span>' +
+          '<div class="ic">' + ROLE_SVG[k] + '</div><div class="kicker">' + esc(SYS_FOR(k)) + '</div><h2>' + esc(r.label) + '</h2><p>' + esc(r.desc) + '</p>' +
+          '<div class="foot-row"><span class="enter-label">' + esc(r.btn) + '</span><span class="go" aria-hidden="true">' + ICON.arrow + '</span></div></div>';
       }).join('') + '</div>' +
-      '<div class="foot"><span data-hospital></span> · <span data-org></span><br>Need an account or a password reset? Ask the Administrator. <span id="footSync"></span></div></div>';
+      '<footer class="foot"><span><span data-hospital></span> · <span data-org></span></span><span>Need an account or a password reset? Ask the Administrator. <span id="footSync"></span></span></footer></div>';
     applyHeadings();
+    const tick = () => { const c = $('#lpClock'); if (!c) return clearInterval(clockTimer); const d = new Date(); c.innerHTML = '<b>' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</b>' + d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }); };
+    clearInterval(clockTimer); tick(); clockTimer = setInterval(tick, 30000);
+    $('#lpTheme').onclick = () => { setTheme(theme() === 'dark' ? 'light' : 'dark'); $('#lpTheme').innerHTML = theme() === 'dark' ? ICON.sun : ICON.moon; };
     $('#syncBtn').onclick = runPreSync;
-    $('#offlineLink').onclick = () => { synced = true; $('#roles').classList.remove('locked'); $('#offlineWrap').hidden = true; setSyncMsg('Continuing without sync — sign-ins use the accounts already on this computer.', 'busy'); };
-    $$('#roles [data-role]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openSignIn(el.dataset.role); }));
+    $('#offlineLink').onclick = () => { synced = true; markSynced(); $('#offlineWrap').hidden = true; setSyncMsg('Continuing without sync — sign-ins use the accounts already on this computer.', 'busy'); };
+    $$('#roles [data-role]').forEach(el => {
+      el.addEventListener('click', e => { e.stopPropagation(); openSignIn(el.dataset.role); });
+      el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSignIn(el.dataset.role); } });
+    });
     const c = $('[data-continue]'); if (c) c.onclick = () => { handOverGoogle(); routeHome(session()); };
     const so = $('[data-signout]'); if (so) so.onclick = signOut;
     const ls = lastSync(); if (ls) $('#footSync').textContent = 'Last synced on this computer ' + ago(ls) + '.';
-    if (synced) setSyncMsg('Sync complete. You may now sign in.', 'ok');
+    if (synced) setSyncMsg('Sync complete. Choose your role below.', 'ok');
+  }
+  let clockTimer = null;
+  /** Move the landing page to "synced": unlock the cards and advance the steps. */
+  function markSynced() {
+    const card = $('#syncCard'); if (card) card.classList.add('synced');
+    const orb = $('#syncOrb'); if (orb) { orb.classList.remove('spin'); orb.innerHTML = ICON.check; }
+    const t = card && card.querySelector('.t'); if (t) t.textContent = 'This computer is up to date';
+    const roles = $('#roles'); if (roles) roles.classList.remove('locked');
+    const st = $$('#steps li'); if (st.length) { st[0].className = 'done'; st[0].querySelector('.n').innerHTML = ICON.check; st[1].className = 'now'; }
   }
   function setSyncMsg(t, cls) { const m = $('#syncMsg'); if (m) { m.textContent = t; m.className = 'msg ' + (cls || ''); } }
   async function runPreSync() {
-    const btn = $('#syncBtn'); btn.disabled = true; btn.textContent = 'Syncing…';
+    const btn = $('#syncBtn'); btn.disabled = true; btn.textContent = 'Syncing…'; const orb = $('#syncOrb'); if (orb) orb.classList.add('spin');
     setSyncMsg(storedToken() ? 'Pulling the latest accounts from Google Drive…' : 'Opening Google sign-in…', 'busy');
     try {
       await syncNow(true);
       synced = true;
       const n = loadAccounts().filter(a => a.status === 'active').length;
       setSyncMsg('Sync complete! ' + n + ' active ' + (n === 1 ? 'account' : 'accounts') + '. You may now sign in.', 'ok');
-      btn.textContent = 'Synced'; $('#syncCard').classList.add('synced'); $('#roles').classList.remove('locked'); $('#offlineWrap').hidden = true;
+      btn.textContent = 'Synced'; markSynced(); $('#offlineWrap').hidden = true;
     } catch (e) {
       setSyncMsg('Could not sync: ' + e.message + '. Try again or ask the Administrator.', 'err');
-      btn.disabled = false; btn.textContent = 'Retry Sync'; $('#offlineWrap').hidden = false;
+      btn.disabled = false; btn.textContent = 'Retry sync'; $('#offlineWrap').hidden = false; const o2 = $('#syncOrb'); if (o2) o2.classList.remove('spin');
     }
   }
   function nudgeSync() {
     const card = $('#syncCard'); if (!card) return;
-    setSyncMsg('Please click “Sync Now” first to get the latest accounts before signing in.', 'err');
+    setSyncMsg('Please press “Sync now” first to get the latest accounts before signing in.', 'err');
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     card.classList.remove('attention'); void card.offsetWidth; card.classList.add('attention');
   }
@@ -429,7 +461,7 @@
     const def = loadAccounts().find(a => a.isDefaultAdmin && !a.lastLogin && a.status === 'active');
     modal({
       title: 'Sign in as ' + r.label, sub: r.home === 'console' ? 'Administrator console' : r.home === 'hub' ? 'Operations overview' : 'Opens ' + SYSTEMS[r.systems[0]].label,
-      icon: r.icon, iconColor: r.color,
+      icon: ROLE_SVG[roleKey] || r.icon, iconColor: r.color,
       body: '<div class="err-box" data-err hidden></div>' +
         (roleKey === 'admin' && def ? '<div class="info-box">First-time set-up: sign in with username <b>admin</b> and password <b>admin123</b>. You will be asked to choose a new password straight away.</div>' : '') +
         '<div class="field"><label>Username</label><input name="username" autocomplete="username" autocapitalize="off" spellcheck="false"></div>' +
@@ -522,7 +554,7 @@
     sessionStorage.setItem(KEYS.lock, '1');
     const s = session(); const r = ROLES[s.role];
     const el = document.createElement('div'); el.className = 'lock-screen'; el.id = 'lockScreen';
-    el.innerHTML = '<div class="lock-card"><span class="avatar" style="background:' + r.color + '">' + esc(initials(s.displayName)) + '</span><h3 style="font-family:var(--serif);font-weight:400;font-size:24px">Locked</h3><p class="muted small" style="margin:4px 0 16px">' + esc(s.displayName) + ' · enter your password to continue</p>' +
+    el.innerHTML = '<div class="lock-card"><span class="avatar" style="background:' + r.color + '">' + esc(initials(s.displayName)) + '</span><h3 style="font-family:var(--serif);font-weight:800;font-size:22px">Locked</h3><p class="muted small" style="margin:4px 0 16px">' + esc(s.displayName) + ' · enter your password to continue</p>' +
       '<div class="err-box" data-err hidden></div><div class="field" style="text-align:left"><div class="pw-wrap"><input type="password" id="unlockPw" autocomplete="current-password" placeholder="Password"><button type="button" data-show>Show</button></div></div>' +
       '<button class="btn gold" style="width:100%" id="unlockBtn">Unlock</button><button class="btn ghost" style="width:100%;margin-top:8px" id="lockOut">Sign out instead</button></div>';
     document.body.appendChild(el); bindPwToggles(el); setTimeout(() => $('#unlockPw').focus(), 30);
@@ -814,7 +846,7 @@
   }
 
   /* --------------------------------------------------------------- boot */
-  const theme = () => { try { return localStorage.getItem(KEYS.theme) || 'dark'; } catch (e) { return 'dark'; } };
+  const theme = () => { try { return localStorage.getItem(KEYS.theme) || 'light'; } catch (e) { return 'light'; } };
   function setTheme(t) { document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(KEYS.theme, t); } catch (e) { /* ignore */ } }
 
   async function boot() {
