@@ -52,7 +52,7 @@
     const depts = Array.from(new Set(all.map(r => r.department).filter(Boolean))).sort();
     el.innerHTML = ui.pageHead({
       title: 'Requisitions', sub: 'Requests for goods, services and works from hospital departments',
-      actions: '<a class="btn primary" href="#/requisitions/new">' + ui.icon('plus', 'sm') + 'New requisition</a>'
+      actions: '<a class="btn" href="#/req-form">' + ui.icon('file', 'sm') + 'Requisition form</a><a class="btn primary" href="#/requisitions/new">' + ui.icon('plus', 'sm') + 'New requisition</a>'
     }) +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'Open requisitions', value: util.int(open.length), icon: 'clipboard', meta: util.moneyShort(util.sum(open, r => r.estimate)) + ' estimated' }) +
@@ -315,7 +315,7 @@
     const est = util.num(r.estimate);
     const route = domain.approvalRoute(est, [{ amount: est }]);
     const st = r.status;
-    const acts = [];
+    const acts = ['<a class="btn" href="#/req-form/' + r.id + '" title="The SRHA Purchase Requisition / Justification Form — view, edit and download as PDF">' + ui.icon('file', 'sm') + 'Requisition form</a>'];
     if (st === 'Draft') acts.push('<button class="btn" data-act="edit">' + ui.icon('edit', 'sm') + 'Edit</button>', '<button class="btn primary" data-act="submit">' + ui.icon('send', 'sm') + 'Submit</button>');
     if (st === 'Submitted') acts.push('<button class="btn" data-act="edit">' + ui.icon('edit', 'sm') + 'Edit</button>', '<button class="btn danger ghost" data-act="reject">' + ui.icon('x', 'sm') + 'Reject</button>', '<button class="btn success" data-act="approve">' + ui.icon('check', 'sm') + 'Approve</button>');
     if (st === 'Rejected') acts.push('<button class="btn" data-act="edit">' + ui.icon('edit', 'sm') + 'Revise &amp; resubmit</button>');
