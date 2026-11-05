@@ -395,6 +395,7 @@
     });
     return pdfjsPromise;
   }
+  pdf.lib = loadPdfJs;
   pdf.render = async function (container, blob, o) {
     o = o || {};
     const token = (container._pvToken = (container._pvToken || 0) + 1);

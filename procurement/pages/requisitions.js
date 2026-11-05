@@ -52,7 +52,7 @@
     const depts = Array.from(new Set(all.map(r => r.department).filter(Boolean))).sort();
     el.innerHTML = ui.pageHead({
       title: 'Requisitions', sub: 'Requests for goods, services and works from hospital departments',
-      actions: '<a class="btn" href="#/req-form">' + ui.icon('file', 'sm') + 'Requisition form</a><a class="btn primary" href="#/requisitions/new">' + ui.icon('plus', 'sm') + 'New requisition</a>'
+      actions: '<button class="btn" data-up>' + ui.icon('upload', 'sm') + 'Upload requisition form</button><button class="btn" data-online>' + ui.icon('link', 'sm') + 'Online requests</button><a class="btn" href="#/req-form">' + ui.icon('file', 'sm') + 'Requisition form</a><a class="btn primary" href="#/requisitions/new">' + ui.icon('plus', 'sm') + 'New requisition</a>'
     }) +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'Open requisitions', value: util.int(open.length), icon: 'clipboard', meta: util.moneyShort(util.sum(open, r => r.estimate)) + ' estimated' }) +
@@ -64,6 +64,8 @@
         .map(s => '<button data-s="' + s + '" class="' + (s === listSeg ? 'on' : '') + '">' + s + '<span class="n">' + (s === 'All' ? all.length : (counts[s] || 0)) + '</span></button>').join('') + '</div></div><div id="reqTable"></div></div>';
 
     const rowsFor = s => (s === 'All' ? all : all.filter(r => r.status === s));
+    const upB = el.querySelector('[data-up]'); if (upB) upB.onclick = () => Proc.reqForm.upload();
+    const onB = el.querySelector('[data-online]'); if (onB) onB.onclick = () => Proc.reqForm.onlineDialog();
     const tbl = ui.table(el.querySelector('#reqTable'), {
       rows: rowsFor(listSeg), placeholder: 'Search number, title, department, items…', pageSize: 25,
       search: r => [numOf(r), r.title, r.department, r.requestedBy, r.budgetLine, (r.items || []).map(i => i.description).join(' ')].join(' '),
