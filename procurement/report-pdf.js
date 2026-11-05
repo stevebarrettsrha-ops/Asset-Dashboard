@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Proc.reportPdf — PDF Reports page shared by Procurement and General Stores.
+   Proc.reportPdf — the PDF Reports tab on the Reports page of Procurement and General Stores.
 
    An app registers a catalogue of reports, then the page lets the officer pick
    a report (or several, as one "report pack"), choose the period and filters,
@@ -259,7 +259,8 @@
     return Object.assign({ orientation: 'auto', summary: true, chart: true, detail: true, signatures: true, preparedBy: off.name, preparedTitle: off.title, checkedBy: '', checkedTitle: '', approvedBy: '', approvedTitle: '', comments: '' }, readJSON(PREF_KEY, {}));
   }
 
-  function render(el) {
+  function render(el, o) {
+    o = o || {};
     const cat = Proc.reportPdf.catalog;
     if (!state.from) { const r = PRESETS[0].range(); state.from = r[0]; state.to = r[1]; }
     if (!state.asAt) state.asAt = today();
@@ -287,7 +288,7 @@
       '.pr-preview canvas{display:block;margin:0 auto 12px;box-shadow:0 2px 10px rgba(0,0,0,.18);background:#fff;max-width:100%}' +
       '.pr-hist{display:flex;flex-direction:column}.pr-hist button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;border-top:1px solid var(--border);background:none;padding:9px 0;font:inherit;color:inherit;cursor:pointer}.pr-hist button:hover .t-title{color:var(--primary)}' +
       '</style>' +
-      ui.pageHead({ title: 'PDF Reports', sub: 'Reports on the hospital letterhead, ready to print, sign and file. Pick one report, or tick several to make one report pack.' }) +
+      (o.embedded ? '<p class="muted" style="margin:4px 0 14px">Reports on the hospital letterhead, ready to print, sign and file. Pick one report, or tick several to make one report pack.</p>' : ui.pageHead({ title: 'PDF Reports', sub: 'Reports on the hospital letterhead, ready to print, sign and file. Pick one report, or tick several to make one report pack.' })) +
       '<div class="pr-wrap"><div>' +
       '<div class="toolbar" style="padding:0;gap:12px;flex-wrap:wrap"><div class="pr-search">' + ui.icon('search', 'sm') + '<input class="input" id="prQ" type="search" placeholder="Find a report…" aria-label="Find a report" value="' + esc(state.q) + '"></div>' +
       '<span class="small muted" id="prPackInfo"></span></div>' +
@@ -354,7 +355,7 @@
         state.pack = (x.ids || []).length > 1 ? x.ids.slice() : []; state.selected = x.ids[0];
         if (x.from) { state.from = x.from; state.to = x.to; state.preset = 'custom'; }
         state.filters = Object.assign({}, x.filters || {}); state.days = Object.assign({}, x.days || {});
-        render(el);
+        render(el, o);
       });
     }
     function params(def) {
@@ -388,7 +389,7 @@
       drawOptions();
     });
     const qi = el.querySelector('#prQ');
-    qi.oninput = util.debounce ? util.debounce(() => { state.q = qi.value; const pos = qi.selectionStart; render(el); const n = el.querySelector('#prQ'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } }, 250) : null;
+    qi.oninput = util.debounce ? util.debounce(() => { state.q = qi.value; const pos = qi.selectionStart; render(el, o); const n = el.querySelector('#prQ'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } }, 250) : null;
     el.querySelector('#prPreview').onclick = async () => {
       const res = run('blob'); if (!res) return;
       const pv = el.querySelector('#prPv'); pv.innerHTML = '<div class="loading"><span class="spinner"></span> Drawing preview…</div>';
@@ -414,5 +415,7 @@
     },
     periodLabel, quarterOf, fmt
   };
-  Proc.page({ id: 'pdf-reports', title: 'PDF Reports', icon: 'printer', section: 'Insights', order: 12, render });
+  Proc.reportPdf.render = render;
+  // The PDF reports live as a tab on each app's Reports page; old links still work.
+  Proc.page({ id: 'pdf-reports', title: 'PDF Reports', icon: 'printer', hidden: true, render(el) { const r = (Proc.router.parse().query || {}).r; location.replace('#/reports?tab=pdf' + (r ? '&r=' + encodeURIComponent(r) : '')); } });
 })();

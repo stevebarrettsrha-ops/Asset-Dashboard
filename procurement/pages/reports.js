@@ -165,8 +165,11 @@
   const TABS = [
     { id: 'prs', label: 'PRS return', icon: 'sheet' }, { id: 'polog', label: 'PO Log', icon: 'cart' }, { id: 'spend', label: 'Spend analysis', icon: 'chart' },
     { id: 'approvals', label: 'Approvals & cycle time', icon: 'clock' }, { id: 'compliance', label: 'Supplier compliance', icon: 'shield' },
-    { id: 'aging', label: 'Payables aging', icon: 'wallet' }, { id: 'plan', label: 'Procurement plan', icon: 'calendar' }
+    { id: 'aging', label: 'Payables aging', icon: 'wallet' }, { id: 'plan', label: 'Procurement plan', icon: 'calendar' },
+    { id: 'pdf', label: 'PDF Reports', icon: 'printer' }
   ];
+  // Each tab's matching report on the PDF Reports tab.
+  const PDF_FOR = { prs: 'monthly', polog: 'poregister', spend: 'spend', approvals: 'approvals', compliance: 'compliance', aging: 'payables', plan: 'plan' };
   let tab = 'prs';
   const prsState = { month: prevMonth(), liteMode: 'itemised', preparedBy: '', authorizedBy: '' };
 
@@ -174,18 +177,23 @@
     const q = Proc.router.parse().query;
     if (q.tab && TABS.some(t => t.id === q.tab)) tab = q.tab;
     el.innerHTML = ui.pageHead({ title: 'Reports & PRS', sub: 'Ministry returns, logs and analysis — all generated from your records.',
-      actions: '<button class="btn" id="rpPrint">' + ui.icon('printer', 'sm') + 'Print</button><a class="btn primary" href="#/pdf-reports">' + ui.icon('file', 'sm') + 'PDF Reports</a>' }) +
-      '<div class="rp-tabs"><div class="tabs">' + TABS.map(t => '<button data-tab="' + t.id + '" class="' + (t.id === tab ? 'on' : '') + '">' + ui.icon(t.icon, 'sm') + esc(t.label) + '</button>').join('') + '</div></div><div id="rpBody"></div>';
+      actions: '<button class="btn" id="rpPrint">' + ui.icon('printer', 'sm') + 'Print</button><button class="btn primary" id="rpPdf">' + ui.icon('file', 'sm') + 'PDF on letterhead</button>' }) +
+      '<div class="rp-tabs"><div class="tabs wrap">' + TABS.map(t => '<button data-tab="' + t.id + '" class="' + (t.id === tab ? 'on' : '') + '">' + ui.icon(t.icon, 'sm') + esc(t.label) + '</button>').join('') + '</div></div><div id="rpBody"></div>';
     el.querySelector('#rpPrint').onclick = () => window.print();
+    const pdfBtn = el.querySelector('#rpPdf');
+    const syncPdfBtn = () => { pdfBtn.hidden = tab === 'pdf'; el.querySelector('#rpPrint').hidden = tab === 'pdf'; };
+    pdfBtn.onclick = () => { const r = PDF_FOR[tab]; tab = 'pdf'; try { history.replaceState(null, '', '#/reports?tab=pdf' + (r ? '&r=' + r : '')); } catch (e) { /* ignore */ } render(el); };
+    syncPdfBtn();
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
       tab = b.dataset.tab; el.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === b));
       try { history.replaceState(null, '', '#/reports?tab=' + tab); } catch (e) { /* ignore */ }
+      syncPdfBtn();
       draw(el.querySelector('#rpBody'));
     });
     draw(el.querySelector('#rpBody'));
   }
   function draw(box) {
-    const fn = { prs: drawPRS, polog: drawPOLog, spend: drawSpend, approvals: drawApprovals, compliance: drawCompliance, aging: drawAging, plan: drawPlan }[tab];
+    const fn = { prs: drawPRS, polog: drawPOLog, spend: drawSpend, approvals: drawApprovals, compliance: drawCompliance, aging: drawAging, plan: drawPlan, pdf: b => Proc.reportPdf.render(b, { embedded: true }) }[tab];
     box.innerHTML = '';
     fn(box);
   }
