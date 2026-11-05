@@ -133,7 +133,7 @@
     const rep = REPORTS.find(r => r.id === q.tab) || REPORTS[0];
     if (!state.from) { const p = PRESETS[0][2](); state.from = p[0]; state.to = p[1]; }
     const days = state.days[rep.id] || rep.days || 90;
-    el.innerHTML = ui.pageHead({ title: 'Reports', sub: 'Stock, movements, consumption and supplier performance — from the bin cards and goods received notes.' }) +
+    el.innerHTML = ui.pageHead({ title: 'Reports', sub: 'Stock, movements, consumption and supplier performance — from the bin cards and goods received notes.', actions: '<a class="btn primary" href="#/pdf-reports">' + ui.icon('file', 'sm') + 'PDF Reports</a>' }) +
       '<div class="tabs">' + REPORTS.map(r => '<button class="' + (r.id === rep.id ? 'on' : '') + '" data-r="' + r.id + '">' + ui.icon(r.icon, 'sm') + esc(r.label) + '</button>').join('') + '</div>' +
       '<div class="card"><div class="toolbar" style="border-bottom:1px solid var(--border)">' +
       (rep.period ? '<div class="seg">' + PRESETS.map(p => '<button data-p="' + p[0] + '" class="' + (state.preset === p[0] ? 'on' : '') + '">' + p[1] + '</button>').join('') + '</div><input type="date" class="input sm" style="width:150px" data-from value="' + state.from + '"><span class="muted">to</span><input type="date" class="input sm" style="width:150px" data-to value="' + state.to + '">' : '') +

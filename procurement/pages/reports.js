@@ -174,7 +174,7 @@
     const q = Proc.router.parse().query;
     if (q.tab && TABS.some(t => t.id === q.tab)) tab = q.tab;
     el.innerHTML = ui.pageHead({ title: 'Reports & PRS', sub: 'Ministry returns, logs and analysis — all generated from your records.',
-      actions: '<button class="btn" id="rpPrint">' + ui.icon('printer', 'sm') + 'Print</button>' }) +
+      actions: '<button class="btn" id="rpPrint">' + ui.icon('printer', 'sm') + 'Print</button><a class="btn primary" href="#/pdf-reports">' + ui.icon('file', 'sm') + 'PDF Reports</a>' }) +
       '<div class="rp-tabs"><div class="tabs">' + TABS.map(t => '<button data-tab="' + t.id + '" class="' + (t.id === tab ? 'on' : '') + '">' + ui.icon(t.icon, 'sm') + esc(t.label) + '</button>').join('') + '</div></div><div id="rpBody"></div>';
     el.querySelector('#rpPrint').onclick = () => window.print();
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
