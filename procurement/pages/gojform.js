@@ -176,7 +176,24 @@
     '.gf-sign{display:grid;grid-template-columns:1fr 1fr;gap:18px 48px;margin-top:30px}.gf-sign .s input{width:100%;border:0;border-bottom:1.5px solid #333;background:transparent;font:inherit;font-weight:600;color:#0a285a;padding:3px 4px;outline:none}' +
     '.gf-sign .s label{display:block;font-style:italic;font-size:17px;margin-top:3px;color:#222}.gf-foot{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#444;margin-top:20px}' +
     '.gf-bar{position:sticky;top:calc(var(--topbar-h) + 8px);z-index:4;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:16px;box-shadow:var(--shadow-sm)}' +
-    '@media (max-width:760px){.gf-sheet{padding:22px 14px}.gf-top{grid-template-columns:1fr}.gf-sign{grid-template-columns:1fr}.gf-table{font-size:12.5px}.gf-hide-sm{display:none}.gf-no .n{font-size:22px}.gf-no input{width:140px}}';
+    '.gf-sheet,.gf-sheet *{box-sizing:border-box}.gf-sheet{overflow:hidden}.gf-top>*{min-width:0}.gf-desc input::placeholder{color:transparent}' +
+    '@media (max-width:760px){' +
+      '.gf-sheet{padding:20px 14px 18px;border-radius:10px}.gf-sheet h2{font-size:22px}.gf-sheet .auth{font-size:13px;letter-spacing:.02em}' +
+      '.gf-no{align-items:center;margin-top:14px}.gf-no .n{font-size:22px;gap:6px}.gf-no input{width:150px}.gf-no .cap,#gfBook{margin-right:0!important;text-align:center}' +
+      '.gf-top{grid-template-columns:1fr;gap:2px}.gf-top>div:empty{display:none}' +
+      '.gf-f{flex-direction:column;align-items:stretch;gap:0;min-height:0;margin-top:8px;font-size:12.5px;color:#4b5563}.gf-f label{white-space:normal}' +
+      '.gf-f input{width:100%;font-size:16px;padding:6px 2px;color:#0a285a}.gf-spec{margin-top:14px;font-weight:700;font-size:13px}' +
+      '.gf-table,.gf-table tbody{display:block;border:0}.gf-table colgroup,.gf-table thead,.gf-table tr.cur{display:none}' +
+      '.gf-table tr[data-i]{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:6px 8px;border:1px solid #c9d1db;border-radius:10px;padding:10px;margin-top:10px;background:#fbfcfe}' +
+      '.gf-table td{border:0!important;height:auto;display:flex;flex-direction:column;min-width:0}.gf-table td::before{content:attr(data-label);font-size:11px;color:#6b7280;margin-bottom:2px}' +
+      '.gf-table td.gf-desc{grid-column:1/-1;order:-1}.gf-table td.gf-desc input::placeholder{color:#9aa4b2}' +
+      '.gf-table input{height:38px;border:1px solid #d5dce5!important;border-radius:7px;background:#fff;font-size:16px;padding:0 8px}' +
+      '.gf-table .lt{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;padding:4px 2px 0;font-size:15px}.gf-table .lt::before{margin:0}' +
+      '.gf-table tr[data-i] td:nth-child(2){order:1}.gf-table tr[data-i] td:nth-child(1){order:0}.gf-table tr[data-i] td:nth-child(4){order:2}.gf-table tr[data-i] td.lt{order:3}' +
+      '.gf-total{font-size:14px}.gf-total b{min-width:120px}.gf-sign{grid-template-columns:1fr;gap:14px}.gf-sign .s input{font-size:16px}.gf-sign .s label{font-size:14px}' +
+      '.gf-foot{flex-direction:column;font-size:11px}.gf-hide-sm{display:none}.gf-table tr.blank~tr.blank{display:none}' +
+      '.gf-bar{position:static}.gf-bar .row{width:100%}.gf-bar .row .btn{flex:1}' +
+    '}';
 
   function render(el, params) {
     if (!document.getElementById('gfCss')) document.head.insertAdjacentHTML('beforeend', '<style id="gfCss">' + CSS + '</style>');
@@ -211,8 +228,8 @@
       '<datalist id="gfDel"><option value="Supplier to deliver to the hospital"><option value="Collection by hospital transport"><option value="Courier"><option value="Delivery to General Stores"></datalist>' +
       '<table class="gf-table"><colgroup><col style="width:13%"><col style="width:10%"><col><col style="width:14%"><col style="width:15%"></colgroup>' +
       '<thead><tr><th>Quantity</th><th>Code</th><th>Description</th><th>UNIT PRICE</th><th>LINE TOTAL</th></tr></thead><tbody><tr class="cur"><td></td><td></td><td></td><td>$</td><td>$</td></tr>' +
-      f.lines.map((l, i) => '<tr data-i="' + i + '"><td><input class="c" inputmode="decimal" data-l="qty" value="' + esc(l.qty) + '" aria-label="Quantity line ' + (i + 1) + '"></td><td><input data-l="code" value="' + esc(l.code) + '" aria-label="Code line ' + (i + 1) + '"></td>' +
-        '<td><input data-l="description" value="' + esc(l.description) + '" aria-label="Description line ' + (i + 1) + '"></td><td><input class="r" inputmode="decimal" data-l="unitPrice" value="' + esc(l.unitPrice) + '" aria-label="Unit price line ' + (i + 1) + '"></td><td class="lt" data-lt>' + (lineTotal(l) ? util.money(lineTotal(l)).replace(/^\$/, '') : '') + '</td></tr>').join('') +
+      f.lines.map((l, i) => '<tr data-i="' + i + '"><td data-label="Qty"><input class="c" inputmode="decimal" data-l="qty" value="' + esc(l.qty) + '" aria-label="Quantity line ' + (i + 1) + '"></td><td data-label="Code"><input data-l="code" value="' + esc(l.code) + '" aria-label="Code line ' + (i + 1) + '"></td>' +
+        '<td data-label="Description" class="gf-desc"><input data-l="description" placeholder="Line ' + (i + 1) + ' description" value="' + esc(l.description) + '" aria-label="Description line ' + (i + 1) + '"></td><td data-label="Unit price $"><input class="r" inputmode="decimal" data-l="unitPrice" value="' + esc(l.unitPrice) + '" aria-label="Unit price line ' + (i + 1) + '"></td><td class="lt" data-label="Line total $" data-lt>' + (lineTotal(l) ? util.money(lineTotal(l)).replace(/^\$/, '') : '') + '</td></tr>').join('') +
       '</tbody></table><div class="row between" style="margin-top:8px"><button type="button" class="btn sm" data-a="row">' + ui.icon('plus', 'sm') + 'Add line</button>' +
       '<div class="gf-total"><span>TOTAL</span><span class="d">$</span><b id="gfTotal">' + (total(f) ? util.money(total(f)).replace(/^\$/, '') : '') + '</b></div></div>' +
       '<div class="small" id="gfWords" style="text-align:right;color:#5b6573;margin-top:4px">' + (total(f) ? esc(domain.amountWords(total(f))) : '') + '</div>' +
@@ -227,12 +244,15 @@
       sheet.querySelectorAll('tbody tr[data-i]').forEach(tr => { const l = f.lines[+tr.dataset.i]; tr.querySelector('[data-lt]').textContent = lineTotal(l) ? util.money(lineTotal(l)).replace(/^\$/, '') : ''; });
       const t = total(f); el.querySelector('#gfTotal').textContent = t ? util.money(t).replace(/^\$/, '') : ''; el.querySelector('#gfWords').textContent = t ? domain.amountWords(t) : '';
     };
+    // On a phone only the filled lines and one empty line show; "Add line" opens the next.
+    const markBlank = () => sheet.querySelectorAll('tbody tr[data-i]').forEach(tr => { const l = f.lines[+tr.dataset.i]; const empty = !String(l.qty || '').trim() && !String(l.code || '').trim() && !String(l.description || '').trim() && !String(l.unitPrice || '').trim(); tr.classList.toggle('blank', empty && !tr.classList.contains('opened')); });
+    markBlank();
     const bookHint = () => { const b = bookFor(f.poNumber); el.querySelector('#gfBook').textContent = f.poNumber ? (b ? 'From PO Book ' + b.bookNo + ' (' + b.firstSerial + '–' + b.lastSerial + ')' : 'Not in a registered PO book') : 'Leave blank to save as a draft'; };
     bookHint();
     sheet.addEventListener('input', e => {
       const t = e.target;
       if (t.dataset.k) { f[t.dataset.k] = t.value; if (t.dataset.k === 'poNumber') bookHint(); }
-      if (t.dataset.l) { f.lines[+t.closest('tr').dataset.i][t.dataset.l] = t.value; refreshTotals(); }
+      if (t.dataset.l) { f.lines[+t.closest('tr').dataset.i][t.dataset.l] = t.value; refreshTotals(); markBlank(); }
       persist();
     });
     // Choosing a known supplier fills in the address, numbers and TRN from their file.
@@ -247,7 +267,10 @@
       e.preventDefault(); const tr = e.target.closest('tr'), next = tr.nextElementSibling;
       const col = e.target.dataset.l; const target = next ? next.querySelector('[data-l=' + col + ']') : null; if (target) target.focus();
     });
-    el.querySelector('[data-a=row]').onclick = () => { f.lines.push({ qty: '', code: '', description: '', unitPrice: '' }); persist(); render(el, params); };
+    el.querySelector('[data-a=row]').onclick = () => {
+      const blanks = Array.from(sheet.querySelectorAll('tbody tr.blank'));
+      if (blanks.length > 1 && getComputedStyle(blanks[1]).display === 'none') { blanks[0].classList.remove('blank'); blanks[0].classList.add('opened'); blanks[1].querySelector('input').focus(); markBlank(); return; }
+      f.lines.push({ qty: '', code: '', description: '', unitPrice: '' }); persist(); render(el, params); };
     el.querySelector('[data-a=pdf]').onclick = () => {
       if (!filled(f).length && !f.supplierName) return ui.toast('Fill in the form first.', 'warning');
       try { gojPdf(f, 'save'); Proc.audit('Download PO form', 'PO ' + (f.poNumber || 'draft') + ' — ' + (f.supplierName || '')); } catch (err) { ui.toast(err.message, 'error'); }
