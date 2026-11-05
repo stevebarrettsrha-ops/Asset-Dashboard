@@ -210,9 +210,9 @@
   const IDB_NAME = 'ProcurementDB';
   const IDB_VERSION = 2;               // v2 adds the "files" store for documents
   const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks',
-    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications'];
+    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications', 'budgetLines', 'budgetMonths'];
   const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK',
-    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF' };
+    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF', budgetLines: 'BL', budgetMonths: 'BM' };
   const listeners = {};
   let idbPromise = null;
   let saveTimer = null;
