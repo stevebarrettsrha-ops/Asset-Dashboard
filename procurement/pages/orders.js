@@ -176,7 +176,7 @@
       back: { label: 'Purchase Orders', href: '#/orders' },
       title: poLabel(po), badge: ui.badge(po.status),
       sub: esc(po.supplierName || '') + ' · ' + esc(util.dateLong(po.date)) + ' · ' + '<b>' + util.money(po.total) + '</b>',
-      actions: '<button class="btn" data-a="pdf">' + ui.icon('printer', 'sm') + 'Print PO</button>' + (po.status !== 'Cancelled' ? '<a class="btn" href="#/orders/' + po.id + '/edit">' + ui.icon('edit', 'sm') + 'Edit</a>' : '') + primary +
+      actions: '<button class="btn" data-a="pdf">' + ui.icon('printer', 'sm') + 'Print PO</button><a class="btn" href="#/po-form/' + po.id + '" title="The Government of Jamaica purchase order form — type it on screen and download the PDF">' + ui.icon('file', 'sm') + 'Government form</a>' + (po.status !== 'Cancelled' ? '<a class="btn" href="#/orders/' + po.id + '/edit">' + ui.icon('edit', 'sm') + 'Edit</a>' : '') + primary +
         '<button class="btn icon" data-a="more" title="More actions">' + ui.icon('more') + '</button>'
     }) +
       (po.status === 'Cancelled' ? '<div class="alert danger mb-3">' + ui.icon('alert') + '<div><div class="t">Cancelled' + (po.cancelledAt ? ' on ' + esc(util.date(po.cancelledAt)) : '') + '</div>' + esc(po.cancelReason || '') + '</div></div>' :
