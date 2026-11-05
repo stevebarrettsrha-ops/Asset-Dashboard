@@ -387,29 +387,33 @@
     view = 'landing';
     const s = session();
     const SYS_FOR = k => ROLES[k].home === 'console' ? 'Admin console · every system' : ROLES[k].home === 'hub' ? 'Overview · every system' : ROLES[k].systems.map(x => SYSTEMS[x] ? SYSTEMS[x].label : x).slice(0, 2).join(' · ');
+    const d0 = new Date(), ticketNo = 'MPH-' + String(d0.getFullYear()).slice(2) + String(d0.getMonth() + 1).padStart(2, '0') + String(d0.getDate()).padStart(2, '0') + '-' + String(d0.getHours()).padStart(2, '0') + String(d0.getMinutes()).padStart(2, '0');
+    const DEST = [['←', 'Procurement Unit', 'Requisitions · memos · POs'], ['↑', 'General Stores', 'Receiving · stock · issues'], ['→', 'Fixed Assets', 'Register · locations · intake']];
     $('#app').innerHTML =
-      '<header class="lp-top"><div class="lp-mark">' + ICON.pulse + '</div><div class="lp-id"><div class="h" data-hospital></div><div class="s"><span data-org></span> · Systems Portal</div></div><div class="spacer"></div>' +
+      '<header class="lp-top"><div class="lp-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="17" y="5" width="14" height="38" rx="3"/><rect x="5" y="17" width="38" height="14" rx="3"/><path d="M8 24h9l3-6 4 12 3-6h13"/></svg></div>' +
+      '<div class="lp-id"><div class="h" data-hospital></div><div class="s"><span data-org></span></div></div><div class="spacer"></div>' +
       '<div class="lp-clock" id="lpClock"></div><button class="icon-btn" id="lpTheme" title="Light / dark" aria-label="Switch light or dark">' + (theme() === 'dark' ? ICON.sun : ICON.moon) + '</button></header>' +
+      '<svg class="ecg" viewBox="0 0 1200 46" preserveAspectRatio="none" aria-hidden="true"><path class="glow" d="M0 30 H380 L398 30 L410 12 L424 44 L438 4 L452 38 L462 30 H700 L716 30 L726 20 L738 36 L748 30 H1200"/><path d="M0 30 H380 L398 30 L410 12 L424 44 L438 4 L452 38 L462 30 H700 L716 30 L726 20 L738 36 L748 30 H1200"/></svg>' +
       '<div class="landing"><section class="hero"><div>' +
-      '<div class="eyebrow">Hospital Systems Portal</div>' +
-      '<h1>Procurement, Stores &amp; Fixed Assets — <span class="hl">one sign-in.</span></h1>' +
-      '<p class="lead">Sign in once with your hospital account and go straight to your work. Your role decides which systems open.</p>' +
-      '<ol class="steps" id="steps"><li class="' + (synced ? 'done' : 'now') + '"><span class="n">' + (synced ? ICON.check : '1') + '</span>Sync this computer</li><li class="' + (synced ? 'now' : '') + '"><span class="n">2</span>Choose your role</li><li><span class="n">3</span>Sign in</li></ol>' +
+      '<div class="sign"><div class="small">Welcome to</div><h1>Hospital <em>Systems</em> Portal</h1><ul class="dest">' + DEST.map(x => '<li><span class="ar">' + x[0] + '</span>' + esc(x[1]) + '<small>' + esc(x[2]) + '</small></li>').join('') + '</ul></div>' +
+      '<p class="lead">Check in at the desk, pick your staff badge, and sign in once — you go straight to the systems your role uses.</p>' +
       (s ? '<div class="signed-bar"><span class="avatar" style="background:' + ROLES[s.role].color + '">' + esc(initials(s.displayName)) + '</span><span>Signed in as <b>' + esc(s.displayName) + '</b> · ' + esc(ROLES[s.role].label) + '</span><button class="btn gold sm" data-continue>Continue</button><button class="btn ghost sm" data-signout>Sign out</button></div>' : '') +
-      '</div><aside class="sync-panel' + (synced ? ' synced' : '') + '" id="syncCard"><div class="sync-head"><div class="sync-orb" id="syncOrb">' + (synced ? ICON.check : ICON.sync) + '</div><div><div class="t">' + (synced ? 'This computer is up to date' : 'Sync before signing in') + '</div>' +
-      '<div class="d">Gets the latest accounts and passwords from Google Drive.</div></div></div><div class="msg" id="syncMsg"></div>' +
-      '<button class="btn gold" id="syncBtn">' + (synced ? 'Synced' : 'Sync now') + '</button>' +
-      '<div class="why"><b>Why sync first?</b> Everyone then signs in with their current password, and disabled accounts stay out. If it cannot sync, try again or ask the Administrator.<div class="offline" id="offlineWrap" hidden><a href="javascript:void 0" id="offlineLink">Continue without syncing</a> — accounts may be out of date.</div></div></aside></section>' +
-      '<div class="section-h"><h2>Choose your role</h2><p>Pick the card for your job — you will be asked for your username and password.</p></div>' +
+      '</div><aside class="sync-panel' + (synced ? ' synced' : '') + '" id="syncCard"><div class="ticket-stub"><div class="lbl">Check-in</div><div class="no">TICKET ' + ticketNo + '<br>THIS COMPUTER</div></div>' +
+      '<span class="stamp">Checked in</span><div class="ticket-body"><div class="sync-head"><div class="sync-orb" id="syncOrb">' + (synced ? ICON.check : ICON.sync) + '</div><div><div class="t">' + (synced ? 'This computer is up to date' : 'Sync before signing in') + '</div>' +
+      '<div class="d">Gets the latest staff accounts and passwords from Google Drive.</div></div></div><div class="msg" id="syncMsg"></div>' +
+      '<div class="why"><b>Why check in first?</b> Everyone then signs in with their current password, and disabled accounts stay out.<div class="offline" id="offlineWrap" hidden><a href="javascript:void 0" id="offlineLink">Continue without syncing</a> — accounts may be out of date.</div></div>' +
+      '<button class="btn gold" id="syncBtn">' + (synced ? 'Synced' : 'Sync now') + '</button></div></aside></section>' +
+      '<div class="section-h"><h2>Pick your badge</h2><ol class="steps" id="steps"><li class="' + (synced ? 'done' : 'now') + '"><span class="n">' + (synced ? ICON.check : '1') + '</span>Check in</li><li class="' + (synced ? 'now' : '') + '"><span class="n">2</span>Pick your badge</li><li><span class="n">3</span>Sign in</li></ol></div>' +
       '<div class="roles' + (synced ? '' : ' locked') + '" id="roles">' + ROLE_ORDER.map((k, i) => {
         const r = ROLES[k];
-        return '<div class="role-card" tabindex="0" role="button" aria-label="' + esc(r.btn) + '" style="--rc:' + r.color + ';--i:' + i + '" data-role="' + k + '"><span class="wash"></span><span class="lock-chip">' + ICON.lock + 'Sync first</span>' +
-          '<div class="ic">' + ROLE_SVG[k] + '</div><div class="kicker">' + esc(SYS_FOR(k)) + '</div><h2>' + esc(r.label) + '</h2><p>' + esc(r.desc) + '</p>' +
-          '<div class="foot-row"><span class="enter-label">' + esc(r.btn) + '</span><span class="go" aria-hidden="true">' + ICON.arrow + '</span></div></div>';
+        return '<div class="role-card" tabindex="0" role="button" aria-label="' + esc(r.btn) + '" style="--rc:' + r.color + ';--i:' + i + '" data-role="' + k + '"><span class="clip"></span><span class="lock-chip">Sync first</span>' +
+          '<div class="band"><div class="org" data-hospital></div><span class="tag">' + (k === 'admin' ? 'Admin' : 'Staff') + '</span></div>' +
+          '<div class="body"><div class="photo"><div class="ic">' + ROLE_SVG[k] + '</div><div><h2>' + esc(r.label) + '</h2><div class="kicker">' + esc(SYS_FOR(k)) + '</div></div></div><p>' + esc(r.desc) + '</p>' +
+          '<div class="barcode" aria-hidden="true"></div><div class="foot-row"><span class="enter-label">Tap to sign in</span><span class="go" aria-hidden="true">' + ICON.arrow + '</span></div></div></div>';
       }).join('') + '</div>' +
       '<footer class="foot"><span><span data-hospital></span> · <span data-org></span></span><span>Need an account or a password reset? Ask the Administrator. <span id="footSync"></span></span></footer></div>';
     applyHeadings();
-    const tick = () => { const c = $('#lpClock'); if (!c) return clearInterval(clockTimer); const d = new Date(); c.innerHTML = '<b>' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</b>' + d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }); };
+    const tick = () => { const c = $('#lpClock'); if (!c) return clearInterval(clockTimer); const d = new Date(); c.innerHTML = '<b>' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</b><span>' + d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + '</span>'; };
     clearInterval(clockTimer); tick(); clockTimer = setInterval(tick, 30000);
     $('#lpTheme').onclick = () => { setTheme(theme() === 'dark' ? 'light' : 'dark'); $('#lpTheme').innerHTML = theme() === 'dark' ? ICON.sun : ICON.moon; };
     $('#syncBtn').onclick = runPreSync;
@@ -429,6 +433,7 @@
     const card = $('#syncCard'); if (card) card.classList.add('synced');
     const orb = $('#syncOrb'); if (orb) { orb.classList.remove('spin'); orb.innerHTML = ICON.check; }
     const t = card && card.querySelector('.t'); if (t) t.textContent = 'This computer is up to date';
+    const b = $('#syncBtn'); if (b && !b.disabled && b.textContent === 'Sync now') b.textContent = 'Checked in';
     const roles = $('#roles'); if (roles) roles.classList.remove('locked');
     const st = $$('#steps li'); if (st.length) { st[0].className = 'done'; st[0].querySelector('.n').innerHTML = ICON.check; st[1].className = 'now'; }
   }

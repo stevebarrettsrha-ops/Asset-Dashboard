@@ -101,7 +101,8 @@
       doc.setPage(p);
       drawLetterhead(doc, o);
       if (o.side) drawSidePanel(doc);
-      drawFooter(doc, o);
+      // The board-members footer belongs on the official approval letters only (memos, with the side panel).
+      if (o.side || o.boardFooter) drawFooter(doc, o);
       const seg = segments.find(s => p >= s.start && p <= s.end) || { start: 1, end: n };
       const count = seg.end - seg.start + 1;
       if (count > 1 || o.alwaysNumber) {
