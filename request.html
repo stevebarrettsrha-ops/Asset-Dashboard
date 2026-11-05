@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Requisition · May Pen Hospital</title>
+  <meta name="description" content="Fill in the SRHA Purchase Requisition / Justification Form online and send it to the Procurement Unit.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="procurement/app.css">
+  <style>
+    body { background: var(--bg); }
+    .pub-top { display: flex; align-items: center; gap: 12px; padding: 14px clamp(14px, 4vw, 32px); background: var(--surface); border-bottom: 1px solid var(--border); }
+    .pub-top .t { font-weight: 700; font-size: 15px; } .pub-top .s { font-size: 12.5px; color: var(--text-3); }
+    .pub-main { max-width: 960px; margin: 0 auto; padding: 18px clamp(12px, 3vw, 24px) 60px; }
+    .pub-intro { margin: 4px 0 14px; color: var(--text-2); font-size: 14px; line-height: 1.55; }
+    .rf-bar { top: 8px !important; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <!-- Public page: no sign-in and none of the hospital's records are loaded here. -->
+  <script>window.PROC_APP = { id: 'request', system: 'request', name: 'Purchase Requisition', audience: 'public' };</script>
+</head>
+<body>
+  <header class="pub-top"><div class="sb-logo" style="width:38px;height:38px;font-size:13px">REQ</div><div><div class="t">Purchase Requisition</div><div class="s" id="pubSub">Southern Regional Health Authority · Public Procurement Unit</div></div></header>
+  <main class="pub-main">
+    <p class="pub-intro" id="pubIntro">Fill in the form below the same way as the paper form. Boxes marked “For Procurement use only” and “For official use only” are completed by the Procurement Unit.</p>
+    <div id="view"></div>
+  </main>
+  <script src="procurement/assets.js"></script>
+  <script src="procurement/core.js"></script>
+  <script src="procurement/pdf.js"></script>
+  <script src="procurement/pages/reqform.js"></script>
+  <script>
+    (function () {
+      var h = {}; (location.hash || '').replace(/^#/, '').split('&').forEach(function (p) { var i = p.indexOf('='); if (i > 0) h[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1)); });
+      var endpoint = /^https:\/\/script\.google(usercontent)?\.com\//.test(h.to || '') ? h.to : '';
+      if (h.f) document.getElementById('pubSub').textContent = h.f + ' · Public Procurement Unit';
+      if (endpoint) document.getElementById('pubIntro').textContent += ' When you are done, press “Submit to Procurement” — it is sent straight to the Procurement Unit.';
+      Proc.reqForm.renderPublic(document.getElementById('view'), { endpoint: endpoint, facility: h.f || '' });
+    })();
+  </script>
+</body>
+</html>

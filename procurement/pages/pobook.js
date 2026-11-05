@@ -321,7 +321,7 @@
     const nxt = suggestNext();
     el.innerHTML = ui.pageHead({
       title: 'PO Book', sub: 'Purchase orders written by hand in the pre-numbered PO books — record each one, void spoilt leaves, and reconcile every book.',
-      actions: '<button class="btn" data-a="book">' + ui.icon('plus', 'sm') + 'Register a book</button><button class="btn primary" data-a="record">' + ui.icon('edit', 'sm') + 'Record a PO from the book</button>'
+      actions: '<button class="btn" data-a="book">' + ui.icon('plus', 'sm') + 'Register a book</button><a class="btn" href="#/po-form" title="Type a PO on the Government of Jamaica form and download it as a PDF">' + ui.icon('file', 'sm') + 'Digital PO form</a><button class="btn primary" data-a="record">' + ui.icon('edit', 'sm') + 'Record a PO from the book</button>'
     }) +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'Books in use', icon: 'file', value: util.int(open.length), meta: all.length + ' registered' }) +
