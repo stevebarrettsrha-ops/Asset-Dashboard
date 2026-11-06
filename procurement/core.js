@@ -1706,9 +1706,16 @@
     },
     /** Signed in already: this tab's own session, or the hospital portal's single sign-on session. */
     restore() {
-      try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); if (s && s.username) { auth.user = s; return s; } } catch (e) { /* ignore */ }
       try {
-        const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null');
+        const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+        // A portal sign-in ends when the portal session does (sign-out in another tab, or 12 hours).
+        const live = () => { try { const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || localStorage.getItem('mphPortalSession') || 'null'); return p && p.exp > Date.now() && p.username === s.username; } catch (e) { return false; } };
+        if (s && s.username && (!s.viaPortal || live())) { auth.user = s; return s; }
+        if (s) sessionStorage.removeItem(SESSION_KEY);
+      } catch (e) { /* ignore */ }
+      try {
+        // The portal keeps the sign-in for the tab and, for new tabs, on this computer until it expires.
+        const p = JSON.parse(sessionStorage.getItem('mphPortalSession') || localStorage.getItem('mphPortalSession') || 'null');
         if (p && p.exp > Date.now() && canUse(p.systems)) {
           auth.user = { username: p.username, displayName: p.displayName, role: p.role === 'admin' ? 'admin' : p.role === 'operations' ? 'operations' : APP.system + '_officer', portalRole: p.role, email: p.email || '', viaPortal: true };
           sessionStorage.setItem(SESSION_KEY, JSON.stringify(auth.user));
@@ -1721,9 +1728,9 @@
       Proc.audit('Logout', 'Signed out: ' + auth.userName());
       const viaPortal = auth.user && auth.user.viaPortal;
       auth.user = null;
-      try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('mphPortalSession'); } catch (e) { /* ignore */ }
-      if (viaPortal) { location.href = 'portal.html'; return; }
-      location.hash = ''; location.reload();
+      try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('mphPortalSession'); localStorage.removeItem('mphPortalSession'); } catch (e) { /* ignore */ }
+      void viaPortal;
+      location.href = 'portal.html';
     }
   };
   function domainOfficerName() { const p = auth.user && store.db.settings.officers[auth.user.username]; return p && p.name; }
@@ -2032,6 +2039,12 @@
 
   /** Boot: called by procurement.html once all scripts are loaded. */
   Proc.boot = async function () {
+    // Sign-in happens on the hospital portal only: without a portal sign-in for this system, go there.
+    if (!auth.restore()) {
+      const page = location.pathname.split('/').pop() || 'procurement.html';
+      location.replace('portal.html?next=' + encodeURIComponent(page + (location.hash || '')));
+      return;
+    }
     store.load();
     await store.ready;
     // Ask the browser to keep this site's data even when the disk is short of space.
