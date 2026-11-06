@@ -6381,6 +6381,17 @@
     </style>
 </head>
 <body>
+    <script>
+        // Signed in on the portal? Skip the old login page entirely; otherwise go to the portal.
+        (function () {
+            try {
+                var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || localStorage.getItem('mphPortalSession') || 'null');
+                if (p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0) document.documentElement.classList.add('via-portal');
+                else window.location.replace('portal.html?next=' + encodeURIComponent('index.html' + (location.hash || '')));
+            } catch (e) { window.location.replace('portal.html'); }
+        })();
+    </script>
+    <style>.via-portal #loginPage { display: none !important; }</style>
     <!-- Night Mode Toggle Button (Hidden until login) -->
     <button class="night-mode-toggle" id="nightModeBtn" onclick="toggleNightMode()" title="Toggle Night Mode" style="display: none;">
         <span id="nightModeIcon">🌙</span>
@@ -38190,38 +38201,59 @@
 
     </script>
     <script>
-        // Single sign-on: someone already signed in on the hospital portal with
-        // access to the Fixed Asset Register goes straight in (the dashboard's own
-        // sign-in gates — forced password change and the cloud sync — still run).
+        // Sign-in is done on the hospital portal only. Someone signed in there with
+        // access to the Fixed Asset Register goes straight to the dashboard; anyone
+        // else is sent to the portal. The register's own login page, password
+        // prompts and "sync before entering" step are not used any more — the data
+        // syncs with Google Drive in the background instead.
         (function () {
+            var KEY = 'mphPortalSession';
             function portalSession() {
-                try { var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || 'null'); return p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0 ? p : null; }
-                catch (e) { return null; }
+                try {
+                    var p = JSON.parse(sessionStorage.getItem(KEY) || localStorage.getItem(KEY) || 'null');
+                    return p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0 ? p : null;
+                } catch (e) { return null; }
             }
-            function portalSignIn() {
-                var p = portalSession();
-                if (!p || currentUser) return;
-                var page = document.getElementById('loginPage');
-                if (!page || page.style.display === 'none') return;
+            function toPortal() { window.location.replace('portal.html?next=' + encodeURIComponent('index.html' + (location.hash || ''))); }
+            function portalUser(p) {
                 var local = null;
                 try { local = (JSON.parse(localStorage.getItem('assetDashboardLocalUsers') || '[]')).find(function (u) { return String(u.username).toLowerCase() === p.username; }) || null; } catch (e) {}
-                // Permission level comes from the portal account (kept from the old portal), never assumed.
+                // Permission level comes from the portal account, never assumed.
                 var role = p.assetRole || 'User';
                 var user = Object.assign({ username: p.username, displayName: p.displayName, role: role, email: p.email || '', permissions: { canExport: role !== 'Viewer', canRefresh: role !== 'Viewer' } }, local || {},
-                    { source: 'local', viaPortal: true, displayName: p.displayName || (local && local.displayName) || p.username });
-                var tfa = getUserTwoFASettings(p.username);
-                if (tfa && tfa.twoFactorEnabled) return; // keep the two-step login for 2FA users
-                user.twoFactorEnabled = false; user.twoFactorSecret = (tfa && tfa.twoFactorSecret) || null; user.backupCodes = (tfa && tfa.backupCodes) || null;
-                completeLogin(user);
+                    { source: 'local', viaPortal: true, displayName: p.displayName || (local && local.displayName) || p.username, role: role, requirePasswordChange: false, offerPasswordChange: false });
+                user.permissions = { canExport: role !== 'Viewer', canRefresh: role !== 'Viewer' };
+                user.twoFactorEnabled = false;
+                return user;
             }
+            // The Google Drive token is kept per tab here; take the one this computer already has.
+            function handOverGoogle() {
+                try {
+                    var t = localStorage.getItem('assetDashboardGoogleAccessToken'), e = parseInt(localStorage.getItem('assetDashboardGoogleTokenExpiry') || '0', 10);
+                    if (t && e > Date.now() && !sessionStorage.getItem('assetDashboardGoogleAccessToken')) { sessionStorage.setItem('assetDashboardGoogleAccessToken', t); sessionStorage.setItem('assetDashboardGoogleTokenExpiry', new Date(e).toISOString()); }
+                } catch (err) {}
+            }
+            // Replaces the register's own "restore my last login" step, which runs when the page loads.
+            restoreLoginSession = async function () {
+                var p = portalSession();
+                if (!p) { toPortal(); return false; }
+                handOverGoogle();
+                currentUser = portalUser(p);
+                try { await finishLogin(); }
+                catch (e) { console.error('[Portal sign-in] could not open the dashboard', e); return false; }
+                // Bring in other computers' changes in the background (combined, never replaced).
+                try { if (typeof isCloudConnected !== 'undefined' && isCloudConnected && googleAccessToken && typeof downloadAndRestoreCloudBackup === 'function') downloadAndRestoreCloudBackup().catch(function (e) { console.warn('[Background sync]', e.message); }); } catch (e) {}
+                return true;
+            };
+            // Any remaining login path goes straight in.
+            startMandatoryLoginSync = function () { finishLogin(); };
             var origLogout = handleLogout;
             handleLogout = function () {
-                var via = currentUser && currentUser.viaPortal;
-                origLogout();
-                if (!currentUser) { try { sessionStorage.removeItem('mphPortalSession'); } catch (e) {} if (via) window.location.href = 'portal.html'; }
+                try { origLogout(); } catch (e) {}
+                try { sessionStorage.removeItem(KEY); localStorage.removeItem(KEY); } catch (e) {}
+                window.location.href = 'portal.html';
             };
-            function later() { setTimeout(portalSignIn, 700); }
-            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', later); else later();
+            if (!portalSession()) toPortal();
         })();
     </script>
     <script>

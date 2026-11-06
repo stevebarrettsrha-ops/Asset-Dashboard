@@ -2,8 +2,10 @@
    Hospital Systems Portal
    - "Sync before signing in": pulls the shared account file from Google Drive.
    - One card per role; each opens a sign-in box for that role.
-   - A signed-in session (sessionStorage "mphPortalSession") is honoured by
-     Procurement, General Stores and the Fixed Asset Register, so officers sign in once.
+   - This is the only sign-in. The session ("mphPortalSession", in this tab and on this computer for
+     12 hours) opens Procurement, General Stores and the Fixed Asset Register directly; those pages
+     send anyone not signed in back here (portal.html?next=<page>) and return them after sign-in.
+   - Optional sign-in service (Apps Script): accounts work on every computer without a Google sync.
    - Administrator console: user accounts (create, edit, enable/disable, reset
      password, delete, export), systems, organisation headings, cloud sync and
      sign-in activity. Operations Manager gets a hub that opens every system.
@@ -16,7 +18,7 @@
   const KEYS = {
     accounts: 'portalAccountsV2', legacy: 'portalUserAccounts', headings: 'portalHeadingSettings', log: 'portalSigninLog',
     tomb: 'portalAccountTombstones', session: 'mphPortalSession', theme: 'portalTheme2', lastSync: 'portalLastSync',
-    fails: 'portalFailedSignins', lock: 'mphPortalLocked', assetUsers: 'assetDashboardLocalUsers'
+    fails: 'portalFailedSignins', lock: 'mphPortalLocked', assetUsers: 'assetDashboardLocalUsers', service: 'portalSignInService'
   };
   const SALT = 'AssetDashboard_Salt_2024';
   const GDRIVE = {
@@ -200,7 +202,7 @@
     writeJSON(KEYS.accounts, list);
     writeJSON(KEYS.legacy, deriveLegacy(list));
     syncAssetUsers(list);
-    if (!opts.fromCloud) { cloudDirty = true; scheduleCloudPush(); }
+    if (!opts.fromCloud) { cloudDirty = true; scheduleCloudPush(); svcDirty = true; scheduleSvcPush(); }
   }
   function touch(a) { a.updatedAt = Date.now(); a.updatedBy = session() ? session().username : 'portal'; return a; }
   async function upgradeAccounts() {
@@ -233,7 +235,7 @@
   /* ----------------------------------------------------------- session */
   function session() {
     try {
-      const s = JSON.parse(sessionStorage.getItem(KEYS.session) || 'null');
+      const s = JSON.parse(sessionStorage.getItem(KEYS.session) || localStorage.getItem(KEYS.session) || 'null');
       if (s && s.exp > Date.now()) {
         // The account must still exist, be active and have no pending password change.
         const a = loadAccounts().find(x => x.username === s.username);
@@ -246,7 +248,9 @@
   function startSession(a, card) {
     const lr = systemsOf(a).indexOf('assets') >= 0 ? legacyRoleFor(a, 'assets') : '';
     const s = { username: a.username, displayName: a.displayName, email: a.email || '', role: a.role, card, systems: systemsOf(a), assetRole: lr === 'Admin' ? 'Administrator' : lr, at: Date.now(), exp: Date.now() + SESSION_HOURS * 3600e3 };
+    // Kept for this tab and, until it expires, for new tabs on this computer, so every dashboard opens straight away.
     sessionStorage.setItem(KEYS.session, JSON.stringify(s));
+    try { localStorage.setItem(KEYS.session, JSON.stringify(s)); } catch (e) { /* ignore */ }
     handOverGoogle();
     return s;
   }
@@ -257,7 +261,7 @@
       if (t && e > Date.now()) { sessionStorage.setItem('assetDashboardGoogleAccessToken', t); sessionStorage.setItem('assetDashboardGoogleTokenExpiry', new Date(e).toISOString()); }
     } catch (err) { /* ignore */ }
   }
-  function endSession() { sessionStorage.removeItem(KEYS.session); sessionStorage.removeItem(KEYS.lock); }
+  function endSession() { sessionStorage.removeItem(KEYS.session); sessionStorage.removeItem(KEYS.lock); try { localStorage.removeItem(KEYS.session); } catch (e) { /* ignore */ } }
 
   /* --------------------------------------------------------- headings */
   const headings = () => Object.assign({}, DEFAULT_HEADINGS, readJSON(KEYS.headings, {}));
@@ -381,11 +385,61 @@
   const scheduleCloudPush = debounce(() => { if ((cloud.token || storedToken()) && cloudDirty) syncNow(false).catch(() => {}); }, 1500);
   const lastSync = () => parseInt(localStorage.getItem(KEYS.lastSync) || '0', 10);
 
+  /* ---------------------------------------------------- sign-in service
+     A small Google Apps Script web app (procurement/receiver/requisition-receiver.gs) holds a copy of the
+     accounts. Any computer can then check a username and password online, with no Google sign-in, so an
+     account the Administrator creates works everywhere straight away. The Administrator's computer
+     publishes every change with the service key; staff computers only ever send a username and hash. */
+  let svcDirty = false, svcBusy = false;
+  function service() {
+    const c = readJSON(KEYS.service, {}) || {};
+    const fixed = (window.PORTAL_CONFIG && window.PORTAL_CONFIG.signInService) || '';
+    return { url: c.url || fixed, key: c.key || '' };
+  }
+  const validSvc = u => /^https:\/\/script\.google(usercontent)?\.com\/macros\/[^\s]+$/.test(u || '');
+  async function svcPost(body, timeout) {
+    const url = service().url; if (!validSvc(url)) throw new Error('no sign-in service');
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), timeout || 15000) : 0;
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined });
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+  /** Bring one account the service vouched for onto this computer. */
+  function adoptAccount(acc) {
+    if (!acc || !acc.username) return;
+    const list = loadAccounts(); const u = String(acc.username).toLowerCase(); acc.username = u;
+    const i = list.findIndex(a => a.username === u);
+    const keep = i >= 0 ? { lastLogin: list[i].lastLogin, loginCount: list[i].loginCount } : {};
+    if (i >= 0) list[i] = Object.assign({}, acc, keep); else list.push(acc);
+    const tomb = tombstones(); if (tomb[u] && tomb[u] < (acc.updatedAt || 0)) { delete tomb[u]; writeJSON(KEYS.tomb, tomb); }
+    saveAccounts(list, { fromCloud: true });
+  }
+  /** Administrator only: send every account (and deletion) to the service and take back anything newer. */
+  async function svcSync() {
+    const sv = service(); if (!validSvc(sv.url) || !sv.key) return false;
+    if (svcBusy) { svcDirty = true; return false; }
+    svcBusy = true; svcDirty = false;
+    try {
+      const list = loadAccounts().map(a => { const c = Object.assign({}, a); delete c.password; delete c._plain; return c; });
+      const j = await svcPost({ action: 'accounts-sync', key: sv.key, accounts: list, deleted: tombstones() }, 30000);
+      if (!j || !j.ok) throw new Error((j && j.error) || 'the sign-in service did not answer');
+      mergeCloud({ accounts: j.accounts || [], deletedAccounts: j.deleted || {} });
+      writeJSON(KEYS.service, Object.assign({}, readJSON(KEYS.service, {}), { lastSync: Date.now(), lastError: '' }));
+      return true;
+    } catch (e) {
+      writeJSON(KEYS.service, Object.assign({}, readJSON(KEYS.service, {}), { lastError: e.message, lastErrorAt: Date.now() }));
+      svcDirty = true; throw e;
+    } finally { svcBusy = false; }
+  }
+  const scheduleSvcPush = debounce(() => { if (svcDirty && service().key) svcSync().catch(() => {}); }, 1200);
+
   /* ============================================================ LANDING */
   let synced = false, view = 'landing';
   function renderLanding() {
     view = 'landing';
-    const s = session();
+    const s = session(), online = validSvc(service().url);
     const SYS_FOR = k => ROLES[k].home === 'console' ? 'Admin console · every system' : ROLES[k].home === 'hub' ? 'Overview · every system' : ROLES[k].systems.map(x => SYSTEMS[x] ? SYSTEMS[x].label : x).slice(0, 2).join(' · ');
     const d0 = new Date(), ticketNo = 'MPH-' + String(d0.getFullYear()).slice(2) + String(d0.getMonth() + 1).padStart(2, '0') + String(d0.getDate()).padStart(2, '0') + '-' + String(d0.getHours()).padStart(2, '0') + String(d0.getMinutes()).padStart(2, '0');
     const DEST = [['←', 'Procurement Unit', 'Requisitions · memos · POs'], ['↑', 'General Stores', 'Receiving · stock · issues'], ['→', 'Fixed Assets', 'Register · locations · intake']];
@@ -399,8 +453,8 @@
       '<p class="lead">Check in at the desk, pick your staff badge, and sign in once — you go straight to the systems your role uses.</p>' +
       (s ? '<div class="signed-bar"><span class="avatar" style="background:' + ROLES[s.role].color + '">' + esc(initials(s.displayName)) + '</span><span>Signed in as <b>' + esc(s.displayName) + '</b> · ' + esc(ROLES[s.role].label) + '</span><button class="btn gold sm" data-continue>Continue</button><button class="btn ghost sm" data-signout>Sign out</button></div>' : '') +
       '</div><aside class="sync-panel' + (synced ? ' synced' : '') + '" id="syncCard"><div class="ticket-stub"><div class="lbl">Check-in</div><div class="no">TICKET ' + ticketNo + '<br>THIS COMPUTER</div></div>' +
-      '<span class="stamp">Checked in</span><div class="ticket-body"><div class="sync-head"><div class="sync-orb" id="syncOrb">' + (synced ? ICON.check : ICON.sync) + '</div><div><div class="t">' + (synced ? 'This computer is up to date' : 'Sync before signing in') + '</div>' +
-      '<div class="d">Gets the latest staff accounts and passwords from Google Drive.</div></div></div><div class="msg" id="syncMsg"></div>' +
+      '<span class="stamp">Checked in</span><div class="ticket-body"><div class="sync-head"><div class="sync-orb" id="syncOrb">' + (synced ? ICON.check : ICON.sync) + '</div><div><div class="t">' + (online ? 'Ready — accounts checked online' : synced ? 'This computer is up to date' : 'Sync before signing in') + '</div>' +
+      '<div class="d">' + (online ? 'Your username and password are checked with the hospital sign-in service.' : 'Gets the latest staff accounts and passwords from Google Drive.') + '</div></div></div><div class="msg" id="syncMsg"></div>' +
       '<div class="why"><b>Why check in first?</b> Everyone then signs in with their current password, and disabled accounts stay out.<div class="offline" id="offlineWrap" hidden><a href="javascript:void 0" id="offlineLink">Continue without syncing</a> — accounts may be out of date.</div></div>' +
       '<button class="btn gold" id="syncBtn">' + (synced ? 'Synced' : 'Sync now') + '</button></div></aside></section>' +
       '<div class="section-h"><h2>Pick your badge</h2><ol class="steps" id="steps"><li class="' + (synced ? 'done' : 'now') + '"><span class="n">' + (synced ? ICON.check : '1') + '</span>Check in</li><li class="' + (synced ? 'now' : '') + '"><span class="n">2</span>Pick your badge</li><li><span class="n">3</span>Sign in</li></ol></div>' +
@@ -425,7 +479,8 @@
     const c = $('[data-continue]'); if (c) c.onclick = () => { handOverGoogle(); routeHome(session()); };
     const so = $('[data-signout]'); if (so) so.onclick = signOut;
     const ls = lastSync(); if (ls) $('#footSync').textContent = 'Last synced on this computer ' + ago(ls) + '.';
-    if (synced) setSyncMsg('Sync complete. Choose your role below.', 'ok');
+    if (online) { setSyncMsg('Pick your badge below and sign in.', 'ok'); const b = $('#syncBtn'); if (b) { b.textContent = 'Ready'; b.disabled = true; } }
+    else if (synced) setSyncMsg('Sync complete. Choose your role below.', 'ok');
   }
   let clockTimer = null;
   /** Move the landing page to "synced": unlock the cards and advance the steps. */
@@ -479,9 +534,21 @@
         if (!u || !p) return fail('Enter your username and password.');
         const fails = readJSON(KEYS.fails, {}); const f = fails[u];
         if (f && f.until > Date.now()) return fail('Too many attempts. Try again in ' + Math.ceil((f.until - Date.now()) / 1000) + ' seconds.');
-        const list = loadAccounts(); const a = list.find(x => x.username === u);
         const h = await hashPassword(p);
-        if (!a || a.passwordHash !== h) {
+        // Check online first when the sign-in service is set up: accounts made by the Administrator
+        // on any computer then work here straight away. Offline, fall back to the accounts on this computer.
+        let online = null;
+        if (validSvc(service().url)) {
+          errEl.hidden = true; errEl.textContent = '';
+          try { online = await svcPost({ action: 'login', username: u, hash: h }, 12000); } catch (e) { online = null; }
+          if (online && online.ok && online.account) adoptAccount(online.account);
+          else if (online && online.error === 'locked') return fail('Too many attempts. Try again in ' + (online.wait || 60) + ' seconds.');
+          else if (online && online.error === 'disabled') { if (online.account) adoptAccount(online.account); }
+          else if (online && online.error === 'deleted') { mergeCloud({ accounts: [], deletedAccounts: { [u]: online.at || Date.now() } }); }
+        }
+        const list = loadAccounts(); const a = list.find(x => x.username === u);
+        const wrongOnline = online && online.error === 'wrong';
+        if (!a || a.passwordHash !== h || wrongOnline) {
           const c = ((f && f.until < Date.now() ? 0 : (f ? f.count : 0)) || 0) + 1;
           fails[u] = { count: c, until: c >= 5 ? Date.now() + 60000 : 0 }; writeJSON(KEYS.fails, fails);
           logSignin({ username: u, role: a ? a.role : '', card: roleKey, result: 'failed', detail: 'Wrong username or password' });
@@ -489,7 +556,8 @@
         }
         delete fails[u]; writeJSON(KEYS.fails, fails);
         if (a.status !== 'active') { logSignin({ username: u, role: a.role, card: roleKey, result: 'blocked', detail: 'Account disabled' }); return fail('This account is disabled. Ask the Administrator to enable it.'); }
-        if (a.role !== roleKey && a.role !== 'admin') { logSignin({ username: u, role: a.role, card: roleKey, result: 'blocked', detail: 'Wrong card' }); return fail('This is a ' + ROLES[a.role].label + ' account — use the ' + ROLES[a.role].label + ' card.'); }
+        // Whichever badge was picked, staff go to their own dashboard.
+        if (a.role !== roleKey && a.role !== 'admin') roleKey = a.role;
         a.lastLogin = Date.now(); a.loginCount = (a.loginCount || 0) + 1;
         saveAccounts(list);
         logSignin({ username: u, role: a.role, card: roleKey, result: 'success', detail: 'Signed in' });
@@ -512,6 +580,12 @@
         if (/^(admin123|123|password|123456)$/i.test(p1)) return fail('Choose a password that is harder to guess.');
         const list = loadAccounts(); const a = list.find(x => x.username === username); if (!a) return true;
         const h = await hashPassword(p1); if (h === a.passwordHash) return fail('The new password must be different from the old one.');
+        if (validSvc(service().url)) {
+          let j = null; try { j = await svcPost({ action: 'password', username, hash: a.passwordHash, newHash: h }, 15000); } catch (e) { j = null; }
+          if (j && !j.ok && j.error === 'wrong') return fail('Your old password was changed on another computer. Cancel and sign in again.');
+          if (!j && !service().key) return fail('Could not reach the sign-in service to save your new password. Check the internet connection and try again.');
+          if (j && j.ok && j.account) { Object.assign(a, j.account); }
+        }
         a.passwordHash = h; a.mustChangePassword = false; delete a.isDefaultAdmin; touch(a); saveAccounts(list);
         logSignin({ username, role: a.role, card: '', result: 'password', detail: 'Password changed at sign-in' });
         toast('Password changed'); then && then();
@@ -521,9 +595,15 @@
   function routeHome(s) {
     if (!s) return renderLanding();
     const r = ROLES[s.card] || ROLES[s.role];
+    // Came from a dashboard link (portal.html?next=stores.html#/...): go back there when the role may use it.
+    const next = nextPage();
+    if (next) { const k = Object.keys(SYSTEMS).find(x => SYSTEMS[x].url === next.split('#')[0]); if (k && (s.systems || []).indexOf(k) >= 0) { location.href = next; return; } }
     if (r.home === 'console') { location.hash = '#console'; renderConsole(); }
     else if (r.home === 'hub') { location.hash = '#hub'; renderHub(); }
     else location.href = r.home;
+  }
+  function nextPage() {
+    try { const n = new URLSearchParams(location.search).get('next') || ''; return /^[a-z][a-z0-9-]*\.html(#[^\s]*)?$/i.test(n) ? n : ''; } catch (e) { return ''; }
   }
   function signOut() {
     const s = session();
@@ -577,8 +657,10 @@
   const TABS = [['users', 'User Accounts'], ['systems', 'Systems'], ['org', 'Organisation'], ['cloud', 'Cloud Sync'], ['activity', 'Sign-in Activity']];
   function requireAdmin() { const s = session(); if (!s || s.role !== 'admin') { renderLanding(); return null; } return s; }
 
+  let svcTimer = null;
   function renderConsole() {
     if (!requireAdmin()) return;
+    if (!svcTimer && service().key) svcTimer = setInterval(() => { if (view === 'console' && service().key) svcSync().catch(() => {}); }, 60000);
     view = 'console';
     $('#app').innerHTML = topbar('Settings', { search: state.tab === 'users' }) + '<div class="wrap"><div class="tabs">' +
       TABS.map(t => '<button class="' + (state.tab === t[0] ? 'on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div><div id="tabBody"></div></div>';
@@ -806,10 +888,44 @@
       '<dt>Last synced</dt><dd>' + (ls ? fmtDT(ls) + ' (' + ago(ls) + ')' : 'Never on this computer') + '</dd><dt>Shared file</dt><dd class="mono">' + GDRIVE.FILE + '</dd>' +
       '<dt>Accounts</dt><dd>' + loadAccounts().length + ' on this computer · passwords are stored and shared as one-way hashes only</dd></dl>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn gold" data-sync>⟳ Sync now</button><button class="btn" data-dl>⬇ Download accounts backup</button><label class="btn">⬆ Restore from backup<input type="file" accept=".json" hidden data-up></label></div>' +
-      '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>';
+      '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>' + svcPanel();
+    bindSvcPanel(el);
     el.querySelector('[data-sync]').onclick = () => syncNow(true).then(() => { toast('Synced with Google Drive'); tabCloud(el); }).catch(e => toast('Sync failed: ' + e.message, 'err'));
     el.querySelector('[data-dl]').onclick = () => { const b = new Blob([JSON.stringify(payload(), null, 1)], { type: 'application/json' }); const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = 'portal-accounts-backup-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(l); l.click(); setTimeout(() => l.remove(), 500); };
     el.querySelector('[data-up]').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); const n = mergeCloud(j.data || j); cloudDirty = true; scheduleCloudPush(); toast(n ? 'Backup merged — ' + n + ' accounts updated' : 'Nothing newer in that backup'); tabCloud(el); } catch (err) { toast('Not a valid backup file', 'err'); } }; r.readAsText(f); };
+  }
+  function svcPanel() {
+    const sv = service(), st = readJSON(KEYS.service, {}) || {};
+    const link = validSvc(sv.url) ? location.origin + location.pathname + '#svc=' + encodeURIComponent(sv.url) : '';
+    return '<div class="panel" style="max-width:820px;margin-top:18px"><div class="panel-h"><h3>Sign-in service (works on every computer)</h3></div><div class="panel-b">' +
+      '<p class="muted small" style="margin-bottom:12px">With this set up, accounts you create here work on every computer straight away — staff just open the portal, pick their badge and sign in. No Google sign-in is needed on their computers. It uses the same Google Apps Script as the online requisitions (procurement/receiver/requisition-receiver.gs).</p>' +
+      '<div class="field"><label>Web app address</label><input name="svcUrl" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(sv.url) + '"></div>' +
+      '<div class="field"><label>Secret key (the KEY in the script)</label><div class="pw-wrap"><input type="password" name="svcKey" value="' + esc(sv.key) + '" autocomplete="off"><button type="button" data-show>Show</button></div></div>' +
+      '<dl class="kv"><dt>Last published</dt><dd>' + (st.lastSync ? fmtDT(st.lastSync) + ' (' + ago(st.lastSync) + ')' : 'Not yet') + '</dd>' + (st.lastError && (!st.lastSync || st.lastErrorAt > st.lastSync) ? '<dt>Problem</dt><dd style="color:var(--bad)">' + esc(st.lastError) + '</dd>' : '') + '</dl>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn gold" data-svc-save>Save &amp; publish accounts</button><button class="btn" data-svc-test>Test connection</button>' + (sv.url ? '<button class="btn ghost" data-svc-off>Turn off</button>' : '') + '</div>' +
+      (link ? '<div class="info-box" style="margin-top:16px"><b>Staff link.</b> Open this once on each computer (or bookmark it). It remembers the sign-in service, so the portal checks passwords online:<div class="mono small" style="word-break:break-all;margin:8px 0">' + esc(link) + '</div><button class="btn sm" data-svc-copy>Copy staff link</button></div>' : '') +
+      '</div></div>';
+  }
+  function bindSvcPanel(el) {
+    bindPwToggles(el);
+    const val = n => el.querySelector('[name=' + n + ']').value.trim();
+    const save = () => { writeJSON(KEYS.service, Object.assign({}, readJSON(KEYS.service, {}), { url: val('svcUrl'), key: val('svcKey') })); };
+    const q = s => el.querySelector(s);
+    q('[data-svc-save]').onclick = async () => {
+      if (!validSvc(val('svcUrl'))) return toast('Paste the Web app address from Apps Script (it starts with https://script.google.com/macros/).', 'err');
+      if (!val('svcKey')) return toast('Enter the secret key from the script.', 'err');
+      save(); synced = true;
+      try { await svcSync(); toast('Accounts published — they now work on every computer'); }
+      catch (e) { toast('Saved, but publishing failed: ' + e.message, 'err'); }
+      tabCloud(el);
+    };
+    q('[data-svc-test]').onclick = async () => {
+      const u = val('svcUrl'); if (!validSvc(u)) return toast('Paste the Web app address first.', 'err');
+      try { const r = await fetch(u + (u.indexOf('?') > 0 ? '&' : '?') + 'ping=1'); const j = await r.json(); toast(j && j.ok ? 'Connected' + (j.accounts ? ' — sign-in service ready' : ' — but this is an older copy of the script: paste the new one and deploy a new version') : 'The address answered, but not as expected', j && j.ok && j.accounts ? 'ok' : 'err'); }
+      catch (e) { toast('Could not reach it: ' + e.message, 'err'); }
+    };
+    const off = q('[data-svc-off]'); if (off) off.onclick = async () => { if (await confirmBox('Turn off the sign-in service?', 'This computer will check passwords against its own copy of the accounts only.', 'Turn off')) { writeJSON(KEYS.service, {}); tabCloud(el); } };
+    const cp = q('[data-svc-copy]'); if (cp) cp.onclick = () => { const t = el.querySelector('.info-box .mono').textContent; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Staff link copied')).catch(() => toast('Select the link and copy it')); };
   }
   function tabActivity(el) {
     const log = readJSON(KEYS.log, []);
@@ -856,9 +972,21 @@
 
   async function boot() {
     setTheme(theme());
+    // Staff link from the Administrator: portal.html#svc=<sign-in service address>
+    const m = /[#&]svc=([^&]+)/.exec(location.hash || '');
+    if (m) {
+      const u = decodeURIComponent(m[1]);
+      if (validSvc(u)) writeJSON(KEYS.service, Object.assign({}, readJSON(KEYS.service, {}), { url: u }));
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     await upgradeAccounts();
     applyHeadings();
-    const s = session();
+    // With the sign-in service, passwords are checked online — no Google sign-in needed before signing in.
+    if (validSvc(service().url)) synced = true;
+    let s = session();
+    // Already signed in and sent here by a dashboard: go straight back.
+    if (s && nextPage()) { routeHome(s); return; }
+    if (s && s.role === 'admin' && service().key) svcSync().catch(() => {});
     if (s && storedToken()) { synced = true; handOverGoogle(); syncNow(false).catch(() => {}); }
     if (s && location.hash === '#console' && s.role === 'admin') renderConsole();
     else if (s && location.hash === '#hub') renderHub();
@@ -866,6 +994,7 @@
     if (s && sessionStorage.getItem(KEYS.lock)) lock();
     // A valid Google token on this computer: sync straight away so cards unlock.
     if (!synced && storedToken()) { const b = $('#syncBtn'); if (b) runPreSync(); }
+    void s;
   }
   window.addEventListener('hashchange', () => { const s = session(); if (!s) return renderLanding(); if (location.hash === '#console' && s.role === 'admin') renderConsole(); else if (location.hash === '#hub') renderHub(); else if (!location.hash) renderLanding(); });
   window.PortalApp = { loadAccounts, hashPassword, session, mergeCloud, payload };
