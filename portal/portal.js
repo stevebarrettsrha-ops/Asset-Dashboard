@@ -465,9 +465,22 @@
   }
 
   /* ----------------------------------------------------------- sign in */
-  function openSignIn(roleKey) {
+  /** May this account sign in with this badge? Its own role's badge, or a badge whose system the
+      Administrator gave it as extra access (some staff work in more than one unit). */
+  function canUseBadge(a, card) {
+    if (a.role === 'admin') return true;
+    if (card === a.role) return true;
+    if (card === 'admin' || card === 'operations') return false;
+    return systemsOf(a).indexOf(ROLES[card].systems[0]) >= 0;
+  }
+  async function openSignIn(roleKey) {
     if (!synced) return nudgeSync();
     const r = ROLES[roleKey];
+    // Ask first, so nobody signs in on the wrong badge by a stray tap.
+    const sure = await confirmBox('Sign in as ' + r.label + '?', 'You picked the <b>' + esc(r.label) + '</b> badge. ' +
+      (r.home === 'console' ? 'It opens the Administrator console.' : r.home === 'hub' ? 'It opens the Operations overview.' : 'It opens ' + esc(SYSTEMS[r.systems[0]].label) + '.') +
+      ' Continue to enter your username and password?', 'Yes, continue');
+    if (!sure) return;
     const def = loadAccounts().find(a => a.isDefaultAdmin && !a.lastLogin && a.status === 'active');
     modal({
       title: 'Sign in as ' + r.label, sub: r.home === 'console' ? 'Administrator console' : r.home === 'hub' ? 'Operations overview' : 'Opens ' + SYSTEMS[r.systems[0]].label,
@@ -494,8 +507,10 @@
         }
         delete fails[u]; writeJSON(KEYS.fails, fails);
         if (a.status !== 'active') { logSignin({ username: u, role: a.role, card: roleKey, result: 'blocked', detail: 'Account disabled' }); return fail('This account is disabled. Ask the Administrator to enable it.'); }
-        // Whichever badge was picked, staff go to their own dashboard.
-        if (a.role !== roleKey && a.role !== 'admin') roleKey = a.role;
+        if (!canUseBadge(a, roleKey)) {
+          logSignin({ username: u, role: a.role, card: roleKey, result: 'blocked', detail: 'Not set up for this badge' });
+          return fail('This account is not set up for the ' + r.label + ' badge. Pick the badge you were given, or ask the Administrator to add ' + (r.home === 'console' || r.home === 'hub' ? 'this role' : SYSTEMS[r.systems[0]].label) + ' to your account.');
+        }
         a.lastLogin = Date.now(); a.loginCount = (a.loginCount || 0) + 1;
         saveAccounts(list);
         logSignin({ username: u, role: a.role, card: roleKey, result: 'success', detail: 'Signed in' });
