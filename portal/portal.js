@@ -19,7 +19,7 @@
   const KEYS = {
     accounts: 'portalAccountsV2', legacy: 'portalUserAccounts', headings: 'portalHeadingSettings', log: 'portalSigninLog',
     tomb: 'portalAccountTombstones', session: 'mphPortalSession', theme: 'portalTheme2', lastSync: 'portalLastSync',
-    fails: 'portalFailedSignins', lock: 'mphPortalLocked', assetUsers: 'assetDashboardLocalUsers'
+    fails: 'portalFailedSignins', lock: 'mphPortalLocked', assetUsers: 'assetDashboardLocalUsers', resetReq: 'portalResetRequests'
   };
   const SALT = 'AssetDashboard_Salt_2024';
   const GDRIVE = {
@@ -307,7 +307,7 @@
   function payload() {
     const list = loadAccounts().map(a => { const c = Object.assign({}, a); delete c.password; delete c._plain; return c; });
     return { version: '2.0', type: 'portal_settings', timestamp: new Date().toISOString(),
-      data: { accounts: list, deletedAccounts: tombstones(), userAccounts: deriveLegacy(list), headingSettings: headings(), signinLog: readJSON(KEYS.log, []).slice(0, 500) } };
+      data: { accounts: list, deletedAccounts: tombstones(), userAccounts: deriveLegacy(list), headingSettings: headings(), signinLog: readJSON(KEYS.log, []).slice(0, 500), resetRequests: resetRequests() } };
   }
   /** Merge the shared file into this computer: newest version of each account wins; deletions travel as tombstones. */
   function mergeCloud(d) {
@@ -336,6 +336,7 @@
     writeJSON(KEYS.tomb, tomb);
     if (changed) saveAccounts(Array.from(map.values()), { fromCloud: true });
     if (d.headingSettings && d.headingSettings.hospitalName) { writeJSON(KEYS.headings, d.headingSettings); applyHeadings(); }
+    if (Array.isArray(d.resetRequests)) mergeResetRequests(d.resetRequests);
     if (Array.isArray(d.signinLog)) {
       const log = readJSON(KEYS.log, []); const seen = new Set(log.map(e => e.ts + '|' + e.username + '|' + e.result));
       d.signinLog.forEach(e => { const k = e.ts + '|' + e.username + '|' + e.result; if (!seen.has(k)) { log.push(e); seen.add(k); } });
@@ -473,11 +474,11 @@
     if (card === 'admin' || card === 'operations') return false;
     return systemsOf(a).indexOf(ROLES[card].systems[0]) >= 0;
   }
-  async function openSignIn(roleKey) {
+  async function openSignIn(roleKey, confirmed) {
     if (!synced) return nudgeSync();
     const r = ROLES[roleKey];
     // Ask first, so nobody signs in on the wrong badge by a stray tap.
-    const sure = await confirmBox('Sign in as ' + r.label + '?', 'You picked the <b>' + esc(r.label) + '</b> badge. ' +
+    const sure = confirmed || await confirmBox('Sign in as ' + r.label + '?', 'You picked the <b>' + esc(r.label) + '</b> badge. ' +
       (r.home === 'console' ? 'It opens the Administrator console.' : r.home === 'hub' ? 'It opens the Operations overview.' : 'It opens ' + esc(SYSTEMS[r.systems[0]].label) + '.') +
       ' Continue to enter your username and password?', 'Yes, continue');
     if (!sure) return;
@@ -488,8 +489,12 @@
       body: '<div class="err-box" data-err hidden></div>' +
         (roleKey === 'admin' && def ? '<div class="info-box">First-time set-up: sign in with username <b>admin</b> and password <b>admin123</b>. You will be asked to choose a new password straight away.</div>' : '') +
         '<div class="field"><label>Username</label><input name="username" autocomplete="username" autocapitalize="off" spellcheck="false"></div>' +
-        '<div class="field"><label>Password</label><div class="pw-wrap"><input type="password" name="password" autocomplete="current-password"><button type="button" data-show>Show</button></div></div>',
-      onOpen: el => bindPwToggles(el),
+        '<div class="field"><label>Password</label><div class="pw-wrap"><input type="password" name="password" autocomplete="current-password"><button type="button" data-show>Show</button></div></div>' +
+        '<div style="text-align:right;margin:-4px 0 4px"><a href="javascript:void 0" data-forgot>Forgot password?</a></div>',
+      onOpen: (el, close) => {
+        bindPwToggles(el);
+        el.querySelector('[data-forgot]').onclick = () => { const u = el.querySelector('[name=username]').value.trim().toLowerCase(); close(); setTimeout(() => forgotPassword(u, roleKey), 30); };
+      },
       actions: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Sign in →', cls: r.dark ? 'gold' : 'gold', onClick: async (el) => {
         const u = el.querySelector('[name=username]').value.trim().toLowerCase(), p = el.querySelector('[name=password]').value;
         const errEl = el.querySelector('[data-err]');
@@ -536,6 +541,108 @@
         a.passwordHash = h; a.mustChangePassword = false; delete a.isDefaultAdmin; touch(a); saveAccounts(list);
         logSignin({ username, role: a.role, card: '', result: 'password', detail: 'Password changed at sign-in' });
         toast('Password changed'); then && then();
+      } }]
+    });
+  }
+  /* ---------------------------------------------------- forgotten passwords
+     Two ways back in, with no extra service:
+     1. Verify with Google — sign in with the Google account whose address is on the staff account;
+        an Administrator account can also be recovered by the Google account that owns the shared
+        accounts file. Then choose a new password at once.
+     2. Ask the Administrator — a request travels in the shared accounts file to the admin console. */
+  const resetRequests = () => readJSON(KEYS.resetReq, []);
+  function mergeResetRequests(list) {
+    const mine = resetRequests(); const byId = new Map(mine.map(r => [r.id, r]));
+    list.forEach(r => { if (!r || !r.id) return; const m = byId.get(r.id); if (!m) byId.set(r.id, r); else if (r.doneAt && !m.doneAt) Object.assign(m, { doneAt: r.doneAt, doneBy: r.doneBy }); });
+    const out = Array.from(byId.values()).sort((a, b) => b.ts - a.ts).slice(0, 200);
+    writeJSON(KEYS.resetReq, out);
+  }
+  const openRequests = () => { const acc = new Set(loadAccounts().map(a => a.username)); return resetRequests().filter(r => !r.doneAt && acc.has(r.username)); };
+  function closeRequests(username) {
+    const list = resetRequests(); let n = 0;
+    list.forEach(r => { if (r.username === username && !r.doneAt) { r.doneAt = Date.now(); r.doneBy = session() ? session().username : ''; n++; } });
+    if (n) writeJSON(KEYS.resetReq, list);
+  }
+  /** A Google sign-in used only to prove who someone is: the account chooser always shows, nothing is kept. */
+  function googleIdentity() {
+    return new Promise((resolve, reject) => {
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) return reject(new Error('Google sign-in is still loading — try again in a moment'));
+      const c = google.accounts.oauth2.initTokenClient({ client_id: GDRIVE.CLIENT_ID, scope: GDRIVE.SCOPES, prompt: 'select_account',
+        callback: r => r.error ? reject(new Error(r.error)) : resolve(r.access_token), error_callback: () => reject(new Error('Google sign-in was cancelled')) });
+      c.requestAccessToken({ prompt: 'select_account' });
+    });
+  }
+  async function googleWho(token) {
+    const h = { Authorization: 'Bearer ' + token };
+    const me = await (await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)', { headers: h })).json();
+    const email = String((me.user && me.user.emailAddress) || '').toLowerCase();
+    let owners = [];
+    try {
+      const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE + "' and trashed=false";
+      const f = await (await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,owners(emailAddress))', { headers: h })).json();
+      owners = ((f.files && f.files[0] && f.files[0].owners) || []).map(o => String(o.emailAddress || '').toLowerCase());
+    } catch (e) { /* not visible to this Google account */ }
+    return { email, owners };
+  }
+  function forgotPassword(username, roleKey) {
+    modal({
+      title: 'Forgot your password?', sub: 'Get back into your account', icon: '🔑', iconColor: '#f2a91c',
+      body: '<div class="err-box" data-err hidden></div><div class="field"><label>Your username</label><input name="fu" autocapitalize="off" spellcheck="false" value="' + esc(username || '') + '"></div>' +
+        '<div class="fp-opt"><b>Verify with Google</b><p class="muted small" style="margin:4px 0 10px">Sign in with the Google account whose email address is on your account, then choose a new password straight away.</p><button type="button" class="btn gold" data-google>Verify with Google</button></div>' +
+        '<div class="fp-opt" style="margin-top:16px"><b>Ask the Administrator</b><p class="muted small" style="margin:4px 0 10px">Sends a request to the Administrator, who gives you a new password.</p><button type="button" class="btn" data-ask>Send request</button></div>',
+      actions: [{ label: 'Back to sign-in', cls: 'ghost', onClick: () => { setTimeout(() => openSignIn(roleKey, true), 30); } }],
+      onOpen: (el, close) => {
+        const err = el.querySelector('[data-err]'); const fail = m => { err.textContent = m; err.hidden = false; err.className = 'err-box'; };
+        const who = () => { const u = el.querySelector('[name=fu]').value.trim().toLowerCase(); if (!u) { fail('Enter your username first.'); return null; } return u; };
+        el.querySelector('[data-google]').onclick = async () => {
+          const u = who(); if (!u) return;
+          const a = loadAccounts().find(x => x.username === u);
+          let token, id;
+          try { token = await googleIdentity(); id = await googleWho(token); } catch (e) { return fail('Could not verify with Google: ' + e.message); }
+          const ok = a && a.status === 'active' && id.email && ((a.email && a.email.toLowerCase() === id.email) || (a.role === 'admin' && id.owners.indexOf(id.email) >= 0));
+          logSignin({ username: u, role: a ? a.role : '', card: roleKey, result: ok ? 'password' : 'blocked', detail: ok ? 'Verified with Google (' + id.email + ') to reset password' : 'Google verification did not match (' + (id.email || 'no email') + ')' });
+          if (!ok) return fail(a && a.status !== 'active' ? 'This account is disabled. Ask the Administrator.' : 'The Google account ' + (id.email || '') + ' is not the one on this account. Use the Google account whose email the Administrator put on your account, or ask the Administrator.');
+          close(); setTimeout(() => newPasswordAfterGoogle(u, token, roleKey), 30);
+        };
+        el.querySelector('[data-ask]').onclick = async () => {
+          const u = who(); if (!u) return;
+          const a = loadAccounts().find(x => x.username === u);
+          const list = resetRequests();
+          if (list.some(r => r.username === u && !r.doneAt && Date.now() - r.ts < 864e5)) { err.className = 'info-box'; err.textContent = 'A request for this username is already waiting. The Administrator will give you a new password.'; err.hidden = false; return; }
+          // Every username gets the same answer, so the form does not reveal which accounts exist.
+          if (a) {
+            list.unshift({ id: uid(), username: u, name: a.displayName, role: a.role, card: roleKey, ts: Date.now() });
+            writeJSON(KEYS.resetReq, list.slice(0, 200));
+            logSignin({ username: u, role: a.role, card: roleKey, result: 'request', detail: 'Asked the Administrator for a new password' });
+            cloudDirty = true; scheduleCloudPush();
+          }
+          err.className = 'info-box'; err.textContent = 'Request sent. The Administrator will see it in the admin console and give you a new password.'; err.hidden = false;
+          el.querySelector('[data-ask]').disabled = true;
+        };
+      }
+    });
+  }
+  function newPasswordAfterGoogle(username, token, roleKey) {
+    modal({
+      title: 'Choose a new password', sub: 'Verified with Google', icon: '🔑', iconColor: '#f2a91c',
+      body: '<div class="err-box" data-err hidden></div>' + pwField('p1', 'New password', 'At least 6 characters') + pwField('p2', 'Confirm new password'),
+      onOpen: el => bindPwToggles(el),
+      actions: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Save password', cls: 'gold', onClick: async el => {
+        const p1 = el.querySelector('[name=p1]').value, p2 = el.querySelector('[name=p2]').value, err = el.querySelector('[data-err]');
+        const fail = m => { err.textContent = m; err.hidden = false; return false; };
+        if (p1.length < 6) return fail('Use at least 6 characters.');
+        if (p1 !== p2) return fail('The two passwords do not match.');
+        if (/^(admin123|123|password|123456)$/i.test(p1)) return fail('Choose a password that is harder to guess.');
+        const list = loadAccounts(); const a = list.find(x => x.username === username); if (!a) return true;
+        a.passwordHash = await hashPassword(p1); a.mustChangePassword = false; delete a.isDefaultAdmin; touch(a); a.updatedBy = username;
+        saveAccounts(list); closeRequests(username);
+        const fails = readJSON(KEYS.fails, {}); delete fails[username]; writeJSON(KEYS.fails, fails);
+        logSignin({ username, role: a.role, card: roleKey, result: 'password', detail: 'Password reset after Google verification' });
+        // Share it with every computer now. This computer's own Google sign-in is used if it has one.
+        let shared = false;
+        try { if (!storedToken() && !cloud.token) cloud.token = token; shared = await syncNow(false); } catch (e) { shared = false; }
+        toast(shared ? 'Password changed — it works on every computer now.' : 'Password changed on this computer. It reaches the others at the next sync.');
+        setTimeout(() => openSignIn(roleKey, true), 60);
       } }]
     });
   }
@@ -623,6 +730,7 @@
     const tiles = [['', '', list.length, 'Total Users', 'var(--text)'], ['status', 'active', count(a => a.status === 'active'), 'Active', 'var(--ok)'], ['status', 'disabled', count(a => a.status !== 'active'), 'Disabled', 'var(--bad)']]
       .concat(ROLE_ORDER.map(k => ['role', k, count(a => a.role === k), ROLES[k].label + (k === 'admin' ? 's' : 's'), ROLES[k].color]));
     el.innerHTML = '<div class="kpis">' + tiles.map(t => '<div class="kpi' + ((t[0] === 'role' && state.role === t[1]) || (t[0] === 'status' && state.status === t[1]) || (!t[0] && !state.role && !state.status) ? ' on' : '') + '" data-f="' + t[0] + '" data-v="' + t[1] + '"><div class="v" style="color:' + t[4] + '">' + t[2] + '</div><div class="l">' + esc(t[3]) + '</div></div>').join('') + '</div>' +
+      resetBanner() +
       '<div class="toolbar"><button class="btn gold" id="newUser">+ Create User</button>' +
       '<select id="fRole"><option value="">All Roles</option>' + ROLE_ORDER.map(k => '<option value="' + k + '"' + (state.role === k ? ' selected' : '') + '>' + esc(ROLES[k].label) + '</option>').join('') + '</select>' +
       '<select id="fStatus"><option value="">All Status</option><option value="active"' + (state.status === 'active' ? ' selected' : '') + '>Active</option><option value="disabled"' + (state.status === 'disabled' ? ' selected' : '') + '>Disabled</option></select>' +
@@ -633,9 +741,21 @@
     $('#fStatus').onchange = e => { state.status = e.target.value; state.page = 0; tabUsers(el); };
     $('#fSearch').addEventListener('input', debounce(e => { state.q = e.target.value.trim().toLowerCase(); state.page = 0; const t = $('#tbSearch'); if (t) t.value = e.target.value; drawUsers(); }, 120));
     $('#newUser').onclick = () => userDialog(null);
+    $$('[data-req-reset]', el).forEach(b => b.onclick = () => resetDialog(b.dataset.reqReset));
+    $$('[data-req-dismiss]', el).forEach(b => b.onclick = () => { closeRequests(b.dataset.reqDismiss); cloudDirty = true; scheduleCloudPush(); tabUsers(el); });
+    const me = el.querySelector('[data-add-email]'); if (me) me.onclick = () => userDialog(session().username);
     $('#exportBtn').onclick = exportUsers;
     $('#selAll').onchange = e => { visibleUsers().forEach(a => { if (e.target.checked) state.selected.add(a.username); else state.selected.delete(a.username); }); drawUsers(); };
     drawUsers();
+  }
+  function resetBanner() {
+    const reqs = openRequests(); const me = loadAccounts().find(a => a.username === session().username);
+    let h = '';
+    if (reqs.length) h += '<div class="panel" style="margin-bottom:16px;border-left:4px solid #f2a91c"><div class="panel-h"><h3>🔑 Password reset requests (' + reqs.length + ')</h3></div><div class="panel-b">' +
+      reqs.map(r => '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border)"><span><b>' + esc(r.name || r.username) + '</b> <span class="mono muted">' + esc(r.username) + '</span> · ' + esc(ago(r.ts)) + '</span><span style="flex:1"></span>' +
+        '<button class="btn gold sm" data-req-reset="' + esc(r.username) + '">Reset password</button><button class="btn ghost sm" data-req-dismiss="' + esc(r.username) + '">Dismiss</button></div>').join('') + '</div></div>';
+    if (me && !me.email) h += '<div class="info-box" style="margin-bottom:16px">Add your email address to your own account, so you can reset your password with Google if you ever forget it. <button class="btn sm" data-add-email>Add my email</button></div>';
+    return h;
   }
   function visibleUsers() {
     const q = state.q;
@@ -797,6 +917,7 @@
         const list = loadAccounts(); const t = list.find(x => x.username === username); if (!t) return true;
         t.passwordHash = await hashPassword(p1); t.mustChangePassword = el.querySelector('[name=mustChange]').checked; delete t.isDefaultAdmin; touch(t); saveAccounts(list);
         const fails = readJSON(KEYS.fails, {}); delete fails[username]; writeJSON(KEYS.fails, fails);
+        closeRequests(username); cloudDirty = true; scheduleCloudPush();
         logSignin({ username, role: t.role, card: '', result: 'admin', detail: 'Password reset by ' + session().username });
         toast('Password reset for ' + t.displayName);
         tabUsers($('#tabBody'));
@@ -840,8 +961,8 @@
   }
   function tabActivity(el) {
     const log = readJSON(KEYS.log, []);
-    const tone = { success: 'var(--ok)', failed: 'var(--bad)', blocked: 'var(--warn)', signout: 'var(--text-3)', password: 'var(--info)', admin: 'var(--info)' };
-    const label = { success: 'Signed in', failed: 'Failed', blocked: 'Blocked', signout: 'Signed out', password: 'Password', admin: 'Account change' };
+    const tone = { success: 'var(--ok)', failed: 'var(--bad)', blocked: 'var(--warn)', signout: 'var(--text-3)', password: 'var(--info)', admin: 'var(--info)', request: 'var(--warn)' };
+    const label = { success: 'Signed in', failed: 'Failed', blocked: 'Blocked', signout: 'Signed out', password: 'Password', admin: 'Account change', request: 'Reset request' };
     const rows = log.filter(e => !state.logFilter || e.result === state.logFilter);
     el.innerHTML = '<div class="toolbar"><select id="lf"><option value="">All activity</option>' + Object.keys(label).map(k => '<option value="' + k + '"' + (state.logFilter === k ? ' selected' : '') + '>' + label[k] + '</option>').join('') + '</select><span class="muted small">' + rows.length + ' entries · failed sign-ins lock the username for one minute after five tries</span></div>' +
       '<div class="panel"><div class="table-wrap"><table class="tbl"><thead><tr><th>When</th><th>User</th><th>Card used</th><th>Result</th><th>Detail</th></tr></thead><tbody>' +
