@@ -1827,6 +1827,53 @@
 
   /* ---------------------------------------------------------------- sync */
   const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents', BACKUP_FOLDER: 'Procurement Backups' };
+  /* Built-in records (procurement/seed-*.js): added once per computer. A record is left out when this
+     computer already holds it — the same id (even one deleted on purpose), or the same purchase order,
+     supplier, budget line, budget month or award reference brought in by hand — and links to suppliers
+     and budget lines are pointed at the copies already here. On a computer that syncs with Google Drive
+     this runs after Drive's copy is merged in, so nothing imported elsewhere is doubled. */
+  const SEED_ORDER = ['suppliers', 'budgetLines', 'budgetMonths', 'comparisons', 'purchaseOrders'];
+  function applySeeds() {
+    const packs = window.PROC_SEEDS || [];
+    if (!packs.length) return 0;
+    const st = store.settings(); st.seedsApplied = st.seedsApplied || {};
+    const norm = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const keyOf = {
+      suppliers: r => 'S|' + domain.supplierKey(r.name),
+      budgetLines: r => 'L|' + r.fy + '|' + norm(r.name),
+      budgetMonths: r => 'M|' + r.month,
+      comparisons: r => 'C|' + r.ref,
+      purchaseOrders: r => r.poNumber ? 'P|' + String(r.poNumber).trim() + '|' + domain.supplierKey(r.supplierName) : 'D|' + norm(r.description) + '|' + r.date
+    };
+    let total = 0;
+    packs.forEach(pack => {
+      if (!pack || !pack.id || st.seedsApplied[pack.id]) return;
+      const map = {}; let added = 0;
+      SEED_ORDER.forEach(coll => {
+        const recs = (pack.records || {})[coll] || []; if (!recs.length) return;
+        const arr = store.db[coll] = store.db[coll] || [];
+        const tomb = (store.db.tombstones && store.db.tombstones[coll]) || {};
+        const byKey = new Map(); arr.forEach(r => { if (!r._deleted) { try { byKey.set(keyOf[coll](r), r.id); } catch (e) { /* odd record */ } } });
+        recs.forEach(src => {
+          if (tomb[src.id] || arr.some(r => r.id === src.id)) { map[src.id] = src.id; return; }
+          const k = keyOf[coll](src);
+          if (byKey.has(k)) { map[src.id] = byKey.get(k); return; }
+          const r = JSON.parse(JSON.stringify(src));
+          if (r.supplierId && map[r.supplierId]) r.supplierId = map[r.supplierId];
+          if (Array.isArray(r.entries)) r.entries.forEach(e => { if (e.lineId && map[e.lineId]) e.lineId = map[e.lineId]; });
+          arr.push(r); byKey.set(k, r.id); map[src.id] = r.id; added++;
+        });
+      });
+      st.seedsApplied[pack.id] = Date.now();
+      if (added) { try { Proc.audit('Built-in records', added + ' records added from ' + (pack.label || pack.id)); } catch (e) { /* audit not ready */ } }
+      total += added;
+    });
+    store.save();
+    if (total) store.emit('change', { coll: 'seed', action: 'create' });
+    return total;
+  }
+  Proc.applySeeds = applySeeds;
+
   const sync = Proc.sync = {
     state: 'off', lastSync: null, fileId: null, docsFolderId: null, timer: null, busy: false,
     token() {
@@ -1868,6 +1915,7 @@
           if (!cloud || typeof cloud !== 'object') throw new Error('The Google Drive copy could not be read, so nothing was uploaded over it');
           store.merge(cloud);
         }
+        applySeeds();
         const blob = new Blob([JSON.stringify({ version: '2.0', type: 'procurement', timestamp: new Date().toISOString(), data: store.db })], { type: 'application/json' });
         if (sync.fileId) await sync.api('https://www.googleapis.com/upload/drive/v3/files/' + sync.fileId + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob });
         else {
@@ -2047,6 +2095,8 @@
     }
     store.load();
     await store.ready;
+    // Not syncing with Drive: add the built-in records now (otherwise after the first Drive merge).
+    if (!sync.token()) applySeeds();
     // Ask the browser to keep this site's data even when the disk is short of space.
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {}); } catch (e) { /* not supported */ }
     const loginEl = document.getElementById('loginScreen'), appEl = document.getElementById('app');
