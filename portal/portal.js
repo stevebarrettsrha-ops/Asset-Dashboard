@@ -26,7 +26,10 @@
     CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
     SCOPES: 'https://www.googleapis.com/auth/drive',
     FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
-    FILE: 'PORTAL_USER_ACCOUNTS.json'
+    FILE: 'PORTAL_USER_ACCOUNTS.json',
+    // The accounts live in the Administrator's own folder inside the hospital folder.
+    // The copy at the top of the hospital folder (used before) is still read, so nothing is lost.
+    ADMIN_FOLDER: 'Administrator', UNIT_FOLDERS: ['Administrator', 'Procurement', 'Stores', 'Operations']
   };
   const DEFAULT_HEADINGS = { hospitalName: 'May Pen Hospital', orgName: 'Southern Regional Health Authority' };
   const SESSION_HOURS = 12;
@@ -296,12 +299,24 @@
     if (!r.ok) throw new Error('Google Drive returned ' + r.status);
     return r;
   }
+  /** A folder inside the hospital folder (created when missing). */
+  async function unitFolder(name) {
+    cloud.folders = cloud.folders || {};
+    if (cloud.folders[name]) return cloud.folders[name];
+    const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + name + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    const j = await (await api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)')).json();
+    if (j.files && j.files.length) return (cloud.folders[name] = j.files[0].id);
+    const c = await api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [GDRIVE.FOLDER_ID] }) });
+    return (cloud.folders[name] = (await c.json()).id);
+  }
+  async function filesIn(parent) {
+    const q = "'" + parent + "' in parents and name='" + GDRIVE.FILE + "' and trashed=false";
+    return (await (await api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,modifiedTime)')).json()).files || [];
+  }
   async function findFile() {
     if (cloud.fileId) return cloud.fileId;
-    const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE + "' and trashed=false";
-    const r = await api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,modifiedTime)');
-    const j = await r.json();
-    if (j.files && j.files.length) cloud.fileId = j.files[0].id;
+    const f = await filesIn(await unitFolder(GDRIVE.ADMIN_FOLDER));
+    if (f.length) cloud.fileId = f[0].id;
     return cloud.fileId;
   }
   function payload() {
@@ -345,13 +360,18 @@
     return changed;
   }
   async function pull() {
-    const id = await findFile(); if (!id) return { found: false, changed: 0 };
-    const r = await api('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media');
-    const text = await r.text();
-    let j = null; try { j = JSON.parse(text); } catch (e) { j = null; }
-    // Never upload over a shared accounts file we could not read.
-    if (!j || typeof j !== 'object') throw new Error('the shared accounts file could not be read, so nothing was uploaded over it');
-    const changed = mergeCloud(j && j.data);
+    const id = await findFile();
+    // The Administrator folder's copy, and the older copy at the top of the hospital folder.
+    const ids = (id ? [id] : []).concat((await filesIn(GDRIVE.FOLDER_ID)).map(f => f.id));
+    if (!ids.length) return { found: false, changed: 0 };
+    let changed = 0;
+    for (const fid of ids) {
+      const text = await (await api('https://www.googleapis.com/drive/v3/files/' + fid + '?alt=media')).text();
+      let j = null; try { j = JSON.parse(text); } catch (e) { j = null; }
+      // Never upload over a shared accounts file we could not read.
+      if (!j || typeof j !== 'object') throw new Error('the shared accounts file could not be read, so nothing was uploaded over it');
+      changed += mergeCloud(j && j.data);
+    }
     await upgradeAccounts();
     return { found: true, changed };
   }
@@ -361,7 +381,7 @@
     if (id) await api('https://www.googleapis.com/upload/drive/v3/files/' + id + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob });
     else {
       const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE.FILE, parents: [GDRIVE.FOLDER_ID], mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE.FILE, parents: [await unitFolder(GDRIVE.ADMIN_FOLDER)], mimeType: 'application/json' })], { type: 'application/json' }));
       form.append('file', blob);
       const r = await api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
       cloud.fileId = (await r.json()).id;
@@ -375,6 +395,7 @@
     cloud.busy = true; setCloudState('busy');
     try {
       await pull(); await push();
+      if (session() && session().role === 'admin') { for (const n of GDRIVE.UNIT_FOLDERS) await unitFolder(n).catch(() => {}); }
       localStorage.setItem(KEYS.lastSync, String(Date.now()));
       setCloudState('ok'); startAutoSync(); return true;
     } catch (e) { setCloudState(cloud.token ? 'err' : 'off'); throw e; }
@@ -951,7 +972,8 @@
     const ls = lastSync();
     el.innerHTML = '<div class="panel" style="max-width:820px"><div class="panel-h"><h3>Google Drive sync</h3></div><div class="panel-b"><dl class="kv">' +
       '<dt>Status</dt><dd>' + ({ ok: '✓ Connected', busy: 'Syncing…', err: 'Problem — will retry', off: 'Not connected on this computer' })[cloud.state] + '</dd>' +
-      '<dt>Last synced</dt><dd>' + (ls ? fmtDT(ls) + ' (' + ago(ls) + ')' : 'Never on this computer') + '</dd><dt>Shared file</dt><dd class="mono">' + GDRIVE.FILE + '</dd>' +
+      '<dt>Last synced</dt><dd>' + (ls ? fmtDT(ls) + ' (' + ago(ls) + ')' : 'Never on this computer') + '</dd><dt>Shared file</dt><dd class="mono">' + GDRIVE.ADMIN_FOLDER + ' / ' + GDRIVE.FILE + '</dd>' +
+      '<dt>Unit folders</dt><dd>Administrator · Procurement · Stores · Operations — each unit\'s records are saved in its own folder inside the hospital\'s Google Drive folder</dd>' +
       '<dt>Accounts</dt><dd>' + loadAccounts().length + ' on this computer · passwords are stored and shared as one-way hashes only</dd></dl>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn gold" data-sync>⟳ Sync now</button><button class="btn" data-dl>⬇ Download accounts backup</button><label class="btn">⬆ Restore from backup<input type="file" accept=".json" hidden data-up></label></div>' +
       '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>';

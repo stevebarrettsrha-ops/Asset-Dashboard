@@ -619,7 +619,8 @@
       await files.putBlob(id, file);
       const rec = store.upsert('documents', Object.assign({
         id, name: file.name || (meta.title || 'document') + '.pdf', mime: file.type || 'application/octet-stream', size: file.size || 0,
-        kind: meta.kind || 'Other', title: meta.title || (file.name || '').replace(/\.[^.]+$/, ''), date: meta.date || util.today(), links: meta.links || {}
+        kind: meta.kind || 'Other', title: meta.title || (file.name || '').replace(/\.[^.]+$/, ''), date: meta.date || util.today(), links: meta.links || {},
+        app: APP.system
       }, meta, { id }));
       Proc.audit('Upload Document', (rec.kind || 'Document') + ': ' + rec.name, rec.id);
       Proc.sync.uploadDoc(rec).catch(() => {});
@@ -1826,7 +1827,29 @@
   };
 
   /* ---------------------------------------------------------------- sync */
-  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', FILE_NAME: 'PROCUREMENT_BACKUP.json', DOCS_FOLDER: 'Procurement Documents', BACKUP_FOLDER: 'Procurement Backups' };
+  /* Google Drive layout. Inside the hospital folder each unit has its own folder holding its own records:
+       Procurement/  PROCUREMENT_RECORDS.json · Backups/ · Documents/
+       Stores/       STORES_RECORDS.json      · Backups/ · Documents/
+       Operations/   Whole-hospital Backups/ (a daily copy of every unit's records together)
+       Administrator/ (the portal's user accounts — written by the portal)
+     PROCUREMENT_BACKUP.json, the single shared file used before, is still read so nothing is lost. */
+  const GDRIVE = { FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', LEGACY_FILE: 'PROCUREMENT_BACKUP.json',
+    UNITS: { procurement: { folder: 'Procurement', file: 'PROCUREMENT_RECORDS.json', prefix: 'PROCUREMENT_RECORDS_' }, stores: { folder: 'Stores', file: 'STORES_RECORDS.json', prefix: 'STORES_RECORDS_' } },
+    OPERATIONS: 'Operations', WHOLE: 'Whole-hospital Backups', BACKUPS: 'Backups', DOCS: 'Documents', BACKUP_FOLDER: 'Procurement/Backups, Stores/Backups and Operations' };
+  /* Which unit's file a collection is saved in. Documents go with the unit that added them. */
+  const STORES_COLLS = ['deliveries', 'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns'];
+  const unitOfColl = c => STORES_COLLS.indexOf(c) >= 0 ? 'stores' : 'procurement';
+  const unitOfDoc = d => (d && d.app === 'stores') ? 'stores' : 'procurement';
+  function unitData(unit) {
+    const db = store.db, out = { schemaVersion: db.schemaVersion || 2, settings: db.settings, tombstones: {} };
+    COLLECTIONS.forEach(c => {
+      if (c === 'documents') { out.documents = (db.documents || []).filter(d => unitOfDoc(d) === unit); out.tombstones.documents = (db.tombstones || {}).documents || {}; return; }
+      if (unitOfColl(c) !== unit) return;
+      out[c] = db[c] || []; out.tombstones[c] = (db.tombstones || {})[c] || {};
+    });
+    if (unit === 'procurement') { out.auditLog = db.auditLog || []; if (db.importLog) out.importLog = db.importLog; }
+    return out;
+  }
   /* Built-in records (procurement/seed-*.js): added once per computer. A record is left out when this
      computer already holds it — the same id (even one deleted on purpose), or the same purchase order,
      supplier, budget line, budget month or award reference brought in by hand — and links to suppliers
@@ -1896,87 +1919,100 @@
       if (!r.ok) throw new Error('Drive error ' + r.status);
       return r;
     },
+    /** A folder by name inside a parent (created when missing), remembered for the session. */
+    async folderIn(parent, name) {
+      sync.folders = sync.folders || {};
+      const k = parent + '/' + name;
+      if (sync.folders[k]) return sync.folders[k];
+      const q = "'" + parent + "' in parents and name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const j = await (await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)')).json();
+      if (j.files && j.files.length) return (sync.folders[k] = j.files[0].id);
+      const c = await sync.api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parent] }) });
+      return (sync.folders[k] = (await c.json()).id);
+    },
+    folder(name) { return sync.folderIn(GDRIVE.FOLDER_ID, name); },
+    unitFolder(unit) { return sync.folder(GDRIVE.UNITS[unit].folder); },
+    async filesNamed(parent, name) {
+      const q = "'" + parent + "' in parents and name='" + name + "' and trashed=false";
+      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime)');
+      return (await r.json()).files || [];
+    },
+    async upload(fileId, parent, name, blob) {
+      if (fileId) { await sync.api('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob }); return fileId; }
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name, parents: [parent], mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', blob);
+      const r = await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
+      return (await r.json()).id;
+    },
     async run() {
       if (sync.busy) return;
       if (!sync.token()) { sync.setState('off'); return; }
       sync.busy = true; sync.setState('busy');
       try {
-        // Every copy of the shared file (normally one; two if computers ever raced to create it) is merged in.
-        const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.FILE_NAME + "' and trashed=false";
-        const lr = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime)');
-        const found = ((await lr.json()).files || []);
-        if (found.length) sync.fileId = found[0].id;
-        for (const f of found) {
-          const r = await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media');
-          const text = await r.text();
+        sync.seen = sync.seen || {}; sync.fileIds = sync.fileIds || {};
+        const folders = {};
+        for (const u of Object.keys(GDRIVE.UNITS)) folders[u] = await sync.unitFolder(u);
+        // Read every unit's records (and the old shared file), skipping copies unchanged since last read.
+        const sources = [];
+        for (const u of Object.keys(GDRIVE.UNITS)) {
+          const found = await sync.filesNamed(folders[u], GDRIVE.UNITS[u].file);
+          if (found.length) sync.fileIds[u] = found[0].id;
+          found.forEach(f => sources.push(f));
+        }
+        (await sync.filesNamed(GDRIVE.FOLDER_ID, GDRIVE.LEGACY_FILE)).forEach(f => sources.push(f));
+        for (const f of sources) {
+          if (sync.seen[f.id] && sync.seen[f.id] === f.modifiedTime) continue;
+          const text = await (await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media')).text();
           let cloud = null;
           try { cloud = JSON.parse(text); } catch (e) { cloud = null; }
           // Never write over a shared copy we could not read — it may hold other computers' work.
           if (!cloud || typeof cloud !== 'object') throw new Error('The Google Drive copy could not be read, so nothing was uploaded over it');
           store.merge(cloud);
+          sync.seen[f.id] = f.modifiedTime;
         }
         applySeeds();
-        const blob = new Blob([JSON.stringify({ version: '2.0', type: 'procurement', timestamp: new Date().toISOString(), data: store.db })], { type: 'application/json' });
-        if (sync.fileId) await sync.api('https://www.googleapis.com/upload/drive/v3/files/' + sync.fileId + '?uploadType=media', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: blob });
-        else {
-          const form = new FormData();
-          form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE.FILE_NAME, parents: [GDRIVE.FOLDER_ID], mimeType: 'application/json' })], { type: 'application/json' }));
-          form.append('file', blob);
-          const r = await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
-          sync.fileId = (await r.json()).id;
+        // Each unit's records go back to its own folder.
+        const blobs = {};
+        for (const u of Object.keys(GDRIVE.UNITS)) {
+          blobs[u] = new Blob([JSON.stringify({ version: '2.0', type: 'procurement', unit: u, timestamp: new Date().toISOString(), data: unitData(u) })], { type: 'application/json' });
+          sync.fileIds[u] = await sync.upload(sync.fileIds[u], folders[u], GDRIVE.UNITS[u].file, blobs[u]);
+          delete sync.seen[sync.fileIds[u]];   // our own upload: no need to read it back, but the next change elsewhere will be
         }
-        await sync.dailySnapshot(blob).catch(e => console.warn('[Proc sync] daily backup skipped', e.message));
+        sync.fileId = sync.fileIds.procurement;
+        await sync.dailySnapshot(blobs, folders).catch(e => console.warn('[Proc sync] daily backup skipped', e.message));
         // Copy any documents that have not reached Drive yet.
         for (const d of store.list('documents').filter(x => !x.driveFileId).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
         sync.lastSync = Date.now(); sync.setState('on');
       } catch (e) {
         console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
-        if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the Drive file.', 'error', 15000); }
+        if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the file in Google Drive.', 'error', 12000); }
       }
       finally { sync.busy = false; }
     },
-    /** Once a day, keep a dated copy in Drive ("Procurement Backups"), and remove copies older than 60 days. */
-    async dailySnapshot(blob) {
+    /** Once a day: each unit's records into its own Backups folder, and every unit together into
+        Operations/Whole-hospital Backups. Copies older than 60 days are removed. */
+    async dailySnapshot(blobs, folders) {
       const day = util.today();
       if (localStorage.getItem('procDriveSnapshotDay') === day) return;
-      const folder = await sync.folder(GDRIVE.BACKUP_FOLDER);
-      const name = 'PROCUREMENT_BACKUP_' + day + '.json';
-      const q = "'" + folder + "' in parents and trashed=false";
-      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=200');
-      const list = (await r.json()).files || [];
-      if (!list.some(f => f.name === name)) {
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify({ name, parents: [folder], mimeType: 'application/json' })], { type: 'application/json' }));
-        form.append('file', blob);
-        await sync.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: form });
-      }
       const cutoff = util.addDays(day, -60);
-      for (const f of list) { const m = /^PROCUREMENT_BACKUP_(\d{4}-\d{2}-\d{2})\.json$/.exec(f.name); if (m && m[1] < cutoff) await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }).catch(() => {}); }
+      const keep = async (folder, prefix, blob) => {
+        const name = prefix + day + '.json';
+        const q = "'" + folder + "' in parents and trashed=false";
+        const list = (await (await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&pageSize=200')).json()).files || [];
+        if (!list.some(f => f.name === name)) await sync.upload(null, folder, name, blob);
+        for (const f of list) { const m = new RegExp('^' + prefix + '(\\d{4}-\\d{2}-\\d{2})\\.json$').exec(f.name); if (m && m[1] < cutoff) await sync.api('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }).catch(() => {}); }
+      };
+      for (const u of Object.keys(GDRIVE.UNITS)) await keep(await sync.folderIn(folders[u], GDRIVE.BACKUPS), GDRIVE.UNITS[u].prefix, blobs[u]);
+      const ops = await sync.folderIn(await sync.folder(GDRIVE.OPERATIONS), GDRIVE.WHOLE);
+      await keep(ops, 'WHOLE_HOSPITAL_', new Blob([JSON.stringify({ version: '2.0', type: 'procurement', timestamp: new Date().toISOString(), data: store.db })], { type: 'application/json' }));
       localStorage.setItem('procDriveSnapshotDay', day);
     },
-    async folder(name) {
-      sync.folders = sync.folders || {};
-      if (sync.folders[name]) return sync.folders[name];
-      const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + name + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
-      const j = await r.json();
-      if (j.files && j.files.length) return (sync.folders[name] = j.files[0].id);
-      const c = await sync.api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [GDRIVE.FOLDER_ID] }) });
-      return (sync.folders[name] = (await c.json()).id);
-    },
-    async docsFolder() {
-      if (sync.docsFolderId) return sync.docsFolderId;
-      const q = "'" + GDRIVE.FOLDER_ID + "' in parents and name='" + GDRIVE.DOCS_FOLDER + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-      const r = await sync.api('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)');
-      const j = await r.json();
-      if (j.files && j.files.length) return (sync.docsFolderId = j.files[0].id);
-      const c = await sync.api('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: GDRIVE.DOCS_FOLDER, mimeType: 'application/vnd.google-apps.folder', parents: [GDRIVE.FOLDER_ID] }) });
-      return (sync.docsFolderId = (await c.json()).id);
-    },
+    async docsFolder(unit) { return sync.folderIn(await sync.unitFolder(unit || 'procurement'), GDRIVE.DOCS); },
     async uploadDoc(doc) {
       if (!sync.token() || !doc || doc.driveFileId) return;
       const b = await files.getBlob(doc.id); if (!b) return;
-      const folder = await sync.docsFolder();
+      const folder = await sync.docsFolder(unitOfDoc(doc));
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify({ name: doc.id + ' - ' + doc.name, parents: [folder] })], { type: 'application/json' }));
       form.append('file', b);
