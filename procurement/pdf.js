@@ -552,17 +552,68 @@
   };
 
   /* ------------------------------------------------- comparison / evaluation */
+  /* ---------------------------------------------------- comparison sheet (workbook layout)
+     Item columns, then one group per supplier (UNIT COST · EXTENDED COST · TOTAL · T/NT); the supplier
+     chosen for each item is shaded grey, as on the procurement workbook. Wide comparisons are split
+     into tables of SHEET_PER suppliers, each repeating the item columns. */
+  const SHADE = [127, 127, 127], SHEET_PER = 3;
+  const n2 = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nu = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  function drawSheet(doc, cmp, r, y, M, top, bottom) {
+    const all = (cmp.suppliers || []).filter(s => r.bySupplier[s.supplierId]);
+    const won = sid => r.awards.find(a => a.supplierId === sid);
+    const chunks = []; for (let i = 0; i < Math.max(all.length, 1); i += SHEET_PER) chunks.push(all.slice(i, i + SHEET_PER));
+    chunks.forEach((sups, ci) => {
+      if (ci) y += 12;
+      const head1 = [{ content: chunks.length > 1 ? 'Suppliers ' + (ci * SHEET_PER + 1) + '–' + (ci * SHEET_PER + sups.length) + ' of ' + all.length : '', colSpan: 4, styles: { fillColor: [255, 255, 255], fontStyle: 'italic', textColor: GREY } }]
+        .concat(sups.map(sp => ({ content: clean(r.bySupplier[sp.supplierId].name) + (sp.compliant === false ? ' (non-compliant)' : ''), colSpan: 4, styles: { halign: 'center', fillColor: won(sp.supplierId) ? SHADE : [255, 255, 255] } })));
+      const head2 = ['ITEM #', 'QTY', 'UNIT', 'ITEM DESCRIPTION'].concat([].concat(...sups.map(() => ['UNIT COST', 'EXT. COST', 'TOTAL', 'T/NT'])));
+      const body = r.lines.map((l, i) => [clean(l.item.itemNo || String(i + 1)), l.qty ? util.int(l.qty) : '', clean(l.item.unit || ''), clean(l.item.description || '').toUpperCase()]
+        .concat([].concat(...sups.map(sp => { const q = l.quotes[sp.supplierId]; return q ? [nu(q.unit), n2(q.eff), n2(q.extInc), sp.gct ? 'T' : 'NT'] : ['', '', '', '']; }))));
+      const foot = [['', '', '', 'TOTAL'].concat([].concat(...sups.map(sp => { const b = r.bySupplier[sp.supplierId]; return ['', '', b.quoted ? n2(b.total) : '', '']; }))),
+        ['', '', '', 'AWARDED'].concat([].concat(...sups.map(sp => { const a = won(sp.supplierId); return ['', '', a ? n2(a.total) : '', '']; })))];
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M, top: top, bottom: bottom }, theme: 'grid', head: [head1, head2], body, foot, showFoot: 'lastPage', rowPageBreak: 'avoid',
+        styles: { font: 'helvetica', fontSize: 7.2, cellPadding: 2.6, lineColor: [150, 150, 150], lineWidth: 0.4, textColor: [0, 0, 0], overflow: 'linebreak' },
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6.8, valign: 'middle' },
+        footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        columnStyles: Object.assign({ 0: { cellWidth: 24, halign: 'center' }, 1: { cellWidth: 36, halign: 'right' }, 2: { cellWidth: 40 }, 3: { cellWidth: 'auto', fontStyle: 'bold' } },
+          ...sups.map((sp, k) => ({ [4 + k * 4]: { cellWidth: 50 }, [5 + k * 4]: { cellWidth: 50 }, [6 + k * 4]: { cellWidth: 62 }, [7 + k * 4]: { cellWidth: 20 } }))),
+        didParseCell: d => {
+          const ci2 = d.column.index - 4; if (ci2 < 0) return;
+          const sp = sups[Math.floor(ci2 / 4)], k = ci2 % 4; if (!sp) return;
+          if (k < 3) d.cell.styles.halign = 'right'; else d.cell.styles.halign = 'center';
+          if (d.section === 'head' && d.row.index === 1 && won(sp.supplierId)) d.cell.styles.fillColor = SHADE;
+          if (d.section === 'body') { const l = r.lines[d.row.index]; if (l && l.awardSid === sp.supplierId && l.quotes[sp.supplierId]) { d.cell.styles.fillColor = SHADE; d.cell.styles.fontStyle = 'bold'; } }
+          if (d.section === 'foot' && d.row.index === 1 && won(sp.supplierId)) d.cell.styles.fillColor = SHADE;
+        },
+        didDrawCell: d => { // a heavier rule at the start of each supplier group, as on the sheet
+          const ci2 = d.column.index - 4; if (ci2 < 0 || ci2 % 4 !== 0) return;
+          doc.setDrawColor(90, 90, 90); doc.setLineWidth(1.2); doc.line(d.cell.x, d.cell.y, d.cell.x, d.cell.y + d.cell.height);
+        }
+      });
+      y = doc.lastAutoTable.finalY;
+    });
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(7.2); doc.setTextColor.apply(doc, GREY);
+    if (y + 14 > doc.internal.pageSize.getHeight() - bottom) { doc.addPage(); y = top; }
+    doc.setFillColor.apply(doc, SHADE); doc.rect(M, y + 5, 14, 7, 'F');
+    doc.text('Shaded = supplier chosen for the item (as on the procurement workbook). Extended cost and Total include GCT where T/NT is "T". Amounts in JMD.', M + 19, y + 11);
+    doc.setTextColor.apply(doc, INK);
+    return y + 22;
+  }
+
   pdf.comparison = function (cmp, o) {
     o = o || {};
     try {
       const sups = cmp.suppliers || [];
-      const land = sups.length > 4;
+      const asSheet = o.layout === 'sheet';
+      const land = asSheet || sups.length > 4;
       const doc = newDoc(land ? 'landscape' : 'portrait'), { w, h } = pageSize(doc);
       const M = 36, top = 122;
       const r = domain.computeComparison(cmp);
       const S = settings(), off = domain.officer();
       doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor.apply(doc, BLUE);
-      doc.text('PRICE COMPARISON & BID EVALUATION', M, top + 14);
+      doc.text(asSheet ? 'PRICE COMPARISON SHEET' : 'PRICE COMPARISON & BID EVALUATION', M, top + 14);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, INK);
       doc.text(clean(cmp.subject || ''), M, top + 31);
       const facts = [['Reference', cmp.ref], ['Date', util.date(cmp.date)], ['Method', cmp.method], ['Invited', String(cmp.invited || sups.length)], ['Bids received', String(r.bidsReceived)], ['Closing date', util.date(cmp.closingDate)], ['Requisition', cmp.requisitionId ? (store.get('requisitions', cmp.requisitionId) || {}).number : '']].filter(f => f[1]);
@@ -576,6 +627,9 @@
         doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); fitSize(doc, clean(v), widths[i] - 10, 9, 6.5); doc.text(clean(v), fx, top + 63);
         fx += widths[i];
       });
+      let y;
+      if (asSheet) y = drawSheet(doc, cmp, r, top + 76, M, top, 84) - 2;
+      else {
       const head = ['#', 'Item', 'Unit', 'Qty'].concat(sups.map(s => clean(s.name || domain.supplierName(s.supplierId)) + (s.compliant === false ? ' (non-compliant)' : '') + (s.gct ? ' +GCT' : '')));
       const body = r.lines.map((l, i) => [String(i + 1), clean(l.item.description), clean(l.item.unit || ''), util.int(l.qty)].concat(sups.map(s => { const q = l.quotes[s.supplierId]; return q ? util.money(q.unit).replace('$', '') + (l.awardSid === s.supplierId ? ' *' : '') : '-'; })));
       const foot = [
@@ -597,10 +651,11 @@
           }
         }
       });
-      let y = doc.lastAutoTable.finalY + 6;
+      y = doc.lastAutoTable.finalY + 6;
       doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY);
       doc.text('Unit prices in JMD. Shaded = lowest compliant price for the line (GCT-inclusive comparison).  * = recommended award.', M, y + 8);
       y += 22;
+      }
       if (r.awards.length) {
         if (y + (r.awards.length + 2) * 19 > h - 84) { doc.addPage(); y = top + 6; }
         doc.autoTable({
@@ -634,7 +689,68 @@
       });
       finish(doc, { side: false, alwaysNumber: false });
       doc.setProperties({ title: 'Price comparison ' + (cmp.ref || ''), creator: 'Procurement Management System' });
-      return Promise.resolve(deliver(doc, 'Price Comparison - ' + fileSafe(cmp.ref || cmp.subject || 'comparison') + '.pdf', o.output));
+      return Promise.resolve(deliver(doc, (asSheet ? 'Comparison Sheet - ' : 'Price Comparison - ') + fileSafe(cmp.ref || cmp.subject || 'comparison') + '.pdf', o.output));
+    } catch (e) { return Promise.reject(e); }
+  };
+
+  /** Report of many comparisons (e.g. a month): summary, totals by supplier, then each comparison sheet. */
+  pdf.comparisonReport = function (list, o) {
+    o = o || {};
+    try {
+      const doc = newDoc('landscape'), { w, h } = pageSize(doc);
+      const M = 32, top = 122, bottom = 60;
+      const items = list.map(c => ({ c, r: domain.computeComparison(c) }));
+      const total = util.sum(items, x => x.r.awardTotal);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor.apply(doc, BLUE);
+      doc.text('PRICE COMPARISON REPORT' + (o.title ? ' — ' + clean(o.title).toUpperCase() : ''), M, top + 12);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor.apply(doc, GREY);
+      doc.text(items.length + ' comparison' + (items.length === 1 ? '' : 's') + '  ·  ' + util.sum(items, x => x.r.lines.length) + ' items  ·  Total recommended ' + money(total) + '  ·  Printed ' + util.dateLong(util.today()), M, top + 27);
+      doc.setTextColor.apply(doc, INK);
+      doc.autoTable({
+        startY: top + 38, margin: { left: M, right: M, top: top, bottom: bottom }, theme: 'grid',
+        head: [['#', 'Reference', 'What was compared', 'Date', 'Method', 'Quotes', 'Items', 'Awarded to', 'Recommended']],
+        body: items.map((x, i) => [String(i + 1), clean(x.c.ref || ''), clean(x.c.subject || ''), util.date(x.c.date), clean(x.c.method || ''), String(x.r.bidsReceived), String(x.r.lines.length),
+          clean(x.r.awards.map(a => a.name).join(', ') || '—'), x.r.awardTotal ? money(x.r.awardTotal) : '—']),
+        foot: [['', '', 'Total', '', '', '', String(util.sum(items, x => x.r.lines.length)), '', money(total)]], showFoot: 'lastPage',
+        styles: { font: 'helvetica', fontSize: 7.8, cellPadding: 3.2, lineColor: [210, 216, 224], lineWidth: 0.5, textColor: INK },
+        headStyles: { fillColor: BLUE, textColor: 255, fontStyle: 'bold' }, footStyles: { fillColor: [248, 250, 252], textColor: INK, fontStyle: 'bold' },
+        columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 110 }, 3: { cellWidth: 52 }, 4: { cellWidth: 88 }, 5: { cellWidth: 38, halign: 'right' }, 6: { cellWidth: 34, halign: 'right' }, 8: { cellWidth: 82, halign: 'right' } }
+      });
+      // Totals by supplier across the report
+      const bySup = {};
+      items.forEach(x => x.r.awards.forEach(a => { const b = bySup[a.name] = bySup[a.name] || { name: a.name, lines: 0, total: 0, cmps: 0 }; b.lines += a.items.length; b.total += a.total; b.cmps++; }));
+      const sup = Object.values(bySup).sort((a, b) => b.total - a.total);
+      if (sup.length) {
+        let y = doc.lastAutoTable.finalY + 16;
+        if (y + 60 > h - bottom) { doc.addPage(); y = top; }
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M, top: top, bottom: bottom }, theme: 'grid', tableWidth: 470,
+          head: [['Recommended awards by supplier', 'Comparisons', 'Items', 'Amount']], body: sup.map(b => [clean(b.name), String(b.cmps), String(b.lines), money(b.total)]),
+          foot: [['Total', '', String(util.sum(sup, b => b.lines)), money(total)]], showFoot: 'lastPage',
+          styles: { font: 'helvetica', fontSize: 8, cellPadding: 3.2, lineColor: [210, 216, 224], lineWidth: 0.5, textColor: INK },
+          headStyles: { fillColor: [241, 244, 247], textColor: INK, fontStyle: 'bold' }, footStyles: { fillColor: [248, 250, 252], textColor: INK, fontStyle: 'bold' },
+          columnStyles: { 1: { halign: 'right', cellWidth: 70 }, 2: { halign: 'right', cellWidth: 50 }, 3: { halign: 'right', cellWidth: 100 } }
+        });
+      }
+      // Each comparison sheet
+      items.forEach((x, i) => {
+        doc.addPage();
+        let y = top;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, BLUE);
+        doc.text((i + 1) + '. ' + clean(x.c.subject || x.c.ref || 'Price comparison'), M, y + 10);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor.apply(doc, GREY);
+        doc.text([clean(x.c.ref || ''), util.date(x.c.date), clean(x.c.method || ''), x.r.bidsReceived + ' quote' + (x.r.bidsReceived === 1 ? '' : 's'), 'Recommended ' + money(x.r.awardTotal)].filter(Boolean).join('   ·   '), M, y + 23);
+        doc.setTextColor.apply(doc, INK);
+        y = drawSheet(doc, x.c, x.r, y + 31, M, top, bottom);
+        if (x.r.awards.length) {
+          if (y + 30 > h - bottom) { doc.addPage(); y = top; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8.3);
+          doc.text('Recommended: ' + clean(x.r.awards.map(a => a.name + ' ' + money(a.total)).join('  ·  ')), M, y + 2, { maxWidth: w - M * 2 });
+        }
+      });
+      finish(doc, { side: false, alwaysNumber: true, pageLabel: 'Price comparison report' + (o.title ? ' · ' + o.title : '') });
+      doc.setProperties({ title: 'Price comparison report ' + (o.title || ''), creator: 'Procurement Management System' });
+      return Promise.resolve(deliver(doc, 'Price Comparison Report - ' + fileSafe(o.title || util.today()) + '.pdf', o.output));
     } catch (e) { return Promise.reject(e); }
   };
 })();

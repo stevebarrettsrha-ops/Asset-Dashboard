@@ -434,7 +434,8 @@
         const items = [];
         for (let r = hi + 1; r < stop; r++) {
           const desc = cDesc >= 0 ? str(val(r, cDesc)) : '';
-          if (groups.some(g => /^(TOTAL|SUBTOTAL)$/.test(UP(val(r, g.unit))) ) || /^JUSTIFICATION/.test(UP(val(r, 0)))) break;
+          const endRow = x => /^(SUB\s*TOTAL|TOTAL|GRAND TOTAL)$/.test(x);
+          if (groups.some(g => endRow(UP(val(r, g.unit)))) || endRow(UP(val(r, 0))) || (cDesc >= 0 && endRow(UP(val(r, cDesc)))) || /^JUSTIFICATION/.test(UP(val(r, 0)))) break;
           if (!desc || HEADWORD.test(desc)) continue;
           const qty = cQty >= 0 ? cellNum(val(r, cQty)) : null;
           const quotes = {};
@@ -479,7 +480,7 @@
       const items = [], prices = {}, awards = {};
       b.items.forEach((it, ii) => {
         const id = util.uid('L');
-        items.push({ id, description: it.desc, unit: it.uom, qty: it.qty || 1, itemNo: it.no || String(ii + 1) });
+        items.push({ id, description: it.desc, unit: it.uom, qty: it.qty || 0, itemNo: it.no || String(ii + 1) });
         prices[id] = {};
         Object.keys(it.quotes).forEach(gi => { const s = b.suppliers.find(x => x.gi === +gi); prices[id][s.name] = it.quotes[gi].unit; });
         const won = Object.keys(it.quotes).filter(gi => it.quotes[gi].shaded);

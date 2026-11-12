@@ -142,7 +142,7 @@
 
     el.innerHTML = ui.pageHead({
       title: 'Price Comparison', sub: 'Compare quotations side by side and award to the lowest compliant supplier',
-      actions: '<a class="btn primary" href="#/sourcing/new">' + ui.icon('plus', 'sm') + 'New comparison</a>'
+      actions: '<button class="btn" id="cmpReport">' + ui.icon('printer', 'sm') + 'Print report</button><a class="btn primary" href="#/sourcing/new">' + ui.icon('plus', 'sm') + 'New comparison</a>'
     }) +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'Open comparisons', value: util.int(counts.Active), icon: 'scale', meta: 'Collecting or evaluating quotes' }) +
@@ -174,6 +174,26 @@
     el.querySelectorAll('#cmpSeg button').forEach(b => b.onclick = () => {
       listSeg = b.dataset.s; el.querySelectorAll('#cmpSeg button').forEach(x => x.classList.toggle('on', x === b)); tbl.refresh(rowsFor(listSeg));
     });
+    el.querySelector('#cmpReport').onclick = () => reportDialog(all);
+  }
+  /** Print a report of the comparisons for a month (or all): summary, totals by supplier, then each sheet. */
+  async function reportDialog(all) {
+    const months = Array.from(new Set(all.map(c => (c.date || '').slice(0, 7)).filter(Boolean))).sort().reverse();
+    const label = ym => util.MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+    if (!months.length) { ui.toast('There are no price comparisons to report on yet.', 'info'); return; }
+    const v = await ui.form('Print price comparison report', [
+      { name: 'month', label: 'Month', type: 'select', options: months.map(m => ({ value: m, label: label(m) })).concat([{ value: 'all', label: 'All months' }]), value: months[0] },
+      { name: 'which', label: 'Include', type: 'select', options: [{ value: 'all', label: 'Every comparison' }, { value: 'awarded', label: 'Only comparisons with a recommended award' }, { value: 'multi', label: 'Only comparisons with two or more quotes' }], value: 'all' },
+      { name: 'save', label: '', type: 'checkbox', checkLabel: 'Download the PDF instead of opening it to print' }
+    ], { ok: 'Print report' });
+    if (!v) return;
+    let list = all.filter(c => v.month === 'all' || (c.date || '').slice(0, 7) === v.month);
+    if (v.which !== 'all') list = list.filter(c => { const r = domain.computeComparison(c); return v.which === 'awarded' ? r.awards.length : r.bidsReceived >= 2; });
+    list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || String(a.ref || '').localeCompare(String(b.ref || ''), undefined, { numeric: true }));
+    if (!list.length) { ui.toast('No comparisons match — try another month or include every comparison.', 'info'); return; }
+    ui.toast('Preparing the report (' + list.length + ' ' + util.plural(list.length, 'comparison') + ')…', 'info');
+    try { await Proc.pdf.comparisonReport(list, { title: v.month === 'all' ? 'All months' : label(v.month), output: v.save ? 'save' : 'open' }); Proc.audit('Print Comparison Report', (v.month === 'all' ? 'All months' : label(v.month)) + ' · ' + list.length + ' comparisons'); }
+    catch (e) { ui.toast('Could not make the report: ' + e.message, 'error'); }
   }
 
   /* ============================================================= EDITOR */
@@ -248,7 +268,8 @@
       (c.requisitionId ? '<button class="btn sm" data-act="loadreq">' + ui.icon('clipboard', 'sm') + 'Load from requisition</button>' : '') +
       '</div>' +
       '<div class="matrix-wrap" id="mxWrap"><table class="matrix cmp-matrix" id="mx"></table></div>' +
-      '<div id="sheetView" hidden><div class="xl-wrap" id="xlWrap"></div><div class="xl-legend"><span><i class="g"></i>Shaded = supplier chosen for that item (as on the workbook)</span><span><i class="l"></i>Lowest price</span><span>Extended cost and Total include GCT where T/NT is “T”. Click a supplier’s price to award the item to them.</span></div></div></div>' +
+      '<div id="sheetView" hidden><div class="xl-wrap" id="xlWrap"></div><div class="xl-legend"><span><i class="g"></i>Shaded = supplier chosen for that item (as on the workbook)</span><span><i class="l"></i>Lowest price</span><span>Extended cost and Total include GCT where T/NT is “T”. Click a supplier’s price to award the item to them.</span>' +
+      '<span style="margin-left:auto;display:flex;gap:8px"><button class="btn sm" data-act="sheetprint">' + ui.icon('printer', 'sm') + 'Print report</button><button class="btn sm" data-act="sheetpdf">' + ui.icon('download', 'sm') + 'Download PDF</button></span></div></div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Evaluation note</h3><div class="sub">Printed on the approval memo before the recommendation table</div></div><button class="btn sm" data-act="usenote">Use suggested wording</button></div><div class="card-b">' +
       '<textarea class="input" id="evalNote" rows="3">' + esc(c.evaluationNote || '') + '</textarea><div class="hint small muted mt-1">Leave blank to use the suggested wording shown in grey.</div></div></div>' +
       '</div>' +
@@ -823,6 +844,9 @@
 
     function drawAll() { drawHead(); drawMatrix(); }
     el.querySelectorAll('#cmpView button').forEach(b => b.onclick = () => setView(b.dataset.v));
+    const sheetReport = output => { flush(); Proc.pdf.comparison(store.get('comparisons', c.id) || c, { layout: 'sheet', output }).then(() => Proc.audit('Print Comparison Sheet', c.ref || c.subject, c.id)).catch(e => ui.toast(e.message, 'error')); };
+    el.querySelector('[data-act=sheetprint]').onclick = () => sheetReport('open');
+    el.querySelector('[data-act=sheetpdf]').onclick = () => sheetReport('save');
     el.querySelector('#xlWrap').addEventListener('click', e => {
       const t = e.target.closest('[data-aw-item]'); if (!t) return;
       if (c.awardMode === 'lot') c.lotSupplierId = t.dataset.awSid;
