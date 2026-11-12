@@ -5,6 +5,8 @@
      • PRS return ('Database_ Transactions')               → enrich/create purchase orders
      • Ground provisions weekly comparison ('WEEKEND …')    → price comparisons
      • Monthly PROCUREMENT workbook ('Sheet2' awards)       → price comparisons (award breakdown)
+       and its category sheets (LAB, MEDICAL SUND, FOOD …)   → one price comparison per supplier block,
+                                                             the grey-shaded supplier is the item's award
      • Annual procurement plan (WORKS / EQUIPMENT / …)      → plans
      • JSON backup                                          → merged with store.merge
    Every file is previewed before anything is written. Each import is logged
@@ -368,6 +370,144 @@
   }
 
   /* Monthly procurement workbook (Sheet2) --------------------------------- */
+  /* Category comparison sheets ------------------------------------------
+     Each block: a heading row (ITEM # · QUANTITY · UNIT OF MEASURE · ITEM DESCRIPTION) followed by one
+     group of columns per supplier (UNIT COST · EXTENDED COST · TOTAL · T/NT) with the supplier's name
+     above it. The supplier chosen for an item has its cells shaded grey. */
+  const SHEET_SKIP = /^(AMOUNT FOR APPROVAL|Sheet2.*|EQUIPMENT RENTAL|MI[S]?CELLANEOUS)$/i;
+  const HEADWORD = /^(ITEM\s*#|ITEM|QUANTITY|QTY|UNIT OF MEASURE|U\/M|UOM|ITEM DESCRIPTION|DESCRIPTION|UNIT COST|EXTENDED COST|TOTAL|T\/NT|USAGE PATTERN|STOCK BALANCE|JUSTIFICATION|SUPPLIER|TOTAL COST|AMOUNT)$/i;
+  const SHEET_NAMES = { 'LAB': 'Laboratory supplies', 'MEDICAL SUND': 'Medical sundries', 'CHEMICAL': 'Cleaning chemicals & toiletries', 'FOOD': 'Food & drink', 'FURN & EQUIP': 'Furniture & equipment',
+    'SCIENTIFIC & MED EQUIP': 'Scientific & medical equipment', 'MAIN & ELECT': 'Maintenance & electrical', 'REPAIRS TO GOV FAC': 'Repairs to government facilities', 'REPAIRS TO FURN & EQUIP': 'Repairs to furniture & equipment',
+    'PRINTING': 'Printing', 'STATIONERY': 'Stationery', 'CLOTHING & BEDDING': 'Clothing & bedding', 'SMALL EQUIPMENT': 'Small equipment', 'STAFF WELFARE': 'Staff welfare' };
+  const UP = v => str(v).toUpperCase();
+  function cellNum(v) { if (typeof v === 'number') return v; const n = parseFloat(String(v === null || v === undefined ? '' : v).replace(/[,$\s]/g, '')); return isFinite(n) ? n : null; }
+  /** Grey shading as Excel writes it: theme "Background 1, darker" or a plain grey. */
+  function shadedCell(c) {
+    const s = c && c.s; if (!s || s.patternType !== 'solid' || !s.fgColor) return false;
+    const f = s.fgColor;
+    if (f.theme !== undefined && f.theme !== null) return ((f.theme === 0 || f.theme === 2) && (f.tint || 0) <= -0.3) || f.theme === 1;
+    if (f.rgb) { const h = String(f.rgb).slice(-6); const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); return Math.abs(r - g) < 12 && Math.abs(g - b) < 12 && r < 0xB0; }
+    return false;
+  }
+  function parseCategorySheets(wb) {
+    const blocks = [];
+    wb.SheetNames.forEach(sn => {
+      if (SHEET_SKIP.test(sn.trim())) return;
+      const ws = wb.Sheets[sn]; if (!ws || !ws['!ref']) return;
+      const R = XLSX.utils.decode_range(ws['!ref']);
+      const maxr = Math.min(R.e.r, 1200), maxc = Math.min(R.e.c, 60);
+      const cell = (r, c) => ws[XLSX.utils.encode_cell({ r, c })];
+      const val = (r, c) => { const x = cell(r, c); return x ? x.v : null; };
+      const rowUp = r => { const a = []; for (let c = 0; c <= maxc; c++) a.push(UP(val(r, c))); return a; };
+      const hasUC = a => a.indexOf('UNIT COST') >= 0, hasD = a => a.indexOf('ITEM DESCRIPTION') >= 0 || a.indexOf('DESCRIPTION') >= 0;
+      const pairs = [];
+      for (let r = 0; r <= maxr; r++) {
+        const a = rowUp(r);
+        if (hasUC(a) && hasD(a)) pairs.push([r, r]);
+        else if (hasD(a) && !hasUC(a) && r + 1 <= maxr) { const b = rowUp(r + 1); if (hasUC(b) && !hasD(b)) pairs.push([r, r + 1]); }
+      }
+      pairs.forEach((pr, bi) => {
+        const di = pr[0], hi = pr[1];
+        const H = rowUp(hi), D = rowUp(di);
+        // Item headings can sit on the row above (FOOD) or the row below (QUANTITY on MEDICAL SUND).
+        const B = hi + 1 <= maxr ? rowUp(hi + 1) : [];
+        const ITEMHEAD = /^(ITEM DESCRIPTION|DESCRIPTION|QUANTITY|QTY|U\/M|UNIT OF MEASURE|UOM|ITEM #|ITEM)$/;
+        H.forEach((h, x) => { if (!h && ITEMHEAD.test(D[x])) H[x] = D[x]; else if (!h && ITEMHEAD.test(B[x] || '')) H[x] = B[x]; });
+        const col = (...names) => { for (const n of names) { const i = H.indexOf(n); if (i >= 0) return i; } return -1; };
+        const cDesc = col('ITEM DESCRIPTION', 'DESCRIPTION'), cQty = col('QUANTITY', 'QTY'), cUom = col('UNIT OF MEASURE', 'U/M', 'UOM'), cNo = col('ITEM #', 'ITEM');
+        const starts = []; H.forEach((h, x) => { if (h === 'UNIT COST') starts.push(x); });
+        const groups = starts.map((j, k) => {
+          const end = k + 1 < starts.length ? starts[k + 1] : maxc + 1;
+          const g = { unit: j, ext: -1, tot: -1, tax: -1, name: '' };
+          for (let x = j + 1; x < end; x++) {
+            if (H[x] === 'EXTENDED COST' && g.ext < 0) g.ext = x;
+            else if ((H[x] === 'TOTAL' || H[x] === 'TOTAL COST') && g.tot < 0) g.tot = x;
+            else if (H[x] === 'T/NT' && g.tax < 0) g.tax = x;
+          }
+          for (let u = 1; u <= 3 && !g.name && hi - u >= 0; u++) {
+            for (let x = j; x < Math.min(end, j + 4); x++) { const v = str(val(hi - u, x)); if (v && !HEADWORD.test(v) && !/^[\d.,\s$-]+$/.test(v)) { g.name = v; break; } }
+          }
+          return g;
+        });
+        if (groups.length === 1 && !groups[0].name) for (let u = 1; u <= 2 && hi - u >= 0; u++) { const v = str(val(hi - u, 0)); if (v && !HEADWORD.test(v)) { groups[0].name = v; break; } }
+        const stop = bi + 1 < pairs.length ? pairs[bi + 1][0] : maxr + 1;
+        const items = [];
+        for (let r = hi + 1; r < stop; r++) {
+          const desc = cDesc >= 0 ? str(val(r, cDesc)) : '';
+          if (groups.some(g => /^(TOTAL|SUBTOTAL)$/.test(UP(val(r, g.unit))) ) || /^JUSTIFICATION/.test(UP(val(r, 0)))) break;
+          if (!desc || HEADWORD.test(desc)) continue;
+          const qty = cQty >= 0 ? cellNum(val(r, cQty)) : null;
+          const quotes = {};
+          groups.forEach((g, gi) => {
+            let u = cellNum(val(r, g.unit));
+            if (!(u > 0)) { const t = g.tot >= 0 ? cellNum(val(r, g.tot)) : null; if (t > 0 && qty) u = t / qty; }
+            if (!(u > 0)) return;
+            const sh = shadedCell(cell(r, g.unit)) || (g.tot >= 0 && shadedCell(cell(r, g.tot))) || (g.ext >= 0 && shadedCell(cell(r, g.ext)));
+            quotes[gi] = { unit: Math.round(u * 10000) / 10000, tax: g.tax >= 0 ? UP(val(r, g.tax)) : '', shaded: !!sh };
+          });
+          if (!Object.keys(quotes).length) continue;
+          items.push({ no: cNo >= 0 ? str(val(r, cNo)) : '', qty: qty || 0, uom: cUom >= 0 ? str(val(r, cUom)) : '', desc, quotes });
+        }
+        if (!items.length) return;
+        const used = Array.from(new Set([].concat(...items.map(it => Object.keys(it.quotes).map(Number))))).sort((a, b) => a - b);
+        let letter = 0;
+        const sups = used.map(gi => {
+          const taxes = items.filter(it => it.quotes[gi]).map(it => it.quotes[gi].tax);
+          return { gi, name: groups[gi].name || ('Supplier ' + String.fromCharCode(65 + letter++)), gct: taxes.filter(t => t === 'T').length > taxes.length / 2 };
+        });
+        blocks.push({ sheet: sn.trim(), row: hi + 1, suppliers: sups, items });
+      });
+    });
+    return blocks;
+  }
+  /** Same suppliers, items and prices — a block carried over unchanged from an earlier month. */
+  function blockSig(b) {
+    return b.suppliers.map(s => domain.supplierKey(s.name)).sort().join(',') + '|' + b.items.map(it => str(it.desc).toLowerCase() + ':' + Object.keys(it.quotes).map(k => it.quotes[k].unit).join('/')).join(';');
+  }
+  function sheetComparisons(wb, ym, label, plan) {
+    const blocks = parseCategorySheets(wb);
+    const known = new Set(store.list('comparisons').map(c => c.sheetSig).filter(Boolean));
+    const usedRefs = new Set(store.list('comparisons').map(c => c.ref));
+    const seen = new Set();
+    let n = 0;
+    blocks.forEach(b => {
+      const sig = blockSig(b);
+      const ref = 'SHT-' + ym.replace('-', '') + '-' + b.sheet.toUpperCase().replace(/[^A-Z0-9]+/g, '') + '-' + b.row;
+      plan.parsed++;
+      if (known.has(sig) || usedRefs.has(ref) || seen.has(sig)) { plan.present++; return; }
+      seen.add(sig);
+      const items = [], prices = {}, awards = {};
+      b.items.forEach((it, ii) => {
+        const id = util.uid('L');
+        items.push({ id, description: it.desc, unit: it.uom, qty: it.qty || 1, itemNo: it.no || String(ii + 1) });
+        prices[id] = {};
+        Object.keys(it.quotes).forEach(gi => { const s = b.suppliers.find(x => x.gi === +gi); prices[id][s.name] = it.quotes[gi].unit; });
+        const won = Object.keys(it.quotes).filter(gi => it.quotes[gi].shaded);
+        if (won.length === 1) awards[id] = b.suppliers.find(x => x.gi === +won[0]).name;
+      });
+      const cat = SHEET_NAMES[b.sheet.toUpperCase()] || util.titleCase(b.sheet.toLowerCase());
+      const names = b.suppliers.map(s => s.name);
+      names.forEach(nm => plan.supplierNames.push(nm));
+      addCreate(plan, 'comparisons', {
+        ref, subject: cat + ' — ' + (names.length > 2 ? names.slice(0, 2).join(', ') + ' +' + (names.length - 2) : names.join(' / ')),
+        date: ym + '-01', method: names.length > 1 ? 'Restricted Bidding (RB)' : 'Single Source (SS)', invited: names.length, type: 'Goods',
+        items, _vendors: names, _gct: b.suppliers.filter(s => s.gct).map(s => s.name), _prices: prices, _awards: awards, awardMode: 'item', awards: {}, status: 'Evaluated',
+        sheet: { name: b.sheet, row: b.row, category: cat }, sheetSig: sig,
+        notes: 'From the ' + label + ' procurement workbook, sheet “' + b.sheet + '” (row ' + b.row + '). Shaded cells in the sheet show the supplier chosen for each item.'
+      });
+      n++;
+    });
+    if (blocks.length) plan.info.push(n + ' comparison sheet block' + (n === 1 ? '' : 's') + ' from the category sheets' + (plan.present ? ' (' + plan.present + ' already here or carried over from an earlier month)' : '') + '.');
+    return n;
+  }
+
+  /** Only the category comparison sheets of a monthly workbook, for a given month (yyyy-mm). */
+  function parseSheetsOnly(wb, fileName, ym) {
+    const plan = newPlan('monthly');
+    const label = util.MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+    sheetComparisons(wb, ym, label, plan);
+    return finishSuppliers(plan);
+  }
   function parseMonthly(wb, fileName) {
     const plan = newPlan('monthly');
     const rows = rowsOf(wb.Sheets['Sheet2']);
@@ -422,7 +562,8 @@
         notes: 'Imported from ' + fileName + ' (Sheet2). Workbook total: ' + util.money(g.total || 0) + '.', sheetTotal: g.total || 0
       });
     });
-    if (!groups.length) plan.warnings.push('No supplier award blocks found on Sheet2.');
+    const nSheets = sheetComparisons(wb, year + '-' + String(month + 1).padStart(2, '0'), label, plan);
+    if (!groups.length && !nSheets) plan.warnings.push('No supplier award blocks found on Sheet2 or the category sheets.');
     return finishSuppliers(plan);
   }
 
@@ -536,8 +677,8 @@
       }
       (plan.create.comparisons || []).forEach(src => {
         const c = Object.assign({}, src);
-        const vendors = c._vendors || [], prices = c._prices || {}, gct = new Set(c._gct || []), addr = c._addresses || {};
-        delete c._vendors; delete c._prices; delete c._gct; delete c._addresses;
+        const vendors = c._vendors || [], prices = c._prices || {}, gct = new Set(c._gct || []), addr = c._addresses || {}, awardNames = c._awards || {};
+        delete c._vendors; delete c._prices; delete c._gct; delete c._addresses; delete c._awards;
         const map = {};
         c.suppliers = [];
         vendors.forEach(n => {
@@ -548,6 +689,7 @@
         });
         c.prices = {};
         Object.keys(prices).forEach(itemId => { c.prices[itemId] = {}; Object.keys(prices[itemId]).forEach(n => { c.prices[itemId][map[n]] = prices[itemId][n]; }); });
+        Object.keys(awardNames).forEach(itemId => { if (map[awardNames[itemId]]) c.awards[itemId] = map[awardNames[itemId]]; });
         c.number = store.next('cmp');
         const rec = store.upsert('comparisons', tag(c, importId), { silent: true });
         created.comparisons.push(rec.id);
@@ -621,7 +763,7 @@
         return { file, name, size: file.size, type: 'backup', plan: parseBackup(obj), include: true };
       }
       if (!window.XLSX) throw new Error('The Excel reader did not load — check the internet connection and reload.');
-      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false, cellStyles: true });
       const type = detect(wb);
       if (!type) return { file, name, size: file.size, type: null, error: 'This workbook was not recognised. Supported: PO Log, PRS return, ground provisions comparison, monthly procurement workbook, procurement plan.', sheets: wb.SheetNames, include: false };
       return { file, name, size: file.size, type, wb, include: true };
@@ -781,5 +923,5 @@
   Proc.quickCreate.push({ label: 'Import Excel records', icon: 'upload', order: 90, onClick: () => Proc.router.go('import') });
 
   // Exposed for tests and for other modules (e.g. the dashboard's empty state).
-  Proc.importer = { detect, parsePOLog, parsePRS, parseGround, parseMonthly, parsePlan, applyPlan, undoImport, parseQtyLine };
+  Proc.importer = { detect, parsePOLog, parsePRS, parseGround, parseMonthly, parsePlan, applyPlan, undoImport, parseQtyLine, parseCategorySheets, parseSheetsOnly };
 })();

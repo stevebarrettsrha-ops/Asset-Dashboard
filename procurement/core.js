@@ -1884,6 +1884,8 @@
           const r = JSON.parse(JSON.stringify(src));
           if (r.supplierId && map[r.supplierId]) r.supplierId = map[r.supplierId];
           if (Array.isArray(r.entries)) r.entries.forEach(e => { if (e.lineId && map[e.lineId]) e.lineId = map[e.lineId]; });
+          // Running numbers continue this computer's own sequence.
+          if (coll === 'comparisons' && r.number) r.number = store.next('cmp');
           arr.push(r); byKey.set(k, r.id); map[src.id] = r.id; added++;
         });
       });
