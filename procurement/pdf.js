@@ -602,6 +602,90 @@
     return y + 22;
   }
 
+  /* ---------------------------------------------------- award schedule (final page)
+     Who the officer is taking each item from: one block per supplier with its contact details and the
+     items awarded to it (quantity, unit cost incl. GCT, total), the supplier total and a grand total.
+     entries: [{ cmp, r }] — one comparison, or every comparison in a report. */
+  function awardGroups(entries) {
+    const rate = settings().gctRate, by = new Map();
+    entries.forEach(({ cmp, r }) => {
+      r.awards.forEach(a => {
+        const key = a.supplierId || a.name;
+        const g = by.get(key) || { supplierId: a.supplierId, name: a.name, rows: [], subtotal: 0, gct: 0, total: 0, refs: new Set() };
+        a.items.forEach(it => {
+          const li = r.lines.findIndex(l => l.item.id === it.itemId), l = r.lines[li] || { item: {} };
+          const unitInc = it.unitPrice * (a.gctApplies ? 1 + rate : 1);
+          g.rows.push({ ref: cmp.ref || '', itemNo: l.item.itemNo || String(li + 1), qty: it.qty, unit: it.unit, description: it.description, unitInc, totalInc: util.round2(unitInc * (it.qty || 0)), tax: a.gctApplies ? 'T' : 'NT' });
+        });
+        g.subtotal += a.subtotal; g.gct += a.gct; g.total += a.total; g.refs.add(cmp.ref || '');
+        by.set(key, g);
+      });
+    });
+    return Array.from(by.values()).sort((x, y) => y.total - x.total);
+  }
+  function drawAwardSchedule(doc, entries, o) {
+    o = o || {};
+    const { w, h } = pageSize(doc), M = o.M || 32, top = 122, bottom = o.bottom || 70;
+    const groups = awardGroups(entries);
+    doc.addPage();
+    let y = top;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor.apply(doc, BLUE);
+    doc.text('AWARD SCHEDULE — ITEMS TO BE PURCHASED, BY SUPPLIER', M, y + 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.6); doc.setTextColor.apply(doc, GREY);
+    const grand = util.sum(groups, g => g.total), nItems = util.sum(groups, g => g.rows.length);
+    doc.text(clean((o.subtitle ? o.subtitle + '  ·  ' : '') + groups.length + ' supplier' + (groups.length === 1 ? '' : 's') + '  ·  ' + nItems + ' item' + (nItems === 1 ? '' : 's') + '  ·  Total ' + money(grand)), M, y + 26);
+    doc.setTextColor.apply(doc, INK);
+    y += 36;
+    if (!groups.length) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.text('No items have been awarded yet.', M, y + 14);
+      return;
+    }
+    const multi = entries.length > 1;
+    groups.forEach((g, gi) => {
+      const sp = g.supplierId ? store.get('suppliers', g.supplierId) : null;
+      const contact = sp ? [sp.address, sp.parish, sp.phone ? 'Tel ' + sp.phone : '', sp.email, sp.trn ? 'TRN ' + sp.trn : ''].filter(Boolean).join('  ·  ') : '';
+      if (y + 70 > h - bottom) { doc.addPage(); y = top; }
+      doc.setFillColor(127, 127, 127); doc.rect(M, y, w - M * 2, 18, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+      doc.text(clean((gi + 1) + '.  ' + g.name), M + 6, y + 12.5);
+      doc.text(money(g.total), w - M - 6, y + 12.5, { align: 'right' });
+      y += 18;
+      if (contact) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor.apply(doc, GREY); doc.text(clean(contact), M + 6, y + 10, { maxWidth: w - M * 2 - 12 }); y += 14; }
+      doc.setTextColor.apply(doc, INK);
+      const head = (multi ? ['Comparison'] : []).concat(['Item #', 'Qty', 'Unit', 'Item description', 'Unit cost', 'T/NT', 'Total']);
+      const body = g.rows.map(x => (multi ? [clean(x.ref)] : []).concat([clean(x.itemNo), util.int(x.qty), clean(x.unit || ''), clean(x.description || '').toUpperCase(), n2(x.unitInc), x.tax, n2(x.totalInc)]));
+      const c0 = multi ? 1 : 0;
+      doc.autoTable({
+        startY: y + 2, margin: { left: M, right: M, top: top + 18, bottom: bottom }, theme: 'grid', head: [head], body, showHead: 'everyPage', rowPageBreak: 'avoid',
+        // A supplier's list that runs onto the next page carries its name there too.
+        willDrawPage: d => { if (d.pageNumber > 1) { doc.setFillColor(127, 127, 127); doc.rect(M, top, w - M * 2, 16, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(0, 0, 0); doc.text(clean((gi + 1) + '.  ' + g.name + ' (continued)'), M + 6, top + 11.5); doc.setTextColor.apply(doc, INK); } },
+        foot: [(multi ? [''] : []).concat(['', '', '', 'Subtotal', '', '', n2(g.subtotal)]), (multi ? [''] : []).concat(['', '', '', 'GCT', '', '', n2(g.gct)]), (multi ? [''] : []).concat(['', '', '', 'Total — ' + clean(g.name), '', '', n2(g.total)])],
+        showFoot: 'lastPage',
+        styles: { font: 'helvetica', fontSize: 7.8, cellPadding: 3, lineColor: [170, 170, 170], lineWidth: 0.4, textColor: INK, overflow: 'linebreak' },
+        headStyles: { fillColor: [241, 244, 247], textColor: INK, fontStyle: 'bold' }, footStyles: { fillColor: [255, 255, 255], textColor: INK, fontStyle: 'bold' },
+        columnStyles: Object.assign(multi ? { 0: { cellWidth: 92 } } : {}, { [c0]: { cellWidth: 34, halign: 'center' }, [c0 + 1]: { cellWidth: 40, halign: 'right' }, [c0 + 2]: { cellWidth: 42 }, [c0 + 3]: { cellWidth: 'auto', fontStyle: 'bold' }, [c0 + 4]: { cellWidth: 70, halign: 'right' }, [c0 + 5]: { cellWidth: 28, halign: 'center' }, [c0 + 6]: { cellWidth: 80, halign: 'right' } }),
+        didParseCell: d => { if (d.section === 'foot' && d.column.index === c0 + 6) d.cell.styles.halign = 'right'; if (d.section === 'foot' && d.column.index === c0 + 3) d.cell.styles.halign = 'right'; }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+    });
+    // Grand total and signatures
+    if (y + 110 > h - bottom) { doc.addPage(); y = top; }
+    doc.setDrawColor.apply(doc, INK); doc.setLineWidth(0.8); doc.line(M, y, w - M, y);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('TOTAL TO BE PURCHASED (' + groups.length + ' supplier' + (groups.length === 1 ? '' : 's') + ')', M, y + 16);
+    doc.text(money(grand), w - M, y + 16, { align: 'right' });
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); doc.text(clean(domain.amountWords(grand)), M, y + 30, { maxWidth: w - M * 2 });
+    y += 76;
+    const off = domain.officer(), S = settings(), cw = (w - M * 2 - 40) / 3;
+    [['Procurement Officer', off.name, off.title], ['Checked by', '', ''], ['Approved by', S.signatories && S.signatories.parishManager ? S.signatories.parishManager.name : '', 'Parish Manager']].forEach(([lab, nm, ti], i) => {
+      const x = M + i * (cw + 20);
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5); doc.line(x, y, x + cw, y);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY); doc.text(clean(lab).toUpperCase(), x, y + 10);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, INK); if (nm) doc.text(clean(nm), x, y + 22);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); if (ti) doc.text(clean(ti), x, y + 33);
+    });
+  }
+
   pdf.comparison = function (cmp, o) {
     o = o || {};
     try {
@@ -687,7 +771,9 @@
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, INK); if (nm) doc.text(clean(nm), x, y + 22);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); if (ti) doc.text(clean(ti), x, y + 33);
       });
-      finish(doc, { side: false, alwaysNumber: false });
+      // Final page: who the officer is taking each item from.
+      drawAwardSchedule(doc, [{ cmp, r }], { M, bottom: 84, subtitle: clean(cmp.ref || cmp.subject || '') });
+      finish(doc, { side: false, alwaysNumber: true });
       doc.setProperties({ title: 'Price comparison ' + (cmp.ref || ''), creator: 'Procurement Management System' });
       return Promise.resolve(deliver(doc, (asSheet ? 'Comparison Sheet - ' : 'Price Comparison - ') + fileSafe(cmp.ref || cmp.subject || 'comparison') + '.pdf', o.output));
     } catch (e) { return Promise.reject(e); }
@@ -748,6 +834,8 @@
           doc.text('Recommended: ' + clean(x.r.awards.map(a => a.name + ' ' + money(a.total)).join('  ·  ')), M, y + 2, { maxWidth: w - M * 2 });
         }
       });
+      // Final pages: every item in the report, grouped by the supplier it is being bought from.
+      drawAwardSchedule(doc, items.map(x => ({ cmp: x.c, r: x.r })), { M, bottom, subtitle: 'Price comparison report' + (o.title ? ' — ' + o.title : '') });
       finish(doc, { side: false, alwaysNumber: true, pageLabel: 'Price comparison report' + (o.title ? ' · ' + o.title : '') });
       doc.setProperties({ title: 'Price comparison report ' + (o.title || ''), creator: 'Procurement Management System' });
       return Promise.resolve(deliver(doc, 'Price Comparison Report - ' + fileSafe(o.title || util.today()) + '.pdf', o.output));
