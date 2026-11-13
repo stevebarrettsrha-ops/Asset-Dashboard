@@ -18,7 +18,7 @@
   function blank() {
     const off = domain.officer();
     return { id: null, poNumber: '', date: util.today(), supplierName: '', address: '', phone: '', fax: '', email: '', trn: '', requiredDate: '', deliveryMethod: '', other: '',
-      lines: Array.from({ length: ROWS }, () => ({ qty: '', code: '', description: '', unitPrice: '' })), preparedBy: off.name, preparedDate: util.today(), authorizedBy: (store.settings().signatories.parishManager || {}).name || '', authorizedDate: '' };
+      lines: Array.from({ length: ROWS }, () => ({ qty: '', code: '', description: '', unitPrice: '' })), preparedBy: off.name, preparedDate: util.today(), authorizedBy: '', authorizedDate: '' };
   }
   /** Form values from a saved purchase order. */
   function fromPO(po) {

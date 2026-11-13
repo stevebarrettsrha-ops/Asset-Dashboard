@@ -253,7 +253,16 @@
   /* ------------------------------------------------------------ PDFs */
   function kit() { const k = Proc.pdf && Proc.pdf.kit; if (!k) throw new Error('The PDF engine is not loaded.'); return k; }
   /** The monthly "Procurement for Approval" sheet on the letterhead. */
-  function approvalPdf(ym, output) {
+  const memoLimit = () => (Proc.approvers ? Proc.approvers.MEMO_LIMIT : 500000);
+  /** Approval memo to the Parish Manager for one amount over the memo limit. */
+  function lineMemo(m, e, output) {
+    const fy = fyOf(m.month), l = linesFor(fy).find(x => x.id === e.lineId) || {}, pm = monthRec(addMonth(m.month, -1));
+    const es = (m.entries || []).filter(x => x.lineId === e.lineId), i = es.indexOf(e), pr = prevRows(pm, e.lineId, es.length);
+    Proc.audit('Approval memo', (l.name || '') + (e.supplier ? ' — ' + e.supplier : '') + ' ' + util.money(num(e.amount)) + ' (' + monthName(m.month) + ')', m.id);
+    return Proc.pdf.budgetLineMemo({ line: l.name || 'Budget line', supplier: e.supplier || l.suppliers || '', amount: num(e.amount), month: monthName(m.month), allocation: i === 0 ? num(l.monthlyAllocation) : 0,
+      previous: pr[i] || 0, prevMonth: monthName(addMonth(m.month, -1)), contractual: !!e.contractual, comment: e.comment || '' }, { output: output || 'save' });
+  }
+  function approvalPdf(ym, output, approver) {
     const K = kit(), clean = K.clean, fy = fyOf(ym), lines = linesFor(fy), m = monthRec(ym), pm = monthRec(addMonth(ym, -1));
     if (!m) throw new Error('There is no approval sheet for ' + monthName(ym) + ' yet.');
     const t = totals(m, lines), tp = pm ? totals(pm, lines) : null;
@@ -268,7 +277,7 @@
       const es = (m.entries || []).filter(e => e.lineId === l.id);
       const pr = prevRows(pm, l.id, es.length);
       if (!es.length) { body.push([l.name, l.suppliers || '', num(l.monthlyAllocation) ? util.money(l.monthlyAllocation) : '', '-', pr[0] ? util.money(pr[0]) : '-', '']); return; }
-      es.forEach((e, i) => body.push([i === 0 ? l.name : '', e.supplier || (i === 0 ? l.suppliers || '' : ''), i === 0 && num(l.monthlyAllocation) ? util.money(l.monthlyAllocation) : '', num(e.amount) ? util.money(e.amount) : '-', pr[i] ? util.money(pr[i]) : '-', (e.contractual ? '[Contractual] ' : '') + (e.comment || '')]));
+      es.forEach((e, i) => body.push([i === 0 ? l.name : '', e.supplier || (i === 0 ? l.suppliers || '' : ''), i === 0 && num(l.monthlyAllocation) ? util.money(l.monthlyAllocation) : '', num(e.amount) ? util.money(e.amount) + (num(e.amount) > memoLimit() ? ' *' : '') : '-', pr[i] ? util.money(pr[i]) : '-', (e.contractual ? '[Contractual] ' : '') + (e.comment || '')]));
     });
     const foot = [
       ['Sub Total', '', util.money(t.allocation), util.money(t.amount), tp ? util.money(tp.approved || tp.amount) : '', ''],
@@ -279,7 +288,7 @@
     ];
     doc.autoTable({
       startY: y + 40, margin: { left: M, right: M, top: K.top, bottom: 84 }, theme: 'grid',
-      head: [['Description', 'Suppliers', 'Monthly Allocation', 'Amount for Approval ' + shortMonth(ym), 'Amount Approved ' + shortMonth(addMonth(ym, -1)), 'Comments']],
+      head: [['Description', 'Suppliers', 'Monthly Allocation', 'Amount for Approval ' + shortMonth(ym), 'Amount for Approval ' + shortMonth(addMonth(ym, -1)), 'Comments']],
       body: body.map(r => r.map(clean)), foot: foot.map(r => r.map(clean)), showFoot: 'lastPage',
       styles: { font: 'helvetica', fontSize: 8, cellPadding: 3.2, lineColor: [215, 220, 228], lineWidth: 0.4, textColor: K.INK, overflow: 'linebreak', valign: 'top' },
       headStyles: { fillColor: K.BLUE, textColor: 255, fontStyle: 'bold' },
@@ -288,11 +297,18 @@
       didParseCell: d => { if ((d.section === 'head' || d.section === 'foot') && d.column.index >= 2 && d.column.index <= 4) d.cell.styles.halign = 'right'; if (d.section === 'foot' && d.row.index === 4 && d.column.index === 3 && t.variance < 0) d.cell.styles.textColor = [185, 28, 28]; }
     });
     y = doc.lastAutoTable.finalY + 14;
+    if ((m.entries || []).some(e => num(e.amount) > memoLimit())) {
+      const pm = Proc.approvers.parishManager();
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8.3); doc.setTextColor.apply(doc, K.INK);
+      doc.text(clean('* Over ' + util.money(memoLimit()) + ': approved by ' + [pm.name, pm.title].filter(Boolean).join(', ') + ', with an approval memo for each amount.'), M, y); y += 14;
+    }
     if (m.notes) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, K.INK); const l = doc.splitTextToSize(clean('Notes: ' + m.notes), w - M * 2); if (y + l.length * 10 > h - 150) { doc.addPage(); y = K.top; } doc.text(l, M, y + 6); y += l.length * 10 + 6; }
     if (y > h - 150) { doc.addPage(); y = K.top; }
     y += 34;
     const S = store.settings().signatories || {}, off = domain.officer(), cw = (w - M * 2 - 40) / 3;
-    [['Prepared by', off.name, off.title], ['Checked by', '', ''], ['Approved by', (S.parishManager || {}).name || '', (S.parishManager || {}).title || '']].forEach(([lab, nm, ti], i) => {
+    void S;
+    const ap = approver || {};
+    [['Prepared by', off.name, off.title], ['Checked by', '', ''], ['Approved by', ap.name || '', ap.title || '']].forEach(([lab, nm, ti], i) => {
       const x = M + i * (cw + 20);
       doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5); doc.line(x, y, x + cw, y);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, K.GREY); doc.text(lab.toUpperCase() + '   DATE: ____________', x, y + 10);
@@ -318,7 +334,7 @@
         return {
           subtitle: monthName(ym) + ' · ' + (m.status || 'Draft'),
           kpis: [{ label: 'Amount for approval', value: util.moneyShort(t.amount) }, { label: 'Less MOH contractual', value: util.moneyShort(t.contractual) }, { label: 'After contractual', value: util.moneyShort(t.afterContractual), note: 'Commitment ' + util.moneyShort(t.commitment) }, { label: 'Variance', value: (t.variance < 0 ? '-' : '') + util.moneyShort(Math.abs(t.variance)), note: t.variance < 0 ? 'Over commitment' : 'Within commitment' }],
-          sections: [{ title: 'Procurement for approval', columns: [{ label: 'Description' }, { label: 'Suppliers' }, { label: 'Monthly allocation', type: 'money' }, { label: 'For approval ' + shortMonth(ym), type: 'money' }, { label: 'Approved ' + shortMonth(addMonth(ym, -1)), type: 'money' }, { label: 'Comments' }], rows,
+          sections: [{ title: 'Procurement for approval', columns: [{ label: 'Description' }, { label: 'Suppliers' }, { label: 'Monthly allocation', type: 'money' }, { label: 'For approval ' + shortMonth(ym), type: 'money' }, { label: 'For approval ' + shortMonth(addMonth(ym, -1)), type: 'money' }, { label: 'Comments' }], rows,
             totals: [['Sub Total', '', t.allocation, t.amount, tp ? tp.approved : '', ''], ['Less MOH contractual (NHF, IGL)', '', '', t.contractual, tp ? tp.contractual : '', ''], ['Total after contractual', '', '', t.afterContractual, tp ? tp.afterContractual : '', ''], ['Commitment', '', t.commitment, '', '', ''], ['Variance', '', '', t.variance, tp ? tp.variance : '', t.variance < 0 ? 'Over commitment' : '']] }],
           orientation: 'landscape'
         };
@@ -382,6 +398,11 @@
     el.querySelector('#bgNext').onclick = () => go(addMonth(S.ym, 1));
     el.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { S.tab = b.dataset.t; history.replaceState(null, '', '#/budget?m=' + S.ym + '&tab=' + S.tab); render(el); });
     el.querySelector('#bgPdf').onclick = () => {
+      if (S.tab !== 'actual') {
+        Proc.approvers.choose({ context: 'budget', title: 'Approved by — ' + monthName(S.ym), note: 'Printed on the approval sheet. Amounts over ' + util.money(memoLimit()) + ' also need the Parish Manager’s approval memo (Memo button on each line).' })
+          .then(ap => { if (!ap) return; try { approvalPdf(S.ym, 'open', ap); Proc.audit('PDF Report', 'Procurement for Approval ' + monthName(S.ym)); } catch (e) { ui.toast(e.message, 'warning'); } });
+        return;
+      }
       try { if (S.tab === 'actual') Proc.reportPdf ? Proc.reportPdf.generate('budget-actual', { from: util.fyRange(fy).start, to: S.ym + '-28' }, 'open') : null; else approvalPdf(S.ym, 'open'); Proc.audit('PDF Report', (S.tab === 'actual' ? 'Budget vs Actual ' : 'Procurement for Approval ') + monthName(S.ym)); }
       catch (e) { ui.toast(e.message, 'warning'); }
     };
@@ -430,12 +451,12 @@
         '<td class="num">' + (i === 0 ? (live.monthN ? '<a href="#/budget?m=' + S.ym + '&tab=pos&line=' + l.id + '">' + util.money(live.month) + '</a><div class="t-sub">' + live.monthN + ' ' + util.plural(live.monthN, 'PO') + '</div>' : '<span class="muted">—</span>') : '') + '</td>' +
         '<td>' + (e ? '<label class="check small" title="Paid centrally by the Ministry (NHF, IGL) — deducted below"><input type="checkbox" data-e="' + e.id + '" data-k="contractual"' + (e.contractual ? ' checked' : '') + (locked ? ' disabled' : '') + '> MOH</label>' : '') + '</td>' +
         '<td>' + (e ? '<input class="input com" data-e="' + e.id + '" data-k="comment" value="' + esc(e.comment || '') + '" placeholder="Comment"' + (locked ? ' disabled' : '') + '>' : '') + '</td>' +
-        '<td class="nowrap">' + (e && !locked ? (i === es.length - 1 ? '<button class="icon-btn" title="Add a supplier row" data-add="' + l.id + '">' + ui.icon('plus', 'sm') + '</button>' : '') + '<button class="icon-btn" title="Remove row" data-del="' + e.id + '">' + ui.icon('x', 'sm') + '</button>' : '') + '</td></tr>').join('');
+        '<td class="nowrap">' + (e && num(e.amount) > memoLimit() ? '<button class="btn xs" data-memo="' + e.id + '" title="Approval memo to the Parish Manager (amounts over ' + util.money(memoLimit()) + ')">' + ui.icon('download', 'sm') + 'Memo</button>' : '') + (e && !locked ? (i === es.length - 1 ? '<button class="icon-btn" title="Add a supplier row" data-add="' + l.id + '">' + ui.icon('plus', 'sm') + '</button>' : '') + '<button class="icon-btn" title="Remove row" data-del="' + e.id + '">' + ui.icon('x', 'sm') + '</button>' : '') + '</td></tr>').join('');
     }).join('');
     const next = { Draft: ['Submitted', 'Mark as submitted for approval', 'send'], Submitted: ['Approved', 'Record approval', 'check'], Approved: ['Submitted', 'Reopen', 'undo'] }[m.status || 'Draft'];
     box.innerHTML = '<div class="card"><div class="card-h"><div><h3>Procurement for approval — ' + esc(monthName(S.ym)) + '</h3><div class="sub">Type the amount for approval against each budget line. Tick <b>MOH</b> on rows paid centrally (NHF, IGL) — they are deducted before comparing with the commitment. “POs this month” is live from purchase orders.</div></div>' +
       '<div class="row" style="gap:8px"><button class="btn" data-status="' + next[0] + '">' + ui.icon(next[2], 'sm') + next[1] + '</button></div></div>' +
-      '<div class="table-wrap"><table class="table compact bg-sheet"><thead><tr><th>Description</th><th>Suppliers</th><th class="num">Monthly allocation</th><th class="num">Amount for approval ' + esc(shortMonth(S.ym)) + '</th>' + (locked ? '<th class="num">Approved</th>' : '') + '<th class="num">Approved ' + esc(shortMonth(addMonth(S.ym, -1))) + '</th><th class="num">POs this month</th><th>MOH</th><th>Comments</th><th></th></tr></thead><tbody>' + rows + '</tbody><tfoot id="bgFoot"></tfoot></table></div>' +
+      '<div class="table-wrap"><table class="table compact bg-sheet"><thead><tr><th>Description</th><th>Suppliers</th><th class="num">Monthly allocation</th><th class="num">Amount for approval ' + esc(shortMonth(S.ym)) + '</th>' + (locked ? '<th class="num">Approved</th>' : '') + '<th class="num">Amount for approval ' + esc(shortMonth(addMonth(S.ym, -1))) + '</th><th class="num">POs this month</th><th>MOH</th><th>Comments</th><th></th></tr></thead><tbody>' + rows + '</tbody><tfoot id="bgFoot"></tfoot></table></div>' +
       '<div class="card-b"><div class="form-grid"><div class="field s4"><label>Commitment for ' + esc(monthName(S.ym)) + '</label><input class="input" inputmode="decimal" id="bgCommit" value="' + (num(m.commitment) ? util.round2(m.commitment) : '') + '" placeholder="0.00"' + (locked ? ' disabled' : '') + '><div class="hint">The cash commitment the total after contractual is compared with.</div></div>' +
       '<div class="field s8"><label>Notes for the approval sheet</label><input class="input" id="bgNotes" value="' + esc(m.notes || '') + '" placeholder="Optional — printed under the table"></div></div></div></div>';
     const cols = locked ? 10 : 9;
@@ -454,16 +475,18 @@
     box.querySelectorAll('[data-e]').forEach(inp => {
       const handler = () => { const e = ent(inp.dataset.e); if (!e) return; const k = inp.dataset.k; e[k] = k === 'contractual' ? inp.checked : (k === 'amount' || k === 'approved' ? util.round2(num(inp.value)) : inp.value); save(); };
       inp.addEventListener(inp.type === 'checkbox' ? 'change' : 'input', handler);
+      if (inp.dataset.k === 'amount') inp.addEventListener('change', () => { const e = ent(inp.dataset.e); if (e && (num(e.amount) > memoLimit()) !== !!inp.closest('tr').querySelector('[data-memo]')) { store.upsert('budgetMonths', { id: m.id, entries: m.entries }); redraw(); } });
       if (inp.classList.contains('amt')) inp.addEventListener('blur', () => { const v = num(inp.value); if (inp.value !== '') inp.value = util.round2(v); });
     });
     box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { m.entries = (m.entries || []).concat([{ id: util.uid('BE'), lineId: b.dataset.add, supplier: '', amount: 0, approved: null, comment: '', contractual: false }]); store.upsert('budgetMonths', { id: m.id, entries: m.entries }); redraw(); });
+    box.querySelectorAll('[data-memo]').forEach(b => b.onclick = () => { const e = ent(b.dataset.memo); if (e) lineMemo(m, e).catch(err => ui.toast(err.message, 'error')); });
     box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { m.entries = (m.entries || []).filter(e => e.id !== b.dataset.del); store.upsert('budgetMonths', { id: m.id, entries: m.entries }); redraw(); });
     const ci = box.querySelector('#bgCommit'); ci.oninput = () => { m.commitment = util.round2(num(ci.value)); save(); };
     const ni = box.querySelector('#bgNotes'); ni.oninput = () => { m.notes = ni.value; save(); };
     box.querySelector('[data-status]').onclick = async () => {
       const to = box.querySelector('[data-status]').dataset.status;
       if (to === 'Approved') {
-        const d = await ui.form('Record approval — ' + monthName(S.ym), [{ name: 'by', label: 'Approved by', value: (store.settings().signatories.parishManager || {}).name || '', required: true, span: 's6' }, { name: 'date', label: 'Date approved', type: 'date', value: today(), required: true, span: 's6' }], { ok: 'Record approval' });
+        const d = await ui.form('Record approval — ' + monthName(S.ym), [{ name: 'by', label: 'Approved by', type: 'select', options: Proc.approvers.list().map(p => ({ value: p.name, label: p.name + (p.title ? ' — ' + p.title : '') })), placeholder: '— Choose who approved —', value: '', required: true, span: 's6' }, { name: 'date', label: 'Date approved', type: 'date', value: today(), required: true, span: 's6' }], { ok: 'Record approval' });
         if (!d) return;
         (m.entries || []).forEach(e => { if (e.approved === null || e.approved === undefined || e.approved === '') e.approved = num(e.amount); });
         store.upsert('budgetMonths', { id: m.id, entries: m.entries, status: 'Approved', approvedBy: d.by, approvedAt: d.date });
@@ -549,6 +572,6 @@
     };
   }
 
-  Proc.budget = { importWorkbook, approvalPdf, budgetVsActual, totals, lineForPO };
+  Proc.budget = { importWorkbook, approvalPdf, lineMemo, budgetVsActual, totals, lineForPO };
   Proc.page({ id: 'budget', title: 'Budget', icon: 'wallet', section: 'Workflow', order: 5, render });
 })();

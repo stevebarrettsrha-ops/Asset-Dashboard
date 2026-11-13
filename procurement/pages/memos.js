@@ -461,14 +461,14 @@
       const errs = validate(true);
       if (errs.length) return ui.toast('Complete the memo first: ' + errs.join(', ') + '.', 'warning');
       const sg = store.settings().signatories;
-      const by = hoeCount(norm()) ? sg.regionalDirector.name + ', ' + sg.regionalDirector.title : sg.parishManager.name + ', ' + sg.parishManager.title;
+      void sg; const by = '';   // who decided is chosen, never assumed
       let picked = [];
       ui.modal({
         title: 'Record approval decision', size: 'lg',
         body: '<div class="form-grid">' +
           '<div class="field s4"><label>Decision</label><select name="status"><option>Approved</option><option>Rejected</option></select></div>' +
           '<div class="field s4"><label>Decision date</label><input type="date" name="date" value="' + util.today() + '"></div>' +
-          '<div class="field s4"><label>Decided by</label><input name="by" value="' + esc(by) + '"></div>' +
+          '<div class="field s4"><label>Decided by</label><input name="by" list="dl-approvers" placeholder="Choose or type a name" value="' + esc(by) + '"><datalist id="dl-approvers">' + Proc.approvers.list().map(p => '<option value="' + esc(p.name + (p.title ? ', ' + p.title : '')) + '">').join('') + '</datalist></div>' +
           '<div class="field s12"><label>Notes / conditions</label><textarea name="notes" rows="2" placeholder="Optional"></textarea></div>' +
           '<div class="field s12"><label>Signed memo (optional)</label><div class="dz"></div><div class="picked small muted mt-1"></div></div></div>',
         onOpen: mod => ui.dropzone(mod.querySelector('.dz'), fs => { picked = picked.concat(fs); mod.querySelector('.picked').innerHTML = picked.map(f => esc(f.name)).join('<br>'); }, { title: 'Drop the signed memo here', hint: 'PDF or photo — saved to the memo and the supplier files' }),

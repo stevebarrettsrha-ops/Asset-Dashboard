@@ -202,7 +202,7 @@
   function drawPRS(box) {
     const st = prsState;
     if (!st.preparedBy) st.preparedBy = domain.officer().name;
-    if (!st.authorizedBy) st.authorizedBy = store.settings().signatories.parishManager.name;
+    // Authorised by: typed each time — nobody is assumed.
     const { pos, big, lite } = prsData(st.month);
     const incomplete = big.filter(p => missingFields(p).length);
     const msme = util.sum(pos.filter(p => (supplierOf(p) || {}).msme), p => p.total);

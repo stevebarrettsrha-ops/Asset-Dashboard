@@ -602,6 +602,64 @@
     store.save();
   };
 
+  /* ----------------------------------------------------------- approvers
+     Nobody is printed as the approver by default: the person who approves is chosen each time an
+     approval document is made (the list holds the signatories and anyone added before). Amounts over
+     MEMO_LIMIT need the Parish Manager's approval, with a memo. */
+  const MEMO_LIMIT = 500000;
+  const approvers = Proc.approvers = {
+    MEMO_LIMIT,
+    list() {
+      const S = store.settings(), sg = S.signatories || {}, out = [], seen = new Set();
+      const add = p => { if (!p || !p.name) return; const k = p.name.trim().toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push({ name: p.name.trim(), title: p.title || '', org: p.org || '' }); };
+      ['parishManager', 'regionalDirector', 'ceo'].forEach(k => add(sg[k]));
+      (S.approvers || []).forEach(add);
+      return out;
+    },
+    /** The Parish Manager (approves amounts over MEMO_LIMIT). */
+    parishManager() { return Object.assign({ name: '', title: 'Parish Manager', org: '' }, (store.settings().signatories || {}).parishManager || {}); },
+    /** Ask who approves. Resolves {name, title, org} — or null when cancelled. */
+    choose(o) {
+      o = o || {};
+      if (util.num(o.amount) > MEMO_LIMIT && approvers.parishManager().name) {
+        const pm = approvers.parishManager();
+        ui.toast('Over ' + util.money(MEMO_LIMIT) + ': approved by ' + pm.name + (pm.title ? ', ' + pm.title : '') + '.', 'info');
+        return Promise.resolve(pm);
+      }
+      const list = approvers.list(), key = 'procApprover:' + (o.context || 'default');
+      let last = ''; try { last = localStorage.getItem(key) || ''; } catch (e) { /* ignore */ }
+      return new Promise(resolve => {
+        let done = false;
+        ui.modal({
+          title: o.title || 'Who approves?', size: 'sm',
+          body: (o.note ? '<p class="small muted mb-2">' + util.esc(o.note) + '</p>' : '') +
+            '<div class="form-grid"><div class="field s12"><label>Approved by</label><select name="pick"><option value="">— Choose who approves —</option>' +
+            list.map((p, i) => '<option value="' + i + '"' + (last && last === p.name ? ' selected' : '') + '>' + util.esc(p.name + (p.title ? ' — ' + p.title : '')) + '</option>').join('') +
+            '<option value="new">Someone else…</option><option value="blank">Leave blank (sign on paper)</option></select></div>' +
+            '<div class="field s6" data-new hidden><label>Name</label><input name="name" placeholder="e.g. Mrs. A. Brown"></div><div class="field s6" data-new hidden><label>Title</label><input name="title" placeholder="e.g. Senior Medical Officer"></div></div>',
+          onOpen: el => { const sel = el.querySelector('[name=pick]'); const sync = () => el.querySelectorAll('[data-new]').forEach(f => { f.hidden = sel.value !== 'new'; }); sel.onchange = sync; sync(); },
+          onClose: () => { if (!done) resolve(null); },
+          actions: [{ label: 'Cancel', kind: 'ghost', onClick: () => { done = true; resolve(null); } }, {
+            label: o.ok || 'Continue', kind: 'primary', onClick: (close, el) => {
+              const v = el.querySelector('[name=pick]').value;
+              if (!v) { ui.toast('Choose who approves (or “Leave blank”).', 'warning'); return false; }
+              let p;
+              if (v === 'blank') p = { name: '', title: '', org: '' };
+              else if (v === 'new') {
+                const name = el.querySelector('[name=name]').value.trim(), title = el.querySelector('[name=title]').value.trim();
+                if (!name) { ui.toast('Type the approver’s name.', 'warning'); return false; }
+                p = { name, title, org: '' };
+                const S = store.settings(); if (!(S.approvers || []).some(x => x.name.toLowerCase() === name.toLowerCase())) store.saveSettings({ approvers: (S.approvers || []).concat([p]) });
+              } else p = list[+v];
+              try { localStorage.setItem(key, p.name || ''); } catch (e) { /* ignore */ }
+              done = true; resolve(p); return true;
+            }
+          }]
+        });
+      });
+    }
+  };
+
   /* --------------------------------------------------------------- files */
   /** Document blobs live in IndexedDB ("files" store); metadata in store.documents.
       When Google Drive is connected the file is also copied to Drive so other
