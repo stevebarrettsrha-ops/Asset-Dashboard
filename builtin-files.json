@@ -1,0 +1,446 @@
+{
+"version": "2026-11-13",
+"note": "Data files carried by the website. builtin-drive.js copies each to \"Built-in data\" in the hospital Google Drive folder on the first sync.",
+"files": [
+{
+"path": "00 Front Administration/01 CCTV/39 CCTV (Closed Circuit Television) - Front Administration_removed.pdf",
+"size": 48278
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Conference Area (Beside EOC Room) - Front Administration_removed.pdf",
+"size": 43831
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Emergency Operating Centre (EOC) Room - Front Administration_removed.pdf",
+"size": 45171
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Passage Way (Lunch Room) - Front Administration_removed.pdf",
+"size": 35979
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1002 (Infection Control) - Front Administration_removed (1).pdf",
+"size": 49940
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1002 (Infection Control) - Front Administration_removed.pdf",
+"size": 49940
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1008 (Lunch Room) - Front Administration_removed.pdf",
+"size": 41634
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1009 (Doctors Room) - Front Administration_removed.pdf",
+"size": 37067
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1010 (Recreational Room) - Front Administration_removed.pdf",
+"size": 43899
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/17 Room_ 2B-1012 (Main Cashier Office) - Front Administration_removed.pdf",
+"size": 48008
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/38 Customer Service Department - Front Administration_removed.pdf",
+"size": 46578
+},
+{
+"path": "00 Front Administration/02 Front Administration . Customer Service/38 Sr Customer Service Officer (Manager) - Front Administration_removed.pdf",
+"size": 47620
+},
+{
+"path": "00 Front Administration/03 Police Post/32 Police Post - Front Administration_removed.pdf",
+"size": 42622
+},
+{
+"path": "00 Front Administration/04 Reception Area . Telephone Operator/14 (Front Administration) Reception Area_Telephone Operator_removed.pdf",
+"size": 52386
+},
+{
+"path": "00 Front Administration/04 Reception Area . Telephone Operator/14 2B-007 - Front Administration_removed.pdf",
+"size": 41939
+},
+{
+"path": "00 Front Administration/05 Transport Department/29 Sleeping Quarters - Transport - Front Administration_removed.pdf",
+"size": 39259
+},
+{
+"path": "00 Front Administration/05 Transport Department/29 Transport - Front Administration_removed.pdf",
+"size": 47787
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Passage Way (Between Patient Bays) - Female Medical Ward_removed.pdf",
+"size": 38172
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-068 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 44269
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-069 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 45208
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-073 (Ante Room) - Female Medical Ward_removed.pdf",
+"size": 41625
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-078 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 44904
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-079 (Pantry) - Female Medical Ward_removed.pdf",
+"size": 42350
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-091 (Equipment Storage) - Female Medical Ward_removed.pdf",
+"size": 39667
+},
+{
+"path": "01 Female Medical Ward/01 Female Medical Ward/24 Room_ IA-098 (Nursing Office) - Female Medical Ward_removed.pdf",
+"size": 44487
+},
+{
+"path": "01 Female Medical Ward/24 Female Medical Ward_removed.pdf",
+"size": 45670
+},
+{
+"path": "01 Female Medical Ward/24 Nurses Station - Female Medical Ward_removed.pdf",
+"size": 53970
+},
+{
+"path": "01 Female Medical Ward/24 Passage Way (Between Patient Bays) - Female Medical Ward_removed.pdf",
+"size": 38172
+},
+{
+"path": "01 Female Medical Ward/24 Passsage Way (Beside IA-075) - Female Medical Ward_removed.pdf",
+"size": 38227
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-068 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 44269
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-069 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 45208
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-070 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 45314
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-071 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 45410
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-073 (Ante Room) - Female Medical Ward_removed.pdf",
+"size": 41625
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-075 - Female Medical Ward_removed.pdf",
+"size": 39069
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-077 - Female Medical Ward_removed.pdf",
+"size": 36166
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-078 (Patient Bay) - Female Medical Ward_removed.pdf",
+"size": 44904
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-079 (Pantry) - Female Medical Ward_removed.pdf",
+"size": 42350
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-091 (Equipment Storage) - Female Medical Ward_removed.pdf",
+"size": 39667
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-092 (Clean Supply) - Female Medical Ward_removed.pdf",
+"size": 36039
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-093 (Sluice_Soiled Utility) - Female Medical Ward_removed.pdf",
+"size": 39493
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-094 - Female Medical Ward_removed.pdf",
+"size": 45106
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-095 (Medication Alcove) - Female Medical Ward_removed.pdf",
+"size": 40049
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-097 (Lounge_Conference) - Female Medical Ward_removed.pdf",
+"size": 37061
+},
+{
+"path": "01 Female Medical Ward/24 Room_ IA-098 (Nursing Office) - Female Medical Ward_removed.pdf",
+"size": 44487
+},
+{
+"path": "01 Female Medical Ward/24 Storage Area - Female Medical Ward_removed.pdf",
+"size": 36012
+},
+{
+"path": "03 Female Surgical Ward/12 Female Surgical Ward (Once OPD)_removed.pdf",
+"size": 51830
+},
+{
+"path": "03 Female Surgical Ward/12 Nurses Station - Female Surgical_removed.pdf",
+"size": 48623
+},
+{
+"path": "03 Female Surgical Ward/12 Patient Bay (Open Area) - Female Surgical_removed.pdf",
+"size": 50431
+},
+{
+"path": "03 Female Surgical Ward/12 Patient Waiting Area - Female Surgical_removed.pdf",
+"size": 39552
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 002 (Equipment Store) - Female Surgical_removed.pdf",
+"size": 42974
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 004 (Used as Pantry) - Female Surgical_removed.pdf",
+"size": 46637
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 005 (Patient Room) - Female Surgical_removed.pdf",
+"size": 41253
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 005 - Female Surgical_removed.pdf",
+"size": 41603
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 006 - Female Surgical_removed.pdf",
+"size": 41751
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 007 (Examination Room) - Female Surgical_removed.pdf",
+"size": 38405
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 012 - Female Surgical_removed.pdf",
+"size": 46813
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 014 - Female Surgical_removed.pdf",
+"size": 40007
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 015 - Female Surgical_removed.pdf",
+"size": 39595
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 018 (Exam_Treatment Room) - Female Surgical_removed.pdf",
+"size": 40164
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 019 - Female Surgical_removed.pdf",
+"size": 42669
+},
+{
+"path": "03 Female Surgical Ward/12 Room_ 2R 020 (Exam_Treatment Room) - Female Surgical_removed.pdf",
+"size": 40729
+},
+{
+"path": "1st Floor General Admin/Biomedical Engineer/114 - Biomedical Engineer_removed.pdf",
+"size": 317514
+},
+{
+"path": "1st Floor General Admin/Consultant Office - Surgeon/35 Consultant Office - Surgeon Office_removed.pdf",
+"size": 46874
+},
+{
+"path": "1st Floor General Admin/Medical Social Worker/103 Medical Social Worker Office_removed.pdf",
+"size": 320776
+},
+{
+"path": "1st Floor General Admin/Medicine Consultant/102 - Dr Campbell - Medicine Consultants_removed.pdf",
+"size": 322077
+},
+{
+"path": "1st Floor General Admin/Nurse Moores Office/104 Nurse Moores Office_removed.pdf",
+"size": 314001
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accountant Office - (13.11.2025).pdf",
+"size": 317314
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accountant Office - Accounts Department (23.7.2025).pdf",
+"size": 312447
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accountant Office - Accounts Department_removed.pdf",
+"size": 44177
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accounts Department (13.11.2025).pdf",
+"size": 325854
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accounts Department (23.7.2025)_removed.pdf",
+"size": 320619
+},
+{
+"path": "2nd Floor General Admin/Accounts/118 Accounts Department_removed.pdf",
+"size": 49729
+},
+{
+"path": "2nd Floor General Admin/Administrator Office/101 Administrator Office (09-02-2026)_removed.pdf",
+"size": 310650
+},
+{
+"path": "2nd Floor General Admin/Administrator Office/101 Administrator Office (8-7-2025)_removed.pdf",
+"size": 321675
+},
+{
+"path": "2nd Floor General Admin/Administrator Office/doc06254120250708130116.pdf",
+"size": 216672
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/106 (CEO) Chief Executive Officer (12.11.2025).pdf",
+"size": 328436
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/106 (CEO) Chief Executive Officer_removed.pdf",
+"size": 331524
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/107 CEO Secretary Office (04.8.2025)_removed.pdf",
+"size": 325741
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/107 CEO Secretary Office (12.11.2025).pdf",
+"size": 329419
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/107 CEO Secretary Office_removed.pdf",
+"size": 323205
+},
+{
+"path": "2nd Floor General Admin/CEO and Secretary Office/107 Stationery Room_removed.pdf",
+"size": 314158
+},
+{
+"path": "2nd Floor General Admin/Human Resource Department/108 (HR) Human Resource Management (10-12-2025).pdf",
+"size": 327189
+},
+{
+"path": "2nd Floor General Admin/Human Resource Department/108 (HR) Human Resource Management (8-7-2025) - Office.pdf",
+"size": 324604
+},
+{
+"path": "2nd Floor General Admin/Human Resource Department/108 (HR) Senior HR Officer (10-12-2025) - Office.pdf",
+"size": 305769
+},
+{
+"path": "2nd Floor General Admin/Human Resource Department/108 (HR) Senior HR Officer (8-7-2025) - Office.pdf",
+"size": 315787
+},
+{
+"path": "2nd Floor General Admin/Kitchen/117 Kitchen - General Administration_removed.pdf",
+"size": 44951
+},
+{
+"path": "2nd Floor General Admin/Matron/109 Matrons Office (21.11.2025).pdf",
+"size": 320523
+},
+{
+"path": "2nd Floor General Admin/Matron/109 Matrons Office (23.7.2025).pdf",
+"size": 322909
+},
+{
+"path": "2nd Floor General Admin/Matron/109 Matrons Office_removed.pdf",
+"size": 321424
+},
+{
+"path": "2nd Floor General Admin/Matron/110 Deputy Matrons Office_removed.pdf",
+"size": 320498
+},
+{
+"path": "2nd Floor General Admin/Operations Manager/33 Operations Manager (13.11.2025).pdf",
+"size": 320656
+},
+{
+"path": "2nd Floor General Admin/Operations Manager/33 Operations Manager (23.7.2025).pdf",
+"size": 320257
+},
+{
+"path": "2nd Floor General Admin/Operations Manager/33 Operations Manager-14.07.2025.pdf",
+"size": 318710
+},
+{
+"path": "2nd Floor General Admin/Passage Way/115 2fl Passage General Administration_removed.pdf",
+"size": 46057
+},
+{
+"path": "2nd Floor General Admin/Senior Medical Officer (SMO)/109 SMO & DNS Secretaries Office (13.11.2025).pdf",
+"size": 326887
+},
+{
+"path": "2nd Floor General Admin/Senior Medical Officer (SMO)/109 SMO & DNS Secretaries Office (23.7.2025).pdf",
+"size": 323115
+},
+{
+"path": "2nd Floor General Admin/Senior Medical Officer (SMO)/109 SMO & DNS Secretaries Office_removed.pdf",
+"size": 324379
+},
+{
+"path": "2nd Floor General Admin/Senior Medical Officer (SMO)/111 Senior Medical Officer (12.11.2025).pdf",
+"size": 325114
+},
+{
+"path": "2nd Floor General Admin/Senior Medical Officer (SMO)/111 Senior Medical Officer (SMO)_removed.pdf",
+"size": 46391
+},
+{
+"path": "AllTablesExport.xlsx",
+"size": 620198
+},
+{
+"path": "May Pen Hospital - BOS (1).xlsx",
+"size": 72166
+},
+{
+"path": "location-records-backup.json",
+"size": 1356531
+},
+{
+"path": "location-records-restore.json",
+"size": 1837298
+},
+{
+"path": "locations-assets.js",
+"size": 109811
+},
+{
+"path": "locations-seed.js",
+"size": 1606536
+},
+{
+"path": "merged_compressed.pdf",
+"size": 2048524
+},
+{
+"path": "procurement/seed/records-2026.json",
+"size": 1102205
+},
+{
+"path": "register-additions.js",
+"size": 45386
+},
+{
+"path": "register-seed.js",
+"size": 4686969
+}
+]
+}

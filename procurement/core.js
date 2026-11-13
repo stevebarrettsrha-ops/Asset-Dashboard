@@ -501,7 +501,8 @@
     const inS = incoming.settings || {}, myS = target.settings = target.settings || {};
     if ((inS.updatedAt || 0) > (myS.updatedAt || 0)) {
       const officers = Object.assign({}, inS.officers, myS.officers), counters = Object.assign({}, myS.counters);
-      target.settings = Object.assign({}, inS, { officers, counters }); changed++;
+      const seedsApplied = Object.assign({}, myS.seedsApplied, inS.seedsApplied);
+      target.settings = Object.assign({}, myS, inS, { officers, counters, seedsApplied }); changed++;
     } else if (inS.officers) {
       Object.keys(inS.officers).forEach(u => { if (!(myS.officers || {})[u]) { myS.officers = Object.assign({}, myS.officers, { [u]: inS.officers[u] }); changed++; } });
     }
@@ -1866,7 +1867,11 @@
       const packs = (window.PROC_SEEDS || []).filter(p => p && p.id && !st.seedsApplied[p.id]);
       for (const f of (window.PROC_SEED_FILES || [])) {
         if (!f || !f.id || st.seedsApplied[f.id]) continue;
-        try { const r = await fetch(f.url, { cache: 'no-cache' }); if (r.ok) packs.push(Object.assign({ id: f.id, label: f.label }, await r.json())); }
+        let r = null;
+        try { r = await fetch(f.url, { cache: 'no-cache' }); } catch (e) { r = null; }
+        // Taken off the website: read the copy kept in Google Drive ("Built-in data").
+        if ((!r || !r.ok) && window.MPHBuiltInDrive && MPHBuiltInDrive.connected()) { try { r = await MPHBuiltInDrive.fromDrive(f.url); } catch (e) { r = null; } }
+        try { if (r && r.ok) packs.push(Object.assign({ id: f.id, label: f.label }, await r.json())); }
         catch (e) { console.warn('[Seed] could not load', f.url, e.message); }   // tried again next time
       }
       let total = 0;
@@ -2024,6 +2029,8 @@
         // Copy any documents that have not reached Drive yet.
         for (const d of store.list('documents').filter(x => !x.driveFileId && !x.seedFile).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
         sync.lastSync = Date.now(); sync.setState('on');
+        // First sync on a computer: keep a copy of the website's built-in data files in Drive.
+        if (window.MPHBuiltInDrive && !MPHBuiltInDrive.status().complete) MPHBuiltInDrive.run().catch(e => console.warn('[Built-in data → Drive]', e.message));
       } catch (e) {
         console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
         if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the file in Google Drive.', 'error', 12000); }

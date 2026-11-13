@@ -6379,6 +6379,7 @@
             }
         }
     </style>
+  <script>/* Offline copy of the site (sw.js) */ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </head>
 <body>
     <script>
@@ -7008,13 +7009,9 @@
                     <!-- Import Mode Selection -->
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">Import Mode:</label>
-                        <label style="display: inline-flex; align-items: center; margin-right: 20px; cursor: pointer;">
-                            <input type="radio" name="jsonImportMode" value="replace" style="margin-right: 8px;">
-                            <span style="color: var(--text-primary);">Replace all data</span>
-                        </label>
                         <label style="display: inline-flex; align-items: center; cursor: pointer;">
                             <input type="radio" name="jsonImportMode" value="merge" checked style="margin-right: 8px;">
-                            <span style="color: var(--text-primary);">Merge with existing</span>
+                            <span style="color: var(--text-primary);">Merge with existing — nothing already recorded is replaced or removed</span>
                         </label>
                     </div>
 
@@ -8098,10 +8095,6 @@
                         <label for="importModeMerge"><strong>Merge:</strong> Add new assets, skip duplicates (by Asset Code)</label>
                     </div>
                     <div class="import-option-item">
-                        <input type="radio" name="importMode" value="replace" id="importModeReplace">
-                        <label for="importModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
-                    </div>
-                    <div class="import-option-item">
                         <input type="checkbox" id="importAllowMissingFields" onchange="generatePreview()">
                         <label for="importAllowMissingFields">Allow importing rows with missing required fields (fill with "-Data needed-")</label>
                     </div>
@@ -8413,10 +8406,6 @@
                         <div class="import-option-item">
                             <input type="radio" name="gdriveImportMode" value="merge" id="gdriveModeMerge" checked>
                             <label for="gdriveModeMerge"><strong>Merge:</strong> Add new assets, skip duplicates (by Asset Code)</label>
-                        </div>
-                        <div class="import-option-item">
-                            <input type="radio" name="gdriveImportMode" value="replace" id="gdriveModeReplace">
-                            <label for="gdriveModeReplace"><strong>Replace:</strong> Replace all existing assets with imported data</label>
                         </div>
                         <div class="import-option-item">
                             <input type="checkbox" id="gdriveSkipInvalid" checked>
@@ -20153,19 +20142,15 @@
                             return;
                         }
 
-                        const before = importedAssets.length && confirm(`Import ${importedAssets.length} assets?\n\nThis will REPLACE all existing data. A copy of the current data is kept in Settings → Backups.`) ? assetsBeforeReplace(importedAssets.length) : null;
-                        if (before) {
-                            // Ensure all assets have IDs
-                            importedAssets.forEach(asset => {
-                                if (!asset.id) asset.id = generateAssetId();
-                                if (!asset.department) asset.department = '';
-                            });
-
-                            tombstoneReplaced(before, importedAssets);
-                            saveAssetsToStorage(importedAssets);
-                            addAuditEntry('SYSTEM', 'Data Import', 'All Departments', `Imported ${importedAssets.length} assets`);
+                        if (importedAssets.length && confirm(`Merge ${importedAssets.length} assets into the register?\n\nNew assets are added; assets already recorded keep their details unless the file holds a more recent edit. Nothing is removed.`)) {
+                            if (window.assetSafety) window.assetSafety.copyNow();
+                            const countBefore = loadAssetsFromStorage().length;
+                            importedAssets.forEach(asset => { if (!asset.department) asset.department = ''; });
+                            mergeCloudIntoLocal({ assets: importedAssets.map(a => Object.assign({}, a, { id: a.id || generateAssetId() })) });
+                            const added = loadAssetsFromStorage().length - countBefore;
+                            addAuditEntry('SYSTEM', 'Data Import', 'All Departments', `Merged ${importedAssets.length} assets from a file (${added} new)`);
                             refreshAllViews();
-                            alert('✅ Data imported successfully!');
+                            alert('✅ Merged: ' + added + ' new asset(s) added; nothing already recorded was replaced or removed.');
                         }
                     } catch (error) {
                         console.error('Import error:', error);
@@ -20383,7 +20368,7 @@
 
         // Process imported data (handles both old format and new complete backup format)
         function processImportData(importedData) {
-            const importMode = document.querySelector('input[name="jsonImportMode"]:checked')?.value || 'merge';
+            const importMode = 'merge';   // records are only ever merged, never replaced
 
             let assets, auditTrail, departments, categories, warrantyOverrides;
             let isCompleteBackup = false;
@@ -29171,7 +29156,7 @@
 
         // Confirm and execute import
         async function confirmImport() {
-            const importMode = document.querySelector('input[name="importMode"]:checked').value;
+            const importMode = 'merge';   // records are only ever merged, never replaced
 
             // Filter rows to import
             let rowsToImport = importPreviewData.filter(row => row.status === 'valid');
@@ -30254,7 +30239,7 @@
 
         // Confirm and execute import
         async function confirmGDriveImport() {
-            const importMode = document.querySelector('input[name="gdriveImportMode"]:checked').value;
+            const importMode = 'merge';   // records are only ever merged, never replaced
             const skipInvalid = document.getElementById('gdriveSkipInvalid').checked;
 
             // Filter data to import

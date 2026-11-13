@@ -10,10 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="portal/portal.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>/* Offline copy of the site (sw.js) */ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </head>
 <body>
     <main id="app" aria-live="polite"></main>
     <noscript><p style="padding:40px;color:#0c2440;text-align:center">The hospital systems portal needs JavaScript turned on.</p></noscript>
+    <script src="builtin-drive.js"></script>
     <script src="portal/portal.js"></script>
 </body>
 </html>
