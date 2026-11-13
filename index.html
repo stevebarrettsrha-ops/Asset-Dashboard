@@ -6386,7 +6386,13 @@
         (function () {
             try {
                 var p = JSON.parse(sessionStorage.getItem('mphPortalSession') || localStorage.getItem('mphPortalSession') || 'null');
-                if (p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0) document.documentElement.classList.add('via-portal');
+                var signedIn = p && p.exp > Date.now() && (p.systems || []).indexOf('assets') >= 0;
+                // Chosen on purpose: the Fixed Asset badge, a link from inside the system (portal console,
+                // Assets on Order, Location Records), or this tab already opened it.
+                var ref = ''; try { ref = document.referrer ? new URL(document.referrer).origin : ''; } catch (x) { ref = ''; }
+                var chosen = signedIn && ((p.card || p.role) === 'assets' || ref === location.origin || sessionStorage.getItem('mphEnter:index.html'));
+                if (chosen) { document.documentElement.classList.add('via-portal'); sessionStorage.setItem('mphEnter:index.html', '1'); }
+                else if (signedIn) window.location.replace('portal.html');
                 else window.location.replace('portal.html?next=' + encodeURIComponent('index.html' + (location.hash || '')));
             } catch (e) { window.location.replace('portal.html'); }
         })();
@@ -38237,6 +38243,7 @@
             restoreLoginSession = async function () {
                 var p = portalSession();
                 if (!p) { toPortal(); return false; }
+                if (!document.documentElement.classList.contains('via-portal')) return false;   // on its way to the portal
                 handOverGoogle();
                 currentUser = portalUser(p);
                 try { await finishLogin(); }
@@ -38362,7 +38369,72 @@
                 if (records) nav.insertBefore(btn, records); else nav.appendChild(btn);
             }
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addLink); else addLink();
-            window.assetIntakeHandoff = { fill: fill, read: read };
+            /* Assets recorded in Assets on Order with "Record as registered" were only marked registered
+               there and never reached this register. Bring each one in (one asset per asset code) the first
+               time the register opens after it, unless its code is already here or the asset was deleted here. */
+            function procurementData() {
+                return new Promise(function (resolve) {
+                    try { var raw = localStorage.getItem('procurementData'); if (raw) { var d = JSON.parse(raw); if (d && Array.isArray(d.assetRegistrations)) return resolve(d); } } catch (x) {}
+                    try {
+                        var rq = indexedDB.open('ProcurementDB');
+                        rq.onsuccess = function () {
+                            var db = rq.result;
+                            if (!db.objectStoreNames.contains('kv')) { db.close(); return resolve(null); }
+                            var g = db.transaction('kv', 'readonly').objectStore('kv').get('procurementData');
+                            g.onsuccess = function () { db.close(); resolve(g.result || null); };
+                            g.onerror = function () { db.close(); resolve(null); };
+                        };
+                        rq.onerror = function () { resolve(null); };
+                    } catch (x) { resolve(null); }
+                });
+            }
+            var syncedIntake = false;
+            function syncIntakeRegistrations() {
+                if (syncedIntake || typeof loadAssetsFromStorage !== 'function' || typeof saveAssetsToStorage !== 'function') return;
+                syncedIntake = true;
+                procurementData().then(function (d) {
+                    if (!d) return;
+                    var regs = (d.assetRegistrations || []).filter(function (r) { return r && !r._deleted && r.via !== 'register' && (r.assetCodes || []).length; });
+                    if (!regs.length) return;
+                    var assets = loadAssetsFromStorage();
+                    var codes = {}; assets.forEach(function (a) { if (a.assetCode) codes[String(a.assetCode).trim().toLowerCase()] = 1; });
+                    var ids = {}; assets.forEach(function (a) { ids[a.id] = 1; });
+                    var gone = (typeof deletedAssetIds !== 'undefined' && deletedAssetIds) ? deletedAssetIds : new Set();
+                    var pos = {}; (d.purchaseOrders || []).forEach(function (po) { pos[po.id] = po; });
+                    var sups = {}; (d.suppliers || []).forEach(function (sp) { sups[sp.id] = sp.name; });
+                    var dels = {}; (d.deliveries || []).forEach(function (g) { dels[g.id] = g; });
+                    var added = [];
+                    regs.forEach(function (r) {
+                        var po = pos[r.poId] || {}, del = dels[r.deliveryId] || {};
+                        var unit = Number(r.unitCost) || 0;
+                        (r.assetCodes || []).forEach(function (code, i) {
+                            var c = String(code || '').trim(); if (!c) return;
+                            var id = 'INTAKE-' + (r.intakeKey || r.id) + '-' + (i + 1);
+                            if (codes[c.toLowerCase()] || ids[id] || gone.has(id)) return;
+                            var dateIn = typeof formatDateForDisplay === 'function' ? formatDateForDisplay(r.registeredAt || del.date || '') : (r.registeredAt || '');
+                            var cat = '';
+                            try { cat = (typeof autoCategorizeAsset === 'function' && autoCategorizeAsset(r.description || '')) || ''; } catch (x) {}
+                            var a = {
+                                id: id, assetCode: c, dateIn: dateIn, dateOut: '', quantity: 1, description: r.description || '',
+                                supplier: sups[r.supplierId || po.supplierId] || po.supplierName || '', department: r.department || '', room: r.location && r.location !== r.department ? r.location : '',
+                                itemType: '', category: cat, serialModel: (r.serials || [])[i] || '', unitPrice: unit, totalPrice: unit, source: 'Purchased',
+                                month: (typeof getMonthFromDate === 'function' && dateIn) ? (getMonthFromDate(dateIn) || '') : '',
+                                usefulLife: 0, salvageValue: (typeof calcSalvageValue === 'function' && unit) ? calcSalvageValue(unit, cat) : 0, depreciationMethod: 'straight',
+                                comment: ['PO ' + (po.poNumber || ''), del.grn ? 'GRN ' + del.grn : '', 'Registered in Assets on Order' + (r.registeredBy ? ' by ' + r.registeredBy : ''), r.notes || ''].filter(Boolean).join(' · '),
+                                intakeKey: r.intakeKey || '', aliases: []
+                            };
+                            assets.push(a); added.push(a); codes[c.toLowerCase()] = 1; ids[id] = 1;
+                        });
+                    });
+                    if (!added.length) return;
+                    saveAssetsToStorage(assets);
+                    try { if (typeof addAuditEntry === 'function') addAuditEntry('BULK', 'Assets on Order', '', added.length + ' asset(s) recorded as registered in Assets on Order were added to the register: ' + added.map(function (a) { return a.assetCode; }).join(', ')); } catch (x) {}
+                    try { if (typeof refreshAllViews === 'function') refreshAllViews(); } catch (x) {}
+                    note('✅ ' + added.length + ' asset' + (added.length === 1 ? '' : 's') + ' recorded as registered in Assets on Order ' + (added.length === 1 ? 'was' : 'were') + ' added to the register (' + added.slice(0, 4).map(function (a) { return String(a.assetCode).replace(/</g, '&lt;'); }).join(', ') + (added.length > 4 ? '…' : '') + ').', 12000);
+                }).catch(function (x) { console.warn('[Assets on Order] could not bring registrations into the register', x); });
+            }
+            var syncTimer = setInterval(function () { if (dashboardShown()) { clearInterval(syncTimer); setTimeout(syncIntakeRegistrations, 1500); } }, 700);
+            window.assetIntakeHandoff = { fill: fill, read: read, syncRegistrations: function () { syncedIntake = false; syncIntakeRegistrations(); } };
         })();
     </script>
     <script src="asset-register-safety.js"></script>

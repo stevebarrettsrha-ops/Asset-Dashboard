@@ -34,6 +34,24 @@
     '.award-list .aw-row .nm{font-weight:600}.award-list .aw-row .sub{font-size:12px;color:var(--text-3)}' +
     '.metric{display:flex;justify-content:space-between;font-size:13px;padding:5px 0}.metric span:first-child{color:var(--text-3)}' +
     '.cmp-empty-hint{padding:26px;text-align:center;color:var(--text-3)}' +
+    /* Comparison sheet: laid out like the procurement workbook — item columns, then one column group per
+       supplier; the supplier chosen for an item has its cells shaded grey, as in the sheet. */
+    '.xl-wrap{overflow:auto;max-height:72vh;border-top:1px solid var(--border);background:#fff}' +
+    'table.xl{border-collapse:collapse;font:12px/1.3 Arial,Helvetica,sans-serif;color:#111;background:#fff;min-width:100%}' +
+    'table.xl th,table.xl td{border:1px solid #bfbfbf;padding:3px 6px;vertical-align:middle;background:#fff;color:#111}' +
+    'table.xl thead th{font-weight:700;text-transform:uppercase;font-size:11px;text-align:left;white-space:normal;position:sticky;z-index:1}' +
+    'table.xl thead tr.nm th{top:0;height:34px;font-size:11.5px}table.xl thead tr.hd th{top:34px}' +
+    'table.xl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}table.xl td.c{text-align:center}' +
+    'table.xl td.d{min-width:230px;max-width:360px;font-weight:600;text-transform:uppercase}table.xl td.ino{text-align:center;color:#444}' +
+    'table.xl th.gs{border-left:2px solid #7f7f7f}table.xl td.gs{border-left:2px solid #7f7f7f}' +
+    'table.xl .won,table.xl thead th.won{background:#7f7f7f!important;color:#000}' +
+    'table.xl td.q{cursor:default}table.xl.click td.q{cursor:pointer}table.xl.click td.q:hover{outline:2px solid #1f6feb;outline-offset:-2px}' +
+    'table.xl tfoot td{font-weight:700;background:#fff}table.xl tfoot td.lbl{text-transform:uppercase}' +
+    'table.xl td.low{box-shadow:inset 0 -2px 0 #2e7d32}' +
+    '.xl-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--text-2);padding:8px 14px;border-top:1px solid var(--border)}' +
+    '.xl-legend i{display:inline-block;width:22px;height:13px;vertical-align:-2px;margin-right:6px;border:1px solid #bfbfbf}' +
+    '.xl-legend i.g{background:#7f7f7f}.xl-legend i.l{background:#fff;box-shadow:inset 0 -2px 0 #2e7d32}' +
+    '.grid.side.sheet-wide{grid-template-columns:minmax(0,1fr)}.grid.side.sheet-wide>.stack+.stack{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--gap,16px);align-items:start}' +
     '@media (max-width:760px){.cmp-matrix th.sticky-l,.cmp-matrix td.sticky-l{min-width:170px;max-width:190px}.cmp-matrix .item-cell .ln{display:none}.cmp-matrix .cmp-sh{min-width:140px}.cmp-toolbar .add-sup{max-width:none}}' +
     '</style>');
 
@@ -78,6 +96,34 @@
 
   /* =============================================================== LIST */
   let listSeg = 'Active';
+  /** The comparison laid out like the workbook. opts.click: cells can be clicked to award the item. */
+  function sheetTable(c, r, opts) {
+    opts = opts || {};
+    const sups = (c.suppliers || []).filter(s => r.bySupplier[s.supplierId]);
+    const n2 = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const unitFmt = v => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    const awarded = sid => r.awards.find(a => a.supplierId === sid);
+    let h = '<table class="xl' + (opts.click ? ' click' : '') + '"><thead><tr class="nm"><th colspan="4"></th>' +
+      sups.map(s => '<th colspan="4" class="gs' + (awarded(s.supplierId) ? ' won' : '') + '">' + esc(r.bySupplier[s.supplierId].name) + (s.compliant === false ? ' <span style="font-weight:400;text-transform:none">(non-compliant)</span>' : '') + '</th>').join('') + '</tr>' +
+      '<tr class="hd"><th>Item #</th><th>Quantity</th><th>Unit of measure</th><th>Item description</th>' +
+      sups.map(s => { const w = awarded(s.supplierId) ? ' won' : ''; return '<th class="gs' + w + '">Unit cost</th><th class="' + w + '">Extended cost</th><th class="' + w + '">Total</th><th class="' + w + '">T/NT</th>'; }).join('') + '</tr></thead><tbody>';
+    r.lines.forEach((l, i) => {
+      h += '<tr><td class="ino">' + esc(l.item.itemNo || (i + 1)) + '</td><td class="n">' + (l.qty ? util.int(l.qty) : '') + '</td><td>' + esc(l.item.unit || '') + '</td><td class="d">' + esc(l.item.description || '') + '</td>';
+      sups.forEach(s => {
+        const q = l.quotes[s.supplierId], won = l.awardSid === s.supplierId ? ' won' : '', low = !won && l.lowestSid === s.supplierId ? ' low' : '';
+        const at = q && opts.click ? ' data-aw-item="' + esc(l.item.id) + '" data-aw-sid="' + esc(s.supplierId) + '" title="Award this item to ' + esc(r.bySupplier[s.supplierId].name) + '"' : '';
+        if (!q) { h += '<td class="gs"></td><td></td><td></td><td></td>'; return; }
+        h += '<td class="n q gs' + won + low + '"' + at + '>' + unitFmt(q.unit) + '</td><td class="n q' + won + '"' + at + '>' + n2(q.eff) + '</td><td class="n q' + won + '"' + at + '>' + n2(q.extInc) + '</td><td class="c q' + won + '"' + at + '>' + (s.gct ? 'T' : 'NT') + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody><tfoot><tr><td colspan="4" class="lbl" style="text-align:right">Total</td>' +
+      sups.map(s => { const b = r.bySupplier[s.supplierId]; return '<td class="gs lbl">Total</td><td></td><td class="n">' + (b.quoted ? n2(b.total) : '') + '</td><td></td>'; }).join('') + '</tr>' +
+      '<tr><td colspan="4" class="lbl" style="text-align:right">Awarded</td>' +
+      sups.map(s => { const a = awarded(s.supplierId); return '<td class="gs' + (a ? ' won' : '') + '"></td><td class="' + (a ? 'won' : '') + '"></td><td class="n' + (a ? ' won' : '') + '">' + (a ? n2(a.total) : '') + '</td><td class="' + (a ? 'won' : '') + '"></td>'; }).join('') + '</tr></tfoot></table>';
+    return h;
+  }
+
   function renderList(el) {
     const all = store.list('comparisons').slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || 0) - (a.number || 0));
     const rows = all.map(c => {
@@ -96,7 +142,7 @@
 
     el.innerHTML = ui.pageHead({
       title: 'Price Comparison', sub: 'Compare quotations side by side and award to the lowest compliant supplier',
-      actions: '<a class="btn primary" href="#/sourcing/new">' + ui.icon('plus', 'sm') + 'New comparison</a>'
+      actions: '<button class="btn" id="cmpReport">' + ui.icon('printer', 'sm') + 'Print report</button><a class="btn primary" href="#/sourcing/new">' + ui.icon('plus', 'sm') + 'New comparison</a>'
     }) +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'Open comparisons', value: util.int(counts.Active), icon: 'scale', meta: 'Collecting or evaluating quotes' }) +
@@ -128,6 +174,26 @@
     el.querySelectorAll('#cmpSeg button').forEach(b => b.onclick = () => {
       listSeg = b.dataset.s; el.querySelectorAll('#cmpSeg button').forEach(x => x.classList.toggle('on', x === b)); tbl.refresh(rowsFor(listSeg));
     });
+    el.querySelector('#cmpReport').onclick = () => reportDialog(all);
+  }
+  /** Print a report of the comparisons for a month (or all): summary, totals by supplier, then each sheet. */
+  async function reportDialog(all) {
+    const months = Array.from(new Set(all.map(c => (c.date || '').slice(0, 7)).filter(Boolean))).sort().reverse();
+    const label = ym => util.MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+    if (!months.length) { ui.toast('There are no price comparisons to report on yet.', 'info'); return; }
+    const v = await ui.form('Print price comparison report', [
+      { name: 'month', label: 'Month', type: 'select', options: months.map(m => ({ value: m, label: label(m) })).concat([{ value: 'all', label: 'All months' }]), value: months[0] },
+      { name: 'which', label: 'Include', type: 'select', options: [{ value: 'all', label: 'Every comparison' }, { value: 'awarded', label: 'Only comparisons with a recommended award' }, { value: 'multi', label: 'Only comparisons with two or more quotes' }], value: 'all' },
+      { name: 'save', label: '', type: 'checkbox', checkLabel: 'Download the PDF instead of opening it to print' }
+    ], { ok: 'Print report' });
+    if (!v) return;
+    let list = all.filter(c => v.month === 'all' || (c.date || '').slice(0, 7) === v.month);
+    if (v.which !== 'all') list = list.filter(c => { const r = domain.computeComparison(c); return v.which === 'awarded' ? r.awards.length : r.bidsReceived >= 2; });
+    list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || String(a.ref || '').localeCompare(String(b.ref || ''), undefined, { numeric: true }));
+    if (!list.length) { ui.toast('No comparisons match — try another month or include every comparison.', 'info'); return; }
+    ui.toast('Preparing the report (' + list.length + ' ' + util.plural(list.length, 'comparison') + ')…', 'info');
+    try { await Proc.pdf.comparisonReport(list, { title: v.month === 'all' ? 'All months' : label(v.month), output: v.save ? 'save' : 'open' }); Proc.audit('Print Comparison Report', (v.month === 'all' ? 'All months' : label(v.month)) + ' · ' + list.length + ' comparisons'); }
+    catch (e) { ui.toast('Could not make the report: ' + e.message, 'error'); }
   }
 
   /* ============================================================= EDITOR */
@@ -193,7 +259,7 @@
       '<div class="field s3" style="align-self:end;padding-bottom:9px"><label class="check"><input type="checkbox" name="viaGojep"' + (c.viaGojep !== false ? ' checked' : '') + '> Solicited via GOJEP</label></div>' +
       '</div></div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Quotations</h3><div class="sub">Unit prices per supplier. Lowest compliant price is highlighted; paste columns straight from Excel.</div></div>' +
-      '<div class="row"><div class="seg" id="awardMode"><button data-m="item">Split by line</button><button data-m="lot">Whole lot</button></div></div></div>' +
+      '<div class="row"><div class="seg" id="cmpView"><button data-v="entry">Enter prices</button><button data-v="sheet">Comparison sheet</button></div><div class="seg" id="awardMode"><button data-m="item">Split by line</button><button data-m="lot">Whole lot</button></div></div></div>' +
       '<div class="cmp-toolbar"><div class="add-sup"><input class="input sm" id="supAdd" list="dl-suppliers" placeholder="Add supplier — type a name from the directory or a new one"><button class="btn sm primary" data-act="addsup">' + ui.icon('plus', 'sm') + 'Add supplier</button></div>' +
       '<span id="newSupNote" class="small text-success"></span><div class="spacer"></div><span id="lotPick"></span>' +
       '<label class="check small"><input type="checkbox" id="specToggle"' + (showSpecs ? ' checked' : '') + '> Specs</label>' +
@@ -201,7 +267,9 @@
       '<button class="btn sm" data-act="pasteitems">' + ui.icon('copy', 'sm') + 'Paste rows</button>' +
       (c.requisitionId ? '<button class="btn sm" data-act="loadreq">' + ui.icon('clipboard', 'sm') + 'Load from requisition</button>' : '') +
       '</div>' +
-      '<div class="matrix-wrap"><table class="matrix cmp-matrix" id="mx"></table></div></div>' +
+      '<div class="matrix-wrap" id="mxWrap"><table class="matrix cmp-matrix" id="mx"></table></div>' +
+      '<div id="sheetView" hidden><div class="xl-wrap" id="xlWrap"></div><div class="xl-legend"><span><i class="g"></i>Shaded = supplier chosen for that item (as on the workbook)</span><span><i class="l"></i>Lowest price</span><span>Extended cost and Total include GCT where T/NT is “T”. Click a supplier’s price to award the item to them.</span>' +
+      '<span style="margin-left:auto;display:flex;gap:8px"><button class="btn sm" data-act="sheetprint">' + ui.icon('printer', 'sm') + 'Print report</button><button class="btn sm" data-act="sheetpdf">' + ui.icon('download', 'sm') + 'Download PDF</button></span></div></div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Evaluation note</h3><div class="sub">Printed on the approval memo before the recommendation table</div></div><button class="btn sm" data-act="usenote">Use suggested wording</button></div><div class="card-b">' +
       '<textarea class="input" id="evalNote" rows="3">' + esc(c.evaluationNote || '') + '</textarea><div class="hint small muted mt-1">Leave blank to use the suggested wording shown in grey.</div></div></div>' +
       '</div>' +
@@ -381,6 +449,25 @@
       fa('tot', r.awardTotal ? '<span class="strong">' + util.money(r.awardTotal) + '</span>' : '');
       fa('awarded', r.awards.length ? r.awards.length + ' ' + util.plural(r.awards.length, 'supplier') : '');
       drawSidebar(r);
+      if (view === 'sheet') drawSheet(r);
+    }
+    /* ---------- comparison sheet (workbook look) ---------- */
+    const VIEW_KEY = 'procCmpView';
+    let view = (() => { try { return localStorage.getItem(VIEW_KEY) || (c.sheet ? 'sheet' : 'entry'); } catch (e) { return c.sheet ? 'sheet' : 'entry'; } })();
+    function drawSheet(r) {
+      r = r || domain.computeComparison(c);
+      const wrap = el.querySelector('#xlWrap'); if (!wrap) return;
+      wrap.innerHTML = r.lines.length && c.suppliers.length ? sheetTable(c, r, { click: true }) : '<div class="cmp-empty-hint">Add suppliers and prices under “Enter prices” — the comparison sheet fills in from them.</div>';
+    }
+    function setView(v) {
+      view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ }
+      el.querySelector('#mxWrap').hidden = v === 'sheet';
+      el.querySelector('#sheetView').hidden = v !== 'sheet';
+      el.querySelector('.cmp-toolbar').style.display = v === 'sheet' ? 'none' : '';
+      // The sheet is wide: give it the full width and move the award summary below it.
+      el.querySelector('.grid.side').classList.toggle('sheet-wide', v === 'sheet');
+      el.querySelectorAll('#cmpView button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+      if (v === 'sheet') drawSheet();
     }
 
     /* ---------- sidebar ---------- */
@@ -756,7 +843,18 @@
     }
 
     function drawAll() { drawHead(); drawMatrix(); }
+    el.querySelectorAll('#cmpView button').forEach(b => b.onclick = () => setView(b.dataset.v));
+    const sheetReport = output => { flush(); Proc.pdf.comparison(store.get('comparisons', c.id) || c, { layout: 'sheet', output }).then(() => Proc.audit('Print Comparison Sheet', c.ref || c.subject, c.id)).catch(e => ui.toast(e.message, 'error')); };
+    el.querySelector('[data-act=sheetprint]').onclick = () => sheetReport('open');
+    el.querySelector('[data-act=sheetpdf]').onclick = () => sheetReport('save');
+    el.querySelector('#xlWrap').addEventListener('click', e => {
+      const t = e.target.closest('[data-aw-item]'); if (!t) return;
+      if (c.awardMode === 'lot') c.lotSupplierId = t.dataset.awSid;
+      else c.awards[t.dataset.awItem] = t.dataset.awSid;
+      drawMatrix(); touch();
+    });
     drawAll();
+    setView(view);
     setSaved();
     if (!c.subject && !c.suppliers.length) setTimeout(() => { const f = det.querySelector('[name=subject]'); if (f) f.focus(); }, 50);
   }
@@ -838,12 +936,15 @@
       'body{font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#111;margin:24px}h1{font-family:Times,serif;color:#a3161d;text-align:center;margin:0;font-size:20px}h2{font-family:Times,serif;color:#a3161d;text-align:center;margin:2px 0 4px;font-size:16px}' +
       '.c{text-align:center}.t{font-size:15px;font-weight:bold;text-align:center;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em}table{border-collapse:collapse;width:100%;margin-top:8px}th,td{border:1px solid #888;padding:4px 5px;vertical-align:top}th{background:#eef2f6;font-size:10.5px}' +
       'tr.sub th{font-weight:normal;font-size:9.5px}.n{text-align:right;white-space:nowrap}.lo{background:#e9f7ef}.aw{background:#c9efd8;font-weight:bold}tr.ft td{background:#f6f7f9;font-weight:bold}' +
+      'table.xl{font-size:10px}table.xl th,table.xl td{border:1px solid #888;padding:3px 4px}table.xl thead th{text-transform:uppercase;font-size:9px}table.xl td.d{text-transform:uppercase;font-weight:bold}' +
+      'table.xl .won{background:#7f7f7f!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}table.xl td.c,table.xl td.ino{text-align:center}table.xl tfoot td{font-weight:bold}' +
       '.meta td{border:0;padding:2px 6px}.sig{display:flex;gap:30px;margin-top:40px}.sig div{flex:1;border-top:1px solid #333;padding-top:4px}@page{size:landscape;margin:12mm}</style></head><body>' +
       '<h1>' + esc(org.authority) + '</h1><h2>' + esc(org.hospital) + '</h2><div class="c">' + esc(org.address) + '</div>' +
       '<div class="t">Price Comparison / Evaluation Sheet</div>' +
       '<table class="meta"><tr><td><b>Ref #:</b> ' + esc(c.ref || '') + '</td><td><b>Subject:</b> ' + esc(c.subject || '') + '</td><td><b>Date:</b> ' + esc(util.dateLong(c.date)) + '</td></tr>' +
       '<tr><td><b>Method:</b> ' + esc(c.method || '') + (c.viaGojep !== false ? ' (GOJEP)' : '') + '</td><td><b>Suppliers invited:</b> ' + (util.num(c.invited) || sups.length) + ' · <b>Bids received:</b> ' + r.bidsReceived + '</td><td><b>Award basis:</b> ' + (c.awardMode === 'lot' ? 'Whole lot' : 'Lowest compliant price per line') + '</td></tr></table>' +
-      '<table><thead>' + head + '</thead><tbody>' + body + foot + '</tbody></table>' +
+      sheetTable(c, r) +
+      '<p style="font-size:9.5px;color:#444;margin:4px 0 0">Shaded cells: supplier chosen for that item. Extended cost and Total include GCT where T/NT is “T”.</p>' +
       '<div class="t" style="font-size:13px">Recommended award</div><table style="width:60%"><thead><tr><th>No.</th><th>Supplier</th><th>Lines</th><th>Amount</th></tr></thead><tbody>' + awards +
       '<tr class="ft"><td></td><td>Total</td><td></td><td class="n">' + m(r.awardTotal) + '</td></tr></tbody></table><p><i>' + esc(domain.amountWords(r.awardTotal)) + '</i></p>' +
       '<p>' + esc(c.evaluationNote || domain.autoEvaluationNote(sups.filter(s => r.bySupplier[s.supplierId].quoted).map(s => ({ supplier: r.bySupplier[s.supplierId].name, compliant: s.compliant !== false })))) + '</p>' +

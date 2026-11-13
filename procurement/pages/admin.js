@@ -139,7 +139,7 @@
     const syncState = { off: 'Not connected', on: 'Connected', busy: 'Syncing…', err: 'Problem — retrying' }[Proc.sync.state];
     body.innerHTML = '<div class="grid c2">' +
       card('Records on this computer', '', '<dl class="kv tight">' + counts.map(x => '<dt>' + esc(label[x.c] || x.c) + '</dt><dd>' + util.int(x.n) + '</dd>').join('') + '<dt>Audit entries</dt><dd>' + util.int(db.auditLog.length) + '</dd></dl><div class="small muted mt-2" id="quota"></div>') +
-      card('Google Drive sync', 'Records sync every few seconds to <span class="mono">PROCUREMENT_BACKUP.json</span> in the shared Drive folder; uploaded documents are copied to its “Procurement Documents” folder.',
+      card('Google Drive sync', 'Each unit saves its own records in its own folder inside the hospital\'s Google Drive folder: <b>Procurement</b> (<span class="mono">PROCUREMENT_RECORDS.json</span>, Backups, Documents), <b>Stores</b> (<span class="mono">STORES_RECORDS.json</span>, Backups, Documents) and <b>Operations</b> (a daily whole-hospital copy). Records sync every few seconds.',
         '<dl class="kv tight"><dt>Status</dt><dd>' + esc(syncState) + '</dd><dt>Last sync</dt><dd>' + (Proc.sync.lastSync ? util.ago(Proc.sync.lastSync) : '—') + '</dd></dl>' +
         (Proc.sync.state === 'off' ? '<div class="alert mt-2">' + ui.icon('info') + '<div>To connect, sign in to Google on the main Fixed Asset dashboard, then reload this page. All computers that connect share the same records and documents.</div></div>' : ''),
         '<button class="btn" data-sync' + (Proc.sync.state === 'off' ? ' disabled' : '') + '>' + ui.icon('refresh', 'sm') + 'Sync now</button>') +
