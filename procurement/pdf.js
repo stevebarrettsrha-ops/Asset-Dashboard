@@ -102,7 +102,7 @@
       drawLetterhead(doc, o);
       if (o.side) drawSidePanel(doc);
       // The board-members footer belongs on the official approval letters only (memos, with the side panel).
-      if (o.side || o.boardFooter) drawFooter(doc, o);
+      if ((o.side || o.boardFooter) && !o.noBoardFooter) drawFooter(doc, o);
       const seg = segments.find(s => p >= s.start && p <= s.end) || { start: 1, end: n };
       const count = seg.end - seg.start + 1;
       if (count > 1 || o.alwaysNumber) {
@@ -704,7 +704,7 @@
     para(ctx, ['Amounts above ' + money(Proc.approvers ? Proc.approvers.MEMO_LIMIT : 500000) + ' require the approval of the ' + (pm.title || 'Parish Manager') + '. It forms part of the ' + d.month + ' Procurement for Approval sheet.']);
     para(ctx, ['Your approval is respectfully requested.']);
     signature(ctx, off.name, off.title, S.org.hospital, { name: pm.name, title: pm.title });
-    finish(doc, { side: true });
+    finish(doc, { side: true, noBoardFooter: true });   // no board-members footer on these memos
     doc.setProperties({ title: 'Approval memo - ' + d.line + ' - ' + d.month, creator: 'Procurement Management System' });
     return Promise.resolve(deliver(doc, 'Approval Memo - ' + fileSafe(d.line + (d.supplier ? ' - ' + d.supplier : '')) + ' - ' + fileSafe(d.month) + '.pdf', o.output || 'open'));
   };
