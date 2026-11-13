@@ -134,7 +134,7 @@
   K.PARISHES = ['Clarendon', 'Hanover', 'Kingston', 'Manchester', 'Portland', 'St. Andrew', 'St. Ann', 'St. Catherine', 'St. Elizabeth', 'St. James', 'St. Mary', 'St. Thomas', 'Trelawny', 'Westmoreland'];
   K.RETENDER_REASONS = ['All bids non-responsive', 'Awarded supplier refused to enter into contract', 'Bid price exceeding comparable estimate', 'Cancelled by PPC or Cabinet due to procedural irregularity',
     'Change in bill of quantities', 'Incorrect specification', 'Material irregularities in tender documents issued by Procuring Entity', 'No bid received', 'OTHER', 'Re-scoping of requirements', 'VFM cannot be achieved'];
-  K.DOC_KINDS = ['Quotation', 'Purchase Order', 'Invoice', 'Delivery Note / GRN', 'Approval Memo', 'Evaluation Report', 'Contract', 'Tax Compliance Certificate', 'PPC / NCC Registration', 'Business Registration', 'Other'];
+  K.DOC_KINDS = ['Quotation', 'Purchase Order', 'Invoice', 'Delivery Note / GRN', 'Approval Memo', 'Evaluation Report', 'Contract', 'Tax Compliance Certificate', 'PPC / NCC Registration', 'Business Registration', 'Monthly Report', 'Budget Approval', 'Template', 'Reference', 'Other'];
   K.REQ_STATUSES = ['Draft', 'Submitted', 'Approved', 'Sourcing', 'Awarded', 'Ordered', 'Completed', 'Rejected', 'Cancelled'];
   K.CMP_STATUSES = ['Open', 'Evaluated', 'Memo Prepared', 'Approved', 'Ordered', 'Cancelled'];
   K.MEMO_STATUSES = ['Draft', 'Submitted', 'Approved', 'Rejected'];
@@ -210,9 +210,9 @@
   const IDB_NAME = 'ProcurementDB';
   const IDB_VERSION = 2;               // v2 adds the "files" store for documents
   const COLLECTIONS = ['suppliers', 'requisitions', 'comparisons', 'memos', 'purchaseOrders', 'deliveries', 'invoices', 'documents', 'plans', 'poBooks',
-    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications', 'budgetLines', 'budgetMonths'];
+    'stockItems', 'stockMoves', 'stockIssues', 'stockCounts', 'supplierReturns', 'assetRegistrations', 'notifications', 'budgetLines', 'budgetMonths', 'prsLite'];
   const ID_PREFIX = { suppliers: 'SUP', requisitions: 'REQ', comparisons: 'CMP', memos: 'MEMO', purchaseOrders: 'PO', deliveries: 'GRN', invoices: 'INV', documents: 'DOC', plans: 'PLAN', poBooks: 'BOOK',
-    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF', budgetLines: 'BL', budgetMonths: 'BM' };
+    stockItems: 'ITM', stockMoves: 'MOV', stockIssues: 'SIV', stockCounts: 'CNT', supplierReturns: 'RTN', assetRegistrations: 'AREG', notifications: 'NTF', budgetLines: 'BL', budgetMonths: 'BM', prsLite: 'PRSL' };
   const listeners = {};
   let idbPromise = null;
   let saveTimer = null;
@@ -630,7 +630,8 @@
       let b = await files.getBlob(docId).catch(() => null);
       if (!b) {
         const doc = store.get('documents', docId);
-        if (doc && doc.driveFileId) { b = await Proc.sync.downloadDoc(doc).catch(() => null); if (b) await files.putBlob(docId, b).catch(() => {}); }
+        if (doc && doc.seedFile) { b = await fetch(doc.seedFile).then(x => (x.ok ? x.blob() : null)).catch(() => null); if (b) await files.putBlob(docId, b).catch(() => {}); }
+        if (!b && doc && doc.driveFileId) { b = await Proc.sync.downloadDoc(doc).catch(() => null); if (b) await files.putBlob(docId, b).catch(() => {}); }
       }
       return b || null;
     },
@@ -1855,47 +1856,84 @@
      supplier, budget line, budget month or award reference brought in by hand — and links to suppliers
      and budget lines are pointed at the copies already here. On a computer that syncs with Google Drive
      this runs after Drive's copy is merged in, so nothing imported elsewhere is doubled. */
-  const SEED_ORDER = ['suppliers', 'budgetLines', 'budgetMonths', 'comparisons', 'purchaseOrders'];
+  const SEED_ORDER = ['suppliers', 'budgetLines', 'budgetMonths', 'plans', 'prsLite', 'comparisons', 'requisitions', 'purchaseOrders', 'invoices', 'documents'];
+  let seeding = null;
+  /** Packs from procurement/seed (window.PROC_SEED_FILES, fetched once) and any loaded inline (window.PROC_SEEDS). */
   function applySeeds() {
-    const packs = window.PROC_SEEDS || [];
-    if (!packs.length) return 0;
-    const st = store.settings(); st.seedsApplied = st.seedsApplied || {};
+    if (seeding) return seeding;
+    seeding = (async () => {
+      const st = store.settings(); st.seedsApplied = st.seedsApplied || {};
+      const packs = (window.PROC_SEEDS || []).filter(p => p && p.id && !st.seedsApplied[p.id]);
+      for (const f of (window.PROC_SEED_FILES || [])) {
+        if (!f || !f.id || st.seedsApplied[f.id]) continue;
+        try { const r = await fetch(f.url, { cache: 'no-cache' }); if (r.ok) packs.push(Object.assign({ id: f.id, label: f.label }, await r.json())); }
+        catch (e) { console.warn('[Seed] could not load', f.url, e.message); }   // tried again next time
+      }
+      let total = 0;
+      for (const pack of packs) total += applyPack(pack, st);
+      if (packs.length) store.save();
+      if (total) store.emit('change', { coll: 'seed', action: 'create' });
+      return total;
+    })().finally(() => { seeding = null; });
+    return seeding;
+  }
+  function applyPack(pack, st) {
     const norm = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const keyOf = {
       suppliers: r => 'S|' + domain.supplierKey(r.name),
       budgetLines: r => 'L|' + r.fy + '|' + norm(r.name),
       budgetMonths: r => 'M|' + r.month,
+      plans: r => 'P|' + r.fy + '|' + norm(r.category) + '|' + norm(r.description) + '|' + util.round2(util.num(r.estimate)),
+      prsLite: r => 'T|' + r.ym,
       comparisons: r => 'C|' + r.ref,
-      purchaseOrders: r => r.poNumber ? 'P|' + String(r.poNumber).trim() + '|' + domain.supplierKey(r.supplierName) : 'D|' + norm(r.description) + '|' + r.date
+      requisitions: r => 'R|' + norm(r.title) + '|' + r.date,
+      purchaseOrders: r => r.poNumber ? 'P|' + String(r.poNumber).trim() + '|' + domain.supplierKey(r.supplierName) : 'D|' + norm(r.description) + '|' + r.date,
+      invoices: r => 'I|' + r.poId + '|' + norm(r.invoiceNumber),
+      documents: r => 'F|' + norm(r.name)
     };
-    let total = 0;
-    packs.forEach(pack => {
-      if (!pack || !pack.id || st.seedsApplied[pack.id]) return;
-      const map = {}; let added = 0;
-      SEED_ORDER.forEach(coll => {
-        const recs = (pack.records || {})[coll] || []; if (!recs.length) return;
-        const arr = store.db[coll] = store.db[coll] || [];
-        const tomb = (store.db.tombstones && store.db.tombstones[coll]) || {};
-        const byKey = new Map(); arr.forEach(r => { if (!r._deleted) { try { byKey.set(keyOf[coll](r), r.id); } catch (e) { /* odd record */ } } });
-        recs.forEach(src => {
-          if (tomb[src.id] || arr.some(r => r.id === src.id)) { map[src.id] = src.id; return; }
-          const k = keyOf[coll](src);
-          if (byKey.has(k)) { map[src.id] = byKey.get(k); return; }
-          const r = JSON.parse(JSON.stringify(src));
-          if (r.supplierId && map[r.supplierId]) r.supplierId = map[r.supplierId];
-          if (Array.isArray(r.entries)) r.entries.forEach(e => { if (e.lineId && map[e.lineId]) e.lineId = map[e.lineId]; });
-          // Running numbers continue this computer's own sequence.
-          if (coll === 'comparisons' && r.number) r.number = store.next('cmp');
-          arr.push(r); byKey.set(k, r.id); map[src.id] = r.id; added++;
-        });
+    // A second way to recognise a purchase order already here: same number and amount (the supplier's
+    // name may be spelt differently in a log imported by hand).
+    const altOf = { purchaseOrders: r => (r.poNumber && util.num(r.total) ? 'Q|' + String(r.poNumber).trim() + '|' + Math.round(util.num(r.total)) : '') };
+    const map = {}, sid = id => (id && map[id]) || id;
+    let added = 0;
+    const blobs = [];
+    SEED_ORDER.forEach(coll => {
+      const recs = (pack.records || {})[coll] || []; if (!recs.length) return;
+      const arr = store.db[coll] = store.db[coll] || [];
+      const tomb = (store.db.tombstones && store.db.tombstones[coll]) || {};
+      const byKey = new Map(), alt = altOf[coll];
+      arr.forEach(r => { if (!r._deleted) { try { byKey.set(keyOf[coll](r), r.id); const a = alt && alt(r); if (a) byKey.set(a, r.id); } catch (e) { /* odd record */ } } });
+      const ids = new Set(arr.map(r => r.id));
+      recs.forEach(src => {
+        if (tomb[src.id] || ids.has(src.id)) { map[src.id] = src.id; return; }
+        const r = JSON.parse(JSON.stringify(src));
+        // Links to records this computer already had under another id.
+        if (r.supplierId) r.supplierId = sid(r.supplierId);
+        if (r.poId) r.poId = sid(r.poId);
+        if (Array.isArray(r.entries)) r.entries.forEach(e => { if (e.lineId) e.lineId = sid(e.lineId); });
+        if (coll === 'comparisons') {
+          (r.suppliers || []).forEach(x => { x.supplierId = sid(x.supplierId); });
+          Object.keys(r.prices || {}).forEach(i => { const o = {}; Object.keys(r.prices[i]).forEach(k => { o[sid(k)] = r.prices[i][k]; }); r.prices[i] = o; });
+          Object.keys(r.awards || {}).forEach(i => { r.awards[i] = sid(r.awards[i]); });
+          if (r.lotSupplierId) r.lotSupplierId = sid(r.lotSupplierId);
+        }
+        const k = keyOf[coll](r), a2 = alt && alt(r);
+        if (byKey.has(k)) { map[src.id] = byKey.get(k); return; }
+        if (a2 && byKey.has(a2)) { map[src.id] = byKey.get(a2); return; }
+        // Running numbers continue this computer's own sequence.
+        if (coll === 'comparisons' && r.number) r.number = store.next('cmp');
+        if (coll === 'requisitions' && r.number) r.number = 'REQ-' + store.next('req');
+        // Compared only with what this computer already had: the pack itself is already de-duplicated
+        // (a plan can rightly list the same item twice).
+        arr.push(r); ids.add(r.id); map[src.id] = r.id; added++;
+        if (coll === 'documents' && r.seedFile) blobs.push(r);
       });
-      st.seedsApplied[pack.id] = Date.now();
-      if (added) { try { Proc.audit('Built-in records', added + ' records added from ' + (pack.label || pack.id)); } catch (e) { /* audit not ready */ } }
-      total += added;
     });
-    store.save();
-    if (total) store.emit('change', { coll: 'seed', action: 'create' });
-    return total;
+    st.seedsApplied[pack.id] = Date.now();
+    if (added) { try { Proc.audit('Built-in records', added + ' records added from ' + (pack.label || pack.id)); } catch (e) { /* audit not ready */ } }
+    // The reference documents' files come from the site itself, in the background.
+    blobs.forEach(d => { fetch(d.seedFile).then(x => (x.ok ? x.blob() : null)).then(b => b && files.putBlob(d.id, b)).catch(() => {}); });
+    return added;
   }
   Proc.applySeeds = applySeeds;
 
@@ -1973,7 +2011,7 @@
           store.merge(cloud);
           sync.seen[f.id] = f.modifiedTime;
         }
-        applySeeds();
+        await applySeeds();
         // Each unit's records go back to its own folder.
         const blobs = {};
         for (const u of Object.keys(GDRIVE.UNITS)) {
@@ -1984,7 +2022,7 @@
         sync.fileId = sync.fileIds.procurement;
         await sync.dailySnapshot(blobs, folders).catch(e => console.warn('[Proc sync] daily backup skipped', e.message));
         // Copy any documents that have not reached Drive yet.
-        for (const d of store.list('documents').filter(x => !x.driveFileId).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
+        for (const d of store.list('documents').filter(x => !x.driveFileId && !x.seedFile).slice(0, 5)) await sync.uploadDoc(d).catch(() => {});
         sync.lastSync = Date.now(); sync.setState('on');
       } catch (e) {
         console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
@@ -2012,7 +2050,7 @@
     },
     async docsFolder(unit) { return sync.folderIn(await sync.unitFolder(unit || 'procurement'), GDRIVE.DOCS); },
     async uploadDoc(doc) {
-      if (!sync.token() || !doc || doc.driveFileId) return;
+      if (!sync.token() || !doc || doc.driveFileId || doc.seedFile) return;
       const b = await files.getBlob(doc.id); if (!b) return;
       const folder = await sync.docsFolder(unitOfDoc(doc));
       const form = new FormData();
@@ -2134,7 +2172,7 @@
     store.load();
     await store.ready;
     // Not syncing with Drive: add the built-in records now (otherwise after the first Drive merge).
-    if (!sync.token()) applySeeds();
+    if (!sync.token()) await applySeeds();
     // Ask the browser to keep this site's data even when the disk is short of space.
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {}); } catch (e) { /* not supported */ }
     const loginEl = document.getElementById('loginScreen'), appEl = document.getElementById('app');

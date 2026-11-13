@@ -256,6 +256,7 @@
         if (f === 'type') { const cs = inp.closest('tr').querySelector('[data-f=category]'); if (cs) cs.innerHTML = ui.categoryOptions(po.category, po.type); }
       })
     });
+    drawLiteHistory(box);
     ui.table(box.querySelector('#prsLiteT'), {
       rows: lite.map((p, i) => Object.assign({ _n: i + 1 }, p)), pageSize: 25, search: r => [r.poNumber, supName(r)].join(' '),
       empty: ui.empty('receipt', 'No transactions under $500,000', ''),
@@ -271,6 +272,17 @@
   }
 
   /* PO Log -------------------------------------------------------------- */
+  /** Earlier PRS LITE returns brought in from the hospital's PRS workbooks: monthly totals of transactions under $500,000. */
+  function drawLiteHistory(box) {
+    const hist = store.list('prsLite').slice().sort((a, b) => b.ym.localeCompare(a.ym));
+    if (!hist.length) return;
+    const card = document.createElement('div'); card.className = 'card mt-3';
+    card.innerHTML = '<div class="card-h"><div><h3>Earlier PRS LITE returns</h3><div class="sub">Transactions under $500,000 reported on the hospital\'s PRS workbooks — one total per month (the sheets list values only, no suppliers or PO numbers)</div></div></div>' +
+      '<div class="table-wrap"><table class="tbl"><thead><tr><th>Month</th><th class="num">Transactions</th><th class="num">Value committed</th><th class="num">To MSMEs</th><th>From</th></tr></thead><tbody>' +
+      hist.map(m => '<tr><td class="nowrap">' + esc(util.monthLabel(m.ym)) + '</td><td class="num">' + util.int(m.count) + '</td><td class="num">' + util.money(m.total) + '</td><td class="num">' + (m.msme ? util.money(m.msme) : '—') + '</td><td class="small muted">' + esc((m.source || '') + (m.sheet ? ' · ' + m.sheet : '')) + '</td></tr>').join('') +
+      '</tbody><tfoot><tr><td>Total</td><td class="num">' + util.int(util.sum(hist, m => m.count)) + '</td><td class="num">' + util.money(util.sum(hist, m => m.total)) + '</td><td class="num">' + util.money(util.sum(hist, m => m.msme)) + '</td><td></td></tr></tfoot></table></div>';
+    box.appendChild(card);
+  }
   function drawPOLog(box) {
     const fys = fyList();
     const st = drawPOLog.st = drawPOLog.st || { fy: util.fiscalYear(util.today()) };

@@ -216,6 +216,18 @@
       store.upsert('budgetMonths', { month: prevYm, fy: fyOf(prevYm), commitment: commitment !== null ? util.round2(commitment) : 0, contractualOverride: contractualPrev !== null && Math.abs(contractualPrev - util.sum(prevEntries.filter(e => e.contractual), e => e.amount)) > 0.5 ? util.round2(contractualPrev) : null,
         entries: prevEntries.filter(e => e.amount), status: 'Approved', approvedAt: new Date().toISOString(), approvedBy: 'From the ' + monthName(ym) + ' sheet', importedFrom: file.name });
       prevNote = ' ' + monthName(prevYm) + '’s approved amounts were added from the same sheet.';
+    } else if (pm && pm.status !== 'Approved' && !(pm.entries || []).some(e => e.approved !== null && e.approved !== undefined) && prevEntries.some(e => e.amount)) {
+      // The month before was imported from its own sheet (requests only): this sheet's
+      // "Amount approved" column records what was approved — row by row, per budget line.
+      const ents = (pm.entries || []).map(e => Object.assign({}, e)), used = new Set();
+      prevEntries.forEach(pe => {
+        const i = ents.findIndex((e, k) => !used.has(k) && e.lineId === pe.lineId && (!pe.supplier || !e.supplier || key(e.supplier) === key(pe.supplier)));
+        if (i >= 0) { used.add(i); ents[i].approved = pe.amount; }
+        else if (pe.amount) ents.push(Object.assign({}, pe, { amount: 0 }));
+      });
+      ents.forEach((e, k) => { if (!used.has(k) && (e.approved === null || e.approved === undefined)) e.approved = 0; });
+      store.upsert('budgetMonths', { id: pm.id, entries: ents, status: 'Approved', approvedAt: new Date().toISOString(), approvedBy: 'From the ' + monthName(ym) + ' sheet' });
+      prevNote = ' ' + monthName(prevYm) + '’s approved amounts were recorded from the same sheet.';
     }
     Proc.audit('Import Budget', monthName(ym) + ' approval sheet from ' + file.name, rec.id);
     return { ym, entries: entries.length, note: prevNote };

@@ -275,14 +275,47 @@
     if (pending && pending.has(p.poNumber)) return pending.get(p.poNumber);
     return null;
   }
+  const MONTHS_FULL = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  function prsLiteMonths(wb, fileName) {
+    const by = {};
+    wb.SheetNames.filter(n => /^LITE/i.test(n)).forEach(sn => {
+      const rows = rowsOf(wb.Sheets[sn]);
+      const hi = rows.findIndex(r => (r || []).some(c => norm(c) === 'MONTH') && (r || []).some(c => norm(c) === 'YEAR'));
+      if (hi < 0) return;
+      const hdr = rows[hi].map(norm);
+      const cM = hdr.indexOf('MONTH'), cY = hdr.indexOf('YEAR');
+      const cV = hdr.findIndex(h => h.indexOf('JMDVALUEOFALLPROCUREMENTTRANSACTIONSCOMMITTED') === 0 && h.indexOf('MSME') < 0);
+      const cMs = hdr.findIndex(h => h.indexOf('MSME') >= 0);
+      rows.slice(hi + 1).forEach(r => {
+        if (!r) return;
+        const mi = MONTHS_FULL.findIndex(x => x.indexOf(str(r[cM]).toUpperCase().slice(0, 3)) === 0 && str(r[cM]).length >= 3);
+        const y = parseInt(str(r[cY]), 10);
+        // Some sheets put the supplier's name in the value column and the value one column to the right.
+        const named = typeof r[cV] === 'string' && !/^[\d.,\s$-]+$/.test(r[cV]);
+        const v = named ? util.num(r[cV + 1]) : util.num(r[cV]);
+        if (mi < 0 || !(y > 2000) || !(v > 0)) return;
+        const ym = y + '-' + String(mi + 1).padStart(2, '0');
+        const m = by[ym] = by[ym] || { ym, count: 0, total: 0, msme: 0, sheet: sn.trim(), source: fileName.replace(/^[0-9a-f]{8}-/i, '') };
+        m.count++; m.total = Math.round((m.total + v) * 100) / 100; m.msme = Math.round((m.msme + (named ? 0 : util.num(r[cMs]) || 0)) * 100) / 100;
+      });
+    });
+    return Object.values(by).sort((a, b) => a.ym.localeCompare(b.ym));
+  }
   function parsePRS(wb, fileName, ctx) {
     const plan = newPlan('prs');
     const res = prsRows(wb);
     plan.sheets = wb.SheetNames.filter(n => n === 'Database_ Transactions' || /^LITE/i.test(n));
     if (res.error) { plan.warnings.push(res.error); return finishSuppliers(plan); }
     const idx = existingPOIndex();
-    const lite = wb.SheetNames.filter(n => /^LITE/i.test(n));
-    if (lite.length) plan.info.push('LITE sheets (' + lite.join(', ') + ') list transactions under $500,000 without PO numbers — they are already covered by the PO Log and are not imported.');
+    // LITE sheets: one row per transaction under $500,000 (month, year and value only — no supplier or
+    // PO number). They are kept as a monthly summary (number of transactions and value) for the PRS history.
+    prsLiteMonths(wb, fileName).forEach(m => {
+      const have = store.find('prsLite', x => x.ym === m.ym);
+      if (have && (have.count || 0) >= m.count) { plan.present++; return; }
+      addCreate(plan, 'prsLite', have ? Object.assign({ id: have.id }, m) : m);
+    });
+    const nLite = (plan.create.prsLite || []).length;
+    if (nLite) plan.info.push('PRS LITE (transactions under $500,000): ' + nLite + ' month' + (nLite === 1 ? '' : 's') + ' of totals — ' + plan.create.prsLite.map(m => util.monthLabel(m.ym) + ' ' + m.count).join(', ') + '.');
     res.rows.forEach(p => {
       if (!p.poNumber && !p.contractor) return;
       if (!p.poNumber) { plan.warnings.push('Row ' + p.rowNo + ': no PO / contract number — skipped (' + p.contractor + ').'); return; }
@@ -696,6 +729,7 @@
         created.comparisons.push(rec.id);
       });
       (plan.create.plans || []).forEach(p => { created.plans.push(store.upsert('plans', tag(Object.assign({}, p), importId), { silent: true }).id); });
+      (plan.create.prsLite || []).forEach(m => { const rec = store.upsert('prsLite', tag(Object.assign({}, m), importId), { silent: true }); (created.prsLite = created.prsLite || []).push(rec.id); });
     });
     store.emit('change', { coll: '*', action: 'import' });
     return { importId, created, updated, before };
@@ -732,7 +766,7 @@
       if (used) keep.push(r);
       return !used;
     });
-    ['invoices', 'purchaseOrders', 'comparisons', 'plans'].forEach(coll => { n += removeMany(coll, removable(coll, c[coll])); });
+    ['invoices', 'purchaseOrders', 'comparisons', 'plans', 'prsLite'].forEach(coll => { n += removeMany(coll, removable(coll, c[coll])); });
     // Restore records this import changed — unless someone has edited them since.
     (entry.before || []).slice().reverse().forEach(b => {
       const arr = store.db[b.coll] || [];
