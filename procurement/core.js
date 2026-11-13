@@ -1875,7 +1875,9 @@
         catch (e) { console.warn('[Seed] could not load', f.url, e.message); }   // tried again next time
       }
       let total = 0;
+      applyDataFixes();   // first, so a copy imported by hand is recognised by its corrected number
       for (const pack of packs) total += applyPack(pack, st);
+      applyDataFixes();
       if (packs.length) store.save();
       if (total) store.emit('change', { coll: 'seed', action: 'create' });
       return total;
@@ -1941,6 +1943,26 @@
     return added;
   }
   Proc.applySeeds = applySeeds;
+  /* Corrections to built-in records already on a computer. Each applies only while the record still holds
+     the old value, so a value someone has since edited is never overwritten. */
+  const DATA_FIXES = [
+    // P.O. Log, May 2026, row 76 (Jerome Simpson, ground provisions, 12 May): 1121503 belongs to April;
+    // the next row is 1121601 Earl Brady, and their orders run in pairs (1121611 / 1121613), so 1121603.
+    { coll: 'purchaseOrders', field: 'poNumber', from: '1121503', to: '1121603', where: r => /simpson/i.test(r.supplierName || '') && r.date === '2026-05-12' },
+    // P.O. Log, April 2026, row 11 (Byron Cohall, 10 April): typed with an extra digit (between 1121502 and 1121504)
+    { coll: 'purchaseOrders', field: 'poNumber', from: '11214503', to: '1121503' },
+    // PRS return Oct-Dec 2025: typed with an extra digit (between 1115668 and 1115674-75, same day)
+    { coll: 'purchaseOrders', field: 'poNumber', from: '11156771-73', to: '1115671-73' }
+  ];
+  function applyDataFixes() {
+    let n = 0;
+    // Matched by the mistyped value itself, so a copy brought in by hand (with its own id) is corrected too.
+    DATA_FIXES.forEach(f => {
+      store.list(f.coll).filter(r => String(r[f.field]) === f.from && (!f.where || f.where(r))).forEach(r => { store.upsert(f.coll, { id: r.id, [f.field]: f.to }, { silent: true }); n++; });
+    });
+    if (n) { try { Proc.audit('Data correction', n + ' mistyped PO number' + (n === 1 ? '' : 's') + ' corrected'); } catch (e) { /* audit not ready */ } store.emit('change', { coll: 'purchaseOrders', action: 'update' }); }
+    return n;
+  }
 
   const sync = Proc.sync = {
     state: 'off', lastSync: null, fileId: null, docsFolderId: null, timer: null, busy: false,
