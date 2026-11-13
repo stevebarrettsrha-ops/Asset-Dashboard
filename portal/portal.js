@@ -670,12 +670,22 @@
   function routeHome(s) {
     if (!s) return renderLanding();
     const r = ROLES[s.card] || ROLES[s.role];
-    // Came from a dashboard link (portal.html?next=stores.html#/...): go back there when the role may use it.
+    // Came from a dashboard link (portal.html?next=stores.html#/...): go back there only when that page
+    // belongs to the badge that was picked. The Administrator and Operations badges always open their own
+    // console / overview — the site's front page is the Fixed Asset Register, so "next" is often index.html.
     const next = nextPage();
-    if (next) { const k = Object.keys(SYSTEMS).find(x => SYSTEMS[x].url === next.split('#')[0]); if (k && (s.systems || []).indexOf(k) >= 0) { location.href = next; return; } }
-    if (r.home === 'console') { location.hash = '#console'; renderConsole(); }
-    else if (r.home === 'hub') { location.hash = '#hub'; renderHub(); }
-    else location.href = r.home;
+    if (next && r.home !== 'console' && r.home !== 'hub') {
+      const k = Object.keys(SYSTEMS).find(x => SYSTEMS[x].url === next.split('#')[0]);
+      if (k && r.systems.indexOf(k) >= 0 && (s.systems || []).indexOf(k) >= 0) { enter(next); return; }
+    }
+    if (r.home === 'console') { history.replaceState(null, '', location.pathname + '#console'); renderConsole(); }
+    else if (r.home === 'hub') { history.replaceState(null, '', location.pathname + '#hub'); renderHub(); }
+    else enter(r.home);
+  }
+  /** Open a dashboard chosen on the portal (it lets that tab in without asking again). */
+  function enter(page) {
+    try { sessionStorage.setItem('mphEnter:' + page.split('#')[0], '1'); } catch (e) { /* ignore */ }
+    location.href = page;
   }
   function nextPage() {
     try { const n = new URLSearchParams(location.search).get('next') || ''; return /^[a-z][a-z0-9-]*\.html(#[^\s]*)?$/i.test(n) ? n : ''; } catch (e) { return ''; }
@@ -1040,6 +1050,10 @@
     if (!synced && storedToken()) { const b = $('#syncBtn'); if (b) runPreSync(); }
     void s;
   }
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[href$=".html"]');
+    if (a) { try { sessionStorage.setItem('mphEnter:' + a.getAttribute('href').split('#')[0], '1'); } catch (x) { /* ignore */ } }
+  }, true);
   window.addEventListener('hashchange', () => { const s = session(); if (!s) return renderLanding(); if (location.hash === '#console' && s.role === 'admin') renderConsole(); else if (location.hash === '#hub') renderHub(); else if (!location.hash) renderLanding(); });
   window.PortalApp = { loadAccounts, hashPassword, session, mergeCloud, payload };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

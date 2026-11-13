@@ -234,7 +234,7 @@
           registeredAt: today(), registeredBy: domain.officer().name, unitCost: r.unitCost, supplierId: r.po.supplierId || '', deliveryId: r.delivery ? r.delivery.id : '', notes: v.notes, intakeKey: util.uid('AIK'), via: 'manual' });
         if (domain.afterRegister) domain.afterRegister(reg);
         Proc.audit('Register Asset', codes.join(', ') + ' — PO ' + r.po.poNumber + ' · ' + lineLabel(r), r.po.id);
-        ui.toast(v.qty + ' ' + util.plural(v.qty, 'asset') + ' recorded as registered'); router.refresh();
+        ui.toast(v.qty + ' ' + util.plural(v.qty, 'asset') + ' recorded as registered — ' + (v.qty === 1 ? 'it is' : 'they are') + ' added to the Fixed Asset Register the next time it opens'); router.refresh();
         return true;
       }
       const prefill = { intakeKey: util.uid('AIK'), poId: r.po.id, lineIndex: r.index, description: lineLabel(r), supplier: r.supplier, unitPrice: r.unitCost, qty: v.qty,
