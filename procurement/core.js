@@ -501,7 +501,8 @@
     const inS = incoming.settings || {}, myS = target.settings = target.settings || {};
     if ((inS.updatedAt || 0) > (myS.updatedAt || 0)) {
       const officers = Object.assign({}, inS.officers, myS.officers), counters = Object.assign({}, myS.counters);
-      target.settings = Object.assign({}, inS, { officers, counters }); changed++;
+      const seedsApplied = Object.assign({}, myS.seedsApplied, inS.seedsApplied);
+      target.settings = Object.assign({}, myS, inS, { officers, counters, seedsApplied }); changed++;
     } else if (inS.officers) {
       Object.keys(inS.officers).forEach(u => { if (!(myS.officers || {})[u]) { myS.officers = Object.assign({}, myS.officers, { [u]: inS.officers[u] }); changed++; } });
     }

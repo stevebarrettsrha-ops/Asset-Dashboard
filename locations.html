@@ -818,7 +818,19 @@
                 try { localStorage.setItem(STORAGE_KEY + '_backup_v' + (storedVersion || '1'), raw); } catch (e) {}
             }
             if (needSeed) {
-                db = { departments: SEED_DEPARTMENTS() };
+                // Nothing came back from storage: any safety copy kept on this computer comes first (the
+                // merge keeps what it starts from), then the built-in records fill in the rest — so a storage
+                // hiccup can never leave the built-in records in place of the user's own.
+                let base = null;
+                try {
+                    const keys = Object.keys(localStorage).filter(k => k.indexOf(STORAGE_KEY + '_backup_v') === 0 || k === STORAGE_KEY);
+                    keys.forEach(k => {
+                        let b = null; try { b = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { b = null; }
+                        if (!b || !Array.isArray(b.departments) || !b.departments.length) return;
+                        base = base && window.mphMergeLocationRecords ? window.mphMergeLocationRecords(base, b).merged : b;
+                    });
+                } catch (e) { /* storage unreadable — the built-in records are a start, and the next sync merges the rest */ }
+                db = base && window.mphMergeLocationRecords ? window.mphMergeLocationRecords(base, { departments: SEED_DEPARTMENTS() }).merged : { departments: SEED_DEPARTMENTS() };
             } else if (window.mphMergeLocationRecords) {
                 db = window.mphMergeLocationRecords(db, { departments: SEED_DEPARTMENTS() }).merged;
             }
@@ -2358,11 +2370,9 @@
         document.getElementById('modalBox').innerHTML = `
             <h3>Restore from backup</h3>
             <p class="sub">The file contains ${esc(summary)}.<br><br>
-            <b>Merge</b> adds new departments, rooms and items to your current records — nothing you already have is removed.<br>
-            <b>Replace</b> discards your current records and keeps only the file.</p>
+            The file is <b>merged</b> into your current records: new departments, rooms and items are added, and nothing you already have is replaced or removed.</p>
             <div class="modal-actions">
                 <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-ghost" id="importReplaceBtn">Replace</button>
                 <button class="btn btn-primary" id="importMergeBtn">Merge</button>
             </div>`;
         openModal();
@@ -2371,14 +2381,7 @@
             const r = mergeIntoDb(data); _reconcileAfterImport(); save(); goHome();
             toast('Merged: +' + r.addedDepts + ' depts, +' + r.addedRooms + ' rooms, +' + r.addedItems + ' items', 'success');
         };
-        document.getElementById('importReplaceBtn').onclick = () => {
-            closeModal();
-            // deletions and transfers still hold — a backup file is not a
-            // licence to resurrect what the user removed or un-move what
-            // they transferred
-            db = data; _reconcileAfterImport(); save(); goHome();
-            toast('Records replaced', 'success');
-        };
+        // There is no "replace": a backup can only add to the records, never wipe them.
     }
 
     /* ============================================================

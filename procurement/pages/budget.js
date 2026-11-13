@@ -205,9 +205,26 @@
     if (!entries.length) throw new Error('No budget lines were found under the header row.');
     // Keep one empty row for lines on the sheet with nothing requested so every line shows.
     const existing = monthRec(ym);
+    let mergeNote = '';
+    if (existing && (existing.entries || []).length) {
+      // The month is already recorded (perhaps edited on the Budget page): keep every line as it is,
+      // fill in only blanks, and add the sheet's lines that are not there yet.
+      const kept = (existing.entries || []).map(e => Object.assign({}, e)), used = new Set();
+      let added = 0, filled = 0;
+      entries.forEach(ne => {
+        const i = kept.findIndex((e, k) => !used.has(k) && e.lineId === ne.lineId && (!ne.supplier || !e.supplier || key(e.supplier) === key(ne.supplier)));
+        if (i >= 0) {
+          used.add(i);
+          ['amount', 'comment', 'supplier'].forEach(f => { if ((kept[i][f] === undefined || kept[i][f] === null || kept[i][f] === '' || kept[i][f] === 0) && ne[f]) { kept[i][f] = ne[f]; filled++; } });
+        } else if (ne.amount || ne.comment) { kept.push(ne); added++; }
+      });
+      entries.length = 0; kept.forEach(e => entries.push(e));
+      mergeNote = ' Merged with what was already recorded for ' + monthName(ym) + ': ' + added + ' line' + (added === 1 ? '' : 's') + ' added, ' + filled + ' blank' + (filled === 1 ? '' : 's') + ' filled in, nothing replaced.';
+    }
     const rec = store.upsert('budgetMonths', Object.assign({}, existing ? { id: existing.id } : {}, {
-      month: ym, fy, commitment: commitment !== null ? util.round2(commitment) : num(existing && existing.commitment),
-      contractualOverride: contractualCur !== null && Math.abs(contractualCur - util.sum(entries.filter(e => e.contractual), e => e.amount)) > 0.5 ? util.round2(contractualCur) : null,
+      month: ym, fy, commitment: existing && num(existing.commitment) ? num(existing.commitment) : (commitment !== null ? util.round2(commitment) : 0),
+      contractualOverride: existing && existing.contractualOverride !== null && existing.contractualOverride !== undefined ? existing.contractualOverride
+        : (contractualCur !== null && Math.abs(contractualCur - util.sum(entries.filter(e => e.contractual), e => e.amount)) > 0.5 ? util.round2(contractualCur) : null),
       entries, status: existing && existing.status === 'Approved' ? 'Approved' : 'Submitted', importedFrom: file.name, submittedAt: (existing && existing.submittedAt) || new Date().toISOString()
     }));
     let prevNote = '';
@@ -230,7 +247,7 @@
       prevNote = ' ' + monthName(prevYm) + '’s approved amounts were recorded from the same sheet.';
     }
     Proc.audit('Import Budget', monthName(ym) + ' approval sheet from ' + file.name, rec.id);
-    return { ym, entries: entries.length, note: prevNote };
+    return { ym, entries: entries.length, note: mergeNote + prevNote };
   }
 
   /* ------------------------------------------------------------ PDFs */

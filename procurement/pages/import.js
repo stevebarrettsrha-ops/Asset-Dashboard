@@ -262,10 +262,12 @@
     if (p.gojep !== null) patch.viaGojep = p.gojep;
     return patch;
   }
+  /** Nothing to add: every field the PRS row carries is already filled in on the purchase order. */
   function samePatch(po, patch) {
+    const has = v => !(v === undefined || v === null || v === '' || (typeof v === 'number' && !v));
     return Object.keys(patch).every(k => {
-      if (k === 'prs') return po.prs && Object.keys(patch.prs).every(d => d === 'file' || (po.prs[d] || '') === (patch.prs[d] || ''));
-      return po[k] === patch[k];
+      if (k === 'prs') return po.prs && Object.keys(patch.prs).every(d => d === 'file' || !has(patch.prs[d]) || has(po.prs[d]));
+      return !has(patch[k]) || has(po[k]);
     });
   }
   function matchPRS(p, idx, pending) {
@@ -693,7 +695,13 @@
           if (!po) return;
           if (samePatch(po, pt.patch)) return;
           before.push({ coll: 'purchaseOrders', rec: util.clone(po) });
-          const patch = Object.assign({ id: po.id }, pt.patch, { prs: Object.assign({}, po.prs || {}, pt.patch.prs) });
+          // Fill in only what the purchase order does not have yet — recorded values are never replaced.
+          const blank = v => v === undefined || v === null || v === '' || (typeof v === 'number' && !v);
+          const patch = { id: po.id };
+          Object.keys(pt.patch).forEach(k => { if (k !== 'prs' && blank(po[k])) patch[k] = pt.patch[k]; });
+          const prs = Object.assign({}, po.prs || {});
+          Object.keys(pt.patch.prs || {}).forEach(k => { if (blank(prs[k])) prs[k] = pt.patch.prs[k]; });
+          patch.prs = prs;
           if (!po.total && pt.prs.award) { patch.total = pt.prs.award; patch.subtotal = pt.prs.award; }
           if (!po.description && pt.prs.title) patch.description = pt.prs.title;
           store.upsert('purchaseOrders', patch, { silent: true });
