@@ -192,7 +192,8 @@
     list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || String(a.ref || '').localeCompare(String(b.ref || ''), undefined, { numeric: true }));
     if (!list.length) { ui.toast('No comparisons match — try another month or include every comparison.', 'info'); return; }
     ui.toast('Preparing the report (' + list.length + ' ' + util.plural(list.length, 'comparison') + ')…', 'info');
-    try { await Proc.pdf.comparisonReport(list, { title: v.month === 'all' ? 'All months' : label(v.month), output: v.save ? 'save' : 'open' }); Proc.audit('Print Comparison Report', (v.month === 'all' ? 'All months' : label(v.month)) + ' · ' + list.length + ' comparisons'); }
+    const ap = await Proc.approvers.choose({ context: 'comparison-report', title: 'Approved by — price comparison report' }); if (!ap) return;
+    try { await Proc.pdf.comparisonReport(list, { title: v.month === 'all' ? 'All months' : label(v.month), output: v.save ? 'save' : 'open', approver: ap }); Proc.audit('Print Comparison Report', (v.month === 'all' ? 'All months' : label(v.month)) + ' · ' + list.length + ' comparisons'); }
     catch (e) { ui.toast('Could not make the report: ' + e.message, 'error'); }
   }
 
@@ -831,7 +832,7 @@
 
     function printSheet() {
       flush();
-      if (Proc.pdf && Proc.pdf.comparison) { Proc.pdf.comparison(store.get('comparisons', c.id) || c, { output: 'open' }).catch(e => ui.toast(e.message, 'error')); return; }
+      if (Proc.pdf && Proc.pdf.comparison) { const cc = store.get('comparisons', c.id) || c; Proc.approvers.choose({ context: 'comparison', amount: domain.computeComparison(cc).awardTotal, title: 'Approved by — ' + (cc.ref || cc.subject || 'price comparison') }).then(ap => ap && Proc.pdf.comparison(cc, { output: 'open', approver: ap })).catch(e => ui.toast(e.message, 'error')); return; }
       printHtml(c);
     }
     function exportExcel() {
@@ -844,7 +845,7 @@
 
     function drawAll() { drawHead(); drawMatrix(); }
     el.querySelectorAll('#cmpView button').forEach(b => b.onclick = () => setView(b.dataset.v));
-    const sheetReport = output => { flush(); Proc.pdf.comparison(store.get('comparisons', c.id) || c, { layout: 'sheet', output }).then(() => Proc.audit('Print Comparison Sheet', c.ref || c.subject, c.id)).catch(e => ui.toast(e.message, 'error')); };
+    const sheetReport = output => { flush(); const cc = store.get('comparisons', c.id) || c; Proc.approvers.choose({ context: 'comparison', amount: domain.computeComparison(cc).awardTotal, title: 'Approved by — ' + (cc.ref || cc.subject || 'price comparison') }).then(ap => ap && Proc.pdf.comparison(cc, { layout: 'sheet', output, approver: ap }).then(() => Proc.audit('Print Comparison Sheet', c.ref || c.subject, c.id))).catch(e => ui.toast(e.message, 'error')); };
     el.querySelector('[data-act=sheetprint]').onclick = () => sheetReport('open');
     el.querySelector('[data-act=sheetpdf]').onclick = () => sheetReport('save');
     el.querySelector('#xlWrap').addEventListener('click', e => {

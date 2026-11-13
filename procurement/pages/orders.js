@@ -253,7 +253,7 @@
     }
     drawDocs();
 
-    const pdfOut = output => { if (!(Proc.pdf && Proc.pdf.purchaseOrder)) return ui.toast('PDF engine not loaded.', 'error'); return Proc.pdf.purchaseOrder(po, { output }).catch(e => ui.toast(e.message, 'error')); };
+    const pdfOut = output => { if (!(Proc.pdf && Proc.pdf.purchaseOrder)) return ui.toast('PDF engine not loaded.', 'error'); return Proc.approvers.choose({ context: 'po', amount: po.total, title: 'Authorised by — PO ' + (po.poNumber || '') }).then(ap => ap && Proc.pdf.purchaseOrder(po, { output, approver: ap })).catch(e => ui.toast(e.message, 'error')); };
     el.querySelectorAll('[data-itype]').forEach(sel => sel.onchange = () => {
       const i = +sel.dataset.itype;
       const copy = util.clone(items); copy[i] = Object.assign({}, copy[i], { itemType: sel.value });
@@ -300,7 +300,7 @@
       items.push({ label: 'Record delivery', icon: 'truck', onClick: () => { location.hash = '#/receiving?po=' + po.id; } });
       items.push({ label: 'Record invoice', icon: 'receipt', onClick: () => { location.hash = '#/invoices?po=' + po.id + '&new=1'; } });
     }
-    items.push({ label: 'Download PO PDF', icon: 'download', onClick: () => Proc.pdf && Proc.pdf.purchaseOrder(po, { output: 'save' }) });
+    items.push({ label: 'Download PO PDF', icon: 'download', onClick: () => Proc.pdf && Proc.approvers.choose({ context: 'po', amount: po.total, title: 'Authorised by — PO ' + (po.poNumber || '') }).then(ap => ap && Proc.pdf.purchaseOrder(po, { output: 'save', approver: ap })) });
     items.push({ label: 'Duplicate', icon: 'copy', onClick: () => duplicate(po) });
     if (po.status === 'Paid') items.push({ label: 'Close PO', icon: 'lock', onClick: () => { store.upsert('purchaseOrders', { id: po.id, status: 'Closed' }); Proc.audit('Close PO', poLabel(po), po.id); router.refresh(); } });
     items.push({ sep: true });

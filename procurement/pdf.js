@@ -102,7 +102,7 @@
       drawLetterhead(doc, o);
       if (o.side) drawSidePanel(doc);
       // The board-members footer belongs on the official approval letters only (memos, with the side panel).
-      if (o.side || o.boardFooter) drawFooter(doc, o);
+      if ((o.side || o.boardFooter) && !o.noBoardFooter) drawFooter(doc, o);
       const seg = segments.find(s => p >= s.start && p <= s.end) || { start: 1, end: n };
       const count = seg.end - seg.start + 1;
       if (count > 1 || o.alwaysNumber) {
@@ -536,7 +536,7 @@
       paragraph(ctx, [{ t: 'Conditions: ', b: true }, 'Please quote the PO number on all invoices and delivery notes. Goods/services must match the specification and quantities above; deliveries are subject to inspection and acceptance by the receiving department. Invoices are paid on receipt of goods and a valid invoice in accordance with the stated payment terms.']);
       y = ctx.y + 34;
       const cw = (w - M * 2 - 40) / 3;
-      const sigs = [['Prepared by', off.name, off.title], ['Authorised by', S.signatories.parishManager.name, S.signatories.parishManager.title], ['Accepted by supplier', '', 'Name, signature & date']];
+      const sigs = [['Prepared by', off.name, off.title], ['Authorised by', (o.approver || {}).name || '', (o.approver || {}).title || ''], ['Accepted by supplier', '', 'Name, signature & date']];
       sigs.forEach(([lab, nm, ti], i) => {
         const x = M + i * (cw + 20);
         doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5); doc.line(x, y, x + cw, y);
@@ -677,7 +677,8 @@
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); doc.text(clean(domain.amountWords(grand)), M, y + 30, { maxWidth: w - M * 2 });
     y += 76;
     const off = domain.officer(), S = settings(), cw = (w - M * 2 - 40) / 3;
-    [['Procurement Officer', off.name, off.title], ['Checked by', '', ''], ['Approved by', S.signatories && S.signatories.parishManager ? S.signatories.parishManager.name : '', 'Parish Manager']].forEach(([lab, nm, ti], i) => {
+    const ap = o.approver || {};
+    [['Procurement Officer', off.name, off.title], ['Checked by', '', ''], ['Approved by', ap.name || '', ap.title || '']].forEach(([lab, nm, ti], i) => {
       const x = M + i * (cw + 20);
       doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5); doc.line(x, y, x + cw, y);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, GREY); doc.text(clean(lab).toUpperCase(), x, y + 10);
@@ -685,6 +686,28 @@
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); if (ti) doc.text(clean(ti), x, y + 33);
     });
   }
+
+  /** Approval memo for one amount over the memo limit on the monthly approval sheet, to the Parish Manager. */
+  pdf.budgetLineMemo = function (d, o) {
+    o = o || {};
+    const doc = newDoc(), ctx = memoCtx(doc), S = settings(), pm = Object.assign({ name: '', title: 'Parish Manager', org: '' }, (S.signatories || {}).parishManager || {}), off = domain.officer();
+    memoHeader(ctx, [['To:', [pm.name, pm.title, pm.org]], ['From:', [off.name, off.title, S.org.hospital]], ['Date:', [util.dateLong(util.today())]]],
+      'Request for approval — ' + d.line + (d.supplier ? ' (' + d.supplier + ')' : '') + ' — ' + d.month);
+    para(ctx, ['Approval is requested for the procurement of ', { t: d.line, b: true }, d.supplier ? ' from ' : '', d.supplier ? { t: d.supplier, b: true } : '', ' in the amount of ', { t: money(d.amount), b: true },
+      ' (' + domain.amountWords(d.amount) + ') for ', { t: d.month, b: true }, '.']);
+    const facts = [];
+    if (d.allocation) facts.push('The monthly allocation for ' + d.line + ' is ' + money(d.allocation) + '.');
+    if (d.previous) facts.push('The amount for approval for this line last month (' + d.prevMonth + ') was ' + money(d.previous) + '.');
+    if (d.contractual) facts.push('This is a contractual (MOH) amount.');
+    if (facts.length) para(ctx, [facts.join(' ')]);
+    if (d.comment) para(ctx, [{ t: 'Details: ', b: true }, d.comment]);
+    para(ctx, ['Amounts above ' + money(Proc.approvers ? Proc.approvers.MEMO_LIMIT : 500000) + ' require the approval of the ' + (pm.title || 'Parish Manager') + '. It forms part of the ' + d.month + ' Procurement for Approval sheet.']);
+    para(ctx, ['Your approval is respectfully requested.']);
+    signature(ctx, off.name, off.title, S.org.hospital, { name: pm.name, title: pm.title });
+    finish(doc, { side: true, noBoardFooter: true });   // no board-members footer on these memos
+    doc.setProperties({ title: 'Approval memo - ' + d.line + ' - ' + d.month, creator: 'Procurement Management System' });
+    return Promise.resolve(deliver(doc, 'Approval Memo - ' + fileSafe(d.line + (d.supplier ? ' - ' + d.supplier : '')) + ' - ' + fileSafe(d.month) + '.pdf', o.output || 'open'));
+  };
 
   pdf.comparison = function (cmp, o) {
     o = o || {};
@@ -772,7 +795,7 @@
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); if (ti) doc.text(clean(ti), x, y + 33);
       });
       // Final page: who the officer is taking each item from.
-      drawAwardSchedule(doc, [{ cmp, r }], { M, bottom: 84, subtitle: clean(cmp.ref || cmp.subject || '') });
+      drawAwardSchedule(doc, [{ cmp, r }], { M, bottom: 84, subtitle: clean(cmp.ref || cmp.subject || ''), approver: o.approver });
       finish(doc, { side: false, alwaysNumber: true });
       doc.setProperties({ title: 'Price comparison ' + (cmp.ref || ''), creator: 'Procurement Management System' });
       return Promise.resolve(deliver(doc, (asSheet ? 'Comparison Sheet - ' : 'Price Comparison - ') + fileSafe(cmp.ref || cmp.subject || 'comparison') + '.pdf', o.output));
@@ -835,7 +858,7 @@
         }
       });
       // Final pages: every item in the report, grouped by the supplier it is being bought from.
-      drawAwardSchedule(doc, items.map(x => ({ cmp: x.c, r: x.r })), { M, bottom, subtitle: 'Price comparison report' + (o.title ? ' — ' + o.title : '') });
+      drawAwardSchedule(doc, items.map(x => ({ cmp: x.c, r: x.r })), { M, bottom, subtitle: 'Price comparison report' + (o.title ? ' — ' + o.title : ''), approver: o.approver });
       finish(doc, { side: false, alwaysNumber: true, pageLabel: 'Price comparison report' + (o.title ? ' · ' + o.title : '') });
       doc.setProperties({ title: 'Price comparison report ' + (o.title || ''), creator: 'Procurement Management System' });
       return Promise.resolve(deliver(doc, 'Price Comparison Report - ' + fileSafe(o.title || util.today()) + '.pdf', o.output));
