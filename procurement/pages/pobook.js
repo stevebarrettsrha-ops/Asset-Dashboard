@@ -38,6 +38,38 @@
   const inRange = (b, n) => n >= Number(b.firstSerial) && n <= Number(b.lastSerial);
   function bookFor(n) { return books().find(b => inRange(b, n)) || null; }
 
+  /* Books for the purchase orders already on record. The POs are handwritten in pre-numbered books of
+     50 leaves (e.g. 1124551–1124600), so each number on record belongs to the book whose 50-number block
+     holds it. A missing book is registered once, named by its range until its cover number is entered;
+     books registered by hand are never changed. */
+  const LEAVES = 50;
+  function ensureBooks() {
+    const have = books();
+    const covered = n => have.some(b => inRange(b, n));
+    const starts = new Set();
+    store.list('purchaseOrders').forEach(p => serialsOf(p.poNumber).forEach(n => {
+      if (String(n).length !== 7 || covered(n)) return;   // 7-digit PO serials only (a mistyped number is left out)
+      starts.add(Math.floor((n - 1) / LEAVES) * LEAVES + 1);
+    }));
+    let made = 0;
+    // Books before the one holding the highest number on record were used up long ago: they are registered
+    // as completed (the record of them is partial — before the P.O. Log only the large PRS orders are on file).
+    let top = 0; store.list('purchaseOrders').forEach(p => serialsOf(p.poNumber).forEach(n => { if (String(n).length === 7 && n > top) top = n; }));
+    const currentFirst = top ? Math.floor((top - 1) / LEAVES) * LEAVES + 1 : Infinity;
+    Array.from(starts).sort((a, b) => a - b).forEach(first => {
+      const last = first + LEAVES - 1;
+      if (have.some(b => Number(b.firstSerial) <= last && Number(b.lastSerial) >= first)) return;   // overlaps a registered book
+      const past = last < currentFirst;
+      const rec = store.upsert('poBooks', Object.assign({ bookNo: first + '–' + last, firstSerial: first, lastSerial: last, receivedDate: '', custodian: '', voids: [], auto: true,
+        notes: 'Registered automatically from the purchase orders on record. Change the book number to the one printed on its cover.' }, past ? { status: 'Completed', pastBook: true } : {}), { silent: true });
+      have.push(rec); made++;
+    });
+    if (made) store.emit('change', { coll: 'poBooks', action: 'create' });
+    return made;
+  }
+  /** The book a purchase order's number falls in (null when it is in none). */
+  function bookOfPO(p) { const n = serialsOf(p.poNumber)[0]; return n ? bookFor(n) : null; }
+
   /** Map serial → PO for every purchase order whose number falls in the book's range. */
   function usage(book) {
     const first = Number(book.firstSerial), last = Number(book.lastSerial);
@@ -313,11 +345,13 @@
 
   /* --------------------------------------------------------------- pages */
   function renderList(el) {
+    ensureBooks();
     const all = books();
-    const bookPOs = store.list('purchaseOrders').filter(p => p.bookId);
+    // Every purchase order on record — the same list as the Purchase Orders page — with the book its number is in.
+    const bookPOs = store.list('purchaseOrders').map(p => { const b = p.bookId ? store.get('poBooks', p.bookId) || bookOfPO(p) : bookOfPO(p); return Object.assign({}, p, { bookId: b ? b.id : '', bookNo: b ? b.bookNo : '' }); });
     const stats = all.map(b => ({ b, u: usage(b) }));
     const open = stats.filter(s => bookState(s.b, s.u) !== 'Completed');
-    const gaps = util.sum(stats, s => s.u.gaps.length);
+    const gaps = util.sum(stats.filter(s => !s.b.pastBook), s => s.u.gaps.length);
     const nxt = suggestNext();
     el.innerHTML = ui.pageHead({
       title: 'PO Book', sub: 'Purchase orders written by hand in the pre-numbered PO books — record each one, void spoilt leaves, and reconcile every book.',
@@ -337,7 +371,7 @@
           '<div class="row between small mt-1"><span>' + u.used.size + ' recorded · ' + u.voids.size + ' void' + (u.gaps.length ? ' · <b class="text-warning">' + u.gaps.length + ' ' + util.plural(u.gaps.length, 'gap') + '</b>' : '') + '</span><span class="strong">' + util.moneyShort(u.value) + '</span></div>' +
           (u.next ? '<div class="small muted mt-1">Next number: <b>' + u.next + '</b></div>' : '') + '</div></div>';
       }).join('') + '</div>' : '<div class="card mb-3">' + ui.empty('file', 'No PO books registered yet', 'Register each pre-numbered PO book with its first and last PO number. The system then suggests the next number, flags gaps and links POs already imported from the PO Log.', '<button class="btn primary" data-a="book">' + ui.icon('plus', 'sm') + 'Register a book</button>') + '</div>') +
-      '<div class="card"><div class="card-h"><div><h3>Handwritten purchase orders</h3><div class="sub">Every PO recorded or linked to a book. They also appear in Purchase Orders and each supplier\'s file.</div></div></div><div id="pbT"></div></div>';
+      '<div class="card"><div class="card-h"><div><h3>Handwritten purchase orders</h3><div class="sub">Every purchase order on record, with the book its number is in — the same list as Purchase Orders and each supplier\'s file.</div></div></div><div id="pbT"></div></div>';
     ui.table(el.querySelector('#pbT'), {
       rows: bookPOs, placeholder: 'Search PO #, supplier, description…', initialSort: { key: 'poNumber', dir: -1 },
       search: p => [p.poNumber, p.supplierName, p.description, p.department, p.bookNo].join(' '),
@@ -345,7 +379,7 @@
       onRow: p => router.go('orders/' + p.id),
       columns: [
         { key: 'poNumber', label: 'PO #', render: p => '<span class="t-title mono">' + esc(p.poNumber) + '</span>', sort: p => serialsOf(p.poNumber)[0] || 0 },
-        { key: 'bookNo', label: 'Book', render: p => '<span class="chip">Book ' + esc(p.bookNo) + '</span>' },
+        { key: 'bookNo', label: 'Book', render: p => p.bookNo ? '<span class="chip">Book ' + esc(p.bookNo) + '</span>' : '<span class="muted">—</span>', sort: p => serialsOf(p.poNumber)[0] || 0 },
         { key: 'date', label: 'Date', render: p => '<span class="nowrap">' + util.date(p.date) + '</span>' },
         { key: 'supplierName', label: 'Supplier', render: p => '<a href="#/suppliers/' + esc(p.supplierId) + '">' + esc(p.supplierName) + '</a>' },
         { key: 'description', label: 'Description', render: p => '<div class="truncate" style="max-width:340px">' + esc(p.description) + '</div><div class="t-sub">' + esc(p.department || '') + '</div>' },
