@@ -396,6 +396,7 @@
     try {
       await pull(); await push();
       if (session() && session().role === 'admin') { for (const n of GDRIVE.UNIT_FOLDERS) await unitFolder(n).catch(() => {}); }
+      if (window.MPHBuiltInDrive && !MPHBuiltInDrive.status().complete) MPHBuiltInDrive.run({ onProgress: builtinProgress }).then(builtinProgress).catch(() => {});
       localStorage.setItem(KEYS.lastSync, String(Date.now()));
       setCloudState('ok'); startAutoSync(); return true;
     } catch (e) { setCloudState(cloud.token ? 'err' : 'off'); throw e; }
@@ -986,10 +987,33 @@
       '<dt>Unit folders</dt><dd>Administrator · Procurement · Stores · Operations — each unit\'s records are saved in its own folder inside the hospital\'s Google Drive folder</dd>' +
       '<dt>Accounts</dt><dd>' + loadAccounts().length + ' on this computer · passwords are stored and shared as one-way hashes only</dd></dl>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn gold" data-sync>⟳ Sync now</button><button class="btn" data-dl>⬇ Download accounts backup</button><label class="btn">⬆ Restore from backup<input type="file" accept=".json" hidden data-up></label></div>' +
-      '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>';
+      '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>' +
+      '<div class="panel" style="max-width:820px;margin-top:18px"><div class="panel-h"><h3>Built-in data in Google Drive</h3></div><div class="panel-b">' +
+      '<p class="muted small" style="margin-bottom:12px">The website carries the hospital’s data files — the register and location records it started with, the signed room inventory sheets, the workbooks and the built-in procurement records. The first sync copies each one to “Built-in data” in the hospital’s Google Drive folder, so they are kept there and can later be removed from the website.</p>' +
+      '<div id="builtinBox">' + builtinHtml() + '</div><div style="display:flex;gap:10px;margin-top:12px"><button class="btn gold" data-builtin>⬆ Copy to Drive now</button><span class="muted small" id="builtinMsg"></span></div></div></div>';
+    el.querySelector('[data-builtin]').onclick = async () => {
+      const msg = $('#builtinMsg'), btn = el.querySelector('[data-builtin]');
+      if (!window.MPHBuiltInDrive) return;
+      if (!MPHBuiltInDrive.connected()) { try { cloud.token = await requestToken(); } catch (e) { toast('Google sign-in is needed to copy the files: ' + e.message, 'err'); return; } }
+      btn.disabled = true;
+      try {
+        const r = await MPHBuiltInDrive.run({ force: true, onProgress: p => { msg.textContent = 'Copying ' + p.done + ' of ' + p.total + (p.current ? ' — ' + p.current : '') + '…'; builtinProgress(); } });
+        builtinProgress();
+        msg.textContent = r.skipped ? r.skipped : (r.failed && r.failed.length ? r.failed.length + ' could not be copied — ' + r.failed[0] : 'Done — ' + r.done + ' of ' + r.total + ' files are in Google Drive.');
+      } catch (e) { msg.textContent = 'Stopped: ' + e.message; }
+      btn.disabled = false;
+    };
     el.querySelector('[data-sync]').onclick = () => syncNow(true).then(() => { toast('Synced with Google Drive'); tabCloud(el); }).catch(e => toast('Sync failed: ' + e.message, 'err'));
     el.querySelector('[data-dl]').onclick = () => { const b = new Blob([JSON.stringify(payload(), null, 1)], { type: 'application/json' }); const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = 'portal-accounts-backup-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(l); l.click(); setTimeout(() => l.remove(), 500); };
     el.querySelector('[data-up]').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); const n = mergeCloud(j.data || j); cloudDirty = true; scheduleCloudPush(); toast(n ? 'Backup merged — ' + n + ' accounts updated' : 'Nothing newer in that backup'); tabCloud(el); } catch (err) { toast('Not a valid backup file', 'err'); } }; r.readAsText(f); };
+  }
+  /* Built-in data files copied to Google Drive (builtin-drive.js). */
+  function builtinProgress() { const box = $('#builtinBox'); if (box) box.innerHTML = builtinHtml(); }
+  function builtinHtml(p) {
+    const st = window.MPHBuiltInDrive ? MPHBuiltInDrive.status() : { done: 0, total: null };
+    const total = st.total || '…';
+    return '<dl class="kv"><dt>Saved to Drive</dt><dd>' + st.done + ' of ' + total + ' files' + (st.complete ? ' ✓ — every built-in file is in Google Drive (folder “Built-in data”), so they can be taken off the website' : '') + '</dd>' +
+      '<dt>Last checked</dt><dd>' + (st.checked ? fmtDT(st.checked) : 'Not yet on this computer') + '</dd></dl>';
   }
   function tabActivity(el) {
     const log = readJSON(KEYS.log, []);

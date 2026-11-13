@@ -21,6 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
   <!-- Public page: no sign-in and none of the hospital's records are loaded here. -->
   <script>window.PROC_APP = { id: 'request', system: 'request', name: 'Purchase Requisition', audience: 'public' };</script>
+  <script>/* Offline copy of the site (sw.js) */ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </head>
 <body>
   <header class="pub-top"><div class="sb-logo" style="width:38px;height:38px;font-size:13px">REQ</div><div><div class="t">Purchase Requisition</div><div class="s" id="pubSub">Southern Regional Health Authority · Public Procurement Unit</div></div></header>
