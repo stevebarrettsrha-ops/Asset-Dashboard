@@ -12798,7 +12798,9 @@
             CLIENT_ID: '438550085155-noiuiem0qtikha3l6ssup2r41qidfuo4.apps.googleusercontent.com',
             FOLDER_ID: '1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr',
             BACKUP_FILE_NAME: 'ASSET_DASHBOARD_BACKUP.json',
-            SCOPES: 'https://www.googleapis.com/auth/drive.file',
+            // Full Drive access (as the portal): 'drive.file' only shows files the signed-in account
+            // created itself, so every other user could not see the shared backup.
+            SCOPES: 'https://www.googleapis.com/auth/drive',
 
             // --- Cross-account (public) read access -------------------------
             // The OAuth scope above ('drive.file') only lets the signed-in
@@ -13124,7 +13126,10 @@
             sessionStorage.setItem('assetDashboardGoogleTokenExpiry', expiry.toISOString());
 
             updateCloudUI(true);
+            // Share the sign-in with the portal, Procurement and Stores on this computer.
+            try { localStorage.setItem('assetDashboardGoogleAccessToken', googleAccessToken); localStorage.setItem('assetDashboardGoogleTokenExpiry', String(expiry.getTime())); } catch (e) { /* ignore */ }
             await findExistingBackupFile();
+            if (window._mphCatchUpAfterSignIn && typeof window.mphCloudCatchUp === 'function') { window._mphCatchUpAfterSignIn = false; window.mphCloudCatchUp(); return; }
             if (_inMandatoryLoginSync) { performMandatoryLoginSync(); return; }
             showForcedSyncAfterConnectModal();
         }
@@ -38197,6 +38202,97 @@
         // else is sent to the portal. The register's own login page, password
         // prompts and "sync before entering" step are not used any more — the data
         // syncs with Google Drive in the background instead.
+        // ============================================
+        // EVERY USER SEES THE SAME REGISTER
+        // Brings the shared Google Drive copy into this computer whenever the
+        // dashboard opens and every 2 minutes after (combined, never replaced).
+        // When that is not possible a bar says so: "this computer's records only".
+        // ============================================
+        (function () {
+            var busy = false, timer = null;
+            function bar(html, kind) {
+                var b = document.getElementById('mphSyncBar');
+                if (!html) { if (b) b.remove(); return; }
+                if (!b) {
+                    b = document.createElement('div'); b.id = 'mphSyncBar';
+                    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9000;max-width:min(720px,calc(100vw - 32px));padding:12px 16px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:.92rem;line-height:1.4;display:flex;gap:12px;align-items:center;flex-wrap:wrap';
+                    document.body.appendChild(b);
+                }
+                b.style.background = kind === 'err' ? 'var(--danger-bg, #fdecea)' : 'var(--warning-bg, #fff6e0)';
+                b.style.border = '1px solid ' + (kind === 'err' ? 'var(--danger, #c62828)' : 'var(--warning-border, #e0a800)');
+                b.style.color = 'var(--text-primary, #222)';
+                b.innerHTML = html;
+                var s = b.querySelector('[data-sync-now]'); if (s) s.onclick = syncNow;
+                var x = b.querySelector('[data-sync-close]'); if (x) x.onclick = function () { bar(''); };
+            }
+            function esc(t) { return String(t || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+            var BTN = ' <button class="btn cloud-btn-primary" data-sync-now style="padding:6px 14px">Sync now</button><button class="btn cloud-btn-secondary" data-sync-close style="padding:6px 10px">Dismiss</button>';
+            function lastSyncText() {
+                var t = localStorage.getItem('assetDashboardLastSyncTime');
+                return t ? 'Last synced ' + new Date(t).toLocaleString() + '.' : 'Not synced on this computer yet.';
+            }
+            function syncNow() {
+                if (typeof isCloudConnected !== 'undefined' && isCloudConnected && googleAccessToken) { catchUp(); return; }
+                window._mphCatchUpAfterSignIn = true;
+                bar('Opening Google sign-in…');
+                if (typeof triggerDirectGoogleSignIn === 'function') triggerDirectGoogleSignIn();
+            }
+            async function whoAmI() {
+                try { var r = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', { headers: { Authorization: 'Bearer ' + googleAccessToken } }); var j = await r.json(); return (j.user && j.user.emailAddress) || ''; } catch (e) { return ''; }
+            }
+            // Does the Drive copy hold anything this computer does not have yet?
+            function hasNews(cloud) {
+                var local = loadAssetsFromStorage(), byId = new Map(), codes = new Set();
+                local.forEach(function (a) { if (a && a.id) byId.set(a.id, a); if (a && a.assetCode) codes.add(String(a.assetCode).toLowerCase()); });
+                var dels = cloud.deletedAssetIds || [];
+                for (var i = 0; i < dels.length; i++) if (!deletedAssetIds.has(dels[i])) return true;
+                var list = cloud.assets || [];
+                for (var j = 0; j < list.length; j++) {
+                    var ca = list[j]; if (!ca || (ca.id && deletedAssetIds.has(ca.id))) continue;
+                    var mine = ca.id && byId.get(ca.id);
+                    if (mine) { if ((ca._modifiedAt || 0) > (mine._modifiedAt || 0)) return true; }
+                    else if (!(ca.assetCode && codes.has(String(ca.assetCode).toLowerCase()))) return true;
+                }
+                return false;
+            }
+            async function catchUp(o) {
+                o = o || {};
+                if (busy) return; busy = true;
+                try {
+                    if (typeof isCloudConnected === 'undefined' || !isCloudConnected || !googleAccessToken) {
+                        if (!o.quiet) bar('<span><b>Showing this computer’s records only</b> — not connected to Google Drive, so assets added by others are not here. ' + esc(lastSyncText()) + '</span>' + BTN);
+                        return;
+                    }
+                    if (!cloudFileId) { try { await findExistingBackupFile(); } catch (e) { /* below */ } }
+                    var resp = cloudFileId ? await fetchBackupMediaResponse(cloudFileId) : null;
+                    if (resp && resp.status === 401) { if (typeof forceDriveDisconnect === 'function') forceDriveDisconnect('Your Google Drive session has expired.'); bar('<span><b>Showing this computer’s records only</b> — your Google sign-in expired. ' + esc(lastSyncText()) + '</span>' + BTN); return; }
+                    if (!resp || !resp.ok) {
+                        var me = await whoAmI();
+                        bar('<span><b>Showing this computer’s records only.</b> ' + esc((me ? 'The Google account ' + me : 'This Google account') + ' cannot open the hospital’s asset register in Google Drive. Ask the Administrator to put ' + (me || 'your email') + ' on your user account in the portal (User Accounts → Edit → Email); the folder is then shared with you.') + '</span>' + BTN, 'err');
+                        return;
+                    }
+                    var backup = await resp.json();
+                    if (!backup || !backup.data || !Array.isArray(backup.data.assets)) throw new Error('The Google Drive copy could not be read');
+                    if (!o.quiet || hasNews(backup.data)) {
+                        await combineBackupIntoLocal(backup, 'daily');
+                        if (o.quiet) console.log('[Sync] brought in changes from Google Drive');
+                    }
+                    bar('');
+                } catch (e) {
+                    console.warn('[Sync]', e.message);
+                    if (!o.quiet) bar('<span><b>Could not sync with Google Drive</b> (' + esc(e.message) + '). ' + esc(lastSyncText()) + '</span>' + BTN, 'err');
+                } finally {
+                    busy = false;
+                    if (!timer) timer = setInterval(function () {
+                        if (typeof autoSyncInProgress !== 'undefined' && autoSyncInProgress) return;
+                        if (typeof dataIsDirty !== 'undefined' && dataIsDirty) return;   // the upload sync merges first
+                        catchUp({ quiet: true });
+                    }, 120000);
+                }
+            }
+            window.mphCloudCatchUp = catchUp;
+        })();
+
         (function () {
             var KEY = 'mphPortalSession';
             function portalSession() {
@@ -38233,8 +38329,8 @@
                 currentUser = portalUser(p);
                 try { await finishLogin(); }
                 catch (e) { console.error('[Portal sign-in] could not open the dashboard', e); return false; }
-                // Bring in other computers' changes in the background (combined, never replaced).
-                try { if (typeof isCloudConnected !== 'undefined' && isCloudConnected && googleAccessToken && typeof downloadAndRestoreCloudBackup === 'function') downloadAndRestoreCloudBackup().catch(function (e) { console.warn('[Background sync]', e.message); }); } catch (e) {}
+                // Bring in other computers' changes (combined, never replaced) — or say plainly why not.
+                try { if (typeof window.mphCloudCatchUp === 'function') window.mphCloudCatchUp(); } catch (e) {}
                 return true;
             };
             // Any remaining login path goes straight in.

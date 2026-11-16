@@ -2112,6 +2112,18 @@
         // First sync on a computer: keep a copy of the website's built-in data files in Drive.
         if (window.MPHBuiltInDrive && !MPHBuiltInDrive.status().complete) MPHBuiltInDrive.run().catch(e => console.warn('[Built-in data → Drive]', e.message));
       } catch (e) {
+        // A Google account without access to the hospital folder gets a plain explanation.
+        if (/Drive error (403|404)/.test(e.message)) {
+          try {
+            const t = sync.token(), h = { Authorization: 'Bearer ' + t };
+            const f = await fetch('https://www.googleapis.com/drive/v3/files/' + GDRIVE.FOLDER_ID + '?fields=id&supportsAllDrives=true', { headers: h });
+            if (f.status === 403 || f.status === 404) {
+              const me = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', { headers: h }).then(r => r.json()).then(j => (j.user && j.user.emailAddress) || '').catch(() => '');
+              e = new Error((me ? 'The Google account ' + me : 'This Google account') + ' cannot open the hospital’s Google Drive folder. Ask the Administrator to put ' + (me || 'your email') + ' on your user account in the portal — the folder is then shared with you — and sync again.');
+              if (!sync.warnedAccess) { sync.warnedAccess = true; ui.toast(e.message, 'warning', 15000); }
+            }
+          } catch (x) { /* keep the original message */ }
+        }
         console.warn('[Proc sync]', e.message); sync.lastError = e.message; sync.setState(sync.token() ? 'err' : 'off');
         if (/could not be read/.test(e.message) && !sync.warnedUnreadable) { sync.warnedUnreadable = true; ui.toast(e.message + '. Your records are safe on this computer; ask the administrator to check the file in Google Drive.', 'error', 12000); }
       }

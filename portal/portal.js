@@ -29,7 +29,10 @@
     FILE: 'PORTAL_USER_ACCOUNTS.json',
     // The accounts live in the Administrator's own folder inside the hospital folder.
     // The copy at the top of the hospital folder (used before) is still read, so nothing is lost.
-    ADMIN_FOLDER: 'Administrator', UNIT_FOLDERS: ['Administrator', 'Procurement', 'Stores', 'Operations']
+    ADMIN_FOLDER: 'Administrator', UNIT_FOLDERS: ['Administrator', 'Procurement', 'Stores', 'Operations'],
+    // Every Drive folder the dashboards use (main records folder, Fixed Asset invoices, asset imports):
+    // shared with each user's email so anyone can sync with their own Google account.
+    SHARED_FOLDERS: [['1Vocl734yPgv9F36zgjo1DsCB2HCLSNyr', 'Hospital records'], ['1XoFL2Ew5jzrH4h4OjKkVXwlKsKSyzki5', 'Fixed Asset invoices'], ['16_p753mxRvoVrahzjbnx8cXogDrIhYd4', 'Fixed Asset imports']]
   };
   const DEFAULT_HEADINGS = { hospitalName: 'May Pen Hospital', orgName: 'Southern Regional Health Authority' };
   const SESSION_HOURS = 12;
@@ -299,6 +302,61 @@
     if (!r.ok) throw new Error('Google Drive returned ' + r.status);
     return r;
   }
+  /* --------------------------------------------------------- Drive access for everyone
+     Each person syncs with their own Google account. The hospital's folders are shared with the email
+     address on their account (by the Administrator's computer); a Google account without access gets
+     a plain explanation instead of an error code. */
+  async function driveAccount() {
+    try { const j = await (await api('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)')).json(); return (j.user && j.user.emailAddress) || ''; } catch (e) { return ''; }
+  }
+  async function folderAccess() {
+    const t = cloud.token || storedToken();
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + GDRIVE.FOLDER_ID + '?fields=id,capabilities(canAddChildren)&supportsAllDrives=true', { headers: { Authorization: 'Bearer ' + t } });
+    if (r.status === 404 || r.status === 403) return { ok: false };
+    if (!r.ok) return { ok: true };   // some other hiccup: let the sync report it
+    const j = await r.json(); return { ok: true, canWrite: !(j.capabilities && j.capabilities.canAddChildren === false) };
+  }
+  class NoAccessError extends Error {}
+  async function ensureAccess() {
+    const a = await folderAccess();
+    if (a.ok && a.canWrite !== false) return;
+    const who = await driveAccount();
+    throw new NoAccessError((who ? 'The Google account ' + who : 'This Google account') + (a.ok ? ' can open but not change' : ' cannot open') + ' the hospital’s Google Drive folder. Ask the Administrator to put ' + (who || 'your email address') + ' on your user account (User Accounts → Edit → Email) — the folder is then shared with you — and sync again.');
+  }
+  /** Share every hospital folder with an email address (writer). Returns { ok, error }. */
+  async function shareFolders(email) {
+    email = String(email || '').trim().toLowerCase();
+    if (!email) return { ok: false, error: 'no email' };
+    const t = cloud.token || storedToken(); if (!t) return { ok: false, error: 'Google Drive is not connected on this computer' };
+    const errs = [];
+    for (const [id, label] of GDRIVE.SHARED_FOLDERS) {
+      const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '/permissions?sendNotificationEmail=true&supportsAllDrives=true&emailMessage=' + encodeURIComponent('You can now sync the ' + headings().hospitalName + ' systems with this Google account.'),
+        { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'user', role: 'writer', emailAddress: email }) });
+      if (!r.ok) { let msg = 'Google Drive returned ' + r.status; try { const j = await r.json(); if (j.error && j.error.message) msg = j.error.message; } catch (e) { /* ignore */ } if (id === GDRIVE.FOLDER_ID) errs.push(label + ': ' + msg); }
+    }
+    return errs.length ? { ok: false, error: errs.join('; ') } : { ok: true };
+  }
+  /** Who the main folder is shared with (emails, lower-case). */
+  async function sharedWith() {
+    const out = new Set(); let page = '';
+    do {
+      const r = await api('https://www.googleapis.com/drive/v3/files/' + GDRIVE.FOLDER_ID + '/permissions?supportsAllDrives=true&fields=nextPageToken,permissions(emailAddress,role,type)' + (page ? '&pageToken=' + page : ''));
+      const j = await r.json(); (j.permissions || []).forEach(p => { if (p.emailAddress) out.add(p.emailAddress.toLowerCase()); }); page = j.nextPageToken || '';
+    } while (page);
+    return out;
+  }
+  /** After the Administrator saves an account with an email: share the folders with it. */
+  async function shareForAccount(username) {
+    const list = loadAccounts(), a = list.find(x => x.username === username);
+    if (!a || !a.email || (a.driveShared && a.driveShared.email === a.email.toLowerCase())) return;
+    if (!(cloud.token || storedToken())) { toast('Saved. Connect Google Drive (Cloud Sync) to share the hospital folder with ' + a.email + '.', 'info'); return; }
+    const r = await shareFolders(a.email);
+    const l2 = loadAccounts(), t = l2.find(x => x.username === username); if (!t) return;
+    t.driveShared = r.ok ? { email: a.email.toLowerCase(), at: Date.now() } : null; t.driveShareError = r.ok ? '' : r.error; saveAccounts(l2, { fromCloud: true }); cloudDirty = true; scheduleCloudPush();
+    toast(r.ok ? 'The hospital’s Drive folders are shared with ' + a.email + ' — they can sync with that Google account.' : 'Could not share the Drive folders with ' + a.email + ': ' + r.error, r.ok ? 'ok' : 'err');
+    if (view === 'console') renderConsole();
+  }
+
   /** A folder inside the hospital folder (created when missing). */
   async function unitFolder(name) {
     cloud.folders = cloud.folders || {};
@@ -394,6 +452,7 @@
     if (!cloud.token) { if (!interactive) { setCloudState('off'); return false; } cloud.token = await requestToken(); }
     cloud.busy = true; setCloudState('busy');
     try {
+      await ensureAccess();
       await pull(); await push();
       if (session() && session().role === 'admin') { for (const n of GDRIVE.UNIT_FOLDERS) await unitFolder(n).catch(() => {}); }
       if (window.MPHBuiltInDrive && !MPHBuiltInDrive.status().complete) MPHBuiltInDrive.run({ onProgress: builtinProgress }).then(builtinProgress).catch(() => {});
@@ -476,7 +535,7 @@
       setSyncMsg('Sync complete! ' + n + ' active ' + (n === 1 ? 'account' : 'accounts') + '. You may now sign in.', 'ok');
       btn.textContent = 'Synced'; markSynced(); $('#offlineWrap').hidden = true;
     } catch (e) {
-      setSyncMsg('Could not sync: ' + e.message + '. Try again or ask the Administrator.', 'err');
+      setSyncMsg('Could not sync: ' + String(e.message).replace(/\.$/, '') + '. Try again or ask the Administrator.', 'err');
       btn.disabled = false; btn.textContent = 'Retry sync'; $('#offlineWrap').hidden = false; const o2 = $('#syncOrb'); if (o2) o2.classList.remove('spin');
     }
   }
@@ -920,6 +979,7 @@
             passwordHash: await hashPassword(p1), mustChangePassword: mustChange, createdAt: Date.now(), createdBy: me };
           const tomb = tombstones(); if (tomb[uname]) { delete tomb[uname]; writeJSON(KEYS.tomb, tomb); }
           fresh.push(touch(rec)); saveAccounts(fresh);
+          if (email) setTimeout(() => shareForAccount(uname), 200);
           logSignin({ username: uname, role, card: '', result: 'admin', detail: 'Created by ' + me });
           toast('User ' + uname + ' created');
         } else {
@@ -927,6 +987,7 @@
           if (t.role !== role) delete t.legacyRoles;
           Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems, mustChangePassword: mustChange });
           touch(t); saveAccounts(fresh);
+          if (email) setTimeout(() => shareForAccount(t.username), 200);
           logSignin({ username: uname, role, card: '', result: 'admin', detail: 'Edited by ' + me });
           toast('Changes saved for ' + displayName);
         }
@@ -988,9 +1049,34 @@
       '<dt>Accounts</dt><dd>' + loadAccounts().length + ' on this computer · passwords are stored and shared as one-way hashes only</dd></dl>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn gold" data-sync>⟳ Sync now</button><button class="btn" data-dl>⬇ Download accounts backup</button><label class="btn">⬆ Restore from backup<input type="file" accept=".json" hidden data-up></label></div>' +
       '<p class="muted small" style="margin-top:14px">Accounts sync automatically every 30 seconds while this console is open, and straight after every change. Deleted users stay deleted on every computer.</p></div></div>' +
+      '<div class="panel" style="max-width:820px;margin-top:18px"><div class="panel-h"><h3>Drive access — everyone syncs with their own Google account</h3></div><div class="panel-b">' +
+      '<p class="muted small" style="margin-bottom:12px">Each person signs in to Google with their own email to sync. The hospital\u2019s Drive folders are shared with the email address on their user account — automatically when you save a user with an email, or all at once here.</p>' +
+      '<div id="accessBox" class="muted small">Press “Check access” to see who can sync.</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" data-access-check>Check access</button><button class="btn gold" data-access-share>Share with every user\u2019s email</button><span class="muted small" id="accessMsg"></span></div></div></div>' +
       '<div class="panel" style="max-width:820px;margin-top:18px"><div class="panel-h"><h3>Built-in data in Google Drive</h3></div><div class="panel-b">' +
       '<p class="muted small" style="margin-bottom:12px">The website carries the hospital’s data files — the register and location records it started with, the signed room inventory sheets, the workbooks and the built-in procurement records. The first sync copies each one to “Built-in data” in the hospital’s Google Drive folder, so they are kept there and can later be removed from the website.</p>' +
       '<div id="builtinBox">' + builtinHtml() + '</div><div style="display:flex;gap:10px;margin-top:12px"><button class="btn gold" data-builtin>⬆ Copy to Drive now</button><span class="muted small" id="builtinMsg"></span></div></div></div>';
+    const accessList = async () => {
+      const box = $('#accessBox');
+      if (!(cloud.token || storedToken())) { try { cloud.token = await requestToken(); } catch (e) { box.textContent = 'Google sign-in is needed: ' + e.message; return null; } }
+      let shared; try { shared = await sharedWith(); } catch (e) { box.textContent = 'Could not read who the folder is shared with: ' + e.message; return null; }
+      const users = loadAccounts().filter(a => a.status === 'active');
+      box.innerHTML = '<table class="tbl" style="margin-top:4px"><thead><tr><th>User</th><th>Email</th><th>Can sync</th></tr></thead><tbody>' + users.map(a => {
+        const em = (a.email || '').toLowerCase();
+        return '<tr><td>' + esc(a.displayName) + '</td><td class="mono small">' + (em ? esc(em) : '<span class="muted">— add an email to their account</span>') + '</td><td>' + (!em ? '<span class="badge" style="--bc:var(--warn)">No email</span>' : shared.has(em) ? '<span class="badge" style="--bc:var(--ok)">Yes</span>' : '<span class="badge" style="--bc:var(--bad)">Not shared yet</span>') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+      return { shared, users };
+    };
+    el.querySelector('[data-access-check]').onclick = () => accessList();
+    el.querySelector('[data-access-share]').onclick = async () => {
+      const msg = $('#accessMsg'), r = await accessList(); if (!r) return;
+      const todo = r.users.filter(a => a.email && !r.shared.has(a.email.toLowerCase()));
+      if (!todo.length) { msg.textContent = 'Everyone with an email can already sync.'; return; }
+      let n = 0; const bad = [];
+      for (const a of todo) { msg.textContent = 'Sharing with ' + a.email + '…'; const x = await shareFolders(a.email); if (x.ok) n++; else bad.push(a.email + ' (' + x.error + ')'); }
+      msg.textContent = 'Shared with ' + n + ' user' + (n === 1 ? '' : 's') + (bad.length ? '. Could not share with: ' + bad.join(', ') : '.');
+      accessList();
+    };
     el.querySelector('[data-builtin]').onclick = async () => {
       const msg = $('#builtinMsg'), btn = el.querySelector('[data-builtin]');
       if (!window.MPHBuiltInDrive) return;
