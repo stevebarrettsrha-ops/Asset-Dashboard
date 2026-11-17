@@ -53,17 +53,21 @@
   const REQ_STATUSES = ['Requested', 'Approved', 'Part issued', 'Rejected', 'Cancelled'];
   const ISSUED_STATUSES = ['Issued', 'Part issued'];
   const issuedOn = s => { const ms = store.filter('stockMoves', m => m.issueId === s.id).map(m => m.date || (m.createdAt || '').slice(0, 10)).filter(Boolean).sort(); return ms.length ? ms[ms.length - 1] : (s.issuedAt || s.date || ''); };
-  /** The pages link to one another along the top. */
+  /** The Stores workflow pages link to one another along the top (shared with Expected Deliveries and Received). */
   function pageLinks(here) {
+    const month = util.today().slice(0, 7);
     const n = {
+      inbound: (() => { try { return new Set(domain.inbound({}).filter(r => r.type !== 'Service').map(r => r.po.id)).size; } catch (e) { return 0; } })(),
+      received: store.filter('deliveries', d => !d.voided && (d.date || '').slice(0, 7) === month).length,
       issues: store.filter('stockIssues', s => C.openIssueStatuses.indexOf(s.status) >= 0).length,
       issued: store.filter('stockIssues', s => ISSUED_STATUSES.indexOf(s.status) >= 0).length,
       reorder: C.reorderRows().length,
       orders: store.filter('requisitions', r => r.source === 'stores').length
     };
-    return '<div class="tabs">' + [['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issues'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders']].map(([id, ic, l]) =>
+    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issues'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders']].map(([id, ic, l]) =>
       '<a href="#/' + id + '" class="' + (here === id ? 'on' : '') + '" style="text-decoration:none">' + ui.icon(ic, 'sm') + l + '<span class="n">' + n[id] + '</span></a>').join('') + '</div>';
   }
+  C.navTabs = pageLinks;
   function sivTable(body, all, o) {
     let seg = o.seg;
     const draw = () => {
