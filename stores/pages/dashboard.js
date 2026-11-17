@@ -67,12 +67,29 @@
 
   /* ---------------------------------------------------------- dashboard */
   const CSS = '.sd-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}@media(max-width:1180px){.sd-grid{grid-template-columns:minmax(0,1fr)}}' +
-    '.sd-att{list-style:none}.sd-att li a{display:flex;gap:12px;align-items:flex-start;padding:12px 18px;border-bottom:1px solid var(--border);color:var(--text);text-decoration:none}.sd-att li:last-child a{border-bottom:0}.sd-att li a:hover{background:var(--surface-2)}' +
+    /* welcome banner */
+    '.sd-hero{position:relative;overflow:hidden;border-radius:var(--radius-lg);padding:22px 24px;margin-bottom:18px;color:#fff;background:linear-gradient(120deg,#1f7a4d 0%,#2f9e66 55%,#59b985 100%);box-shadow:var(--shadow)}' +
+    '[data-theme=dark] .sd-hero{background:linear-gradient(120deg,#123d28 0%,#1a5a3a 60%,#22704a 100%)}' +
+    '.sd-hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.08)}.sd-hero::before{content:"";position:absolute;right:120px;bottom:-90px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.06)}' +
+    '.sd-hero .in{position:relative;z-index:1;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}.sd-hero h1{font-size:23px;font-weight:700;letter-spacing:-.01em;margin:0}.sd-hero .meta{opacity:.9;font-size:13.5px;margin-top:4px}' +
+    '.sd-hero .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.sd-hero .pill{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:600;color:#fff;text-decoration:none}.sd-hero .pill:hover{background:rgba(255,255,255,.26)}' +
+    '.sd-hero .btn{background:#fff;color:#145233;border-color:#fff;font-weight:700}.sd-hero .btn:hover{background:#f0faf4}.sd-hero .btn.ghostw{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}.sd-hero .btn.ghostw:hover{background:rgba(255,255,255,.22)}' +
+    /* add & record tiles */
+    '.sd-sec{display:flex;align-items:baseline;justify-content:space-between;margin:4px 2px 10px}.sd-sec h2{font-size:15px;font-weight:700;margin:0}.sd-sec .sub{font-size:12.5px;color:var(--text-3)}' +
+    '.sd-acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:18px}' +
+    '.sd-act{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;font:inherit;color:var(--text);box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s,transform .15s}' +
+    '.sd-act:hover{border-color:var(--primary);box-shadow:0 6px 18px rgba(31,122,77,.14);transform:translateY(-1px)}.sd-act:focus-visible{outline:2px solid var(--primary);outline-offset:2px}' +
+    '.sd-act .ic{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary)}.sd-act .t{font-weight:650;font-size:13.8px;line-height:1.25}.sd-act .d{font-size:12px;color:var(--text-3);margin-top:3px;line-height:1.35}' +
+    '.sd-act.lead .ic{background:var(--primary);color:#fff}' +
+    /* attention, charts */
+    '.sd-att{list-style:none;margin:0;padding:0}.sd-att li a{display:flex;gap:12px;align-items:flex-start;padding:12px 18px;border-bottom:1px solid var(--border);color:var(--text);text-decoration:none}.sd-att li:last-child a{border-bottom:0}.sd-att li a:hover{background:var(--surface-2)}' +
     '.sd-att .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex:none}.sd-att .ic.warning{background:var(--warning-bg);color:var(--warning)}.sd-att .ic.danger{background:var(--danger-bg);color:var(--danger)}.sd-att .ic.info{background:var(--info-bg);color:var(--info)}.sd-att .ic.purple{background:var(--purple-bg);color:var(--purple)}' +
     '.sd-att .t{font-weight:600;font-size:13.5px}.sd-att .s{font-size:12.5px;color:var(--text-3);margin-top:1px}.sd-att .go{margin-left:auto;color:var(--text-3);align-self:center}' +
     '.sd-pair{display:flex;align-items:flex-end;gap:10px;height:190px;padding-top:8px}.sd-pair .m{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;min-width:0}' +
     '.sd-pair .cols{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.sd-pair .c{width:42%;max-width:22px;border-radius:5px 5px 2px 2px;min-height:2px}.sd-pair .c.r{background:var(--primary)}.sd-pair .c.i{background:#f59e0b}' +
-    '.sd-pair .x{font-size:11px;color:var(--text-3)}.sd-legend{display:flex;gap:14px;font-size:12px;color:var(--text-2)}.sd-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}';
+    '.sd-pair .x{font-size:11px;color:var(--text-3)}.sd-legend{display:flex;gap:14px;font-size:12px;color:var(--text-2)}.sd-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}' +
+    '.sd-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}' +
+    '@media(max-width:640px){.sd-hero{padding:18px}.sd-hero h1{font-size:20px}.sd-acts{grid-template-columns:1fr 1fr}.sd-act{flex-direction:column;gap:8px}}';
 
   function attention() {
     const out = [];
@@ -116,14 +133,26 @@
     const first = String(off.name || '').replace(/^(mr|mrs|ms|miss|dr)\.?\s+/i, '').split(' ')[0];
     const fresh = !items.length && !inb.length && !store.list('stockMoves').length;
 
-    el.innerHTML = ui.pageHead({
-      title: 'Good ' + (hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening') + (first ? ', ' + first : ''),
-      sub: esc(S.storeName || 'General Stores') + ' · ' + util.dateLong(today) + ' · FY ' + util.fiscalYear(today),
-      actions: '<a class="btn" href="#/issues/new">' + ui.icon('clipboard', 'sm') + 'New issue</a><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Receive goods</a>'
-    }) +
+    const acts = (Proc.quickCreate || []).slice().sort((x, y) => (x.order || 50) - (y.order || 50));
+    const syncTxt = Proc.sync && Proc.sync.state === 'on' ? 'Synced with Google Drive' : 'Saved on this computer';
+    el.innerHTML =
+      '<section class="sd-hero"><div class="in"><div>' +
+        '<h1>Good ' + (hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening') + (first ? ', ' + esc(first) : '') + '</h1>' +
+        '<div class="meta">' + esc(S.storeName || 'General Stores') + ' · ' + esc(store.settings().org.hospital || '') + ' · ' + util.dateLong(today) + ' · FY ' + util.fiscalYear(today) + ' · ' + syncTxt + '</div>' +
+        '<div class="pills">' +
+          '<a class="pill" href="#/inbound">' + util.int(poIds.size) + ' ' + util.plural(poIds.size, 'delivery', 'deliveries') + ' expected</a>' +
+          (overduePOs.size ? '<a class="pill" href="#/inbound">' + overduePOs.size + ' overdue</a>' : '') +
+          '<a class="pill" href="#/issues">' + util.int(waiting.length) + ' ' + util.plural(waiting.length, 'requisition') + ' waiting</a>' +
+          '<a class="pill" href="#/reorder">' + util.int(C.reorderRows().length) + ' to reorder</a>' +
+        '</div></div>' +
+        '<div class="row"><a class="btn ghostw" href="#/issues/new">' + ui.icon('clipboard', 'sm') + 'Issue stock</a><a class="btn" href="#/inbound">' + ui.icon('truck', 'sm') + 'Receive goods</a></div>' +
+      '</div></section>' +
       (fresh ? '<div class="card mb-3">' + ui.empty('box', 'Welcome to General Stores', 'Purchase orders issued by Procurement appear under Expected Deliveries automatically. Receive them with a goods received note and the items are added to Inventory. If you used the old Stores page, import its data under Settings.',
         '<div class="row" style="justify-content:center"><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a><a class="btn" href="#/inventory">' + ui.icon('box', 'sm') + 'Inventory</a><a class="btn" href="#/settings/' + (Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') >= 0 ? 'hook' + Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') : 'data') + '">' + ui.icon('upload', 'sm') + 'Import old Stores data</a></div>') + '</div>' : '') +
-      '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">' +
+      '<div class="sd-sec"><h2>Add &amp; record</h2><span class="sub">Everything you enter in Stores starts here</span></div>' +
+      '<div class="sd-acts">' + acts.map((a, i) => '<button class="sd-act' + (i === 0 ? ' lead' : '') + '" data-act="' + i + '"><span class="ic">' + ui.icon(a.icon || 'plus') + '</span><span><div class="t">' + esc(a.label) + '</div><div class="d">' + esc(a.desc || '') + '</div></span></button>').join('') + '</div>' +
+      '<div class="sd-sec"><h2>Stock at a glance</h2><span class="sub">Click a figure to open it</span></div>' +
+      '<div class="sd-kpis">' +
       ui.kpi({ label: 'Stock value', icon: 'wallet', value: util.moneyShort(util.sum(items, i => i.value)), title: util.money(util.sum(items, i => i.value)), meta: util.int(items.length) + ' items · ' + util.int(items.filter(i => util.num(i.onHand) > 0).length) + ' in stock', href: '#/inventory' }) +
       ui.kpi({ label: 'Below reorder level', icon: 'alert', tone: low.length ? 'warn' : 'ok', value: util.int(low.length), meta: 'Request a purchase', href: '#/reorder' }) +
       ui.kpi({ label: 'Out of stock', icon: 'box', tone: out.length ? 'bad' : 'ok', value: util.int(out.length), meta: 'Active items with none on hand', href: '#/inventory' }) +
@@ -133,12 +162,13 @@
       '</div>' +
       '<div class="sd-grid"><div class="stack">' +
       '<div class="card"><div class="card-h"><div><h3>Receipts and issues</h3><div class="sub">Value by month, last 6 months</div></div><div class="sd-legend"><span><i style="background:var(--primary)"></i>Received</span><span><i style="background:#f59e0b"></i>Issued</span></div></div><div class="card-b" id="sdPair"></div></div>' +
-      '<div class="grid c2"><div class="card"><div class="card-h"><div><h3>Recent goods received</h3></div><a class="small" href="#/inbound?tab=received">All GRNs</a></div><div class="card-b flush" id="sdGrn"></div></div>' +
-      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
+      '<div class="grid c2"><div class="card"><div class="card-h"><div><h3>Recent goods received</h3></div><a class="small" href="#/received">All received</a></div><div class="card-b flush" id="sdGrn"></div></div>' +
+      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All issues</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
       '</div><div class="stack">' +
       '<div class="card"><div class="card-h"><h3>Needs your attention</h3></div><ul class="sd-att" id="sdAtt"></ul></div>' +
       '<div class="card"><div class="card-h"><div><h3>Issued this month by department</h3><div class="sub">Value at average cost</div></div></div><div class="card-b" id="sdDept"></div></div>' +
       '</div></div>';
+    el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { const a = acts[+b.dataset.act]; try { const r = a.onClick(); if (r && r.catch) r.catch(e => ui.toast(e.message, 'error')); } catch (e) { ui.toast(e.message, 'error'); } });
 
     // Attention
     const att = attention();
@@ -172,6 +202,6 @@
   }
 
   Proc.page({ id: 'dashboard', title: 'Dashboard', icon: 'dashboard', section: 'Overview', order: 10, render });
-  Proc.quickCreate.push({ label: 'Stores requisition / issue', icon: 'clipboard', order: 20, onClick: () => Proc.router.go('issues/new') });
-  Proc.quickCreate.push({ label: 'Purchase request to Procurement', icon: 'send', order: 30, onClick: () => { location.hash = '#/reorder'; } });
+  Proc.quickCreate.push({ label: 'Requisition / issue', desc: 'Department request, Stores Issue Voucher', icon: 'clipboard', order: 20, onClick: () => Proc.router.go('issues/new') });
+  Proc.quickCreate.push({ label: 'Purchase request', desc: 'Reorder low stock from Procurement', icon: 'send', order: 30, onClick: () => { location.hash = '#/reorder'; } });
 })();

@@ -2192,7 +2192,7 @@
         { sep: true },
         { label: 'Sign out', icon: 'logout', danger: true, onClick: () => auth.logout() }
       ]);
-      document.getElementById('newBtn').onclick = e => ui.menu(e.currentTarget, Proc.quickCreate.slice().sort((a, b) => (a.order || 50) - (b.order || 50)));
+      const nb = document.getElementById('newBtn'); if (nb) nb.onclick = e => ui.menu(e.currentTarget, Proc.quickCreate.slice().sort((a, b) => (a.order || 50) - (b.order || 50)));
       // Global search
       const inp = document.getElementById('gsInput'), box = document.getElementById('gsResults');
       let sel = 0, hits = [];

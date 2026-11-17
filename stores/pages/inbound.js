@@ -698,6 +698,6 @@
   Proc.page({ id: 'received', title: 'Received', icon: 'clipboardCheck', section: 'Workflow', order: 11, render(el) { css(); renderReceived(el); } });
   Proc.page({ id: 'grn', title: 'Goods Received Note', icon: 'clipboardCheck', hidden: true, render(el, params) { css(); renderGrn(el, params[0]); } });
   Proc.page({ id: 'purchases', title: 'Purchased Items', icon: 'cart', section: 'Workflow', order: 15, render(el) { css(); renderPurchases(el); } });
-  Proc.quickCreate.push({ label: 'Receive a delivery', icon: 'truck', order: 5, onClick: () => router.go('inbound') });
+  Proc.quickCreate.push({ label: 'Receive a delivery', desc: 'Goods received note against a PO', icon: 'truck', order: 5, onClick: () => router.go('inbound') });
   Proc.storesInbound = { putAway, printGrn, saveGrn };
 })();

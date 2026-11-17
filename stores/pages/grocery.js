@@ -303,6 +303,7 @@
   }
 
   C.groceryLists = groceryLists;
+  Proc.quickCreate.push({ label: 'Grocery order', desc: 'The month\u2019s Dietary grocery list', icon: 'cart', order: 25, onClick: () => router.go('grocery/new') });
   Proc.page({
     id: 'grocery', title: 'Grocery Order', icon: 'cart', section: 'Workflow', order: 24,
     count: () => groceryLists().filter(r => r.status === 'Draft').length,
