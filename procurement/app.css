@@ -418,10 +418,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: 13px; mi
 
 /* ---------- Tabs ---------- */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
-.tabs button { border: 0; background: none; padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
-.tabs button:hover { color: var(--text); }
-.tabs button.on { color: var(--primary); border-bottom-color: var(--primary); }
-.tabs button .n { background: var(--surface-3); color: var(--text-2); font-size: 11.5px; padding: 0 7px; border-radius: 999px; }
+.tabs button, .tabs > a { border: 0; background: none; padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+.tabs button:hover, .tabs > a:hover { color: var(--text); }
+.tabs button.on, .tabs > a.on { color: var(--primary); border-bottom-color: var(--primary); }
+.tabs button .n, .tabs > a .n { background: var(--surface-3); color: var(--text-2); font-size: 11.5px; padding: 0 7px; border-radius: 999px; }
 /* Many tabs (Reports pages): wrap onto a second row on wide screens instead of hiding the last ones; phones still scroll. */
 @media (min-width: 720px) { .tabs.wrap { flex-wrap: wrap; overflow: visible; } }
 .card > .tabs { padding: 0 12px; margin-bottom: 0; }

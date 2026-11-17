@@ -85,7 +85,7 @@
     const pa = C.putAway();
     if (pa.length) out.push({ tone: 'purple', icon: 'package', t: pa.length + ' ' + util.plural(pa.length, 'delivery', 'deliveries') + ' recorded by Procurement to put into stock', s: pa.slice(0, 3).map(d => 'GRN ' + (d.grn || '—')).join(', '), href: '#/inbound?tab=putaway' });
     const ro = C.reorderRows();
-    if (ro.length) out.push({ tone: 'warning', icon: 'alert', t: ro.length + ' ' + util.plural(ro.length, 'item') + ' at or below reorder level', s: ro.slice(0, 3).map(r => r.item.name).join(', ') + ' — request a purchase', href: '#/issues?tab=reorder' });
+    if (ro.length) out.push({ tone: 'warning', icon: 'alert', t: ro.length + ' ' + util.plural(ro.length, 'item') + ' at or below reorder level', s: ro.slice(0, 3).map(r => r.item.name).join(', ') + ' — request a purchase', href: '#/reorder' });
     const ex = C.expiring(util.num(C.S().expiryWarnDays || 90));
     const expired = ex.filter(x => x.daysLeft < 0);
     if (expired.length) out.push({ tone: 'danger', icon: 'clock', t: expired.length + ' expired ' + util.plural(expired.length, 'batch', 'batches') + ' still in stock', s: util.money(util.sum(expired, x => x.value)) + ' · write off or return', href: '#/reports?tab=expiry' });
@@ -125,7 +125,7 @@
         '<div class="row" style="justify-content:center"><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a><a class="btn" href="#/inventory">' + ui.icon('box', 'sm') + 'Inventory</a><a class="btn" href="#/settings/' + (Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') >= 0 ? 'hook' + Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') : 'data') + '">' + ui.icon('upload', 'sm') + 'Import old Stores data</a></div>') + '</div>' : '') +
       '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">' +
       ui.kpi({ label: 'Stock value', icon: 'wallet', value: util.moneyShort(util.sum(items, i => i.value)), title: util.money(util.sum(items, i => i.value)), meta: util.int(items.length) + ' items · ' + util.int(items.filter(i => util.num(i.onHand) > 0).length) + ' in stock', href: '#/inventory' }) +
-      ui.kpi({ label: 'Below reorder level', icon: 'alert', tone: low.length ? 'warn' : 'ok', value: util.int(low.length), meta: 'Request a purchase', href: '#/issues?tab=reorder' }) +
+      ui.kpi({ label: 'Below reorder level', icon: 'alert', tone: low.length ? 'warn' : 'ok', value: util.int(low.length), meta: 'Request a purchase', href: '#/reorder' }) +
       ui.kpi({ label: 'Out of stock', icon: 'box', tone: out.length ? 'bad' : 'ok', value: util.int(out.length), meta: 'Active items with none on hand', href: '#/inventory' }) +
       ui.kpi({ label: 'Expiring soon', icon: 'clock', tone: exp.length ? 'warn' : 'ok', value: util.int(exp.length), meta: 'Batches within ' + (S.expiryWarnDays || 90) + ' days', href: '#/reports?tab=expiry' }) +
       ui.kpi({ label: 'Deliveries due', icon: 'truck', tone: overduePOs.size ? 'bad' : '', value: util.int(dueWeek.size), meta: overduePOs.size ? overduePOs.size + ' overdue · ' + poIds.size + ' POs open' : 'This week · ' + poIds.size + ' POs open', href: '#/inbound' }) +
@@ -134,7 +134,7 @@
       '<div class="sd-grid"><div class="stack">' +
       '<div class="card"><div class="card-h"><div><h3>Receipts and issues</h3><div class="sub">Value by month, last 6 months</div></div><div class="sd-legend"><span><i style="background:var(--primary)"></i>Received</span><span><i style="background:#f59e0b"></i>Issued</span></div></div><div class="card-b" id="sdPair"></div></div>' +
       '<div class="grid c2"><div class="card"><div class="card-h"><div><h3>Recent goods received</h3></div><a class="small" href="#/inbound?tab=received">All GRNs</a></div><div class="card-b flush" id="sdGrn"></div></div>' +
-      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issues">All</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
+      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
       '</div><div class="stack">' +
       '<div class="card"><div class="card-h"><h3>Needs your attention</h3></div><ul class="sd-att" id="sdAtt"></ul></div>' +
       '<div class="card"><div class="card-h"><div><h3>Issued this month by department</h3><div class="sub">Value at average cost</div></div></div><div class="card-b" id="sdDept"></div></div>' +
@@ -173,5 +173,5 @@
 
   Proc.page({ id: 'dashboard', title: 'Dashboard', icon: 'dashboard', section: 'Overview', order: 10, render });
   Proc.quickCreate.push({ label: 'Stores requisition / issue', icon: 'clipboard', order: 20, onClick: () => Proc.router.go('issues/new') });
-  Proc.quickCreate.push({ label: 'Purchase request to Procurement', icon: 'send', order: 30, onClick: () => { location.hash = '#/issues?tab=reorder'; } });
+  Proc.quickCreate.push({ label: 'Purchase request to Procurement', icon: 'send', order: 30, onClick: () => { location.hash = '#/reorder'; } });
 })();
