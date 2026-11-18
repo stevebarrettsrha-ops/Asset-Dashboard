@@ -63,9 +63,10 @@
       issued: store.filter('stockIssues', s => ISSUED_STATUSES.indexOf(s.status) >= 0).length,
       reorder: C.reorderRows().length,
       orders: store.filter('requisitions', r => r.source === 'stores').length,
-      grocery: (C.groceryLists ? C.groceryLists().filter(r => (r.groceryMonth || '') === month).length : 0)
+      grocery: (C.groceryLists ? C.groceryLists().filter(r => (r.groceryMonth || '') === month).length : 0),
+      chemicals: store.filter('stockItems', i => i.status !== 'Inactive' && (i.chemical || i.category === 'Chemicals & Toiletries') && util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).length
     };
-    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issues'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order']].map(([id, ic, l]) =>
+    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issues'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals']].map(([id, ic, l]) =>
       '<a href="#/' + id + '" class="' + (here === id ? 'on' : '') + '" style="text-decoration:none">' + ui.icon(ic, 'sm') + l + '<span class="n">' + n[id] + '</span></a>').join('') + '</div>';
   }
   C.navTabs = pageLinks;
@@ -140,7 +141,7 @@
 
   function renderReorderPage(el) {
     el.innerHTML = ui.pageHead({ title: 'Reorder', sub: 'Items at or below their reorder level — send one purchase request to Procurement.',
-      actions: '<a class="btn" href="#/orders">' + ui.icon('send', 'sm') + 'Orders sent</a>' }) + pageLinks('reorder') + '<div id="siBody"></div>';
+      actions: '<a class="btn" href="#/levels">' + ui.icon('bell', 'sm') + 'Reorder levels & alerts</a><a class="btn" href="#/orders">' + ui.icon('send', 'sm') + 'Orders sent</a>' }) + pageLinks('reorder') + '<div id="siBody"></div>';
     renderReorder(el.querySelector('#siBody'));
   }
   function renderOrdersPage(el) {

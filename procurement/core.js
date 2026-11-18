@@ -1331,6 +1331,7 @@
     box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/>',
     layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
     'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    drop: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
     'arrow-down-left': '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>',
     clipboardCheck: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>',
@@ -1915,7 +1916,7 @@
      supplier, budget line, budget month or award reference brought in by hand — and links to suppliers
      and budget lines are pointed at the copies already here. On a computer that syncs with Google Drive
      this runs after Drive's copy is merged in, so nothing imported elsewhere is doubled. */
-  const SEED_ORDER = ['suppliers', 'budgetLines', 'budgetMonths', 'plans', 'prsLite', 'comparisons', 'requisitions', 'purchaseOrders', 'invoices', 'documents'];
+  const SEED_ORDER = ['stockItems', 'suppliers', 'budgetLines', 'budgetMonths', 'plans', 'prsLite', 'comparisons', 'requisitions', 'purchaseOrders', 'invoices', 'documents'];
   let seeding = null;
   /** Packs from procurement/seed (window.PROC_SEED_FILES, fetched once) and any loaded inline (window.PROC_SEEDS). */
   function applySeeds() {
@@ -1954,7 +1955,8 @@
       requisitions: r => 'R|' + norm(r.title) + '|' + r.date,
       purchaseOrders: r => r.poNumber ? 'P|' + String(r.poNumber).trim() + '|' + domain.supplierKey(r.supplierName) : 'D|' + norm(r.description) + '|' + r.date,
       invoices: r => 'I|' + r.poId + '|' + norm(r.invoiceNumber),
-      documents: r => 'F|' + norm(r.name)
+      documents: r => 'F|' + norm(r.name),
+      stockItems: r => 'K|' + domain.stockKey(r.name)
     };
     // A second way to recognise a purchase order already here: same number and amount (the supplier's
     // name may be spelt differently in a log imported by hand).
