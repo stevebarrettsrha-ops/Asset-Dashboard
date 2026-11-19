@@ -316,6 +316,7 @@
     const overdue = gs.filter(g => g.overdue);
     const assetsQty = util.sum(goods.filter(r => r.type === 'Asset'), r => r.outstanding);
     el.innerHTML = ui.pageHead({ title: 'Expected Deliveries', sub: 'Everything Procurement has ordered that has not arrived yet — receive it here with a Goods Received Note.' }) +
+      (Proc.storesC.navTabs ? Proc.storesC.navTabs('inbound') : '') +
       '<div class="grid c4 mb-3">' +
       ui.kpi({ label: 'POs awaiting delivery', icon: 'truck', value: util.int(gs.length), meta: util.int(goods.length) + ' goods ' + util.plural(goods.length, 'line') + ' outstanding' }) +
       ui.kpi({ label: 'Overdue', icon: 'clock', tone: overdue.length ? 'bad' : 'ok', value: util.int(overdue.length), meta: overdue.length ? 'Longest ' + Math.max.apply(null, overdue.map(g => g.daysLate)) + ' days late' : 'All on time' }) +
@@ -616,13 +617,87 @@
     };
   }
 
+  /* ================================================================ RECEIVED
+     Every stock item and fixed asset that has come in: one row per line on each Goods
+     Received Note (Stores or Procurement), plus stock received straight onto a bin card. */
+  const rstate = { };
+  function receivedRows() {
+    const rows = [];
+    store.list('deliveries').forEach(d => {
+      if (d.voided) return;
+      const po = store.get('purchaseOrders', d.poId) || {};
+      const lines = po.id ? domain.poLines(po) : [];
+      (d.items || []).forEach(i => {
+        const got = util.num(i.qtyReceived); if (!got && !util.num(i.qtyRejected)) return;
+        const li = typeof i.lineIndex === 'number' ? i.lineIndex : (typeof i.line === 'number' ? i.line : -1);
+        const line = lines[li] || {};
+        const type = i.type || (line.description ? domain.classifyLine(line, po) : 'Stock');
+        if (type === 'Service') return;
+        const cost = util.num(i.unitCost) || util.num(line.unitPrice);
+        rows.push({ id: d.id + ':' + li, d, po, type, date: d.date || '', grn: d.grn || '', item: i.description || line.description || '', unit: i.unit || line.unit || '', qty: got, rejected: util.num(i.qtyRejected),
+          cost, value: util.round2(got * cost), supplier: supplierOf(po), receivedBy: d.receivedBy || '', stockItem: i.itemId ? store.get('stockItems', i.itemId) : null,
+          state: d.stocked === false ? 'Awaiting put-away' : type === 'Asset' ? 'To Fixed Assets' : 'In stock', batch: i.batchNo || '', expiry: i.expiryDate || '' });
+      });
+    });
+    // Stock received without a GRN (e.g. donations or transfers in).
+    store.filter('stockMoves', m => m.type === 'Receipt' && !m.grnId && util.num(m.qty) > 0).forEach(m => {
+      const it = store.get('stockItems', m.itemId) || {};
+      rows.push({ id: m.id, d: null, po: {}, type: 'Stock', date: m.date || '', grn: '', item: it.name || '', unit: it.unit || '', qty: util.num(m.qty), rejected: 0, cost: util.num(m.unitCost), value: util.round2(util.num(m.qty) * util.num(m.unitCost)),
+        supplier: m.supplierId ? domain.supplierName(m.supplierId) : (m.ref || m.notes || 'Direct receipt'), receivedBy: m.by || '', stockItem: it.id ? it : null, state: 'In stock', batch: m.batchNo || '', expiry: m.expiryDate || '' });
+    });
+    return rows;
+  }
+  function renderReceived(el) {
+    const rows = receivedRows();
+    const month = util.today().slice(0, 7);
+    const mon = rows.filter(r => r.date.slice(0, 7) === month);
+    const months = Array.from(new Set(rows.map(r => r.date.slice(0, 7)).filter(Boolean))).sort().reverse();
+    const sups = Array.from(new Set(rows.map(r => r.supplier).filter(Boolean))).sort();
+    el.innerHTML = ui.pageHead({ title: 'Stock & Assets Received', sub: 'Everything that has come in — stock onto the bin cards and fixed assets for the Fixed Asset Officer — from every Goods Received Note.',
+      actions: '<button class="btn" data-a="xls">' + ui.icon('download', 'sm') + 'Excel</button><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Receive goods</a>' }) +
+      (Proc.storesC.navTabs ? Proc.storesC.navTabs('received') : '') +
+      '<div class="grid c4 mb-3">' +
+      ui.kpi({ label: 'Received this month', icon: 'clipboardCheck', value: util.moneyShort(util.sum(mon, r => r.value)), title: util.money(util.sum(mon, r => r.value)), meta: util.int(new Set(mon.filter(r => r.grn).map(r => r.grn)).size) + ' GRNs · ' + util.int(mon.length) + ' lines' }) +
+      ui.kpi({ label: 'Stock lines this month', icon: 'box', value: util.int(mon.filter(r => r.type === 'Stock').length), meta: util.moneyShort(util.sum(mon.filter(r => r.type === 'Stock'), r => r.value)) + ' onto the bin cards' }) +
+      ui.kpi({ label: 'Fixed assets this month', icon: 'tag', tone: 'pur', value: util.int(util.sum(mon.filter(r => r.type === 'Asset'), r => r.qty)), meta: 'Units for the Fixed Asset Officer' }) +
+      ui.kpi({ label: 'Rejected this month', icon: 'undo', tone: util.sum(mon, r => r.rejected) ? 'warn' : 'ok', value: util.int(util.sum(mon, r => r.rejected)), meta: 'Returned to suppliers' }) + '</div><div class="card" id="rcT"></div>';
+    const tone = { 'In stock': 'success', 'To Fixed Assets': 'purple', 'Awaiting put-away': 'warning' };
+    const t = ui.table(el.querySelector('#rcT'), {
+      rows, pageSize: 50, placeholder: 'Search item, GRN, PO #, supplier…', initialSort: { key: 'date', dir: -1 },
+      search: r => [r.item, r.grn, r.po.poNumber, r.supplier, r.receivedBy, r.batch, r.stockItem && r.stockItem.code].join(' '),
+      filters: [{ key: 'type', label: 'Stock & assets', options: [{ value: 'Stock', label: 'Stock only' }, { value: 'Asset', label: 'Fixed assets only' }] },
+        { key: 'month', label: 'All months', options: months.map(m => ({ value: m, label: util.monthLabel(m) })), test: (r, v) => r.date.slice(0, 7) === v },
+        { key: 'sup', label: 'All suppliers', options: sups, test: (r, v) => r.supplier === v },
+        { key: 'state', label: 'Any status', options: ['In stock', 'To Fixed Assets', 'Awaiting put-away'] }],
+      onRow: r => { if (r.d) router.go('grn/' + r.d.id); else if (r.stockItem) router.go('inventory/' + r.stockItem.id); },
+      columns: [
+        { key: 'date', label: 'Received', render: r => '<span class="nowrap">' + util.date(r.date) + '</span><div class="t-sub">' + esc(r.receivedBy) + '</div>' },
+        { key: 'grn', label: 'GRN / PO', sort: r => r.grn, render: r => r.grn ? '<span class="t-title mono">' + esc(r.grn) + '</span><div class="t-sub mono">PO ' + esc(r.po.poNumber || '—') + '</div>' : '<span class="muted">No GRN</span>' },
+        { key: 'item', label: 'Item', render: r => '<div class="t-title">' + esc(r.item) + '</div><div class="t-sub">' + esc(r.supplier) + (r.stockItem ? ' · ' + esc(r.stockItem.code) : '') + (r.batch ? ' · batch ' + esc(r.batch) : '') + (r.expiry ? ' · exp ' + util.date(r.expiry) : '') + '</div>' },
+        { key: 'type', label: 'Type', render: r => typeChip(r.type) },
+        { key: 'qty', label: 'Qty', cls: 'num', render: r => util.int(r.qty) + ' ' + esc(r.unit) + (r.rejected ? '<div class="t-sub text-danger">' + util.int(r.rejected) + ' rejected</div>' : '') },
+        { key: 'value', label: 'Value', cls: 'num', render: r => r.value ? util.money(r.value) : '<span class="muted">—</span>' },
+        { key: 'state', label: 'Status', render: r => ui.badge(r.state, tone[r.state] || '') }
+      ],
+      footer: list => '<td colspan="5">' + util.int(list.length) + ' lines · ' + util.int(util.sum(list, r => r.qty)) + ' units</td><td class="num">' + util.money(util.sum(list, r => r.value)) + '</td><td></td>',
+      empty: ui.empty('clipboardCheck', 'Nothing received yet', 'Every item on a Goods Received Note — from Stores or Procurement — is listed here.', '<a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a>')
+    });
+    el.querySelector('[data-a=xls]').onclick = () => {
+      if (!window.XLSX) return ui.toast('The Excel library did not load.', 'error');
+      const ws = XLSX.utils.json_to_sheet(t.visible().map(r => ({ Date: r.date, GRN: r.grn, 'PO #': r.po.poNumber || '', Supplier: r.supplier, Item: r.item, Type: r.type, 'Stock code': r.stockItem ? r.stockItem.code : '', Unit: r.unit, Received: r.qty, Rejected: r.rejected, 'Unit cost': r.cost, Value: r.value, Batch: r.batch, Expiry: r.expiry, 'Received by': r.receivedBy, Status: r.state })));
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Received');
+      XLSX.writeFile(wb, 'Stock and assets received ' + util.today() + '.xlsx');
+    };
+  }
+
   /* ================================================================ REGISTRATION */
   Proc.page({
     id: 'inbound', title: 'Expected Deliveries', icon: 'truck', section: 'Workflow', order: 10, count: overdueCount, countAlert: true,
     render(el) { css(); renderInbound(el, router.parse().query); }
   });
+  Proc.page({ id: 'received', title: 'Received', icon: 'clipboardCheck', section: 'Workflow', order: 11, render(el) { css(); renderReceived(el); } });
   Proc.page({ id: 'grn', title: 'Goods Received Note', icon: 'clipboardCheck', hidden: true, render(el, params) { css(); renderGrn(el, params[0]); } });
   Proc.page({ id: 'purchases', title: 'Purchased Items', icon: 'cart', section: 'Workflow', order: 15, render(el) { css(); renderPurchases(el); } });
-  Proc.quickCreate.push({ label: 'Receive a delivery', icon: 'truck', order: 5, onClick: () => router.go('inbound') });
+  Proc.quickCreate.push({ label: 'Receive a delivery', desc: 'Goods received note against a PO', icon: 'truck', order: 5, onClick: () => router.go('inbound') });
   Proc.storesInbound = { putAway, printGrn, saveGrn };
 })();

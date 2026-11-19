@@ -519,7 +519,7 @@
       if (params[0]) renderItem(el, params[0], params[1]); else renderList(el);
     }
   });
-  Proc.quickCreate.push({ label: 'Stock item', icon: 'box', order: 20, onClick: async () => { const it = await newItem(); if (it) router.go('inventory/' + it.id); } });
-  Proc.quickCreate.push({ label: 'Stock adjustment / write-off', icon: 'edit', order: 45, onClick: async () => { if (await adjust()) router.refresh(); } });
+  Proc.quickCreate.push({ label: 'Stock item', desc: 'Add a new item to Inventory', icon: 'box', order: 10, onClick: async () => { const it = await newItem(); if (it) router.go('inventory/' + it.id); } });
+  Proc.quickCreate.push({ label: 'Adjustment / write-off', desc: 'Correct stock, damaged or expired', icon: 'edit', order: 45, onClick: async () => { if (await adjust()) router.refresh(); } });
   Proc.inventory = { adjust, newItem, findItem, bindScan, itemDatalist, pdfTable, nearestExpiry, expiryChip, expiryState, stateChip, qtyFmt, movesFor, ADJ_REASONS, WRITE_OFF };
 })();

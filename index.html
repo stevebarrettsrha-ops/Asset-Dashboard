@@ -14201,6 +14201,30 @@
                     const hasId = ca.id && localIdSet.has(ca.id);
                     const hasCode = ca.assetCode && localCodeSet.has(ca.assetCode.toLowerCase());
                     const hasCanon = canonCode && localCodeSet.has(canonCode.toLowerCase());
+                    // Two computers can hand out the same next code before they sync. An asset
+                    // made in this system (it has an id and an edit stamp) is a different asset,
+                    // not an old copy: keep it, flagged so the code clash can be sorted out.
+                    // (Only old backups without stamps are skipped on a code match.)
+                    // Same code AND same description: the same asset under another id (older
+                    // computers gave split pieces random ids). Take the newer edit and settle on
+                    // one id everywhere (the one that sorts first), so edits travel from now on.
+                    const twin = !hasId && ca.id && (hasCode || hasCanon) && localAssets.find(a => a && a.id && a.assetCode &&
+                        [String(ca.assetCode || '').toLowerCase(), String(canonCode || '').toLowerCase()].indexOf(a.assetCode.toLowerCase()) >= 0 &&
+                        String(a.description || '').trim().toLowerCase() === String(ca.description || '').trim().toLowerCase());
+                    if (twin) {
+                        const keepId = [twin.id, ca.id].sort()[0];
+                        if ((ca._modifiedAt || 0) > (twin._modifiedAt || 0)) { Object.keys(twin).forEach(k => delete twin[k]); Object.assign(twin, ca); }
+                        if (twin.id !== keepId) { localIdSet.delete(twin.id); twin.id = keepId; localIdSet.add(keepId); }
+                        added++;
+                        return;
+                    }
+                    const sameCodeNewAsset = !hasId && (hasCode || hasCanon) && ca.id && ca._modifiedAt;
+                    if (sameCodeNewAsset) {
+                        localAssets.push(Object.assign({}, ca, { codeClash: true }));
+                        localIdSet.add(ca.id);
+                        added++;
+                        return;
+                    }
                     if (!hasId && !hasCode && !hasCanon) {
                         // Clean an incoming cloud asset so old data can never
                         // reappear messy: canonicalise its department and code.
@@ -19337,9 +19361,10 @@
                 // creating duplicates) and leave it for manual review.
                 if (collision) return;
 
-                produced.forEach(p => {
+                produced.forEach((p, i) => {
                     const na = Object.assign({}, asset);
-                    na.id = generateAssetId();
+                    // Same id on every computer (each computer splits the built-in register itself).
+                    na.id = asset.id ? asset.id + '-' + (i + 1) : generateAssetId();
                     na.department = p.dept;
                     if (p.code !== p.orig) na.aliases = (asset.aliases || []).concat([p.orig]);
                     na.assetCode = p.code;
@@ -38251,7 +38276,7 @@
                     var ca = list[j]; if (!ca || (ca.id && deletedAssetIds.has(ca.id))) continue;
                     var mine = ca.id && byId.get(ca.id);
                     if (mine) { if ((ca._modifiedAt || 0) > (mine._modifiedAt || 0)) return true; }
-                    else if (!(ca.assetCode && codes.has(String(ca.assetCode).toLowerCase()))) return true;
+                    else if (ca._modifiedAt || !(ca.assetCode && codes.has(String(ca.assetCode).toLowerCase()))) return true;
                 }
                 return false;
             }
@@ -38277,6 +38302,20 @@
                         await combineBackupIntoLocal(backup, 'daily');
                         if (o.quiet) console.log('[Sync] brought in changes from Google Drive');
                     }
+                    // The other way: assets (or edits) on this computer that never reached Drive,
+                    // e.g. added just before the dashboard was closed. Upload them now.
+                    var pending = false;
+                    try { pending = localStorage.getItem('assetDashboardUploadPending') === '1'; } catch (e) { /* ignore */ }
+                    var inDrive = new Map();
+                    backup.data.assets.forEach(function (a) { if (a && a.id) inDrive.set(a.id, a._modifiedAt || 0); });
+                    var missing = loadAssetsFromStorage().filter(function (a) { return a && a.id && !deletedAssetIds.has(a.id) && (!inDrive.has(a.id) || (a._modifiedAt || 0) > inDrive.get(a.id)); });
+                    if (missing.length || pending) {
+                        console.log('[Sync] uploading ' + missing.length + ' asset(s) Google Drive does not have yet');
+                        dataIsDirty = true;
+                        busy = false;
+                        if (typeof performAutoSync === 'function') await performAutoSync();
+                        if (!dataIsDirty) { try { localStorage.removeItem('assetDashboardUploadPending'); } catch (e) { /* ignore */ } }
+                    }
                     bar('');
                 } catch (e) {
                     console.warn('[Sync]', e.message);
@@ -38291,6 +38330,7 @@
                 }
             }
             window.mphCloudCatchUp = catchUp;
+            window.addEventListener('pagehide', function () { try { if (typeof dataIsDirty !== 'undefined' && dataIsDirty) localStorage.setItem('assetDashboardUploadPending', '1'); } catch (e) { /* ignore */ } });
         })();
 
         (function () {

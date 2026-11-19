@@ -246,6 +246,6 @@
       if (params[0]) renderSheet(el, params[0]); else renderList(el);
     }
   });
-  Proc.quickCreate.push({ label: 'Stock count', icon: 'clipboardCheck', order: 46, onClick: async () => { const c = await newCount(); if (c) router.go('counts/' + c.id); } });
+  Proc.quickCreate.push({ label: 'Stock count', desc: 'Count sheet and variance report', icon: 'clipboardCheck', order: 46, onClick: async () => { const c = await newCount(); if (c) router.go('counts/' + c.id); } });
   Proc.counts = { newCount, lineStats };
 })();

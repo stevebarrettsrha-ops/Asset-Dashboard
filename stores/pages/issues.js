@@ -46,49 +46,109 @@
   const lineTotal = s => (s.lines || []).length;
   const issuedValue = s => util.sum(store.filter('stockMoves', m => m.issueId === s.id), m => Math.abs(m.value));
 
-  /* ================================================================ LIST */
-  function renderList(el) {
-    const q = router.parse().query; const tab = q.tab || 'requisitions';
-    const all = store.list('stockIssues');
-    const waiting = all.filter(s => C.openIssueStatuses.indexOf(s.status) >= 0).length;
-    const reorderN = C.reorderRows().length;
-    const sent = store.filter('requisitions', r => r.source === 'stores');
-    el.innerHTML = ui.pageHead({ title: 'Issues & Requisitions', sub: 'Department requisitions, stock issues on a Stores Issue Voucher, and purchase requests to Procurement.',
-      actions: '<a class="btn primary" href="#/issues/new">' + ui.icon('plus', 'sm') + 'New requisition</a>' }) +
-      '<div class="tabs"><button data-t="requisitions" class="' + (tab === 'requisitions' ? 'on' : '') + '">' + ui.icon('clipboard', 'sm') + 'Requisitions & issues<span class="n">' + waiting + '</span></button>' +
-      '<button data-t="reorder" class="' + (tab === 'reorder' ? 'on' : '') + '">' + ui.icon('alert', 'sm') + 'Reorder<span class="n">' + reorderN + '</span></button>' +
-      '<button data-t="sent" class="' + (tab === 'sent' ? 'on' : '') + '">' + ui.icon('send', 'sm') + 'Purchase requests sent<span class="n">' + sent.length + '</span></button></div><div id="siBody"></div>';
-    el.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { location.hash = '#/issues?tab=' + b.dataset.t; });
-    const body = el.querySelector('#siBody');
-    if (tab === 'reorder') return renderReorder(body);
-    if (tab === 'sent') return renderSent(body, sent);
-    let seg = q.status || 'open';
+  /* ================================================================ LISTS
+     Four separate pages: Requisitions (departments' requests), Issues (stock issued on a
+     Stores Issue Voucher), Reorder (items at reorder level) and Orders (purchase requests
+     sent to Procurement and their purchase orders). */
+  const REQ_STATUSES = ['Requested', 'Approved', 'Part issued', 'Rejected', 'Cancelled'];
+  const ISSUED_STATUSES = ['Issued', 'Part issued'];
+  const issuedOn = s => { const ms = store.filter('stockMoves', m => m.issueId === s.id).map(m => m.date || (m.createdAt || '').slice(0, 10)).filter(Boolean).sort(); return ms.length ? ms[ms.length - 1] : (s.issuedAt || s.date || ''); };
+  /** The Stores workflow pages link to one another along the top (shared with Expected Deliveries and Received). */
+  function pageLinks(here) {
+    const month = util.today().slice(0, 7);
+    const n = {
+      inbound: (() => { try { return new Set(domain.inbound({}).filter(r => r.type !== 'Service').map(r => r.po.id)).size; } catch (e) { return 0; } })(),
+      received: store.filter('deliveries', d => !d.voided && (d.date || '').slice(0, 7) === month).length,
+      issues: store.filter('stockIssues', s => C.openIssueStatuses.indexOf(s.status) >= 0).length,
+      issued: store.filter('stockIssues', s => ISSUED_STATUSES.indexOf(s.status) >= 0).length,
+      reorder: C.reorderRows().length,
+      orders: store.filter('requisitions', r => r.source === 'stores').length,
+      grocery: (C.groceryLists ? C.groceryLists().filter(r => (r.groceryMonth || '') === month).length : 0),
+      chemicals: store.filter('stockItems', i => i.status !== 'Inactive' && (i.chemical || i.category === 'Chemicals & Toiletries') && util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).length
+    };
+    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issue Items'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals']].map(([id, ic, l]) =>
+      '<a href="#/' + id + '" class="' + (here === id ? 'on' : '') + '" style="text-decoration:none">' + ui.icon(ic, 'sm') + l + '<span class="n">' + n[id] + '</span></a>').join('') + '</div>';
+  }
+  C.navTabs = pageLinks;
+  function sivTable(body, all, o) {
+    let seg = o.seg;
     const draw = () => {
-      const rows = all.filter(s => seg === 'all' ? true : seg === 'open' ? C.openIssueStatuses.indexOf(s.status) >= 0 : s.status === seg);
-      body.innerHTML = '<div class="row mb-2"><div class="seg" id="siSeg">' + [['open', 'Open'], ['Requested', 'Requested'], ['Approved', 'Approved'], ['Part issued', 'Part issued'], ['Issued', 'Issued'], ['Rejected', 'Rejected'], ['all', 'All']].map(([k, l]) =>
-        '<button data-s="' + k + '" class="' + (seg === k ? 'on' : '') + '">' + l + '<span class="n">' + (k === 'all' ? all.length : k === 'open' ? waiting : all.filter(s => s.status === k).length) + '</span></button>').join('') + '</div></div><div class="card" id="siT"></div>';
+      const rows = all.filter(s => o.match(s, seg));
+      body.innerHTML = '<div class="row mb-2"><div class="seg">' + o.segs.map(([k, l]) =>
+        '<button data-s="' + k + '" class="' + (seg === k ? 'on' : '') + '">' + l + '<span class="n">' + all.filter(s => o.match(s, k)).length + '</span></button>').join('') + '</div></div><div class="card" id="siT"></div>';
       body.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { seg = b.dataset.s; draw(); });
       const depts = Array.from(new Set(all.map(s => s.department).filter(Boolean))).sort();
       ui.table(body.querySelector('#siT'), {
-        rows, placeholder: 'Search SIV, department, item…', initialSort: { key: 'date', dir: -1 },
+        rows, placeholder: o.placeholder, initialSort: { key: 'date', dir: -1 },
         search: s => [s.number, s.department, s.requestedBy, s.status].concat((s.lines || []).map(l => l.itemName)).join(' '),
         filters: [{ key: 'department', label: 'All departments', options: depts }, { key: 'priority', label: 'Any priority', options: PRIORITIES }],
         onRow: s => router.go('issues/' + s.id),
         toolbar: '<button class="btn sm" data-x>' + ui.icon('download', 'sm') + 'Excel</button>',
-        columns: [
-          { key: 'number', label: 'SIV', render: s => '<span class="t-title mono">' + esc(s.number) + '</span>', sort: s => s.number },
-          { key: 'date', label: 'Date', render: s => '<span class="nowrap">' + util.date(s.date) + '</span>' },
-          { key: 'department', label: 'Department', render: s => '<div class="t-title">' + esc(s.department || '—') + '</div><div class="t-sub">' + esc(s.requestedBy || '') + '</div>' },
-          { key: 'lines', label: 'Items', render: s => '<div class="truncate" style="max-width:320px">' + esc((s.lines || []).map(l => l.itemName).join(', ')) + '</div><div class="t-sub">' + lineTotal(s) + ' ' + util.plural(lineTotal(s), 'line') + '</div>', sort: s => lineTotal(s) },
-          { key: 'priority', label: 'Priority', render: s => s.priority && s.priority !== 'Normal' ? ui.badge(s.priority, s.priority === 'Emergency' ? 'danger' : 'warning') : '<span class="muted">Normal</span>' },
-          { key: 'value', label: 'Issued value', cls: 'num', render: s => { const v = issuedValue(s); return v ? util.money(v) : '<span class="muted">—</span>'; }, sort: s => issuedValue(s) },
-          { key: 'status', label: 'Status', render: s => C.sivBadge(s.status) }
-        ],
-        empty: ui.empty('clipboard', all.length ? 'Nothing in this view' : 'No requisitions yet', 'Departments\' requests for stock are recorded here, approved and issued on a Stores Issue Voucher.', all.length ? '' : '<a class="btn primary" href="#/issues/new">' + ui.icon('plus', 'sm') + 'New requisition</a>')
+        columns: o.columns,
+        empty: o.empty(all.length)
       });
-      body.querySelector('[data-x]').onclick = () => C.excel([{ name: 'Issues', cols: [12, 12, 26, 22, 10, 50, 14, 12], rows: rows.map(s => ({ SIV: s.number, Date: s.date, Department: s.department, 'Requested by': s.requestedBy, Priority: s.priority || 'Normal', Items: (s.lines || []).map(l => l.itemName + ' x' + (l.qtyIssued || l.qtyApproved || l.qtyRequested)).join('; '), 'Issued value': issuedValue(s), Status: s.status })) }], 'Stores issues ' + util.today() + '.xlsx');
+      body.querySelector('[data-x]').onclick = () => C.excel([{ name: o.sheet, cols: [12, 12, 26, 22, 10, 50, 14, 12], rows: rows.map(s => ({ SIV: s.number, Date: o.issued ? issuedOn(s) : s.date, Department: s.department, 'Requested by': s.requestedBy, Priority: s.priority || 'Normal', Items: (s.lines || []).map(l => l.itemName + ' x' + (o.issued ? (l.qtyIssued || 0) : (l.qtyApproved || l.qtyRequested))).join('; '), 'Issued value': issuedValue(s), Status: s.status })) }], 'Stores ' + o.sheet.toLowerCase() + ' ' + util.today() + '.xlsx');
     };
     draw();
+  }
+  const COL = {
+    number: { key: 'number', label: 'SIV', render: s => '<span class="t-title mono">' + esc(s.number) + '</span>', sort: s => s.number },
+    dept: { key: 'department', label: 'Department', render: s => '<div class="t-title">' + esc(s.department || '—') + '</div><div class="t-sub">' + esc(s.requestedBy || '') + '</div>' },
+    items: { key: 'lines', label: 'Items', render: s => '<div class="truncate" style="max-width:320px">' + esc((s.lines || []).map(l => l.itemName).join(', ')) + '</div><div class="t-sub">' + lineTotal(s) + ' ' + util.plural(lineTotal(s), 'line') + '</div>', sort: s => lineTotal(s) },
+    priority: { key: 'priority', label: 'Priority', render: s => s.priority && s.priority !== 'Normal' ? ui.badge(s.priority, s.priority === 'Emergency' ? 'danger' : 'warning') : '<span class="muted">Normal</span>' },
+    status: { key: 'status', label: 'Status', render: s => C.sivBadge(s.status) }
+  };
+
+  /** Requisitions: what departments have asked for, waiting to be approved or issued. */
+  function renderRequisitions(el) {
+    const q = router.parse().query;
+    // Old links to the tabs of the former combined page.
+    if (q.tab === 'reorder') { location.replace('#/reorder'); return; }
+    if (q.tab === 'sent') { location.replace('#/orders'); return; }
+    const all = store.filter('stockIssues', s => REQ_STATUSES.indexOf(s.status) >= 0);
+    el.innerHTML = ui.pageHead({ title: 'Requisitions', sub: 'Departments’ requests for stock — approve them, then issue on a Stores Issue Voucher.',
+      actions: '<a class="btn primary" href="#/issues/new">' + ui.icon('plus', 'sm') + 'New requisition</a>' }) + pageLinks('issues') + '<div id="siBody"></div>';
+    sivTable(el.querySelector('#siBody'), all, {
+      seg: q.status || 'open', sheet: 'Requisitions', placeholder: 'Search requisition, department, item…',
+      segs: [['open', 'Waiting'], ['Requested', 'To approve'], ['Approved', 'To issue'], ['Part issued', 'Part issued'], ['Rejected', 'Rejected'], ['Cancelled', 'Cancelled'], ['all', 'All']],
+      match: (s, k) => k === 'all' ? true : k === 'open' ? C.openIssueStatuses.indexOf(s.status) >= 0 : s.status === k,
+      columns: [COL.number, { key: 'date', label: 'Requested', render: s => '<span class="nowrap">' + util.date(s.date) + '</span>' }, COL.dept, COL.items, COL.priority, COL.status],
+      empty: n => ui.empty('clipboard', n ? 'Nothing in this view' : 'No requisitions yet', 'Departments’ requests for stock are recorded here, approved and issued on a Stores Issue Voucher.', n ? '' : '<a class="btn primary" href="#/issues/new">' + ui.icon('plus', 'sm') + 'New requisition</a>')
+    });
+  }
+
+  /** Issues: stock that has gone out on a Stores Issue Voucher. */
+  function renderIssued(el) {
+    const all = store.filter('stockIssues', s => ISSUED_STATUSES.indexOf(s.status) >= 0);
+    const month = util.today().slice(0, 7);
+    const thisMonth = all.filter(s => issuedOn(s).slice(0, 7) === month);
+    el.innerHTML = ui.pageHead({ title: 'Issue Items', sub: 'Stock issued to departments on a Stores Issue Voucher (earliest expiry first).',
+      actions: '<a class="btn primary" href="#/issues/new">' + ui.icon('arrow-up-right', 'sm') + 'Issue stock</a>' }) + pageLinks('issued') +
+      '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">' +
+      ui.kpi({ label: 'Issued this month', icon: 'arrow-up-right', value: util.int(thisMonth.length), meta: util.plural(thisMonth.length, 'voucher') }) +
+      ui.kpi({ label: 'Value this month', icon: 'wallet', value: util.moneyShort(util.sum(thisMonth, issuedValue)), title: util.money(util.sum(thisMonth, issuedValue)), meta: 'At average cost' }) +
+      ui.kpi({ label: 'Part issued', icon: 'clock', tone: all.some(s => s.status === 'Part issued') ? 'warn' : 'ok', value: util.int(all.filter(s => s.status === 'Part issued').length), meta: 'Balance still to issue' }) +
+      '</div><div id="siBody"></div>';
+    sivTable(el.querySelector('#siBody'), all, {
+      seg: 'all', sheet: 'Issues', issued: true, placeholder: 'Search SIV, department, item…',
+      segs: [['all', 'All'], ['month', 'This month'], ['Issued', 'Fully issued'], ['Part issued', 'Part issued']],
+      match: (s, k) => k === 'all' ? true : k === 'month' ? issuedOn(s).slice(0, 7) === month : s.status === k,
+      columns: [COL.number, { key: 'date', label: 'Issued', render: s => '<span class="nowrap">' + util.date(issuedOn(s)) + '</span>', sort: s => issuedOn(s) }, COL.dept, COL.items,
+        { key: 'value', label: 'Issued value', cls: 'num', render: s => { const v = issuedValue(s); return v ? util.money(v) : '<span class="muted">—</span>'; }, sort: s => issuedValue(s) }, COL.status],
+      empty: n => ui.empty('arrow-up-right', n ? 'Nothing in this view' : 'Nothing issued yet', 'Approve a requisition and issue it, or issue straight away from a new requisition.', n ? '' : '<a class="btn primary" href="#/issues/new">' + ui.icon('arrow-up-right', 'sm') + 'Issue stock</a>')
+    });
+  }
+
+  function renderReorderPage(el) {
+    el.innerHTML = ui.pageHead({ title: 'Reorder', sub: 'Items at or below their reorder level — send one purchase request to Procurement.',
+      actions: '<a class="btn" href="#/levels">' + ui.icon('bell', 'sm') + 'Reorder levels & alerts</a><a class="btn" href="#/orders">' + ui.icon('send', 'sm') + 'Orders sent</a>' }) + pageLinks('reorder') + '<div id="siBody"></div>';
+    renderReorder(el.querySelector('#siBody'));
+  }
+  function renderOrdersPage(el) {
+    const sent = store.filter('requisitions', r => r.source === 'stores');
+    el.innerHTML = ui.pageHead({ title: 'Orders', sub: 'Purchase requests sent to Procurement, and the purchase orders raised for them. Deliveries arrive under Expected Deliveries.',
+      actions: '<a class="btn" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a><a class="btn primary" href="#/reorder">' + ui.icon('alert', 'sm') + 'Reorder</a>' }) + pageLinks('orders') + '<div id="siBody"></div>';
+    renderSent(el.querySelector('#siBody'), sent);
   }
 
   /* ---------------------------------------------------------- reorder */
@@ -123,7 +183,7 @@
       if (!v) return;
       const req = sendRequest(chosen.map(r => ({ item: r.item, qty: pick.get(r.item.id).qty, cost: r.cost })), v);
       ui.toast('Purchase request ' + req.number + ' sent to Procurement');
-      location.hash = '#/issues?tab=sent';
+      location.hash = '#/orders';
     };
   }
   /** Create one Procurement requisition for these items and notify Procurement. lines: [{ item, qty, cost }] */
@@ -156,7 +216,7 @@
         { key: 'pos', label: 'Purchase orders', render: r => { const p = posFor(r); return p.length ? p.map(x => '<span class="chip">PO ' + esc(x.poNumber || 'draft') + ' · ' + esc(x.status) + '</span>').join(' ') : '<span class="muted">None yet</span>'; }, sort: r => posFor(r).length },
         { key: 'status', label: 'Procurement status', render: r => ui.badge(r.status) }
       ],
-      empty: ui.empty('send', 'No purchase requests sent yet', 'Use the Reorder tab to request stock from Procurement.')
+      empty: ui.empty('send', 'No purchase requests sent yet', 'Use Reorder to request stock from Procurement.', '<a class="btn primary" href="#/reorder">' + ui.icon('alert', 'sm') + 'Reorder</a>')
     });
   }
 
@@ -164,7 +224,7 @@
   function renderNew(el) {
     const off = domain.officer();
     itemsDatalist();
-    el.innerHTML = ui.pageHead({ back: { label: 'Issues & Requisitions', href: '#/issues' }, title: 'New requisition', sub: 'Record what a department needs. Save it for approval, or issue straight away.' }) +
+    el.innerHTML = ui.pageHead({ back: { label: 'Requisitions', href: '#/issues' }, title: 'New requisition', sub: 'Record what a department needs. Save it for approval, or issue straight away.' }) +
       '<div class="card"><div class="card-b"><div class="form-grid">' +
       '<div class="field s4"><label>Department<span class="req">*</span></label><select name="department" id="siDept"></select></div>' +
       '<div class="field s4"><label>Requested by<span class="req">*</span></label><input name="requestedBy" placeholder="Name of the person requesting"></div>' +
@@ -236,7 +296,7 @@
     let primary = '';
     if (editable) primary = '<button class="btn primary" data-a="approve">' + ui.icon('check', 'sm') + 'Approve</button>';
     else if (issuable) primary = '<button class="btn primary" data-a="issue">' + ui.icon('arrow-up-right', 'sm') + 'Issue stock</button>';
-    el.innerHTML = ui.pageHead({ back: { label: 'Issues & Requisitions', href: '#/issues' }, title: s.number, badge: C.sivBadge(s.status),
+    el.innerHTML = ui.pageHead({ back: ISSUED_STATUSES.indexOf(s.status) >= 0 ? { label: 'Issue Items', href: '#/issued' } : { label: 'Requisitions', href: '#/issues' }, title: s.number, badge: C.sivBadge(s.status),
       sub: esc(s.department || '') + ' · requested by ' + esc(s.requestedBy || '') + ' · ' + util.dateLong(s.date) + (s.priority && s.priority !== 'Normal' ? ' · <b>' + esc(s.priority) + '</b>' : ''),
       actions: '<button class="btn" data-a="print">' + ui.icon('printer', 'sm') + 'Issue voucher</button>' + primary + '<button class="btn icon" data-a="more" title="More">' + ui.icon('more') + '</button>' }) +
       (s.status === 'Rejected' || s.status === 'Cancelled' ? '' : '<div class="card mb-3"><div class="card-b">' + ui.stepper(['Requested', 'Approved', 'Issued', 'Received by department'], step) + '</div></div>') +
@@ -368,13 +428,18 @@
   Proc.storesC.printSIV = printSIV;
 
   Proc.page({
-    id: 'issues', title: 'Issues & Requisitions', icon: 'clipboard', section: 'Workflow', order: 20,
+    id: 'issues', title: 'Requisitions', icon: 'clipboard', section: 'Workflow', order: 20,
     count: () => store.filter('stockIssues', s => s.status === 'Requested' || s.status === 'Approved').length,
     render(el, params) {
       C.css('css-sissues', CSS);
       if (params[0] === 'new') return renderNew(el);
       if (params[0]) return renderDetail(el, params[0]);
-      renderList(el);
+      renderRequisitions(el);
     }
   });
+  Proc.page({ id: 'issued', title: 'Issue Items', icon: 'arrow-up-right', section: 'Workflow', order: 21, render(el) { C.css('css-sissues', CSS); renderIssued(el); } });
+  Proc.page({ id: 'reorder', title: 'Reorder', icon: 'alert', section: 'Workflow', order: 22, count: () => C.reorderRows().length, render(el) { C.css('css-sissues', CSS); renderReorderPage(el); } });
+  Proc.page({ id: 'orders', title: 'Orders', icon: 'send', section: 'Workflow', order: 23,
+    count: () => store.filter('requisitions', r => r.source === 'stores' && ['Submitted', 'Approved', 'Sourcing', 'Awarded'].indexOf(r.status) >= 0).length,
+    render(el) { C.css('css-sissues', CSS); renderOrdersPage(el); } });
 })();
