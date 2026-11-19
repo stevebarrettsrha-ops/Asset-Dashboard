@@ -163,7 +163,7 @@
       '<div class="sd-grid"><div class="stack">' +
       '<div class="card"><div class="card-h"><div><h3>Receipts and issues</h3><div class="sub">Value by month, last 6 months</div></div><div class="sd-legend"><span><i style="background:var(--primary)"></i>Received</span><span><i style="background:#f59e0b"></i>Issued</span></div></div><div class="card-b" id="sdPair"></div></div>' +
       '<div class="grid c2"><div class="card"><div class="card-h"><div><h3>Recent goods received</h3></div><a class="small" href="#/received">All received</a></div><div class="card-b flush" id="sdGrn"></div></div>' +
-      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All issues</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
+      '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All issued items</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
       '</div><div class="stack">' +
       '<div class="card"><div class="card-h"><h3>Needs your attention</h3></div><ul class="sd-att" id="sdAtt"></ul></div>' +
       '<div class="card"><div class="card-h"><div><h3>Issued this month by department</h3><div class="sub">Value at average cost</div></div></div><div class="card-b" id="sdDept"></div></div>' +

@@ -66,7 +66,7 @@
       grocery: (C.groceryLists ? C.groceryLists().filter(r => (r.groceryMonth || '') === month).length : 0),
       chemicals: store.filter('stockItems', i => i.status !== 'Inactive' && (i.chemical || i.category === 'Chemicals & Toiletries') && util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).length
     };
-    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issues'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals']].map(([id, ic, l]) =>
+    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issue Items'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals']].map(([id, ic, l]) =>
       '<a href="#/' + id + '" class="' + (here === id ? 'on' : '') + '" style="text-decoration:none">' + ui.icon(ic, 'sm') + l + '<span class="n">' + n[id] + '</span></a>').join('') + '</div>';
   }
   C.navTabs = pageLinks;
@@ -122,7 +122,7 @@
     const all = store.filter('stockIssues', s => ISSUED_STATUSES.indexOf(s.status) >= 0);
     const month = util.today().slice(0, 7);
     const thisMonth = all.filter(s => issuedOn(s).slice(0, 7) === month);
-    el.innerHTML = ui.pageHead({ title: 'Issues', sub: 'Stock issued to departments on a Stores Issue Voucher (earliest expiry first).',
+    el.innerHTML = ui.pageHead({ title: 'Issue Items', sub: 'Stock issued to departments on a Stores Issue Voucher (earliest expiry first).',
       actions: '<a class="btn primary" href="#/issues/new">' + ui.icon('arrow-up-right', 'sm') + 'Issue stock</a>' }) + pageLinks('issued') +
       '<div class="grid c3 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">' +
       ui.kpi({ label: 'Issued this month', icon: 'arrow-up-right', value: util.int(thisMonth.length), meta: util.plural(thisMonth.length, 'voucher') }) +
@@ -296,7 +296,7 @@
     let primary = '';
     if (editable) primary = '<button class="btn primary" data-a="approve">' + ui.icon('check', 'sm') + 'Approve</button>';
     else if (issuable) primary = '<button class="btn primary" data-a="issue">' + ui.icon('arrow-up-right', 'sm') + 'Issue stock</button>';
-    el.innerHTML = ui.pageHead({ back: ISSUED_STATUSES.indexOf(s.status) >= 0 ? { label: 'Issues', href: '#/issued' } : { label: 'Requisitions', href: '#/issues' }, title: s.number, badge: C.sivBadge(s.status),
+    el.innerHTML = ui.pageHead({ back: ISSUED_STATUSES.indexOf(s.status) >= 0 ? { label: 'Issue Items', href: '#/issued' } : { label: 'Requisitions', href: '#/issues' }, title: s.number, badge: C.sivBadge(s.status),
       sub: esc(s.department || '') + ' · requested by ' + esc(s.requestedBy || '') + ' · ' + util.dateLong(s.date) + (s.priority && s.priority !== 'Normal' ? ' · <b>' + esc(s.priority) + '</b>' : ''),
       actions: '<button class="btn" data-a="print">' + ui.icon('printer', 'sm') + 'Issue voucher</button>' + primary + '<button class="btn icon" data-a="more" title="More">' + ui.icon('more') + '</button>' }) +
       (s.status === 'Rejected' || s.status === 'Cancelled' ? '' : '<div class="card mb-3"><div class="card-b">' + ui.stepper(['Requested', 'Approved', 'Issued', 'Received by department'], step) + '</div></div>') +
@@ -437,7 +437,7 @@
       renderRequisitions(el);
     }
   });
-  Proc.page({ id: 'issued', title: 'Issues', icon: 'arrow-up-right', section: 'Workflow', order: 21, render(el) { C.css('css-sissues', CSS); renderIssued(el); } });
+  Proc.page({ id: 'issued', title: 'Issue Items', icon: 'arrow-up-right', section: 'Workflow', order: 21, render(el) { C.css('css-sissues', CSS); renderIssued(el); } });
   Proc.page({ id: 'reorder', title: 'Reorder', icon: 'alert', section: 'Workflow', order: 22, count: () => C.reorderRows().length, render(el) { C.css('css-sissues', CSS); renderReorderPage(el); } });
   Proc.page({ id: 'orders', title: 'Orders', icon: 'send', section: 'Workflow', order: 23,
     count: () => store.filter('requisitions', r => r.source === 'stores' && ['Submitted', 'Approved', 'Sourcing', 'Awarded'].indexOf(r.status) >= 0).length,
