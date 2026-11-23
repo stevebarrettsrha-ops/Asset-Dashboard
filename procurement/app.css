@@ -229,7 +229,7 @@ svg.i.lg { width: 22px; height: 22px; }
   .user-chip .nm { display: none; }
 }
 .sb-scrim { display: none; position: fixed; inset: 0; background: rgba(8, 17, 28, .45); z-index: 35; }
-@media (max-width: 640px) { .global-search { width: auto; flex: 1; } .global-search kbd { display: none; } .crumbs { display: none; } }
+@media (max-width: 640px) { .global-search { width: auto; flex: 1 1 0; min-width: 0; } .global-search input { min-width: 0; width: 100%; } .global-search kbd { display: none; } .crumbs { display: none; } .topbar { gap: 6px; padding: 0 10px; } .user-chip { padding: 2px; gap: 0; } .user-chip > svg { display: none; } }
 
 /* ---------- Page header ---------- */
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
