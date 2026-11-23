@@ -203,13 +203,39 @@
     } catch (e) { console.error('[Portal] asset user sync failed', e); }
   }
   let cloudDirty = false;
+  const PENDING = 'portalCloudPending';   // changes made on this computer that have not reached Google Drive yet
   function saveAccounts(list, opts) {
     opts = opts || {};
     list.forEach(a => { delete a.password; });
     writeJSON(KEYS.accounts, list);
     writeJSON(KEYS.legacy, deriveLegacy(list));
     syncAssetUsers(list);
-    if (!opts.fromCloud) { cloudDirty = true; scheduleCloudPush(); }
+    if (!opts.fromCloud) { cloudDirty = true; try { localStorage.setItem(PENDING, String(Date.now())); } catch (e) { /* ignore */ } scheduleCloudPush(); }
+  }
+  /** Set an account's password. pwAt records when, so the newest password wins on every computer —
+      an older edit of the same account (made before this computer caught up) can never bring back an old one. */
+  function setPassword(a, hash, mustChange) {
+    a.passwordHash = hash; a.mustChangePassword = !!mustChange; a.pwAt = Date.now(); delete a._plain; delete a.isDefaultAdmin;
+    return a;
+  }
+  /** Send this computer's unsent changes to Google Drive now (before leaving the portal). */
+  async function flushCloud(ms) {
+    let pending = cloudDirty; try { pending = pending || !!localStorage.getItem(PENDING); } catch (e) { /* ignore */ }
+    if (!pending || !(cloud.token || storedToken())) return !pending;
+    showSaving(true);
+    try {
+      for (let i = 0; i < 20 && cloud.busy; i++) await new Promise(r => setTimeout(r, 250));
+      return await Promise.race([syncNow(false).then(() => true), new Promise(r => setTimeout(() => r(false), ms || 12000))]);
+    } catch (e) { return false; } finally { showSaving(false); }
+  }
+  function showSaving(on) {
+    let b = document.getElementById('pSaving');
+    if (!on) { if (b) b.remove(); return; }
+    if (b) return;
+    b = document.createElement('div'); b.id = 'pSaving'; b.className = 'toast';
+    b.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999';
+    b.textContent = 'Saving to Google Drive so it works on your other devices…';
+    document.body.appendChild(b);
   }
   function touch(a) { a.updatedAt = Date.now(); a.updatedBy = session() ? session().username : 'portal'; return a; }
   async function upgradeAccounts() {
@@ -395,7 +421,15 @@
       const m = map.get(u);
       if (!m) { map.set(u, c); changed++; return; }
       const cu = c.updatedAt || 0, mu = m.updatedAt || 0;
-      if (cu > mu) { map.set(u, Object.assign({}, c)); changed++; return; }
+      const pc = c.pwAt || 0, pm = m.pwAt || 0;
+      const PW = ['passwordHash', 'mustChangePassword', 'pwAt', '_plain', 'isDefaultAdmin'];
+      const takePw = (to, from) => PW.forEach(k => { if (from[k] === undefined) delete to[k]; else to[k] = from[k]; });
+      if (cu > mu) {
+        const n = Object.assign({}, c);
+        if (pm > pc) takePw(n, m);   // this computer has the newer password: keep it
+        map.set(u, n); changed++; return;
+      }
+      if (pc > pm) { takePw(m, c); changed++; return; }   // the shared file has the newer password
       // First sync after the upgrade: an account this computer only migrated (never edited since)
       // takes the shared file's password and permission levels — the cloud copy may hold a reset
       // made on another computer, and the old portal treated the cloud as authoritative.
@@ -445,6 +479,7 @@
       cloud.fileId = (await r.json()).id;
     }
     cloudDirty = false;
+    try { localStorage.removeItem(PENDING); } catch (e) { /* ignore */ }
   }
   async function syncNow(interactive) {
     if (cloud.busy) { if (cloudDirty) setTimeout(scheduleCloudPush, 2500); return false; }
@@ -619,9 +654,12 @@
         if (/^(admin123|123|password|123456)$/i.test(p1)) return fail('Choose a password that is harder to guess.');
         const list = loadAccounts(); const a = list.find(x => x.username === username); if (!a) return true;
         const h = await hashPassword(p1); if (h === a.passwordHash) return fail('The new password must be different from the old one.');
-        a.passwordHash = h; a.mustChangePassword = false; delete a.isDefaultAdmin; touch(a); saveAccounts(list);
+        setPassword(a, h, false); touch(a); a.updatedBy = username; saveAccounts(list);
         logSignin({ username, role: a.role, card: '', result: 'password', detail: 'Password changed at sign-in' });
-        toast('Password changed'); then && then();
+        // Save it to Google Drive before opening the dashboard, so the new password works on every device.
+        const shared = await flushCloud();
+        toast(shared ? 'Password changed — use it on any device.' : 'Password changed on this device. It is sent to Google Drive the next time the portal opens with an internet connection.', shared ? '' : 'err');
+        then && then();
       } }]
     });
   }
@@ -715,7 +753,7 @@
         if (p1 !== p2) return fail('The two passwords do not match.');
         if (/^(admin123|123|password|123456)$/i.test(p1)) return fail('Choose a password that is harder to guess.');
         const list = loadAccounts(); const a = list.find(x => x.username === username); if (!a) return true;
-        a.passwordHash = await hashPassword(p1); a.mustChangePassword = false; delete a.isDefaultAdmin; touch(a); a.updatedBy = username;
+        setPassword(a, await hashPassword(p1), false); touch(a); a.updatedBy = username;
         saveAccounts(list); closeRequests(username);
         const fails = readJSON(KEYS.fails, {}); delete fails[username]; writeJSON(KEYS.fails, fails);
         logSignin({ username, role: a.role, card: roleKey, result: 'password', detail: 'Password reset after Google verification' });
@@ -743,8 +781,9 @@
     else enter(r.home);
   }
   /** Open a dashboard chosen on the portal (it lets that tab in without asking again). */
-  function enter(page) {
+  async function enter(page) {
     try { sessionStorage.setItem('mphEnter:' + page.split('#')[0], '1'); } catch (e) { /* ignore */ }
+    await flushCloud(8000);
     location.href = page;
   }
   function nextPage() {
@@ -976,7 +1015,7 @@
           if (p1.length < 6) return fail('The password must be at least 6 characters.');
           if (p1 !== p2) return fail('The two passwords do not match.');
           const rec = { id: uid(), username: uname, displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems,
-            passwordHash: await hashPassword(p1), mustChangePassword: mustChange, createdAt: Date.now(), createdBy: me };
+            passwordHash: await hashPassword(p1), mustChangePassword: mustChange, pwAt: Date.now(), createdAt: Date.now(), createdBy: me };
           const tomb = tombstones(); if (tomb[uname]) { delete tomb[uname]; writeJSON(KEYS.tomb, tomb); }
           fresh.push(touch(rec)); saveAccounts(fresh);
           if (email) setTimeout(() => shareForAccount(uname), 200);
@@ -985,7 +1024,10 @@
         } else {
           const t = fresh.find(x => x.username === uname); if (!t) return fail('This user no longer exists.');
           if (t.role !== role) delete t.legacyRoles;
-          Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems, mustChangePassword: mustChange });
+          Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems });
+          // Only when the Administrator changed the tick: an edit made on a computer that has not caught up
+          // with the person's own password change must not ask them for a new password again.
+          if (mustChange !== !!(a && a.mustChangePassword)) { t.mustChangePassword = mustChange; t.pwAt = Date.now(); }
           touch(t); saveAccounts(fresh);
           if (email) setTimeout(() => shareForAccount(t.username), 200);
           logSignin({ username: uname, role, card: '', result: 'admin', detail: 'Edited by ' + me });
@@ -1008,7 +1050,7 @@
         if (p1.length < 6) return fail('Use at least 6 characters.');
         if (p1 !== p2) return fail('The two passwords do not match.');
         const list = loadAccounts(); const t = list.find(x => x.username === username); if (!t) return true;
-        t.passwordHash = await hashPassword(p1); t.mustChangePassword = el.querySelector('[name=mustChange]').checked; delete t.isDefaultAdmin; touch(t); saveAccounts(list);
+        setPassword(t, await hashPassword(p1), el.querySelector('[name=mustChange]').checked); touch(t); saveAccounts(list);
         const fails = readJSON(KEYS.fails, {}); delete fails[username]; writeJSON(KEYS.fails, fails);
         closeRequests(username); cloudDirty = true; scheduleCloudPush();
         logSignin({ username, role: t.role, card: '', result: 'admin', detail: 'Password reset by ' + session().username });
@@ -1158,6 +1200,7 @@
     if (s && sessionStorage.getItem(KEYS.lock)) lock();
     // A valid Google token on this computer: sync straight away so cards unlock.
     if (!synced && storedToken()) { const b = $('#syncBtn'); if (b) runPreSync(); }
+    else { let p = null; try { p = localStorage.getItem(PENDING); } catch (e) { /* ignore */ } if (p && storedToken() && !cloud.busy) syncNow(false).catch(() => {}); }
     void s;
   }
   document.addEventListener('click', e => {
