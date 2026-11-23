@@ -324,6 +324,21 @@
     return db;
   }
 
+  /* View-only accounts (User Accounts → Access: View only): what the person does on screen cannot change
+     records. Upkeep the system does by itself still runs on this computer, but a view-only computer never
+     uploads to Google Drive (sync.run), so nothing reaches anyone else. */
+  const VIEW_ONLY = !!(window.MPHViewOnly && window.MPHViewOnly.on);
+  Proc.viewOnly = VIEW_ONLY;
+  const VO_FREE = { notifications: 1, audit: 1 };
+  function viewOnlyGuard(coll) {
+    if (!VIEW_ONLY || VO_FREE[coll]) return;
+    const ev = window.event;
+    const userDid = ev && ev.isTrusted && /^(click|dblclick|input|change|submit|keydown|keyup|pointerup|mouseup|blur|focusout|drop|paste)$/.test(ev.type) &&
+      ev.target && ev.target.closest && ev.target.closest('.view, .modal-scrim, .topbar');
+    if (!userDid) return;
+    if (window.MPHViewOnly) window.MPHViewOnly.note();
+    throw new Error('View only — you cannot add or change records.');
+  }
   const store = Proc.store = {
     db: emptyDb(),
     ready: null,
@@ -347,6 +362,7 @@
     filter(coll, pred) { return store.list(coll).filter(pred); },
     upsert(coll, rec, opts) {
       opts = opts || {};
+      viewOnlyGuard(coll);
       if (!store.db[coll]) store.db[coll] = [];
       const arr = store.db[coll];
       const now = Date.now();
@@ -368,6 +384,7 @@
       return rec;
     },
     remove(coll, id) {
+      viewOnlyGuard(coll);
       const arr = store.db[coll] || [];
       const idx = arr.findIndex(r => r.id === id);
       if (idx < 0) return;
@@ -1410,6 +1427,8 @@
     scrim.addEventListener('mousedown', e => { if (e.target === scrim && !o.sticky) close(); });
     const foot = scrim.querySelector('.modal-f');
     (o.actions || []).forEach(a => {
+      // View only: buttons that save are not offered; looking, printing and exporting still work.
+      if (VIEW_ONLY && a.onClick && !/^(cancel|close|back|ok|done|print|pdf|download|export|excel|report|preview|view|open|continue|choose|print report|download pdf)/i.test(String(a.label || '').trim()) && !/print|pdf|download|export|excel|report/i.test(a.label || '')) return;
       const b = document.createElement('button');
       b.className = 'btn ' + (a.kind || '');
       b.innerHTML = (a.icon ? ui.icon(a.icon, 'sm') : '') + util.esc(a.label);
@@ -1430,6 +1449,7 @@
   };
   ui.confirm = function (message, o) {
     o = o || {};
+    if (VIEW_ONLY) { if (window.MPHViewOnly) window.MPHViewOnly.note(); return Promise.resolve(false); }
     return new Promise(resolve => {
       let done = false;
       ui.modal({
@@ -2099,6 +2119,7 @@
           sync.seen[f.id] = f.modifiedTime;
         }
         await applySeeds();
+        if (VIEW_ONLY) { sync.lastSync = Date.now(); sync.setState('on'); return; }   // view only: read, never upload
         // Each unit's records go back to its own folder.
         const blobs = {};
         for (const u of Object.keys(GDRIVE.UNITS)) {
@@ -2283,7 +2304,7 @@
       store.on('change', util.debounce(() => ui.supplierDatalist(), 400));
       router.start();
       sync.start();
-      if (!store.settings().officers[auth.user.username]) setTimeout(() => Proc.shell.profileDialog(true), 400);
+      if (!VIEW_ONLY && !store.settings().officers[auth.user.username]) setTimeout(() => Proc.shell.profileDialog(true), 400);
     };
     if (auth.restore()) return enter();
     const form = document.getElementById('loginForm'), err = document.getElementById('loginError'), status = document.getElementById('loginStatus');

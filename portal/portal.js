@@ -280,7 +280,8 @@
   }
   function startSession(a, card) {
     const lr = systemsOf(a).indexOf('assets') >= 0 ? legacyRoleFor(a, 'assets') : '';
-    const s = { username: a.username, displayName: a.displayName, email: a.email || '', role: a.role, card, systems: systemsOf(a), assetRole: lr === 'Admin' ? 'Administrator' : lr, at: Date.now(), exp: Date.now() + SESSION_HOURS * 3600e3 };
+    const viewOnly = a.access === 'view';
+    const s = { username: a.username, displayName: a.displayName, email: a.email || '', role: a.role, card, systems: systemsOf(a), viewOnly, assetRole: viewOnly ? 'User' : (lr === 'Admin' ? 'Administrator' : lr), at: Date.now(), exp: Date.now() + SESSION_HOURS * 3600e3 };
     // Kept for this tab and, until it expires, for new tabs on this computer, so every dashboard opens straight away.
     sessionStorage.setItem(KEYS.session, JSON.stringify(s));
     try { localStorage.setItem(KEYS.session, JSON.stringify(s)); } catch (e) { /* ignore */ }
@@ -906,7 +907,7 @@
       return '<tr data-u="' + esc(a.username) + '"><td><input type="checkbox" data-sel' + (state.selected.has(a.username) ? ' checked' : '') + ' aria-label="Select ' + esc(a.displayName) + '"></td>' +
         '<td><div class="u"><span class="avatar" style="background:' + r.color + '">' + esc(initials(a.displayName)) + '</span><div><div class="n">' + esc(a.displayName) + (self ? ' <span class="muted small">(you)</span>' : '') + '</div><div class="e">' + esc(a.email || '—') + '</div></div></div></td>' +
         '<td>' + roleBadge(a.role) + (a.legacyRoles ? Object.keys(a.legacyRoles).filter(k => a.legacyRoles[k] !== 'Admin' && a.legacyRoles[k] !== 'Administrator').map(k => '<div class="muted small" style="margin-top:4px">' + esc((SYSTEMS[k] || { label: k }).label) + ': ' + esc(a.legacyRoles[k]) + '</div>').join('') : '') + (a.systems && a.systems.length ? '<div class="muted small" style="margin-top:4px">' + esc(a.systems.map(s => SYSTEMS[s] ? SYSTEMS[s].label : s).join(', ')) + '</div>' : '') + '</td>' +
-        '<td class="mono">' + esc(a.username) + (a.mustChangePassword ? '<div class="muted small">must change password</div>' : '') + '</td><td>' + esc(a.department || '—') + '</td>' +
+        '<td class="mono">' + esc(a.username) + (a.access === 'view' ? '<div class="small" style="color:#1e3a8a;font-weight:600">&#128065; View only</div>' : '') + (a.mustChangePassword ? '<div class="muted small">must change password</div>' : '') + '</td><td>' + esc(a.department || '—') + '</td>' +
         '<td class="small nowrap">' + (a.lastLogin ? esc(ago(a.lastLogin)) : '<span class="muted">never</span>') + '</td>' +
         '<td><div class="status"><button class="switch' + (a.status === 'active' ? ' on' : '') + '" data-toggle' + (self || lastAdmin ? ' disabled title="' + (self ? 'You cannot disable your own account' : 'The last active Administrator cannot be disabled') + '"' : '') + ' aria-label="Enable or disable"></button>' +
         '<span class="badge" style="--bc:' + (a.status === 'active' ? 'var(--ok)' : 'var(--bad)') + '">' + (a.status === 'active' ? 'Active' : 'Disabled') + '</span></div></td>' +
@@ -982,6 +983,7 @@
         '<div class="field"><label>Email</label><input name="email" type="email" value="' + esc(cur.email || '') + '"></div>' +
         '<div class="field"><label>Phone / extension</label><input name="phone" value="' + esc(cur.phone || '') + '"></div>' +
         '<div class="field"><label>Role<span class="req">*</span></label><select name="role">' + ROLE_ORDER.map(k => '<option value="' + k + '"' + (cur.role === k ? ' selected' : '') + '>' + esc(ROLES[k].label) + '</option>').join('') + '</select><div class="hint" data-rolehint></div></div>' +
+        '<div class="field"><label>Access<span class="req">*</span></label><select name="access"><option value="full"' + (cur.access === 'view' ? '' : ' selected') + '>Full access — can add and change records</option><option value="view"' + (cur.access === 'view' ? ' selected' : '') + '>View only — can look, print and export, but change nothing</option></select><div class="hint">View only users see the same dashboards and reports; they cannot add, edit or delete anything, and nothing is uploaded from their computer.</div></div>' +
         '<div class="field"><label>Department</label><input name="department" list="deptList" value="' + esc(cur.department || '') + '"><datalist id="deptList">' + deptList.map(d => '<option value="' + esc(d) + '">').join('') + '</datalist></div></div>' +
         '<div class="field"><label>Systems this user can open</label><div class="sys-checks" data-sys>' + sysBoxes() + '</div><div class="hint">Ticked automatically from the role. Change only to give extra access.</div></div>' +
         (isNew ? '<div class="grid2">' + pwField('p1', 'Password<span class="req">*</span>', 'At least 6 characters') + pwField('p2', 'Confirm password<span class="req">*</span>') + '</div><button type="button" class="btn sm" data-gen>Generate a password</button><div class="hint" data-genout style="margin-top:6px"></div>' : '') +
@@ -998,6 +1000,8 @@
         const v = n => { const i = el.querySelector('[name=' + n + ']'); return i ? i.value.trim() : ''; };
         const err = el.querySelector('[data-err]'); const fail = m => { err.textContent = m; err.hidden = false; err.scrollIntoView({ block: 'nearest' }); return false; };
         const displayName = v('displayName'), uname = v('username').toLowerCase(), email = v('email'), role = el.querySelector('[name=role]').value;
+        const access = (el.querySelector('[name=access]') || {}).value === 'view' ? 'view' : 'full';
+        if (access === 'view' && role === 'admin') return fail('An Administrator needs full access. Choose another role for a view-only user.');
         if (!displayName) return fail('Enter the person\'s full name.');
         if (!/^[a-z0-9._-]{3,40}$/.test(uname)) return fail('Usernames are 3–40 characters: lower-case letters, numbers, dot, dash or underscore.');
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('That email address does not look right.');
@@ -1015,7 +1019,7 @@
           if (p1.length < 6) return fail('The password must be at least 6 characters.');
           if (p1 !== p2) return fail('The two passwords do not match.');
           const rec = { id: uid(), username: uname, displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems,
-            passwordHash: await hashPassword(p1), mustChangePassword: mustChange, pwAt: Date.now(), createdAt: Date.now(), createdBy: me };
+            passwordHash: await hashPassword(p1), mustChangePassword: mustChange, pwAt: Date.now(), access, createdAt: Date.now(), createdBy: me };
           const tomb = tombstones(); if (tomb[uname]) { delete tomb[uname]; writeJSON(KEYS.tomb, tomb); }
           fresh.push(touch(rec)); saveAccounts(fresh);
           if (email) setTimeout(() => shareForAccount(uname), 200);
@@ -1024,7 +1028,7 @@
         } else {
           const t = fresh.find(x => x.username === uname); if (!t) return fail('This user no longer exists.');
           if (t.role !== role) delete t.legacyRoles;
-          Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems });
+          Object.assign(t, { displayName, email, phone: v('phone'), role, department: v('department'), status: active ? 'active' : 'disabled', systems, access });
           // Only when the Administrator changed the tick: an edit made on a computer that has not caught up
           // with the person's own password change must not ask them for a new password again.
           if (mustChange !== !!(a && a.mustChangePassword)) { t.mustChangePassword = mustChange; t.pwAt = Date.now(); }

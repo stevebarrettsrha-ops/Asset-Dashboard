@@ -6449,6 +6449,7 @@
         }
     </style>
   <script>/* Offline copy of the site (sw.js) */ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
+    <script src="view-only.js"></script>
     <script src="back-nav.js" defer></script>
 </head>
 <body>
@@ -13308,6 +13309,7 @@
         }
 
         async function performAutoSync() {
+            if (window.MPHViewOnly && MPHViewOnly.on) return false;   // view only: never upload
             if (autoSyncInProgress) return;
             if (!isCloudConnected || !googleAccessToken) return;
             // Location Records edits (made on this page's embedded frame OR on
@@ -15092,6 +15094,7 @@
         }
 
         async function saveToCloudSilent() {
+            if (window.MPHViewOnly && MPHViewOnly.on) return false;   // view only: never upload
             if (typeof isCloudConnected === 'undefined' || !isCloudConnected || !googleAccessToken) return false;
             try {
                 if (typeof setCloudSyncing === 'function') setCloudSyncing(true);
@@ -15154,6 +15157,7 @@
 
         // Save to cloud
         async function saveToCloud() {
+            if (window.MPHViewOnly && MPHViewOnly.on) return false;   // view only: never upload
             if (!isCloudConnected || !googleAccessToken) {
                 alert('Please connect to Google Drive first');
                 return;
@@ -15263,6 +15267,10 @@
         // Combine a backup (Drive copy or a chosen backup file) into this computer's
         // data. Takes a copy of this computer's data first. Nothing local is removed.
         async function combineBackupIntoLocal(backupData, copyKind) {
+            window._mphMerging = true;
+            try { return await combineBackupIntoLocalInner(backupData, copyKind); } finally { window._mphMerging = false; }
+        }
+        async function combineBackupIntoLocalInner(backupData, copyKind) {
             if (!backupData || !backupData.data || !backupData.version || !Array.isArray(backupData.data.assets)) {
                 throw new Error('The backup could not be read, so nothing on this computer was changed');
             }
@@ -18368,6 +18376,13 @@
         }
 
         function saveAssetsToStorage(assets) {
+            // View only: a change the person makes on screen is refused (merging Google Drive's copy still works).
+            if (window.MPHViewOnly && MPHViewOnly.on && !window._mphMerging) {
+                const ev = window.event;
+                if (ev && ev.isTrusted && /^(click|input|change|submit|keydown|keyup|pointerup|mouseup|drop|paste)$/.test(ev.type) && !(ev.target && ev.target.closest && ev.target.closest('#mphSyncBar, .cloud-dropdown, .sync-btn, #syncBtn'))) {
+                    MPHViewOnly.note(); return false;
+                }
+            }
             if (typeof dataIsDirty !== "undefined") dataIsDirty = true;
             try {
                 try { _stampChangedAssets(assets); } catch (e) { console.warn('[Assets] could not stamp edits', e); }
