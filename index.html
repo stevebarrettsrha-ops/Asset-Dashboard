@@ -6378,6 +6378,75 @@
                 -webkit-overflow-scrolling: touch;
             }
         }
+
+        /* =====================================================================
+           PHONE LAYOUT — kept last in this stylesheet on purpose: the desktop
+           rules above used to come after the older phone rules and override them
+           (the Add Asset pop-up stayed three columns wide on a phone).
+           ===================================================================== */
+        @media (max-width: 640px) {
+            /* banner: compact, not pinned while scrolling */
+            .header { position: relative !important; top: auto !important; padding: 12px 14px !important; margin-bottom: 12px !important; border-radius: 12px !important; }
+            .header-top { flex-wrap: wrap; gap: 10px !important; align-items: flex-start; }
+            .header-top > div:last-child { flex-wrap: wrap; gap: 8px !important; width: 100%; }
+            .dashboard-title { font-size: 1.12rem !important; line-height: 1.25 !important; }
+            .dashboard-subtitle { font-size: .76rem !important; }
+            .cloud-menu-btn { padding: 6px 10px !important; font-size: .8rem !important; }
+            .page-action-bar { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px !important; padding: 10px !important; }
+            .page-action-bar > .status-item { grid-column: 1 / -1; justify-content: center; font-size: .78rem; text-align: center; }
+            .page-action-bar > .btn, .page-action-bar > button { width: 100% !important; margin: 0 !important; padding: 10px 6px !important; font-size: .82rem !important; min-height: 42px; }
+            .page-action-bar > .manage-assets-btn { grid-column: 1 / -1; font-size: .95rem !important; padding: 12px !important; min-height: 46px; }
+            .page-action-bar > label { grid-column: 1 / -1; justify-content: center; margin: 0 !important; }
+
+            /* figures: two per row; the two totals across the full width */
+            .kpi-section { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 16px !important; }
+            .kpi-section > .kpi-card:nth-child(-n+2) { grid-column: 1 / -1; }
+            .kpi-card { padding: 14px !important; border-radius: 12px !important; min-width: 0; }
+            .kpi-card:hover { transform: none !important; }
+            .kpi-label { font-size: .72rem !important; letter-spacing: .02em; }
+            .kpi-value { font-size: 1.45em !important; margin: 6px 0 2px !important; overflow-wrap: anywhere; }
+            .kpi-subtitle { font-size: .72rem !important; overflow-wrap: anywhere; }
+
+            /* search */
+            .search-section { padding: 14px !important; }
+            .search-title { font-size: 1.05rem !important; }
+            .search-container { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+            .search-input { padding: 10px 12px !important; font-size: 16px !important; min-width: 0; }
+            .view-toggle { flex-wrap: wrap; max-width: 100%; gap: 6px; }
+            .view-toggle .toggle-btn { flex: 1 1 auto; }
+
+            /* tables become one card per row (labels come from the column headings) */
+            table.mph-cards, table.mph-cards tbody, table.mph-cards tr, table.mph-cards td { display: block !important; width: 100% !important; }
+            table.mph-cards { min-width: 0 !important; border: 0 !important; background: transparent !important; }
+            table.mph-cards thead { display: none !important; }
+            table.mph-cards tr { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; margin: 0 0 10px; padding: 6px 12px; box-shadow: 0 2px 8px var(--shadow); height: auto !important; }
+            table.mph-cards td { display: flex !important; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0 !important; border: 0 !important; border-bottom: 1px solid var(--border-color) !important; text-align: right !important; height: auto !important; min-height: 0 !important; white-space: normal !important; font-size: .88rem; overflow-wrap: anywhere; }
+            table.mph-cards td:last-child { border-bottom: 0 !important; }
+            table.mph-cards td::before { content: attr(data-label); flex: none; max-width: 42%; text-align: left; font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-secondary); }
+            table.mph-cards td[data-label=""]::before { display: none; }
+            table.mph-cards td[colspan] { justify-content: center; text-align: center !important; }
+            .table-container { overflow-x: visible !important; }
+
+            /* pop-ups (Manage Assets and the rest): full screen, one field per row, buttons always in reach */
+            .modal { padding: 0 !important; }
+            .modal > .modal-content { margin: 0 !important; width: 100% !important; max-width: 100% !important; height: 100vh !important; height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+            .modal-content > .modal-header { padding: 14px 16px !important; padding-top: calc(14px + env(safe-area-inset-top)) !important; flex: none; position: relative; }
+            .modal-content > .modal-header h2 { font-size: 1.12rem !important; }
+            .modal-content > form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+            .modal-content .form-grid { grid-template-columns: minmax(0, 1fr) !important; padding: 16px !important; gap: 14px !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0; }
+            .modal-content .form-grid > * { grid-column: 1 / -1 !important; min-width: 0; }
+            .modal-content .form-group label { font-size: .85rem; }
+            .modal-content input, .modal-content select, .modal-content textarea, .modal-content .custom-dropdown-trigger { font-size: 16px !important; min-height: 44px; max-width: 100%; box-sizing: border-box; }
+            .modal-content input[type=checkbox], .modal-content input[type=radio] { min-height: 0; }
+            .modal-content .modal-footer { flex: none; flex-direction: row !important; flex-wrap: wrap; gap: 10px !important; padding: 12px 16px !important; padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important; position: relative !important; background: var(--bg-card); border-top: 1px solid var(--border-color); box-shadow: 0 -6px 16px var(--shadow); }
+            .modal-content .modal-footer > button { flex: 1 1 0 !important; width: auto !important; min-height: 46px; margin: 0 !important; }
+            .modal-content .modal-footer > .btn-danger { flex-basis: 100% !important; }
+
+            /* floating buttons and bars */
+            .export-btn { padding: 10px 16px !important; font-size: .85rem !important; right: 12px !important; bottom: calc(12px + env(safe-area-inset-bottom)) !important; }
+            #mphSyncBar { left: 8px !important; right: 8px !important; transform: none !important; max-width: none !important; bottom: calc(8px + env(safe-area-inset-bottom)) !important; padding: 12px !important; font-size: .85rem !important; z-index: 9990 !important; }
+            #mphSyncBar .btn { flex: 1 1 auto; }
+        }
     </style>
   <script>/* Offline copy of the site (sw.js) */ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </head>
@@ -38250,6 +38319,29 @@
         // prompts and "sync before entering" step are not used any more — the data
         // syncs with Google Drive in the background instead.
         // ============================================
+        // PHONE: each table cell carries its column heading, so a row can show as a card
+        // ============================================
+        (function () {
+            const phone = window.matchMedia('(max-width: 640px)');
+            const SEL = '#tableContainer table, table.register-table, table.disposal-table';
+            function label(t) {
+                const heads = Array.from(t.querySelectorAll('thead th')).map(th => th.textContent.trim());
+                if (!heads.length) return;
+                t.classList.add('mph-cards');
+                t.querySelectorAll('tbody > tr').forEach(tr => {
+                    const first = tr.firstElementChild;
+                    if (!first || first.hasAttribute('data-label')) return;
+                    Array.from(tr.children).forEach((td, i) => td.setAttribute('data-label', heads[i] || ''));
+                });
+            }
+            function run() { if (phone.matches) document.querySelectorAll(SEL).forEach(label); }
+            let t = null;
+            new MutationObserver(() => { if (!phone.matches) return; clearTimeout(t); t = setTimeout(run, 80); }).observe(document.documentElement, { childList: true, subtree: true });
+            if (phone.addEventListener) phone.addEventListener('change', run);
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+        })();
+
+        // ============================================
         // EVERY USER SEES THE SAME REGISTER
         // Brings the shared Google Drive copy into this computer whenever the
         // dashboard opens and every 2 minutes after (combined, never replaced).
@@ -38265,9 +38357,9 @@
                     b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9000;max-width:min(720px,calc(100vw - 32px));padding:12px 16px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:.92rem;line-height:1.4;display:flex;gap:12px;align-items:center;flex-wrap:wrap';
                     document.body.appendChild(b);
                 }
-                b.style.background = kind === 'err' ? 'var(--danger-bg, #fdecea)' : 'var(--warning-bg, #fff6e0)';
-                b.style.border = '1px solid ' + (kind === 'err' ? 'var(--danger, #c62828)' : 'var(--warning-border, #e0a800)');
-                b.style.color = 'var(--text-primary, #222)';
+                b.style.background = kind === 'err' ? '#fdecea' : '#fff6e0';
+                b.style.border = '1px solid ' + (kind === 'err' ? '#c62828' : '#e0a800');
+                b.style.color = '#2b2b2b';
                 b.innerHTML = html;
                 var s = b.querySelector('[data-sync-now]'); if (s) s.onclick = syncNow;
                 var x = b.querySelector('[data-sync-close]'); if (x) x.onclick = function () { bar(''); };
