@@ -149,7 +149,7 @@
       '</div></section>' +
       (fresh ? '<div class="card mb-3">' + ui.empty('box', 'Welcome to General Stores', 'Purchase orders issued by Procurement appear under Expected Deliveries automatically. Receive them with a goods received note and the items are added to Inventory. If you used the old Stores page, import its data under Settings.',
         '<div class="row" style="justify-content:center"><a class="btn primary" href="#/inbound">' + ui.icon('truck', 'sm') + 'Expected deliveries</a><a class="btn" href="#/inventory">' + ui.icon('box', 'sm') + 'Inventory</a><a class="btn" href="#/settings/' + (Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') >= 0 ? 'hook' + Proc.storesSettingsHooks.findIndex(h => h.id === 'migrate') : 'data') + '">' + ui.icon('upload', 'sm') + 'Import old Stores data</a></div>') + '</div>' : '') +
-      '<div class="sd-sec"><h2>Add &amp; record</h2><span class="sub">Everything you enter in Stores starts here</span></div>' +
+      '<div class="sd-sec sd-add"><h2>Add &amp; record</h2><span class="sub">Everything you enter in Stores starts here</span></div>' +
       '<div class="sd-acts">' + acts.map((a, i) => '<button class="sd-act' + (i === 0 ? ' lead' : '') + '" data-act="' + i + '"><span class="ic">' + ui.icon(a.icon || 'plus') + '</span><span><div class="t">' + esc(a.label) + '</div><div class="d">' + esc(a.desc || '') + '</div></span></button>').join('') + '</div>' +
       '<div class="sd-sec"><h2>Stock at a glance</h2><span class="sub">Click a figure to open it</span></div>' +
       '<div class="sd-kpis">' +
