@@ -13222,6 +13222,7 @@
                     localUserSettings: localUserSettings,
                     localUsers: stripPlaintextPasswords(localUsers), // hashes only — never plaintext
                     form7cForms: form7cCloudPayload(), // Boarded Items (Form 7C) saved forms
+                    dashboardSettings: dashboardSettingsPayload(), // hospital-wide dashboard choices (same figures everywhere)
                     assetAdditionForms: faaCloudPayload() // Fixed Asset Addition forms (standalone — never merged into the register)
                 }
             };
@@ -15202,6 +15203,7 @@
 
             // Combine, never replace: assets that exist only on this computer are kept,
             // the more recent edit of each asset wins, and deletions travel as before.
+            mergeDashboardSettings(backupData.data.dashboardSettings);
             mergeCloudIntoLocal(backupData.data);
             mergeLocationRecordsFromCloud(backupData.data);
 
@@ -30662,12 +30664,32 @@
         let disposalDeletedIds = new Set(_dbGet(DISPOSAL_DELETED_IDS_KEY) || []);
         let currentEditingDisposal = null;
 
-        // Exclude disposed assets toggle - persisted in localStorage
+        // Exclude disposed assets toggle. One setting for the whole hospital: it is saved with the
+        // register in Google Drive (dashboardSettings) so every computer shows the same figures —
+        // it used to be remembered per computer, so two people could see different totals.
         let excludeDisposedAssets = localStorage.getItem('excludeDisposedAssets') === 'true';
+        function dashboardSettingsPayload() {
+            return { excludeDisposedAssets: excludeDisposedAssets, at: parseInt(localStorage.getItem('excludeDisposedAssetsAt') || '0', 10) || 0 };
+        }
+        function mergeDashboardSettings(s) {
+            if (!s || typeof s !== 'object') return false;
+            const mine = dashboardSettingsPayload();
+            if ((s.at || 0) <= mine.at || !!s.excludeDisposedAssets === excludeDisposedAssets) {
+                if ((s.at || 0) > mine.at) localStorage.setItem('excludeDisposedAssetsAt', String(s.at));
+                return false;
+            }
+            excludeDisposedAssets = !!s.excludeDisposedAssets;
+            localStorage.setItem('excludeDisposedAssets', excludeDisposedAssets);
+            localStorage.setItem('excludeDisposedAssetsAt', String(s.at));
+            document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => { cb.checked = excludeDisposedAssets; });
+            return true;
+        }
 
         function toggleExcludeDisposed() {
             excludeDisposedAssets = !excludeDisposedAssets;
             localStorage.setItem('excludeDisposedAssets', excludeDisposedAssets);
+            localStorage.setItem('excludeDisposedAssetsAt', String(Date.now()));
+            if (typeof dataIsDirty !== 'undefined') dataIsDirty = true;   // goes to Google Drive with the next save
             // Update all toggle checkboxes
             document.querySelectorAll('.exclude-disposed-toggle').forEach(cb => {
                 cb.checked = excludeDisposedAssets;
@@ -38267,6 +38289,8 @@
             }
             // Does the Drive copy hold anything this computer does not have yet?
             function hasNews(cloud) {
+                // another computer changed a hospital-wide dashboard setting
+                if (cloud.dashboardSettings && (cloud.dashboardSettings.at || 0) > dashboardSettingsPayload().at) return true;
                 var local = loadAssetsFromStorage(), byId = new Map(), codes = new Set();
                 local.forEach(function (a) { if (a && a.id) byId.set(a.id, a); if (a && a.assetCode) codes.add(String(a.assetCode).toLowerCase()); });
                 var dels = cloud.deletedAssetIds || [];
@@ -38280,9 +38304,37 @@
                 }
                 return false;
             }
+            function cover(on, text) {
+                let c = document.getElementById('mphSyncCover');
+                if (!on) { if (c) c.remove(); return; }
+                if (!c) {
+                    c = document.createElement('div'); c.id = 'mphSyncCover';
+                    c.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+                    c.innerHTML = '<div style="background:var(--card-bg,#fff);color:var(--text-primary,#222);border-radius:14px;padding:22px 26px;max-width:min(440px,calc(100vw - 32px));box-shadow:0 12px 40px rgba(0,0,0,.3);text-align:center">' +
+                        '<div style="width:34px;height:34px;margin:0 auto 12px;border:3px solid rgba(0,0,0,.12);border-top-color:#2e7d32;border-radius:50%;animation:mphspin .8s linear infinite"></div>' +
+                        '<div style="font-weight:700;margin-bottom:4px">Getting the latest records</div><div data-t style="font-size:.9rem;opacity:.8"></div></div>' +
+                        '<style>@keyframes mphspin{to{transform:rotate(360deg)}}</style>';
+                    document.body.appendChild(c);
+                }
+                c.querySelector('[data-t]').textContent = text || 'Bringing in Google Drive\u2019s copy so this computer shows the same figures as everyone else…';
+            }
+            function stamp() {
+                const t = localStorage.getItem('assetDashboardLastSyncTime');
+                let el = document.getElementById('mphSyncedAt');
+                const bar = document.getElementById('dashYearBar');
+                if (!bar) return;
+                if (!el) { el = document.createElement('span'); el.id = 'mphSyncedAt'; el.style.cssText = 'margin-left:auto;font-size:.8rem;opacity:.75;white-space:nowrap'; bar.appendChild(el); }
+                el.textContent = t ? '\u2713 Synced with Google Drive ' + new Date(t).toLocaleString() : 'Not synced with Google Drive on this computer';
+            }
             async function catchUp(o) {
                 o = o || {};
                 if (busy) return; busy = true;
+                // At start-up: hold the figures back until Google Drive's copy is in (at most 25 seconds).
+                let coverTimer = null;
+                if (o.start && typeof isCloudConnected !== 'undefined' && isCloudConnected && googleAccessToken) {
+                    cover(true);
+                    coverTimer = setTimeout(() => cover(false), 25000);
+                }
                 try {
                     if (typeof isCloudConnected === 'undefined' || !isCloudConnected || !googleAccessToken) {
                         if (!o.quiet) bar('<span><b>Showing this computer’s records only</b> — not connected to Google Drive, so assets added by others are not here. ' + esc(lastSyncText()) + '</span>' + BTN);
@@ -38309,7 +38361,8 @@
                     var inDrive = new Map();
                     backup.data.assets.forEach(function (a) { if (a && a.id) inDrive.set(a.id, a._modifiedAt || 0); });
                     var missing = loadAssetsFromStorage().filter(function (a) { return a && a.id && !deletedAssetIds.has(a.id) && (!inDrive.has(a.id) || (a._modifiedAt || 0) > inDrive.get(a.id)); });
-                    if (missing.length || pending) {
+                    const newerSetting = dashboardSettingsPayload().at > (((backup.data.dashboardSettings || {}).at) || 0);
+                    if (missing.length || pending || newerSetting) {
                         console.log('[Sync] uploading ' + missing.length + ' asset(s) Google Drive does not have yet');
                         dataIsDirty = true;
                         busy = false;
@@ -38322,6 +38375,8 @@
                     if (!o.quiet) bar('<span><b>Could not sync with Google Drive</b> (' + esc(e.message) + '). ' + esc(lastSyncText()) + '</span>' + BTN, 'err');
                 } finally {
                     busy = false;
+                    if (coverTimer) { clearTimeout(coverTimer); cover(false); }
+                    stamp();
                     if (!timer) timer = setInterval(function () {
                         if (typeof autoSyncInProgress !== 'undefined' && autoSyncInProgress) return;
                         if (typeof dataIsDirty !== 'undefined' && dataIsDirty) return;   // the upload sync merges first
@@ -38370,7 +38425,7 @@
                 try { await finishLogin(); }
                 catch (e) { console.error('[Portal sign-in] could not open the dashboard', e); return false; }
                 // Bring in other computers' changes (combined, never replaced) — or say plainly why not.
-                try { if (typeof window.mphCloudCatchUp === 'function') window.mphCloudCatchUp(); } catch (e) {}
+                try { if (typeof window.mphCloudCatchUp === 'function') window.mphCloudCatchUp({ start: true }); } catch (e) {}
                 return true;
             };
             // Any remaining login path goes straight in.
