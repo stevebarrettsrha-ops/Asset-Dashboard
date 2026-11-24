@@ -111,6 +111,8 @@
     if (waiting.length) out.push({ tone: 'info', icon: 'clipboard', t: waiting.length + ' department ' + util.plural(waiting.length, 'requisition') + ' waiting', s: waiting.slice(0, 3).map(s => s.number + ' · ' + s.department).join(', '), href: '#/issues' });
     const rtn = store.filter('supplierReturns', r => r.status === 'Open');
     if (rtn.length) out.push({ tone: 'info', icon: 'undo', t: rtn.length + ' supplier ' + util.plural(rtn.length, 'return') + ' awaiting collection', s: rtn.slice(0, 3).map(r => (r.number || '') + ' · ' + domain.supplierName(r.supplierId)).join(', '), href: '#/inbound?tab=returns' });
+    const ds = C.disasterSummary ? C.disasterSummary() : null;
+    if (ds && (ds.short.length || ds.expired.length)) out.push({ tone: 'danger', icon: 'shield', t: 'Disaster stock not fully ready', s: [ds.short.length ? ds.short.length + ' short' : '', ds.expired.length ? ds.expired.length + ' with expired stock' : ''].filter(Boolean).join(' · ') + ' — readiness ' + ds.pct + '%', href: '#/disaster' });
     const un = Proc.notifications.unread();
     if (un.length) out.push({ tone: 'info', icon: 'bell', t: un.length + ' unread ' + util.plural(un.length, 'notification'), s: un[0].title, href: Proc.notifications.href(un[0]) || '#/inbound' });
     return out;
@@ -165,11 +167,22 @@
       '<div class="grid c2"><div class="card"><div class="card-h"><div><h3>Recent goods received</h3></div><a class="small" href="#/received">All received</a></div><div class="card-b flush" id="sdGrn"></div></div>' +
       '<div class="card"><div class="card-h"><div><h3>Recent issues</h3></div><a class="small" href="#/issued">All issued items</a></div><div class="card-b flush" id="sdIss"></div></div></div>' +
       '</div><div class="stack">' +
+      '<div class="card"><div class="card-h"><div><h3>Disaster stock</h3><div class="sub">Emergency reserve readiness</div></div><a class="small" href="#/disaster">Open</a></div><div class="card-b" id="sdDis"></div></div>' +
       '<div class="card"><div class="card-h"><h3>Needs your attention</h3></div><ul class="sd-att" id="sdAtt"></ul></div>' +
       '<div class="card"><div class="card-h"><div><h3>Issued this month by department</h3><div class="sub">Value at average cost</div></div></div><div class="card-b" id="sdDept"></div></div>' +
       '</div></div>';
     el.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { const a = acts[+b.dataset.act]; try { const r = a.onClick(); if (r && r.catch) r.catch(e => ui.toast(e.message, 'error')); } catch (e) { ui.toast(e.message, 'error'); } });
 
+    // Disaster stock readiness
+    const dbox = el.querySelector('#sdDis');
+    if (dbox) {
+      const ds = C.disasterSummary ? C.disasterSummary() : null;
+      dbox.innerHTML = !ds || !ds.list.length ? ui.empty('shield', 'No disaster stock set up', 'List the emergency reserve the hospital must always hold.', '<a class="btn sm primary" href="#/disaster">' + ui.icon('plus', 'sm') + 'Set up disaster stock</a>')
+        : '<div style="display:flex;align-items:center;gap:16px"><div style="width:74px;height:74px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--primary) ' + ds.pct + '%,var(--surface-3) 0)"><b style="width:56px;height:56px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:16px">' + ds.pct + '%</b></div>' +
+          '<div class="small" style="line-height:1.7"><div><b>' + ds.ready + '</b> of ' + ds.set.length + ' items at the required level</div>' +
+          '<div' + (ds.short.length ? ' class="text-danger"' : '') + '><b>' + ds.short.length + '</b> short' + (ds.expired.length ? ' · <b>' + ds.expired.length + '</b> with expired stock' : '') + (ds.exp.length ? ' · ' + ds.exp.length + ' to rotate' : '') + '</div>' +
+          '<div class="muted">Last full check: ' + (ds.oldest ? util.date(ds.oldest.slice(0, 10)) : 'never') + '</div></div></div>';
+    }
     // Attention
     const att = attention();
     el.querySelector('#sdAtt').innerHTML = att.length ? att.map(a => '<li><a href="' + esc(a.href) + '"><span class="ic ' + a.tone + '">' + ui.icon(a.icon, 'sm') + '</span><span style="min-width:0"><div class="t">' + esc(a.t) + '</div><div class="s">' + esc(a.s || '') + '</div></span><span class="go">' + ui.icon('chevron-right', 'sm') + '</span></a></li>').join('')

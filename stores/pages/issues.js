@@ -64,9 +64,10 @@
       reorder: C.reorderRows().length,
       orders: store.filter('requisitions', r => r.source === 'stores').length,
       grocery: (C.groceryLists ? C.groceryLists().filter(r => (r.groceryMonth || '') === month).length : 0),
-      chemicals: store.filter('stockItems', i => i.status !== 'Inactive' && (i.chemical || i.category === 'Chemicals & Toiletries') && util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).length
+      chemicals: store.filter('stockItems', i => i.status !== 'Inactive' && (i.chemical || i.category === 'Chemicals & Toiletries') && util.num(i.reorderLevel) > 0 && util.num(i.onHand) <= util.num(i.reorderLevel)).length,
+      disaster: (C.disasterSummary ? C.disasterSummary().short.length : 0)
     };
-    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issue Items'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals']].map(([id, ic, l]) =>
+    return '<div class="tabs mb-3" style="overflow-x:auto">' + [['inbound', 'truck', 'Expected'], ['received', 'clipboardCheck', 'Received'], ['issues', 'clipboard', 'Requisitions'], ['issued', 'arrow-up-right', 'Issue Items'], ['reorder', 'alert', 'Reorder'], ['orders', 'send', 'Orders'], ['grocery', 'cart', 'Grocery Order'], ['chemicals', 'drop', 'Chemicals'], ['disaster', 'shield', 'Disaster Stock']].map(([id, ic, l]) =>
       '<a href="#/' + id + '" class="' + (here === id ? 'on' : '') + '" style="text-decoration:none">' + ui.icon(ic, 'sm') + l + '<span class="n">' + n[id] + '</span></a>').join('') + '</div>';
   }
   C.navTabs = pageLinks;
